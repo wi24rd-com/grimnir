@@ -1,0 +1,3 @@
+[workspace]
+members = ["grimnir-core"]
+resolver = "2"

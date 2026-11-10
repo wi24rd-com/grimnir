@@ -42,6 +42,7 @@ Thumbs.db
 
 # Filer, programmet, testene og bygningen ikke bruger
 /tools/fast-tid.sh
+/tools/fast-push.sh
 
 # Grimnirs egne nøglefiler og alt, der kan indeholde rigtige data
 *.grimnir

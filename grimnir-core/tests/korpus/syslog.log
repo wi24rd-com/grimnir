@@ -1,0 +1,30 @@
+Nov 10 02:19:34 srv-072 sshd[1000]: Accepted publickey for bruger029 from 100.70.1.249 port 52314 ssh2
+Nov 10 04:41:24 srv-072 sudo: bruger093 : TTY=pts/0 ; PWD=/home/bruger093 ; COMMAND=/bin/cat README.md
+Nov 10 11:19:26 srv-010 dhcpd: DHCPACK on 10.20.30.219 to 0a:1b:2c:41:ae:8a via eth0
+Nov 10 23:45:22 srv-003 kernel: ipv6 addr fd00:20:30:3::e27 on eth0, snmp OID 1.3.6.1.4.1.9.9.42
+Nov 10 06:12:50 srv-054 sshd[1004]: Accepted publickey for bruger055 from 10.20.30.194 port 52314 ssh2
+Nov 10 11:34:56 srv-007 sudo: bruger091 : TTY=pts/0 ; PWD=/home/bruger091 ; COMMAND=/bin/cat README.md
+Nov 10 08:16:07 srv-083 dhcpd: DHCPACK on 10.20.31.30 to 0a:1b:2c:ad:e9:89 via eth0
+Nov 10 09:08:51 srv-013 kernel: ipv6 addr fd00:20:30:8::c09 on eth0, snmp OID 1.3.6.1.4.1.9.9.42
+Nov 10 06:41:01 srv-014 sshd[1008]: Accepted publickey for bruger017 from 10.20.31.138 port 52314 ssh2
+Nov 10 04:28:34 srv-043 sudo: bruger038 : TTY=pts/0 ; PWD=/home/bruger038 ; COMMAND=/bin/cat README.md
+Nov 10 00:34:51 srv-068 dhcpd: DHCPACK on 192.168.77.37 to 0a:1b:2c:0f:0b:b7 via eth0
+Nov 10 22:00:43 srv-024 kernel: ipv6 addr fd00:20:30:2::dcb on eth0, snmp OID 1.3.6.1.4.1.9.9.42
+Nov 10 00:06:41 srv-089 sshd[1012]: Accepted publickey for bruger073 from 172.16.5.139 port 52314 ssh2
+Nov 10 04:37:06 srv-041 sudo: bruger039 : TTY=pts/0 ; PWD=/home/bruger039 ; COMMAND=/bin/cat README.md
+Nov 10 08:58:23 srv-014 dhcpd: DHCPACK on 172.16.5.202 to 0a:1b:2c:4b:4d:dc via eth0
+Nov 10 22:36:15 srv-086 kernel: ipv6 addr fd00:20:30:7::97f on eth0, snmp OID 1.3.6.1.4.1.9.9.42
+Nov 10 08:16:02 srv-094 sshd[1016]: Accepted publickey for bruger093 from 100.70.1.78 port 52314 ssh2
+Nov 10 03:10:20 srv-095 sudo: bruger015 : TTY=pts/0 ; PWD=/home/bruger015 ; COMMAND=/bin/cat README.md
+Nov 10 04:42:02 srv-057 dhcpd: DHCPACK on 172.16.5.202 to 0a:1b:2c:6b:a7:b1 via eth0
+Nov 10 07:57:07 srv-092 kernel: ipv6 addr fd00:20:30:6::994 on eth0, snmp OID 1.3.6.1.4.1.9.9.42
+Nov 10 00:39:04 srv-025 sshd[1020]: Accepted publickey for bruger095 from 10.20.31.107 port 52314 ssh2
+Nov 10 16:14:19 srv-088 sudo: bruger063 : TTY=pts/0 ; PWD=/home/bruger063 ; COMMAND=/bin/cat README.md
+Nov 10 04:22:45 srv-078 dhcpd: DHCPACK on 100.70.1.104 to 0a:1b:2c:33:c0:29 via eth0
+Nov 10 17:41:14 srv-042 kernel: ipv6 addr fd00:20:30:6::ee7 on eth0, snmp OID 1.3.6.1.4.1.9.9.42
+Nov 10 19:31:06 srv-039 sshd[1024]: Accepted publickey for bruger020 from 100.70.1.145 port 52314 ssh2
+Nov 10 15:46:42 srv-038 sudo: bruger067 : TTY=pts/0 ; PWD=/home/bruger067 ; COMMAND=/bin/cat README.md
+Nov 10 17:29:47 srv-036 dhcpd: DHCPACK on 10.20.31.78 to 0a:1b:2c:f6:ba:26 via eth0
+Nov 10 04:45:04 srv-015 kernel: ipv6 addr fd00:20:30:7::cda on eth0, snmp OID 1.3.6.1.4.1.9.9.42
+Nov 10 22:26:50 srv-063 sshd[1028]: Accepted publickey for bruger011 from 10.20.31.130 port 52314 ssh2
+Nov 10 23:02:50 srv-060 sudo: bruger044 : TTY=pts/0 ; PWD=/home/bruger044 ; COMMAND=/bin/cat README.md

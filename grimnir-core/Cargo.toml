@@ -1,0 +1,14 @@
+[package]
+name = "grimnir-core"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+publish = false
+description = "Kernen i Wi24rd Grimnir: analyse, maskering, lækagetjek og demaskering af logs og scripts"
+
+[dependencies]
+regex = "1.13.1"
+aho-corasick = "1.1.5"
+
+[dev-dependencies]
+proptest = "1.12.0"

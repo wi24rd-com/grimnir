@@ -1,0 +1,10 @@
+[
+  {"tenant_id": "cdac22c5-b53d-46ef-a747-1a17fae7b2eb", "client_secret": "Fjord1115!kp", "owner": "bruger069@eksempel.dk", "server": "srv-083.intern.eksempel.dk", "sti": "C:\\Users\\bruger069\\AppData", "konto": "KONTOR\\bruger069", "ansvarlig": "Anna Testesen"},
+  {"tenant_id": "a6f9e6da-8b35-438c-a9a7-41dd2c58be00", "client_secret": "Vinter1150!zv", "owner": "bruger071@eksempel.dk", "server": "srv-014.intern.eksempel.dk", "sti": "C:\\Users\\bruger071\\AppData", "konto": "KONTOR\\bruger071", "ansvarlig": "Anna Testesen"},
+  {"tenant_id": "861bfb05-c12f-4fb7-a94f-99d2040e3ec9", "client_secret": "Fjord5845!zv", "owner": "bruger021@eksempel.dk", "server": "srv-059.intern.eksempel.dk", "sti": "C:\\Users\\bruger021\\AppData", "konto": "KONTOR\\bruger021", "ansvarlig": "Anna Testesen"},
+  {"tenant_id": "8ddfca98-ff06-4a4e-a364-b79968da918b", "client_secret": "Hav5771!kp", "owner": "bruger038@eksempel.dk", "server": "srv-078.intern.eksempel.dk", "sti": "C:\\Users\\bruger038\\AppData", "konto": "KONTOR\\bruger038", "ansvarlig": "Anna Testesen"},
+  {"tenant_id": "93851888-ad93-4767-aa1a-c2048982f568", "client_secret": "Uglebo9083!kp", "owner": "bruger072@eksempel.dk", "server": "srv-033.intern.eksempel.dk", "sti": "C:\\Users\\bruger072\\AppData", "konto": "KONTOR\\bruger072", "ansvarlig": "Anna Testesen"},
+  {"tenant_id": "96187b26-a33f-4f87-ab25-a57e4f17d040", "client_secret": "Hav4083!kp", "owner": "bruger053@eksempel.dk", "server": "srv-091.intern.eksempel.dk", "sti": "C:\\Users\\bruger053\\AppData", "konto": "KONTOR\\bruger053", "ansvarlig": "Anna Testesen"},
+  {"tenant_id": "9ddd1c9d-a32f-408b-a313-02c97326d1c6", "client_secret": "Fjord3714!kp", "owner": "bruger004@eksempel.dk", "server": "srv-092.intern.eksempel.dk", "sti": "C:\\Users\\bruger004\\AppData", "konto": "KONTOR\\bruger004", "ansvarlig": "Anna Testesen"},
+  {"tenant_id": "b8675175-ec87-44da-a45d-b3a65e503c3f", "client_secret": "Uglebo6547!zv", "owner": "bruger044@eksempel.dk", "server": "srv-030.intern.eksempel.dk", "sti": "C:\\Users\\bruger044\\AppData", "konto": "KONTOR\\bruger044", "ansvarlig": "Anna Testesen"}
+]
