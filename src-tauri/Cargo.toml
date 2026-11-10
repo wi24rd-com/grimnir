@@ -1,0 +1,19 @@
+[package]
+name = "grimnir"
+version = "0.1.0"
+description = "Wi24rd Grimnir: maskerer følsomme værdier i logs og scripts og sætter dem tilbage bagefter"
+license = "Apache-2.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "grimnir_lib"
+
+[build-dependencies]
+tauri-build = { version = "2.7.4", features = [] }
+
+[dependencies]
+grimnir-core = { path = "../grimnir-core" }
+tauri = { version = "2.12.5", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

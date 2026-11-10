@@ -1,0 +1,255 @@
+/* Grimnir — programskallen bygget af kittet (window.Kit). Fire visninger (Maskér, Demaskér, Sager, Ordbog), hver med sin
+   CommandBar (fanerne Start og Vis), sit træ i NavPane, sin værktøjslinje og en tom tilstand. Visningen står i adressen
+   (#masker …) og skiftes med visningsskiftet eller ⌘1–⌘4 (Ctrl på Windows). Kommandoerne fra design/skaerme/ står
+   nedtonet med en forklaring, til funktionen kommer (B2b og B3); kun Vis-fanens tema og sprog virker nu.
+   Rust giver: kerne_version (fodlinjen), hændelsen 'menu' ("om" | "indstillinger") og platformen (<html data-platform>). */
+(function () {
+  'use strict';
+  const K = window.Kit, S = window.Sprog, T = window.Tema;
+  const tauri = window.__TAURI__ || null;
+  const platform = window.__GRIMNIR_PLATFORM__ || document.documentElement.getAttribute('data-platform') || '';
+  const mac = platform === 'macos';
+  const mod = mac ? '⌘' : 'Ctrl+';
+
+  const senere = (id, t, ikon, pri) => ({ id, t, ikon, pri: Boolean(pri), deaktiveret: true, hvorfor: 'hvorforSenere' });
+
+  /* Visningerne: kommandoer og træ efter design/skaerme/ (Main, Demasker, Sager, Ordbog). */
+  const VISNINGER = [
+    {
+      id: 'masker', t: 'vMasker', ikon: 'maske', soeg: 'soegMasker', chip: 'chipIntetIndsat', fod: 'fodMasker',
+      tom: ['tomMaskerH', 'tomMaskerP'],
+      grupper: [
+        { t: 'gTekst', knapper: [senere('indsaet', 'kIndsaet', 'indsaet'), senere('aabn-fil', 'kAabnFil', 'fil')] },
+        { t: 'gMaskering', knapper: [senere('analyser', 'kAnalyser', 'soeg'), senere('gem-masker', 'kGemMasker', 'skjold', true), senere('foer-efter', 'kFoerEfter', 'foerefter')] },
+        { t: 'gResultat', knapper: [senere('kopier', 'kKopier', 'kopier'), senere('kvittering', 'kKvittering', 'kvittering')] },
+      ],
+      trae: [
+        { id: 'denne', t: 'tDenneTekst', boern: [{ id: 'alle', t: 'tAlleFund', antal: 0 }, { id: 'tjek', t: 'tSkalTjekkes', antal: 0 }, { id: 'hemmelig', t: 'tHemmeligheder', antal: 0 }] },
+        { id: 'seneste', t: 'tSenesteISagen', antal: 0 },
+      ],
+      valgt: 'alle',
+    },
+    {
+      id: 'demasker', t: 'vDemasker', ikon: 'oeje', soeg: 'soegDemasker', chip: 'chipIntetSvar', fod: 'fodDemasker',
+      tom: ['tomDemaskerH', 'tomDemaskerP'],
+      grupper: [
+        { t: 'gSvar', knapper: [senere('indsaet', 'kIndsaet', 'indsaet'), senere('aabn-fil', 'kAabnFil', 'fil')] },
+        { t: 'gDemaskering', knapper: [senere('demasker', 'kDemasker', 'oeje'), senere('naeste-advarsel', 'kNaesteAdvarsel', 'naeste')] },
+        { t: 'gResultat', knapper: [senere('kopier-resultat', 'kKopierResultat', 'kopier', true), senere('gem-fil', 'kGemFil', 'gem')] },
+      ],
+      trae: [
+        { id: 'dette', t: 'tDetteSvar', boern: [{ id: 'alle', t: 'tAlleKoder', antal: 0 }, { id: 'advarsler', t: 'tAdvarsler', antal: 0 }, { id: 'ikke-brugt', t: 'tIkkeBrugt', antal: 0 }] },
+      ],
+      valgt: 'alle',
+    },
+    {
+      id: 'sager', t: 'vSager', ikon: 'mappe', soeg: 'soegSager', chip: 'chipIngenSager', fod: 'fodSager',
+      tom: ['tomSagerH', 'tomSagerP'],
+      grupper: [
+        { t: 'gSag', knapper: [senere('ny-sag', 'kNySag', 'plus', true), senere('aabn-i-masker', 'kAabnIMasker', 'aabn')] },
+        { t: 'gDeling', knapper: [senere('eksporter', 'kEksporter', 'eksport'), senere('importer', 'kImporter', 'import')] },
+        { t: 'gOprydning', knapper: [senere('slet-sag', 'kSletSag', 'slet')] },
+      ],
+      trae: [
+        { id: 'sager', t: 'tSager', boern: [{ id: 'alle', t: 'tAlle', antal: 0 }, { id: 'udloeber', t: 'tUdloeberSnart', antal: 0 }, { id: 'uden-udloeb', t: 'tUdenUdloeb', antal: 0 }] },
+      ],
+      valgt: 'alle',
+    },
+    {
+      id: 'ordbog', t: 'vOrdbog', ikon: 'bog', soeg: 'soegOrdbog', chip: 'chipTomOrdbog', fod: 'fodOrdbog',
+      tom: ['tomOrdbogH', 'tomOrdbogP'],
+      grupper: [
+        { t: 'gOrdbog', knapper: [senere('tilfoej-post', 'kTilfoejPost', 'plus', true), senere('proev', 'kProev', 'afspil')] },
+        { t: 'gDeling', knapper: [senere('importer', 'kImporter', 'import'), senere('eksporter', 'kEksporter', 'eksport')] },
+        { t: 'gOprydning', knapper: [senere('fjern-post', 'kFjernPost', 'slet')] },
+      ],
+      trae: [
+        { id: 'lister', t: 'tLister', boern: [{ id: 'altid', t: 'tMaskerAltid', antal: 0 }, { id: 'aldrig', t: 'tMaskerAldrig', antal: 0 }] },
+        { id: 'typer', t: 'tTyper', boern: [{ id: 'domaener', t: 'tDomaener', antal: 0 }, { id: 'moenstre', t: 'tNavnemoenstre', antal: 0 }, { id: 'egne-net', t: 'tEgneNet', antal: 0 }] },
+      ],
+      valgt: 'altid',
+    },
+  ];
+  const ID = VISNINGER.map(v => v.id);
+
+  /* Vis-fanen er ens i alle visninger: tema og sprog. */
+  const visFane = () => ({
+    id: 'vis', t: 'faneVis',
+    grupper: [
+      { t: 'gTema', knapper: [
+        { id: 'tema-lys', t: 'kLys', ikon: 'sol', trykket: T.valg === 'lys', ved: () => T.saet('lys') },
+        { id: 'tema-moerk', t: 'kMoerk', ikon: 'maane', trykket: T.valg === 'moerk', ved: () => T.saet('moerk') },
+        { id: 'tema-system', t: 'kSystem', ikon: 'skaerm', trykket: T.valg === 'system', ved: () => T.saet('system') },
+      ] },
+      { t: 'gSprog', knapper: [
+        { id: 'sprog-da', t: 'kDansk', ikon: 'sprog', trykket: S.lang === 'da', ved: () => S.saet('da') },
+        { id: 'sprog-en', t: 'kEngelsk', ikon: 'sprog', trykket: S.lang === 'en', ved: () => S.saet('en') },
+      ] },
+    ],
+  });
+
+  const $ = id => document.getElementById(id);
+  const baand = $('baand'), navdele = $('navdele'), arb = $('arb');
+  const dele = {};
+
+  for (const v of VISNINGER) {
+    // CommandBar
+    const cmd = document.createElement('div');
+    cmd.dataset.visning = v.id;
+    baand.appendChild(cmd);
+    const bar = K.commandBar(cmd, { ariaT: 'cmdAria', faner: [{ id: 'start', t: 'faneStart', grupper: v.grupper }, visFane()] });
+
+    // NavPane: overskrift og træ
+    const nd = document.createElement('div');
+    nd.className = 'navdel';
+    nd.dataset.visning = v.id;
+    const h3 = document.createElement('h3');
+    h3.setAttribute('data-t', v.t);
+    const ul = document.createElement('ul');
+    nd.append(h3, ul);
+    navdele.appendChild(nd);
+
+    // Arbejdsfladen: værktøjslinje (søgning, filter, status) og tom tilstand
+    const sek = document.createElement('section');
+    sek.className = 'visning';
+    sek.dataset.visning = v.id;
+    sek.setAttribute('data-t-aria', v.t);
+    const vl = document.createElement('div');
+    vl.className = 'vl';
+    const soeg = document.createElement('label');
+    soeg.className = 'soeg';
+    soeg.appendChild(K.ikon('soeg'));
+    const inp = document.createElement('input');
+    inp.type = 'search';
+    inp.disabled = true;
+    inp.spellcheck = false;
+    inp.setAttribute('autocomplete', 'off');
+    inp.setAttribute('data-t-ph', v.soeg);
+    inp.setAttribute('data-t-aria', v.soeg);
+    soeg.appendChild(inp);
+    const fl = document.createElement('button');
+    fl.type = 'button';
+    fl.className = 'fl';
+    fl.setAttribute('aria-disabled', 'true');
+    fl.setAttribute('data-t-title', 'hvorforFilter');
+    fl.appendChild(K.ikon('filter'));
+    const flTekst = document.createElement('span');
+    fl.appendChild(flTekst);
+    const hoejre = document.createElement('span');
+    hoejre.className = 'hoejre';
+    hoejre.appendChild(K.chip('none', { t: v.chip }));
+    vl.append(soeg, fl, hoejre);
+    const flade = document.createElement('div');
+    flade.className = 'flade';
+    const tom = document.createElement('div');
+    tom.className = 'tom';
+    const tomIkon = K.ikon(v.ikon, 'tom-ikon');
+    const h2 = document.createElement('h2');
+    h2.setAttribute('data-t', v.tom[0]);
+    const p = document.createElement('p');
+    p.setAttribute('data-t', v.tom[1]);
+    tom.append(tomIkon, h2, p);
+    flade.appendChild(tom);
+    sek.append(vl, flade);
+    arb.appendChild(sek);
+
+    // Træet filtrerer arbejdsfladen; filterknappen viser valget.
+    const noegle = id => {
+      for (const p1 of v.trae) {
+        if (p1.id === id) return p1.t;
+        for (const b of p1.boern || []) if (b.id === id) return b.t;
+      }
+      return null;
+    };
+    const trae = K.navTrae(ul, v.trae, {
+      ariaT: 'traeAria', valgt: v.valgt,
+      vedValg: id => { flTekst.setAttribute('data-t', noegle(id)); if (S) S.anvend(flTekst); },
+    });
+    dele[v.id] = { cmd, bar, nd, sek, trae, flTekst };
+  }
+
+  // Visningsskiftet nederst i NavPane
+  const skift = K.visningsskift($('skift'), VISNINGER.map((v, i) => ({
+    id: v.id, t: v.t, ikon: v.ikon, genvej: mod + (i + 1), genvejAria: (mac ? 'Meta+' : 'Control+') + (i + 1),
+  })), { ariaT: 'visninger' });
+
+  const fodVenstre = $('fod-venstre');
+  let aktiv = null;
+  function vis(id) {
+    if (!ID.includes(id)) id = ID[0];
+    aktiv = id;
+    for (const v of VISNINGER) {
+      const on = v.id === id;
+      dele[v.id].cmd.hidden = !on;
+      dele[v.id].nd.hidden = !on;
+      dele[v.id].sek.hidden = !on;
+    }
+    skift.markér(id);
+    fodVenstre.setAttribute('data-t', VISNINGER.find(v => v.id === id).fod);
+    S.anvend(fodVenstre);
+  }
+  const fraAdresse = () => vis(decodeURIComponent(location.hash.slice(1)));
+  window.addEventListener('hashchange', fraAdresse);
+  function gaaTil(id) {
+    if (location.hash !== '#' + id) location.hash = id;
+    else vis(id);
+  }
+
+  /* Tryk-tilstand på Vis-fanens knapper i alle fire bånd. */
+  function opdaterVis() {
+    for (const v of VISNINGER) {
+      for (const [id, on] of [['tema-lys', T.valg === 'lys'], ['tema-moerk', T.valg === 'moerk'], ['tema-system', T.valg === 'system'], ['sprog-da', S.lang === 'da'], ['sprog-en', S.lang === 'en']]) {
+        dele[v.id].bar.knap(id).setAttribute('aria-pressed', String(on));
+      }
+    }
+  }
+  document.addEventListener('grimnir-tema', opdaterVis);
+  document.addEventListener('grimnir-sprog', opdaterVis);
+
+  // Titellinjen: indstillinger
+  const indstKnap = $('aabn-indst');
+  indstKnap.appendChild(K.ikon('tandhjul', 'ik'));
+  indstKnap.setAttribute('data-v', mod + ',');
+
+  // Dialoger: Indstillinger (tom indtil videre) og Om.
+  function aabnDialog(id) {
+    const d = $(id);
+    for (const andet of document.querySelectorAll('dialog[open]')) if (andet !== d) andet.close();
+    if (!d.open) d.showModal();
+  }
+  for (const b of document.querySelectorAll('dialog [data-luk]')) b.addEventListener('click', () => b.closest('dialog').close());
+  indstKnap.addEventListener('click', () => aabnDialog('dlg-indst'));
+  const MENU = { indstillinger: 'dlg-indst', om: 'dlg-om' };
+
+  // Tastatur: ⌘1–⌘4 (Ctrl på Windows); Ctrl+, på Windows (på macOS fanger programmenuen ⌘,).
+  document.addEventListener('keydown', e => {
+    const modTast = mac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey;
+    if (!modTast || e.altKey || e.shiftKey) return;
+    const tal = /^Digit([1-9])$/.exec(e.code || '') || /^([1-9])$/.exec(e.key || '');
+    if (tal && Number(tal[1]) <= ID.length) {
+      e.preventDefault();
+      gaaTil(ID[Number(tal[1]) - 1]);
+    } else if (!mac && (e.key === ',' || e.code === 'Comma')) {
+      e.preventDefault();
+      aabnDialog('dlg-indst');
+    }
+  });
+
+  // Fodlinje og Om: programmets og kernens version.
+  function saetVersion(ids, v) {
+    for (const id of ids) {
+      $(id).setAttribute('data-v', v);
+      S.anvend($(id));
+    }
+  }
+  if (tauri) {
+    if (tauri.app && tauri.app.getVersion) tauri.app.getVersion().then(v => saetVersion(['fod-version', 'om-version'], v)).catch(() => { });
+    if (tauri.core && tauri.core.invoke) tauri.core.invoke('kerne_version').then(v => saetVersion(['fod-kerne', 'om-kerne'], v)).catch(() => { });
+    if (tauri.event && tauri.event.listen) tauri.event.listen('menu', e => { if (MENU[e.payload]) aabnDialog(MENU[e.payload]); });
+  }
+
+  fraAdresse();
+  S.anvend(document);
+  opdaterVis();
+  window.Grimnir = { vis: gaaTil, get aktiv() { return aktiv; }, VISNINGER };
+})();

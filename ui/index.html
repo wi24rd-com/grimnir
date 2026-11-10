@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="da" data-tema="system">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wi24rd Grimnir</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/kit.css">
+<link rel="stylesheet" href="assets/app.css">
+<script src="assets/tema.js"></script>
+<script src="assets/sprog.js" defer></script>
+<script src="assets/kit.js" defer></script>
+<script src="assets/app.js" defer></script>
+</head>
+<body>
+<div class="vindue" id="vindue">
+  <header class="titel" data-tauri-drag-region="deep">
+    <span class="mrk" aria-hidden="true">G</span>
+    <b data-t="appNavn">Grimnir</b>
+    <span data-t="wi24rd">Wi24rd</span>
+    <span class="sag">
+      <span id="sag" data-t="ingenSag">Ingen sag åben</span>
+      <button type="button" class="rk" id="aabn-indst" data-t-aria="aabnIndst" data-t-title="aabnIndstTitel"></button>
+    </span>
+  </header>
+
+  <div id="baand"></div>
+
+  <div class="midte">
+    <nav class="nav" data-t-aria="navAria">
+      <div class="navdele" id="navdele"></div>
+      <div id="skift"></div>
+    </nav>
+    <main class="arb" id="arb"></main>
+  </div>
+
+  <footer class="fodl">
+    <span id="fod-venstre"></span>
+    <span class="h">
+      <span id="fod-lokalt"><span data-t="kunLokalt">Kun på denne maskine</span></span>
+      <span id="fod-version" data-t="version" data-v="…"></span>
+      <span id="fod-kerne" data-t="kerne" data-v="…"></span>
+    </span>
+  </footer>
+</div>
+
+<dialog class="dlg" id="dlg-indst" aria-labelledby="dlg-indst-h">
+  <h2 id="dlg-indst-h" data-t="indstH">Indstillinger</h2>
+  <p data-t="indstP"></p>
+  <div class="dlg-knapper"><button type="button" class="btn" data-luk data-t="luk">Luk</button></div>
+</dialog>
+
+<dialog class="dlg" id="dlg-om" aria-labelledby="dlg-om-h">
+  <h2 id="dlg-om-h" data-t="omH">Om Grimnir</h2>
+  <p data-t="omP"></p>
+  <ul class="om-tal">
+    <li class="mono" id="om-version" data-t="version" data-v="…"></li>
+    <li class="mono" id="om-kerne" data-t="kerne" data-v="…"></li>
+    <li data-t="licens"></li>
+  </ul>
+  <div class="dlg-knapper"><button type="button" class="btn" data-luk data-t="luk">Luk</button></div>
+</dialog>
+</body>
+</html>

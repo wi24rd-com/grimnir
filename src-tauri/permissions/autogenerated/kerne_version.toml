@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-kerne-version"
+description = "Enables the kerne_version command without any pre-configured scope."
+commands.allow = ["kerne_version"]
+
+[[permission]]
+identifier = "deny-kerne-version"
+description = "Denies the kerne_version command without any pre-configured scope."
+commands.deny = ["kerne_version"]

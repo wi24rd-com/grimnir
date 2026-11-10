@@ -1,0 +1,163 @@
+//! Programmenuen: Grimnir (Om Grimnir · Indstillinger… ⌘, · Tjenester · Skjul · Afslut ⌘Q), Rediger (uden den virker
+//! ⌘C/⌘V ikke i tekstfelter på macOS) og Vindue. Et klik på Om eller Indstillinger udsender hændelsen `menu` med
+//! "om" eller "indstillinger" til webvisningen, som åbner dialogen. Teksterne er på dansk i denne cyklus: at menuen
+//! følger UI'ets sprog kræver en kommando mere (se HANDOFF-V-SKAL.1).
+//! Visningsskiftet (⌘1–⌘4) ligger ikke i menuen: rammen fanger genvejene med `keydown`, så de virker ens på macOS og Windows.
+
+/// Menupunkternes id'er.
+pub const OM: &str = "pm-om";
+/// Indstillinger… (⌘,).
+pub const INDSTILLINGER: &str = "pm-indstillinger";
+
+/// Genvejen til Indstillinger (Tauris accelerator-syntaks).
+pub const GENVEJ_INDSTILLINGER: &str = "CmdOrCtrl+,";
+
+/// Menupunktets id → navnet, webvisningen får i hændelsen `menu`; `None` for alt andet. Ren funktion.
+pub fn handling(id: &str) -> Option<&'static str> {
+    match id {
+        OM => Some("om"),
+        INDSTILLINGER => Some("indstillinger"),
+        _ => None,
+    }
+}
+
+/// Alle synlige tekster i programmenuen.
+#[derive(Debug)]
+pub struct Tekster {
+    pub app: &'static str,
+    pub om: &'static str,
+    pub indstillinger: &'static str,
+    pub tjenester: &'static str,
+    pub skjul: &'static str,
+    pub skjul_andre: &'static str,
+    pub vis_alle: &'static str,
+    pub afslut: &'static str,
+    pub rediger: &'static str,
+    pub fortryd: &'static str,
+    pub gentag: &'static str,
+    pub klip: &'static str,
+    pub kopier: &'static str,
+    pub saet_ind: &'static str,
+    pub vaelg_alt: &'static str,
+    pub vindue: &'static str,
+    pub minimer: &'static str,
+    pub zoom: &'static str,
+    pub luk: &'static str,
+}
+
+/// Teksterne på dansk.
+pub const DA: Tekster = Tekster {
+    app: "Grimnir",
+    om: "Om Grimnir",
+    indstillinger: "Indstillinger…",
+    tjenester: "Tjenester",
+    skjul: "Skjul Grimnir",
+    skjul_andre: "Skjul andre",
+    vis_alle: "Vis alle",
+    afslut: "Afslut Grimnir",
+    rediger: "Rediger",
+    fortryd: "Fortryd",
+    gentag: "Gentag",
+    klip: "Klip",
+    kopier: "Kopiér",
+    saet_ind: "Sæt ind",
+    vaelg_alt: "Vælg alt",
+    vindue: "Vindue",
+    minimer: "Minimér",
+    zoom: "Zoom",
+    luk: "Luk vindue",
+};
+
+/// Bygger programmenuen.
+pub fn byg(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
+    use tauri::menu::{Menu, MenuItem, PredefinedMenuItem as P, Submenu};
+    let t = &DA;
+    let program = Submenu::with_items(
+        app,
+        t.app,
+        true,
+        &[
+            &MenuItem::with_id(app, OM, t.om, true, None::<&str>)?,
+            &P::separator(app)?,
+            &MenuItem::with_id(app, INDSTILLINGER, t.indstillinger, true, Some(GENVEJ_INDSTILLINGER))?,
+            &P::separator(app)?,
+            &P::services(app, Some(t.tjenester))?,
+            &P::separator(app)?,
+            &P::hide(app, Some(t.skjul))?,
+            &P::hide_others(app, Some(t.skjul_andre))?,
+            &P::show_all(app, Some(t.vis_alle))?,
+            &P::separator(app)?,
+            &P::quit(app, Some(t.afslut))?,
+        ],
+    )?;
+    let rediger = Submenu::with_items(
+        app,
+        t.rediger,
+        true,
+        &[
+            &P::undo(app, Some(t.fortryd))?,
+            &P::redo(app, Some(t.gentag))?,
+            &P::separator(app)?,
+            &P::cut(app, Some(t.klip))?,
+            &P::copy(app, Some(t.kopier))?,
+            &P::paste(app, Some(t.saet_ind))?,
+            &P::select_all(app, Some(t.vaelg_alt))?,
+        ],
+    )?;
+    let vindue = Submenu::with_items(
+        app,
+        t.vindue,
+        true,
+        &[
+            &P::minimize(app, Some(t.minimer))?,
+            &P::maximize(app, Some(t.zoom))?,
+            &P::separator(app)?,
+            &P::close_window(app, Some(t.luk))?,
+        ],
+    )?;
+    Menu::with_items(app, &[&program, &rediger, &vindue])
+}
+
+/// Webvisningen får platformen som `<html data-platform>` (og `window.__GRIMNIR_PLATFORM__`), så rammen kan give plads
+/// til trafiklysene og vise ⌘ eller Ctrl ved genvejene. Sat af Rust, ikke gættet ud fra userAgent. Init-scriptet kører,
+/// før siden har et `<html>`-element; derfor også ved `readystatechange`.
+pub fn platform_skript(os: &str) -> String {
+    let os = match os {
+        "macos" | "windows" | "linux" => os,
+        _ => "andet",
+    };
+    format!(
+        "(function(){{var p='{os}';Object.defineProperty(window,'__GRIMNIR_PLATFORM__',{{value:p}});\
+         function s(){{if(document.documentElement)document.documentElement.setAttribute('data-platform',p);}}\
+         s();document.addEventListener('readystatechange',s);}})();"
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn menupunkter_giver_de_rigtige_hændelser() {
+        assert_eq!(handling(OM), Some("om"));
+        assert_eq!(handling(INDSTILLINGER), Some("indstillinger"));
+        assert_eq!(handling("noget-andet"), None);
+        assert_eq!(GENVEJ_INDSTILLINGER, "CmdOrCtrl+,");
+    }
+
+    #[test]
+    fn menutekster_er_danske_og_naevner_grimnir() {
+        assert_eq!(
+            (DA.om, DA.indstillinger, DA.afslut),
+            ("Om Grimnir", "Indstillinger…", "Afslut Grimnir")
+        );
+        assert_eq!((DA.rediger, DA.kopier, DA.saet_ind), ("Rediger", "Kopiér", "Sæt ind"));
+    }
+
+    #[test]
+    fn platform_skriptet_kender_kun_faste_navne() {
+        assert!(platform_skript("macos").contains("var p='macos'"));
+        assert!(platform_skript("windows").contains("var p='windows'"));
+        assert!(platform_skript("noget'farligt").contains("var p='andet'"));
+    }
+}
