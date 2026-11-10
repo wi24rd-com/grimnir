@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-sag-ny"
+description = "Enables the sag_ny command without any pre-configured scope."
+commands.allow = ["sag_ny"]
+
+[[permission]]
+identifier = "deny-sag-ny"
+description = "Denies the sag_ny command without any pre-configured scope."
+commands.deny = ["sag_ny"]

@@ -6,6 +6,8 @@
 // V-SKAL.2: Maskér og Demaskér med en efterlignet Rust (falskRust): indsæt → analysér → ret en kode → slå en række fra →
 // gem og maskér → kopiér; demaskér; filtrene; hemmelighed skjult; banner ved rester; ingen console.log; localStorage har
 // kun tema og sprog.
+// V-SAG.1: Sager med en efterlignet Rust (falskSagRust): ny sag, liste med status og træ, åbn, omdøb, udløb, slet med
+// bekræftelse, konfliktbesked, "Kan ikke åbnes", luk med midlertidig sag, titellinjen, fuldskærm og Demaskér → Sager.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -37,7 +39,8 @@ function side({ hash = '', lager = {}, platform = 'macos', rust = null, foer = n
         kald.push([cmd, args || {}]);
         if (cmd === 'kerne_version') return '0.1.0';
         if (rust && cmd in rust) return rust[cmd](args || {});
-        if (cmd === 'sag_status') return { poster: 0 };
+        if (cmd === 'sag_status') return { poster: 0, id: null, navn: null, udloeb: null };
+        if (cmd === 'sag_liste') return [];
         if (cmd === 'menu_sprog') return null;
         throw new Error('ukendt kommando ' + cmd);
       },
@@ -101,14 +104,14 @@ const VIS = ['masker', 'demasker', 'sager', 'ordbog'];
     const bar = d.querySelector(`#baand > [data-visning="${id}"]`);
     tjek(`${id}: kun visningens CommandBar vises`, !bar.hidden && [...d.querySelectorAll('#baand > [data-visning]')].filter(b => !b.hidden).length === 1);
     tjek(`${id}: én primær kommando på Start`, bar.querySelectorAll('.grupper[data-fane="start"] .cb.pri').length === 1);
-    // Uden tekst er alt nedtonet med en forklaring, undtagen Indsæt i Maskér og Demaskér.
-    tjek(`${id}: kommandoerne er nedtonede med forklaring`, [...bar.querySelectorAll('.grupper[data-fane="start"] .cb')].every(b => (b.getAttribute('aria-disabled') === 'true' && b.title.length > 10) || (b.dataset.kommando === 'indsaet' && ['masker', 'demasker'].includes(id))));
+    // Uden tekst er alt nedtonet med en forklaring, undtagen Indsæt i Maskér og Demaskér og Ny sag i Sager (V-SAG.1).
+    tjek(`${id}: kommandoerne er nedtonede med forklaring`, [...bar.querySelectorAll('.grupper[data-fane="start"] .cb')].every(b => (b.getAttribute('aria-disabled') === 'true' && b.title.length > 10) || (b.dataset.kommando === 'indsaet' && ['masker', 'demasker'].includes(id)) || (b.dataset.kommando === 'ny-sag' && id === 'sager')));
     tjek(`${id}: tom tilstand med overskrift og én sætning`, (() => { const t = d.querySelector(`section[data-visning="${id}"] .tom`); const p = t && t.querySelector('p').textContent; return t && t.querySelector('h2').textContent.length > 3 && p.length > 20 && (p.match(/[.]\s/g) || []).length === 0 && p.endsWith('.'); })());
     tjek(`${id}: fodlinjen siger, hvad fladen viser`, /^0 /.test(d.getElementById('fod-venstre').textContent));
     tjek(`${id}: træets valgte punkt har aria-current`, d.querySelectorAll(`.navdel[data-visning="${id}"] .tr[aria-current="true"]`).length === 1);
     tjek(`${id}: ${i + 1}. visning`, links[i].classList.contains('on'));
   }
-  const kommandoer = { masker: ['Indsæt', 'Åbn fil', 'Analysér', 'Gem og maskér', 'Før og efter', 'Kopiér', 'Kvittering'], demasker: ['Indsæt', 'Åbn fil', 'Demaskér', 'Næste advarsel', 'Kopiér resultat', 'Gem som fil'], sager: ['Ny sag', 'Åbn i Maskér', 'Eksportér', 'Importér', 'Slet sag'], ordbog: ['Tilføj post', 'Prøv på tekst', 'Importér', 'Eksportér', 'Fjern post'] };
+  const kommandoer = { masker: ['Indsæt', 'Åbn fil', 'Analysér', 'Gem og maskér', 'Før og efter', 'Kopiér', 'Kvittering'], demasker: ['Indsæt', 'Åbn fil', 'Demaskér', 'Næste advarsel', 'Kopiér resultat', 'Gem som fil'], sager: ['Ny sag', 'Åbn i Maskér', 'Omdøb', 'Udløb', 'Eksportér', 'Importér', 'Slet sag'], ordbog: ['Tilføj post', 'Prøv på tekst', 'Importér', 'Eksportér', 'Fjern post'] };
   for (const [id, liste] of Object.entries(kommandoer)) {
     const ord = [...d.querySelectorAll(`#baand > [data-visning="${id}"] .grupper[data-fane="start"] .cb`)].map(b => b.textContent.trim());
     tjek(`${id}: kommandoerne fra design/skaerme/`, JSON.stringify(ord) === JSON.stringify(liste), JSON.stringify(ord));
@@ -610,6 +613,275 @@ const raekkeMed = (d, id) => d.querySelector(`section[data-visning="masker"] .fu
   s.tast('Enter', { metaKey: true });
   await vent(5);
   tjek('tom sag: ⌘↵ kalder ikke demasker', !s.kald.some(k => k[0] === 'demasker'));
+}
+
+// ══════════════════════════ V-SAG.1: Sager ══════════════════════════
+
+/* Lokal dato om n dage (ÅÅÅÅ-MM-DD), som sager.js regner. */
+const datoOm = n => { const t = new Date(); t.setDate(t.getDate() + n); return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); };
+const hexId = n => String(n).repeat(32).slice(0, 32);
+/* Efterlignet Rust for sagerne (samme felter som SagStatus og SagListePost i src-tauri/src/maskering.rs). Maskér og
+   Demaskér går til falskRust. */
+function falskSagRust({ sager = [], konflikt = false } = {}) {
+  const r = falskRust();
+  const db = sager.map(x => ({ poster: 3, oprettet: Date.UTC(2026, 10, 1), sidst_brugt: Date.UTC(2026, 10, 9), udloeb: null, fejl: null, navn: null, ...x }));
+  let aaben = null, nr = 9;
+  const post = id => db.find(x => x.id === id);
+  const status = () => { const p = post(aaben); return { poster: p ? p.poster : r.sag_status().poster, id: aaben, navn: p ? p.navn : null, udloeb: p ? p.udloeb : null }; };
+  const sagfejl = art => ({ art: 'sag', fejl: { art } });
+  return {
+    ...r,
+    st: { db, get aaben() { return aaben; }, set konflikt(v) { konflikt = v; } },
+    gem_og_masker: a => {
+      if (aaben && konflikt) throw sagfejl('konflikt');
+      const m = r.gem_og_masker(a);
+      if (aaben) post(aaben).poster = m.poster;
+      return m;
+    },
+    sag_status: () => status(),
+    sag_nulstil: () => { aaben = null; r.sag_nulstil(); return status(); },
+    sag_liste: () => db.map(x => ({ ...x, aaben: x.id === aaben })),
+    sag_ny: ({ navn, udloeb }) => {
+      if (!navn || !navn.trim()) throw sagfejl('ugyldigt_navn');
+      const poster = aaben ? 0 : r.sag_status().poster;
+      if (aaben) r.sag_nulstil();
+      const id = hexId(nr--);
+      db.push({ id, navn: navn.trim(), poster, oprettet: Date.now(), sidst_brugt: Date.now(), udloeb: udloeb || null, fejl: null });
+      aaben = id;
+      return status();
+    },
+    sag_aabn: ({ id }) => {
+      const p = post(id);
+      if (!p) throw sagfejl('mangler_fil');
+      if (p.fejl) throw { art: 'sag', fejl: p.fejl };
+      r.sag_nulstil();
+      aaben = id;
+      return status();
+    },
+    sag_luk: () => { aaben = null; r.sag_nulstil(); return status(); },
+    sag_omdoeb: ({ id, navn }) => { post(id).navn = navn.trim(); return null; },
+    sag_udloeb: ({ id, udloeb }) => { post(id).udloeb = udloeb; return null; },
+    sag_slet: ({ id }) => { db.splice(db.indexOf(post(id)), 1); if (aaben === id) { aaben = null; r.sag_nulstil(); } return status(); },
+    program_afslut: () => null,
+  };
+}
+const SAGER = () => [
+  { id: hexId(1), navn: 'Supportsag 0042', poster: 214, udloeb: null },
+  { id: hexId(2), navn: 'Backup-script', poster: 17, udloeb: datoOm(3) },
+  { id: hexId(3), navn: 'SQL-job fejler', poster: 42, udloeb: datoOm(-1) },
+  { id: hexId(4), navn: null, poster: 0, fejl: { art: 'mangler_noegle' } },
+  { id: hexId(5), navn: 'Firewall-log', poster: 9, udloeb: datoOm(60) },
+];
+const sagRaekker = d => [...d.querySelectorAll('section[data-visning="sager"] .sagtabel tbody tr[data-id]')];
+const sagRaekke = (d, id) => d.querySelector(`section[data-visning="sager"] .sagtabel tr[data-id="${id}"]`);
+const klik = (w, el) => el.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+const skriv = (w, el, v) => { el.value = v; el.dispatchEvent(new w.Event('input', { bubbles: true })); };
+const aaben = (d, id) => d.getElementById(id).hasAttribute('open');
+
+// ── Statisk: hver sagsfejl fra Rust har en tekst ──
+{
+  const rs = fs.readFileSync(path.join(repo, 'src-tauri', 'src', 'sager.rs'), 'utf8');
+  const enumKrop = rs.slice(rs.indexOf('pub enum SagFejl')).split('\n}\n')[0];
+  const varianter = [...enumKrop.matchAll(/^    ([A-Z][A-Za-z]+)\b/gm)].map(m => m[1].replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase());
+  const { w } = side();
+  const T = w.Sprog.TEKST;
+  const mangler = [...varianter, 'ingen_arkiv'].filter(v => !('sagfejl_' + v in T.da && 'sagfejl_' + v in T.en));
+  tjek(`sprog: hver SagFejl i sager.rs har en tekst (${varianter.length})`, varianter.length >= 10 && mangler.length === 0, mangler.join(', ') + ' | ' + varianter.join(','));
+  tjek('app.css: fuldskærm fjerner trafiklysenes plads', /\[data-platform="macos"\]\[data-fuldskaerm\] \.titel \{ padding-left: var\(--space-3\); \}/.test(ui('assets/app.css')));
+  tjek('Maskér: en række med flere stavemåder kan rettes (intet readOnly)', !/readOnly/.test(ui('assets/maskering.js')));
+}
+
+// ── Sager: ny sag fra en midlertidig sag med poster, titellinjen, luk sag ──
+{
+  const rust = falskSagRust();
+  const s = side({ hash: '#masker', rust });
+  const { d, w } = s;
+  await vent(5);
+  const sagKnap = d.getElementById('sag-knap');
+  tjek('titellinje: "Ingen sag åben" ved en tom midlertidig sag', !d.getElementById('sag').hidden && sagKnap.hidden);
+  const sek = d.querySelector('section[data-visning="masker"]');
+  indsaet(w, sek.querySelector('.tom'), TEKST);
+  s.tast('Enter', { metaKey: true }); await vent(5);
+  s.tast('Enter', { metaKey: true }); await vent(5);
+  tjek('titellinje: "Midlertidig sag · 3 værdier" efter maskering', !sagKnap.hidden && sagKnap.textContent === 'Midlertidig sag · 3 værdier' && sagKnap.getAttribute('aria-label') === 'Midlertidig sag, 3 værdier: gem som sag eller nulstil');
+  klik(w, sagKnap);
+  tjek('titellinje: dialogen tilbyder Gem som sag og Nulstil', aaben(d, 'dlg-sag') && !d.getElementById('sag-gem-som').hidden && !d.getElementById('sag-nulstil').hidden && d.getElementById('sag-luk').hidden && d.getElementById('dlg-sag-p').textContent.includes('3 værdier'));
+  klik(w, d.getElementById('sag-gem-som'));
+  tjek('Gem som sag: dialogen Ny sag åbner og nævner de 3 værdier', aaben(d, 'dlg-ny-sag') && !aaben(d, 'dlg-sag') && d.getElementById('dlg-ny-sag-p').textContent.includes('3 værdier') && d.activeElement === d.getElementById('ny-sag-navn'));
+  klik(w, d.getElementById('ny-sag-opret')); await vent(5);
+  tjek('Ny sag: tomt navn afvises i dialogen, intet kald', d.getElementById('ny-sag-fejl').textContent === 'Skriv et navn.' && !s.kald.some(k => k[0] === 'sag_ny'));
+  skriv(w, d.getElementById('ny-sag-navn'), '  Supportsag 0042 ');
+  d.getElementById('ny-sag-udloeb').value = '2027-01-31';
+  d.getElementById('ny-sag-navn').dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+  await vent(10);
+  const nyKald = s.kald.find(k => k[0] === 'sag_ny');
+  tjek('Ny sag: Enter opretter med navn og udløb', nyKald && nyKald[1].navn === 'Supportsag 0042' && nyKald[1].udloeb === '2027-01-31' && !aaben(d, 'dlg-ny-sag'));
+  tjek('titellinje: "Sag: Supportsag 0042 · 3 værdier"', sagKnap.textContent === 'Sag: Supportsag 0042 · 3 værdier' && sagKnap.getAttribute('aria-label') === 'Sag Supportsag 0042, 3 værdier: skift eller luk sagen');
+  tjek('Ny sag: resultatet i Maskér bliver stående (sagen er den samme)', Boolean(w.GrimnirMaskering.M.st.resultat));
+  // Gem og maskér i den navngivne sag; konflikt.
+  rust.st.konflikt = true;
+  indsaet(w, sek.querySelector('pre.tekst'), TEKST);
+  s.tast('Enter', { metaKey: true }); await vent(5);
+  s.tast('Enter', { metaKey: true }); await vent(5);
+  const ban = sek.querySelector('.ban.danger');
+  tjek('konflikt: banner "Sagen er ændret et andet sted. Åbn den igen." med knappen Åbn igen', ban && ban.textContent.includes('Sagen er ændret et andet sted. Åbn den igen.') && ban.querySelector('button').textContent === 'Åbn igen');
+  tjek('konflikt: ingen maskeret tekst, Kopiér nedtonet', !w.GrimnirMaskering.M.st.resultat && !kommandoAktiv(d, 'masker', 'kopier'));
+  rust.st.konflikt = false;
+  klik(w, ban.querySelector('button')); await vent(10);
+  tjek('konflikt: Åbn igen læser sagen fra disken (sag_aabn med samme id)', s.kald.some(k => k[0] === 'sag_aabn' && k[1].id === rust.st.aaben) && w.GrimnirMaskering.M.st.analyse === null);
+  // Titellinjens dialog for en navngiven sag: Skift sag og Luk sag.
+  klik(w, sagKnap);
+  tjek('titellinje: navngiven sag giver Skift sag og Luk sag', d.getElementById('dlg-sag-h').textContent === 'Sag: Supportsag 0042' && d.getElementById('sag-gem-som').hidden && d.getElementById('sag-nulstil').hidden && !d.getElementById('sag-skift').hidden && !d.getElementById('sag-luk').hidden);
+  klik(w, d.getElementById('sag-skift')); await vent(5);
+  tjek('Skift sag: går til Sager', synlige(d).join() === 'sager' && !aaben(d, 'dlg-sag'));
+  tjek('Sager: den nye sag står i listen som i brug', sagRaekker(d).length === 1 && sagRaekker(d)[0].textContent.includes('Supportsag 0042') && sagRaekker(d)[0].textContent.includes('i brug'));
+  klik(w, sagKnap);
+  klik(w, d.getElementById('sag-luk')); await vent(10);
+  tjek('Luk sag: titellinjen er tilbage på "Ingen sag åben"', s.kald.some(k => k[0] === 'sag_luk') && !d.getElementById('sag').hidden && sagKnap.hidden);
+}
+
+// ── Sager: liste, status, træ, søgning, åbn, omdøb, udløb, slet, kan ikke åbnes ──
+{
+  const rust = falskSagRust({ sager: SAGER() });
+  const s = side({ hash: '#sager', rust });
+  const { d, w } = s;
+  await vent(10);
+  const sek = d.querySelector('section[data-visning="sager"]');
+  const r = sagRaekker(d);
+  tjek('Sager: alle fem sager i listen, tom tilstand skjult', r.length === 5 && sek.querySelector('.tom').hidden);
+  const hoved = [...sek.querySelectorAll('.sagtabel thead th')].map(t => t.textContent);
+  tjek('Sager: kolonnerne Navn, Værdier, Oprettet, Sidst brugt, Udløber, Status', JSON.stringify(hoved) === JSON.stringify(['Navn', 'Værdier', 'Oprettet', 'Sidst brugt', 'Udløber', 'Status']), JSON.stringify(hoved));
+  const chipTekst = id => sagRaekke(d, id).querySelector('.chip').textContent;
+  tjek('Sager: StatusChip Åben, Udløber snart, Udløbet, Kan ikke åbnes', chipTekst(hexId(1)) === '✓Åben' && chipTekst(hexId(2)) === '!Udløber snart' && chipTekst(hexId(3)) === '?Udløbet' && chipTekst(hexId(4)) === '?Kan ikke åbnes' && chipTekst(hexId(5)) === '✓Åben', [1, 2, 3, 4, 5].map(i => chipTekst(hexId(i))).join(','));
+  tjek('Sager: "Kan ikke åbnes" har årsagen i title og et navn ud fra id', sagRaekke(d, hexId(4)).querySelector('.chip').title === 'Sagen kan ikke åbnes: nøglen mangler i nøgleringen' && sagRaekke(d, hexId(4)).textContent.startsWith('Sag 44444444…'));
+  tjek('Sager: Udløber viser Aldrig eller datoen', sagRaekke(d, hexId(1)).children[4].textContent === 'Aldrig' && /\d/.test(sagRaekke(d, hexId(2)).children[4].textContent));
+  const ant = id => d.querySelector(`.navdel[data-visning="sager"] [data-punkt="${id}"] .ant`).textContent;
+  tjek('Sager: træet tæller Alle 5, Udløber snart 2, Ingen udløb 1', ant('alle') === '5' && ant('udloeber') === '2' && ant('uden-udloeb') === '1' && d.querySelector('.navdel[data-visning="sager"] [data-punkt="uden-udloeb"]').textContent.includes('Ingen udløb'));
+  tjek('Sager: chip og fodlinje siger 5 sager', sek.querySelector('.vl .chip').textContent === 'i5 sager' && d.getElementById('fod-venstre').textContent === '5 sager');
+  w.Grimnir.dele.sager.trae.vaelg('udloeber'); await vent(5);
+  tjek('træ: Udløber snart viser to', sagRaekker(d).length === 2);
+  w.Grimnir.dele.sager.trae.vaelg('alle'); await vent(5);
+  const soeg = sek.querySelector('.vl input[type="search"]');
+  skriv(w, soeg, 'backup');
+  tjek('søgning på navn', sagRaekker(d).length === 1 && sagRaekker(d)[0].dataset.id === hexId(2));
+  skriv(w, soeg, '');
+  tjek('Sager: uden valg er Åbn, Omdøb, Udløb og Slet nedtonet med forklaring; Ny sag aktiv', kommandoAktiv(d, 'sager', 'ny-sag') && ['aabn-i-masker', 'omdoeb', 'udloeb', 'slet-sag'].every(id => !kommandoAktiv(d, 'sager', id) && knapI(d, 'sager', id).title === 'Vælg en sag i listen først'));
+  tjek('Sager: Eksportér og Importér er stadig nedtonet (v2)', !kommandoAktiv(d, 'sager', 'eksporter') && !kommandoAktiv(d, 'sager', 'importer'));
+  // Kan ikke åbnes: kun Slet er aktiv.
+  klik(w, sagRaekke(d, hexId(4)).children[0]);
+  tjek('Kan ikke åbnes: Åbn, Omdøb og Udløb nedtonet med årsag, Slet aktiv', ['aabn-i-masker', 'omdoeb', 'udloeb'].every(id => !kommandoAktiv(d, 'sager', id) && knapI(d, 'sager', id).title === 'Sagen kan ikke åbnes: nøglen mangler i nøgleringen') && kommandoAktiv(d, 'sager', 'slet-sag'));
+  // Omdøb
+  klik(w, sagRaekke(d, hexId(2)).children[0]);
+  klik(w, knapI(d, 'sager', 'omdoeb'));
+  const omNavn = d.getElementById('omdoeb-navn');
+  tjek('Omdøb: dialogen har navnet', aaben(d, 'dlg-omdoeb') && omNavn.value === 'Backup-script');
+  skriv(w, omNavn, 'Backup-script nat');
+  klik(w, d.getElementById('omdoeb-ok')); await vent(10);
+  tjek('Omdøb: sag_omdoeb med id og navn, listen opdateret', s.kald.some(k => k[0] === 'sag_omdoeb' && k[1].id === hexId(2) && k[1].navn === 'Backup-script nat') && sagRaekke(d, hexId(2)).textContent.includes('Backup-script nat') && !aaben(d, 'dlg-omdoeb'));
+  // Udløb
+  klik(w, sagRaekke(d, hexId(2)).children[0]);
+  klik(w, knapI(d, 'sager', 'udloeb'));
+  tjek('Udløb: dialogen har datoen og nævner sagen', aaben(d, 'dlg-udloeb') && d.getElementById('udloeb-dato').value === datoOm(3) && !d.getElementById('udloeb-ingen').checked && d.getElementById('dlg-udloeb-p').textContent === 'Sagen «Backup-script nat».');
+  d.getElementById('udloeb-ingen').checked = true;
+  d.getElementById('udloeb-ingen').dispatchEvent(new w.Event('change', { bubbles: true }));
+  klik(w, d.getElementById('udloeb-ok')); await vent(10);
+  tjek('Udløb: Ingen udløb sender null; sagen er nu Åben', s.kald.some(k => k[0] === 'sag_udloeb' && k[1].id === hexId(2) && k[1].udloeb === null) && chipTekst(hexId(2)) === '✓Åben');
+  klik(w, sagRaekke(d, hexId(1)).children[0]);
+  klik(w, knapI(d, 'sager', 'udloeb'));
+  tjek('Udløb: en sag uden udløb åbner med Ingen udløb afkrydset og datoen nedtonet', d.getElementById('udloeb-ingen').checked && d.getElementById('udloeb-dato').disabled);
+  d.getElementById('udloeb-ingen').checked = false;
+  d.getElementById('udloeb-ingen').dispatchEvent(new w.Event('change', { bubbles: true }));
+  klik(w, d.getElementById('udloeb-ok')); await vent(5);
+  tjek('Udløb: uden dato og uden flueben afvises i dialogen', d.getElementById('udloeb-fejl').textContent === 'Vælg en dato, eller sæt flueben ved Ingen udløb.' && aaben(d, 'dlg-udloeb'));
+  d.getElementById('udloeb-dato').value = datoOm(5);
+  klik(w, d.getElementById('udloeb-ok')); await vent(10);
+  tjek('Udløb: en dato inden 7 dage giver Udløber snart', s.kald.some(k => k[0] === 'sag_udloeb' && k[1].id === hexId(1) && k[1].udloeb === datoOm(5)) && chipTekst(hexId(1)) === '!Udløber snart');
+  // Slet med bekræftelse
+  klik(w, sagRaekke(d, hexId(3)).children[0]);
+  klik(w, knapI(d, 'sager', 'slet-sag'));
+  tjek('Slet: bekræftelsen nævner sagens navn', aaben(d, 'dlg-slet') && d.getElementById('dlg-slet-p').textContent.startsWith('Sagen «SQL-job fejler» og dens nøgle i nøgleringen slettes'));
+  klik(w, d.querySelector('#dlg-slet [data-luk]'));
+  tjek('Slet: Annullér sletter intet', !aaben(d, 'dlg-slet') && !s.kald.some(k => k[0] === 'sag_slet') && sagRaekker(d).length === 5);
+  klik(w, knapI(d, 'sager', 'slet-sag'));
+  klik(w, d.getElementById('slet-ok')); await vent(10);
+  tjek('Slet: sag_slet, og sagen er væk', s.kald.some(k => k[0] === 'sag_slet' && k[1].id === hexId(3)) && !sagRaekke(d, hexId(3)) && sagRaekker(d).length === 4);
+  // Åbn i Maskér (dobbeltklik og kommandoen)
+  klik(w, sagRaekke(d, hexId(5)).children[0]);
+  klik(w, knapI(d, 'sager', 'aabn-i-masker')); await vent(10);
+  tjek('Åbn i Maskér: sag_aabn, Maskér vises, titellinjen har sagen', s.kald.some(k => k[0] === 'sag_aabn' && k[1].id === hexId(5)) && synlige(d).join() === 'masker' && d.getElementById('sag-knap').textContent === 'Sag: Firewall-log · 9 værdier');
+  // English
+  w.Sprog.saet('en'); w.Grimnir.vis('sager'); await vent(10);
+  tjek('English: status og kolonner', chipTekst(hexId(1)) === '!Expiring soon' && sek.querySelector('.sagtabel thead th').textContent === 'Name' && d.getElementById('sag-knap').textContent === 'Case: Firewall-log · 9 values');
+  w.Sprog.saet('da');
+}
+
+// ── Luk programmet med en midlertidig sag, og åbn en sag oven på en midlertidig ──
+{
+  const rust = falskSagRust({ sager: SAGER() });
+  const s = side({ hash: '#masker', rust });
+  const { d, w } = s;
+  await vent(10);
+  const sek = d.querySelector('section[data-visning="masker"]');
+  indsaet(w, sek.querySelector('.tom'), TEKST);
+  s.tast('Enter', { metaKey: true }); await vent(5);
+  s.tast('Enter', { metaKey: true }); await vent(5);
+  s.emit('menu', 'afslut');
+  tjek('afslut: spørgsmålet med antal værdier og Gem som sag, Kassér, Annullér', aaben(d, 'dlg-kasser') && d.getElementById('dlg-kasser-h').textContent === 'Gem den midlertidige sag, før Grimnir lukker?' && d.getElementById('dlg-kasser-p').textContent.startsWith('Den midlertidige sag har 3 værdier') && d.activeElement === d.getElementById('kasser-gem'));
+  klik(w, d.querySelector('#dlg-kasser [data-luk]'));
+  tjek('afslut: Annullér lukker ikke programmet', !aaben(d, 'dlg-kasser') && !s.kald.some(k => k[0] === 'program_afslut'));
+  s.emit('menu', 'afslut');
+  klik(w, d.getElementById('kasser-gem'));
+  skriv(w, d.getElementById('ny-sag-navn'), 'Inden lukning');
+  klik(w, d.getElementById('ny-sag-opret')); await vent(10);
+  const i = s.kald.findIndex(k => k[0] === 'sag_ny'), j = s.kald.findIndex(k => k[0] === 'program_afslut');
+  tjek('afslut: Gem som sag opretter sagen og lukker derefter', i >= 0 && j > i && s.kald[i][1].navn === 'Inden lukning' && s.kald[i][1].udloeb === null);
+  // Et nyt program: Kassér lukker uden at gemme.
+  const s2 = side({ hash: '#masker', rust: falskSagRust() });
+  await vent(5);
+  indsaet(s2.w, s2.d.querySelector('section[data-visning="masker"] .tom'), TEKST);
+  s2.tast('Enter', { metaKey: true }); await vent(5);
+  s2.tast('Enter', { metaKey: true }); await vent(5);
+  s2.emit('menu', 'afslut');
+  klik(s2.w, s2.d.getElementById('kasser-ok')); await vent(5);
+  tjek('afslut: Kassér lukker uden sag_ny', s2.kald.some(k => k[0] === 'program_afslut') && !s2.kald.some(k => k[0] === 'sag_ny'));
+  // Åbn en gemt sag oven på en midlertidig sag med poster: der spørges først.
+  const s3 = side({ hash: '#masker', rust: falskSagRust({ sager: SAGER() }) });
+  await vent(10);
+  indsaet(s3.w, s3.d.querySelector('section[data-visning="masker"] .tom'), TEKST);
+  s3.tast('Enter', { metaKey: true }); await vent(5);
+  s3.tast('Enter', { metaKey: true }); await vent(5);
+  s3.w.Grimnir.vis('sager'); await vent(10);
+  sagRaekke(s3.d, hexId(1)).dispatchEvent(new s3.w.MouseEvent('dblclick', { bubbles: true })); await vent(5);
+  tjek('åbn oven på midlertidig sag: der spørges først', aaben(s3.d, 'dlg-kasser') && s3.d.getElementById('dlg-kasser-h').textContent === 'Gem den midlertidige sag, før en anden sag åbnes?' && !s3.kald.some(k => k[0] === 'sag_aabn'));
+  klik(s3.w, s3.d.getElementById('kasser-ok')); await vent(10);
+  tjek('åbn oven på midlertidig sag: Kassér åbner sagen', s3.kald.some(k => k[0] === 'sag_aabn' && k[1].id === hexId(1)) && s3.d.getElementById('sag-knap').textContent === 'Sag: Supportsag 0042 · 214 værdier');
+}
+
+// ── Demaskér peger på Sager; 8 MB; fuldskærm ──
+{
+  const s = side({ hash: '#demasker', rust: falskSagRust({ sager: SAGER() }) });
+  const { d, w } = s;
+  await vent(10);
+  const dsek = d.querySelector('section[data-visning="demasker"]');
+  const tilSager = [...dsek.querySelectorAll('.tom button')].find(b => b.textContent === 'Åbn Sager');
+  tjek('Demaskér: tom sag med gemte sager peger på Sager', dsek.querySelector('.tom p').textContent === 'Der er ingen koder i denne sag endnu. Åbn den sag, svaret hører til, under Sager.' && tilSager && !tilSager.hidden);
+  tjek('Demaskér: nedtonet med "Åbn en gemt sag under Sager først"', knapI(d, 'demasker', 'demasker').title === 'Åbn en gemt sag under Sager først');
+  klik(w, tilSager); await vent(5);
+  tjek('Demaskér: "Åbn Sager" går til Sager', synlige(d).join() === 'sager');
+  w.Grimnir.vis('demasker'); await vent(5);
+  const seks = 'h0001 '.repeat(1024 * 1024);
+  indsaet(w, dsek.querySelector('.tom'), seks);
+  tjek('Demaskér: 6 MB tages imod (grænsen er 8 MB)', w.GrimnirMaskering.D.st.tekst === seks);
+  indsaet(w, dsek.querySelector('pre.tekst'), 'x'.repeat(8 * 1024 * 1024 + 1));
+  tjek('Demaskér: over 8 MB afvises med besked', w.GrimnirMaskering.D.st.tekst === seks && /Teksten er 8\.0 MB\. Demaskér tager højst 8 MB/.test(dsek.textContent));
+  s.emit('fuldskaerm', true);
+  tjek('fuldskærm: <html data-fuldskaerm>', d.documentElement.hasAttribute('data-fuldskaerm'));
+  s.emit('fuldskaerm', false);
+  tjek('fuldskærm: væk igen', !d.documentElement.hasAttribute('data-fuldskaerm'));
+  const tom = side({ hash: '#demasker' });
+  await vent(5);
+  const knap = [...tom.d.querySelectorAll('section[data-visning="demasker"] .tom button')].find(b => b.textContent === 'Åbn Sager');
+  tjek('Demaskér: uden gemte sager er knappen skjult og teksten som før', knap && knap.hidden && tom.d.querySelector('section[data-visning="demasker"] .tom p').textContent.startsWith('Der er intet at demaskere endnu'));
 }
 
 console.log(`\n${ok + fejl} tjek: ${ok} ok, ${fejl} fejl`);

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-program-afslut"
+description = "Enables the program_afslut command without any pre-configured scope."
+commands.allow = ["program_afslut"]
+
+[[permission]]
+identifier = "deny-program-afslut"
+description = "Denies the program_afslut command without any pre-configured scope."
+commands.deny = ["program_afslut"]

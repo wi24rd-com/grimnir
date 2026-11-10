@@ -14,8 +14,14 @@
 //! har valgt den fra, så den er ikke en rest.
 //!
 //! **Sagen ændres først ved [`gem_og_masker`]**, og kun hvis ingen rettelse blev afvist.
+//!
+//! **Sager på disk (V-SAG.1).** Programmet starter med en midlertidig sag i hukommelsen. [`sag_ny`] gør den til en
+//! navngiven sag på disk ([`crate::sager`]); i en navngiven sag gemmer [`gem_og_masker`] sagen krypteret, før svaret
+//! sendes. Fejler skrivningen, får brugeren fejlen og ingen maskeret tekst, så der aldrig findes en maskeret tekst,
+//! som ingen sag kan demaskere.
 
 use std::collections::{HashMap, HashSet};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, MutexGuard};
 
 use grimnir_core::{
@@ -24,26 +30,82 @@ use grimnir_core::{
 };
 use serde::{Deserialize, Serialize};
 
-/// Største tekst, skallen tager imod: 5 MiB (5 242 880 bytes). Større tekster kræver "Åbn fil" (B3).
-pub const MAKS_BYTES: usize = 5 * 1024 * 1024;
+use crate::sager::{nulstil, rens_navn, tjek_dato, AabenSag, Arkiv, SagFejl, SagsId};
 
-/// Programmets tilstand: den midlertidige sag. Lukkes programmet, er den væk (B3 gemmer sager krypteret).
+/// Største tekst, Maskér tager imod: 5 MiB (5 242 880 bytes). Større tekster kræver "Åbn fil" (B3b).
+pub const MAKS_BYTES: usize = 5 * 1024 * 1024;
+/// Største tekst, Demaskér tager imod: 8 MiB (8 388 608 bytes). Det maskerede kan blive større end originalen, fordi
+/// koderne kan være længere end værdierne (fund 1 i V-SKAL.2).
+pub const MAKS_DEMASKER: usize = 8 * 1024 * 1024;
+
+/// Den sag, der er i brug: sagen i hukommelsen og, hvis den er navngiven, dens fil og nøgle.
+#[derive(Default)]
+struct Aktuel {
+    sag: Sag,
+    aaben: Option<AabenSag>,
+}
+
+/// Programmets tilstand: den aktuelle sag og arkivet med sagerne på disk.
 #[derive(Default)]
 pub struct Tilstand {
-    sag: Mutex<Sag>,
+    sag: Mutex<Aktuel>,
+    arkiv: Option<Arkiv>,
+    afslut: AtomicBool,
 }
 
 impl Tilstand {
-    /// En tom tilstand.
+    /// En tom tilstand uden sager på disk (kun hukommelsen).
     pub fn ny() -> Self {
         Tilstand::default()
     }
 
+    /// En tom tilstand med sager på disk.
+    pub fn med_arkiv(arkiv: Arkiv) -> Self {
+        Tilstand {
+            arkiv: Some(arkiv),
+            ..Tilstand::default()
+        }
+    }
+
     /// Låsen til sagen. Sagen ændres kun ved at blive erstattet af en færdigregnet kopi, så en forgiftet lås (panik i
     /// en anden tråd) efterlader aldrig en halvt ændret sag; derfor bruges indholdet videre.
-    fn sag(&self) -> MutexGuard<'_, Sag> {
+    fn sag(&self) -> MutexGuard<'_, Aktuel> {
         self.sag.lock().unwrap_or_else(|e| e.into_inner())
     }
+
+    fn arkiv(&self) -> Result<&Arkiv, UiFejl> {
+        self.arkiv.as_ref().ok_or(UiFejl::IngenArkiv)
+    }
+
+    /// Sand, hvis programmet skal spørge, før det lukkes: en midlertidig sag med poster, og brugeren har ikke allerede
+    /// svaret (Gem som sag, Kassér).
+    pub fn skal_spoerge_ved_luk(&self) -> bool {
+        if self.afslut.load(Ordering::SeqCst) {
+            return false;
+        }
+        let a = self.sag();
+        a.aaben.is_none() && a.sag.antal_poster() > 0
+    }
+
+    /// Brugeren har svaret; programmet må lukke uden at spørge igen.
+    pub fn tillad_afslut(&self) {
+        self.afslut.store(true, Ordering::SeqCst);
+    }
+}
+
+/// Erstatter den aktuelle sag og nulstiller den gamle i hukommelsen (strengene og nøglen).
+fn erstat(a: &mut Aktuel, sag: Sag, aaben: Option<AabenSag>) {
+    let gammel = std::mem::replace(&mut a.sag, sag);
+    a.aaben = aaben;
+    nulstil(gammel.til_data());
+}
+
+/// Nu i millisekunder siden 1970 (UTC). Uret bruges kun i skallen, aldrig i kernen.
+fn nu_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
 }
 
 /// En kode, brugeren har skrevet i en række.
@@ -89,11 +151,25 @@ pub enum UiFejl {
         /// Kernens beskrivelse (uden originaler).
         hvad: String,
     },
+    /// En sag på disk kunne ikke læses, skrives eller slettes. I `gem_og_masker` betyder det: intet er gemt, og der
+    /// er ingen maskeret tekst.
+    Sag {
+        /// Årsagen (uden indhold).
+        fejl: SagFejl,
+    },
+    /// Programmet har ingen mappe til sager (kun i tests uden arkiv).
+    IngenArkiv,
 }
 
 impl From<Fejl> for UiFejl {
     fn from(f: Fejl) -> Self {
         UiFejl::Sagsdata { hvad: f.to_string() }
+    }
+}
+
+impl From<SagFejl> for UiFejl {
+    fn from(fejl: SagFejl) -> Self {
+        UiFejl::Sag { fejl }
     }
 }
 
@@ -198,11 +274,38 @@ pub struct Demaskering {
     pub koder: Vec<String>,
 }
 
-/// Svaret fra `sag_status` og `sag_nulstil`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+/// Svaret fra `sag_status` og kommandoerne, der skifter sag.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct SagStatus {
     /// Antal stavemåder med kode i sagen.
     pub poster: usize,
+    /// Den navngivne sags id (`None`: midlertidig sag).
+    pub id: Option<String>,
+    /// Den navngivne sags navn.
+    pub navn: Option<String>,
+    /// Udløbsdato `ÅÅÅÅ-MM-DD`.
+    pub udloeb: Option<String>,
+}
+
+/// Én sag i listen.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct SagListePost {
+    /// Sagens id (32 hextegn).
+    pub id: String,
+    /// Navnet (`None`, hvis sagen ikke kan åbnes).
+    pub navn: Option<String>,
+    /// Antal værdier (poster).
+    pub poster: usize,
+    /// Oprettet (ms siden 1970, UTC).
+    pub oprettet: u64,
+    /// Sidst gemt (ms siden 1970, UTC).
+    pub sidst_brugt: u64,
+    /// Udløbsdato.
+    pub udloeb: Option<String>,
+    /// Sagen er den, der er åben i dette vindue.
+    pub aaben: bool,
+    /// Årsagen, hvis sagen ikke kan åbnes ("Kan ikke åbnes").
+    pub fejl: Option<SagFejl>,
 }
 
 // ------------------------------------------------------------------------------------------------------- navne til UI
@@ -302,11 +405,12 @@ impl Linjer {
 }
 
 fn tjek_tekst(tekst: &str) -> Result<(), UiFejl> {
-    if tekst.len() > MAKS_BYTES {
-        return Err(UiFejl::ForStor {
-            bytes: tekst.len(),
-            maks: MAKS_BYTES,
-        });
+    tjek_tekst_op_til(tekst, MAKS_BYTES)
+}
+
+fn tjek_tekst_op_til(tekst: &str, maks: usize) -> Result<(), UiFejl> {
+    if tekst.len() > maks {
+        return Err(UiFejl::ForStor { bytes: tekst.len(), maks });
     }
     if tekst.is_empty() {
         return Err(UiFejl::TomTekst);
@@ -555,27 +659,32 @@ fn beregn(sag: &Sag, tekst: &str, fravalgt: Option<&[usize]>, rettelser: &[Rette
         let mut forskellige = koder[gi].clone();
         forskellige.sort_unstable();
         forskellige.dedup();
-        if forskellige.len() != 1 {
-            fejl.push(RaekkeFejl {
-                id: r.id,
-                fejl: "flere_stavemaader",
-                kode: r.kode.clone(),
-            });
-            continue;
-        }
-        let nu = forskellige.remove(0);
-        if nu == ny {
-            continue;
-        }
-        match kladde.ret(&nu, ny, tekst) {
-            Ok(()) => {
+        // Én kode: rettes som skrevet (`Sag::ret`). Flere stavemåder: hele enheden omdøbes samlet, og koden spejler
+        // hver stavemådes store/små bogstaver (`Sag::ret_enhed`, fund 3 i V-SKAL.2).
+        let svar = if forskellige.len() == 1 {
+            if forskellige[0] == ny {
+                continue;
+            }
+            kladde
+                .ret(&forskellige[0], ny, tekst)
+                .map(|()| vec![(forskellige[0].clone(), ny.to_string())])
+        } else {
+            kladde.ret_enhed(&koder[gi][0], ny, tekst)
+        };
+        match svar {
+            Ok(par) => {
+                let ny_for: HashMap<&str, &str> = par.iter().map(|(g, n)| (g.as_str(), n.as_str())).collect();
                 for (i, e) in ers.iter_mut().enumerate() {
-                    if ers_gruppe[i] == Some(gi) && e.kode == nu {
-                        e.kode = ny.to_string();
+                    if ers_gruppe[i] == Some(gi) {
+                        if let Some(n) = ny_for.get(e.kode.as_str()) {
+                            e.kode = n.to_string();
+                        }
                     }
                 }
                 for k in koder[gi].iter_mut() {
-                    *k = ny.to_string();
+                    if let Some(n) = ny_for.get(k.as_str()) {
+                        *k = n.to_string();
+                    }
                 }
                 rettet[gi] = true;
             }
@@ -630,7 +739,7 @@ pub fn analyser(t: &Tilstand, tekst: &str, fravalgt: Option<&[usize]>, rettelser
     // Sagen kopieres under låsen; selve beregningen sker uden lås.
     let sag = {
         let laast = t.sag();
-        kopi(&laast, laast.valg().masker_fremmede)?
+        kopi(&laast.sag, laast.sag.valg().masker_fremmede)?
     };
     let b = beregn(&sag, tekst, fravalgt, rettelser)?;
     Ok(Analyse {
@@ -642,11 +751,12 @@ pub fn analyser(t: &Tilstand, tekst: &str, fravalgt: Option<&[usize]>, rettelser
     })
 }
 
-/// Maskerer med brugerens valg og rettelser og gemmer sagen. Afvises en rettelse, gemmes intet.
+/// Maskerer med brugerens valg og rettelser og gemmer sagen. Afvises en rettelse, gemmes intet. I en navngiven sag
+/// skrives sagen krypteret til disk, før svaret sendes; fejler det, er intet ændret, og der er ingen maskeret tekst.
 pub fn gem_og_masker(t: &Tilstand, tekst: &str, fravalgt: &[usize], rettelser: &[Rettelse]) -> Result<Maskering, UiFejl> {
     tjek_tekst(tekst)?;
-    let mut sag = t.sag();
-    let b = beregn(&sag, tekst, Some(fravalgt), rettelser)?;
+    let mut a = t.sag();
+    let b = beregn(&a.sag, tekst, Some(fravalgt), rettelser)?;
     if !b.fejl.is_empty() {
         return Err(UiFejl::Raekker { fejl: b.fejl });
     }
@@ -679,20 +789,38 @@ pub fn gem_og_masker(t: &Tilstand, tekst: &str, fravalgt: &[usize], rettelser: &
         }
     }
     let advarsler = samlede_advarsler(&b.advarsler, &b.linjer);
-    *sag = b.kladde;
+    let aktuel = &mut *a;
+    if let Some(aaben) = aktuel.aaben.as_mut() {
+        let mut hoved = aaben.hoved.clone();
+        hoved.sidst_brugt = nu_ms();
+        if let Err(f) = t
+            .arkiv()
+            .and_then(|ark| ark.gem(aaben, hoved, b.kladde.data()).map_err(UiFejl::from))
+        {
+            // Intet udleveres: den maskerede tekst nulstilles, og sagen i hukommelsen er uændret.
+            let mut m = maskeret;
+            zeroize::Zeroize::zeroize(&mut m);
+            nulstil(b.kladde.til_data());
+            return Err(f);
+        }
+    }
+    let poster = b.kladde.antal_poster();
+    let aaben = aktuel.aaben.take();
+    erstat(aktuel, b.kladde, aaben);
     Ok(Maskering {
         maskeret,
         rester,
         advarsler,
-        poster: sag.antal_poster(),
+        poster,
     })
 }
 
 /// Sætter sagens originaler tilbage i en tekst.
 pub fn demasker(t: &Tilstand, tekst: &str) -> Result<Demaskering, UiFejl> {
-    tjek_tekst(tekst)?;
-    let sag = t.sag();
-    let (ud, adv) = kerne_demasker(tekst, &sag);
+    tjek_tekst_op_til(tekst, MAKS_DEMASKER)?;
+    let a = t.sag();
+    let sag = &a.sag;
+    let (ud, adv) = kerne_demasker(tekst, sag);
     let ikke_brugt: HashSet<&str> = adv
         .iter()
         .filter(|a| a.art == AdvarselArt::IkkeBrugt)
@@ -706,7 +834,7 @@ pub fn demasker(t: &Tilstand, tekst: &str) -> Result<Demaskering, UiFejl> {
         .filter(|k| !ikke_brugt.contains(k))
         .map(str::to_string)
         .collect();
-    drop(sag);
+    drop(a);
     Ok(Demaskering {
         advarsler: samlede_advarsler(&adv, &Linjer::ny(tekst)),
         tekst: ud,
@@ -714,17 +842,152 @@ pub fn demasker(t: &Tilstand, tekst: &str) -> Result<Demaskering, UiFejl> {
     })
 }
 
-/// Antal poster i sagen.
-pub fn sag_status(t: &Tilstand) -> SagStatus {
+fn status(a: &Aktuel) -> SagStatus {
     SagStatus {
-        poster: t.sag().antal_poster(),
+        poster: a.sag.antal_poster(),
+        id: a.aaben.as_ref().map(|x| x.id.hex()),
+        navn: a.aaben.as_ref().map(|x| x.hoved.navn.clone()),
+        udloeb: a.aaben.as_ref().and_then(|x| x.hoved.udloeb.clone()),
     }
 }
 
-/// Tømmer sagen.
+/// Den aktuelle sag: antal poster, og navn og id, hvis den er navngiven.
+pub fn sag_status(t: &Tilstand) -> SagStatus {
+    status(&t.sag())
+}
+
+/// Tømmer sagen: en midlertidig sag kasseres; en navngiven lukkes (filen bliver). Som [`sag_luk`].
 pub fn sag_nulstil(t: &Tilstand) -> SagStatus {
-    *t.sag() = Sag::default();
-    sag_status(t)
+    sag_luk(t)
+}
+
+// ------------------------------------------------------------------------------------------------------- sager på disk
+
+fn id_af(id: &str) -> Result<SagsId, UiFejl> {
+    SagsId::fra_hex(id).map_err(UiFejl::from)
+}
+
+/// Gør den aktuelle sag til en navngiven sag på disk. En midlertidig sag (også med poster) bliver den nye sag; er en
+/// navngiven sag åben, lukkes den (dens fil bliver), og den nye sag starter tom.
+pub fn sag_ny(t: &Tilstand, navn: &str, udloeb: Option<&str>) -> Result<SagStatus, UiFejl> {
+    let arkiv = t.arkiv()?;
+    let mut a = t.sag();
+    let tom;
+    let data = if a.aaben.is_none() {
+        a.sag.data()
+    } else {
+        tom = Sag::default();
+        tom.data()
+    };
+    let aaben = arkiv.opret(navn, udloeb.map(str::to_string), data, nu_ms())?;
+    if a.aaben.is_some() {
+        erstat(&mut a, Sag::default(), Some(aaben));
+    } else {
+        a.aaben = Some(aaben);
+    }
+    Ok(status(&a))
+}
+
+/// Sagerne på disk. En sag, der ikke kan åbnes, står med årsagen; intet slettes.
+pub fn sag_liste(t: &Tilstand) -> Result<Vec<SagListePost>, UiFejl> {
+    let arkiv = t.arkiv()?;
+    let aaben_id = t.sag().aaben.as_ref().map(|x| x.id);
+    let mut ud: Vec<SagListePost> = arkiv
+        .liste()?
+        .into_iter()
+        .map(|p| {
+            let aaben = Some(p.id) == aaben_id;
+            match p.hoved {
+                Ok(h) => SagListePost {
+                    id: p.id.hex(),
+                    navn: Some(h.navn),
+                    poster: h.poster,
+                    oprettet: h.oprettet,
+                    sidst_brugt: h.sidst_brugt,
+                    udloeb: h.udloeb,
+                    aaben,
+                    fejl: None,
+                },
+                Err(f) => SagListePost {
+                    id: p.id.hex(),
+                    navn: None,
+                    poster: 0,
+                    oprettet: 0,
+                    sidst_brugt: 0,
+                    udloeb: None,
+                    aaben,
+                    fejl: Some(f),
+                },
+            }
+        })
+        .collect();
+    ud.sort_by(|a, b| b.sidst_brugt.cmp(&a.sidst_brugt).then_with(|| a.id.cmp(&b.id)));
+    Ok(ud)
+}
+
+/// Åbner en sag fra disk og gør den til den aktuelle. Den tidligere sag nulstilles i hukommelsen (UI'et spørger først,
+/// hvis den var midlertidig med poster). Er sagen allerede åben, læses den igen fra disk (efter en konflikt).
+pub fn sag_aabn(t: &Tilstand, id: &str) -> Result<SagStatus, UiFejl> {
+    let id = id_af(id)?;
+    let (aaben, data) = t.arkiv()?.aabn(&id)?;
+    let sag = Sag::fra_data(data).map_err(|_| UiFejl::from(SagFejl::Beskadiget))?;
+    let mut a = t.sag();
+    erstat(&mut a, sag, Some(aaben));
+    Ok(status(&a))
+}
+
+/// Lukker sagen: den nulstilles i hukommelsen, og en ny, tom midlertidig sag starter. En navngiven sags fil bliver.
+pub fn sag_luk(t: &Tilstand) -> SagStatus {
+    let mut a = t.sag();
+    erstat(&mut a, Sag::default(), None);
+    status(&a)
+}
+
+/// Ændrer hovedet på en sag: den åbne (med kontrol af skrivetælleren) eller en anden på disk.
+fn ret_hoved(t: &Tilstand, id: &SagsId, aendr: impl FnOnce(&mut crate::sager::Hoved)) -> Result<(), UiFejl> {
+    let arkiv = t.arkiv()?;
+    let mut a = t.sag();
+    let aktuel = &mut *a;
+    match aktuel.aaben.as_mut().filter(|x| x.id == *id) {
+        Some(aaben) => {
+            let mut h = aaben.hoved.clone();
+            aendr(&mut h);
+            arkiv.gem(aaben, h, aktuel.sag.data())?;
+        }
+        None => {
+            drop(a);
+            arkiv.ret_hoved(id, aendr)?;
+        }
+    }
+    Ok(())
+}
+
+/// Omdøber en sag.
+pub fn sag_omdoeb(t: &Tilstand, id: &str, navn: &str) -> Result<(), UiFejl> {
+    let id = id_af(id)?;
+    let navn = rens_navn(navn)?;
+    ret_hoved(t, &id, |h| h.navn = navn)
+}
+
+/// Sætter eller fjerner en sags udløbsdato (`ÅÅÅÅ-MM-DD`). En udløbet sag slettes ikke automatisk.
+pub fn sag_udloeb(t: &Tilstand, id: &str, dato: Option<&str>) -> Result<(), UiFejl> {
+    let id = id_af(id)?;
+    if let Some(d) = dato {
+        tjek_dato(d)?;
+    }
+    let dato = dato.map(str::to_string);
+    ret_hoved(t, &id, |h| h.udloeb = dato)
+}
+
+/// Sletter en sags fil og nøgle (UI'et bekræfter med sagens navn først). Er sagen åben, lukkes den.
+pub fn sag_slet(t: &Tilstand, id: &str) -> Result<SagStatus, UiFejl> {
+    let id = id_af(id)?;
+    t.arkiv()?.slet(&id)?;
+    let mut a = t.sag();
+    if a.aaben.as_ref().is_some_and(|x| x.id == id) {
+        erstat(&mut a, Sag::default(), None);
+    }
+    Ok(status(&a))
 }
 
 #[cfg(test)]

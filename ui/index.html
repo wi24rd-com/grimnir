@@ -12,6 +12,7 @@
 <script src="assets/kit.js" defer></script>
 <script src="assets/app.js" defer></script>
 <script src="assets/maskering.js" defer></script>
+<script src="assets/sager.js" defer></script>
 </head>
 <body>
 <div class="vindue" id="vindue">
@@ -68,6 +69,82 @@
   <div class="dlg-knapper">
     <button type="button" class="btn" data-luk data-t="luk">Luk</button>
     <button type="button" class="btn danger" id="sag-nulstil" data-t="nulstilSag">Nulstil sagen</button>
+    <button type="button" class="btn primary" id="sag-gem-som" data-t="gemSomSag">Gem som sag</button>
+    <button type="button" class="btn" id="sag-skift" data-t="skiftSag" hidden>Skift sag</button>
+    <button type="button" class="btn primary" id="sag-luk" data-t="lukSag" hidden>Luk sag</button>
+  </div>
+</dialog>
+
+<dialog class="dlg" id="dlg-ny-sag" aria-labelledby="dlg-ny-sag-h">
+  <h2 id="dlg-ny-sag-h" data-t="nySagH">Ny sag</h2>
+  <p id="dlg-ny-sag-p" data-t="nySagP"></p>
+  <div class="dlg-felter">
+    <div class="felt">
+      <label class="label" for="ny-sag-navn" data-t="feltNavn">Navn</label>
+      <input id="ny-sag-navn" type="text" data-t-aria="feltNavn" maxlength="120" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-describedby="ny-sag-fejl">
+    </div>
+    <div class="felt">
+      <label class="label" for="ny-sag-udloeb" data-t="feltUdloebValgfri">Udløber (valgfri)</label>
+      <input id="ny-sag-udloeb" type="date" data-t-aria="feltUdloebValgfri" aria-describedby="ny-sag-udloeb-hj">
+      <span class="hj" id="ny-sag-udloeb-hj" data-t="hjUdloeb"></span>
+    </div>
+  </div>
+  <p class="dlg-fejl" id="ny-sag-fejl" role="alert"></p>
+  <div class="dlg-knapper">
+    <button type="button" class="btn" data-luk data-t="annuller">Annullér</button>
+    <button type="button" class="btn primary" id="ny-sag-opret" data-t="opretSag">Opret sag</button>
+  </div>
+</dialog>
+
+<dialog class="dlg" id="dlg-omdoeb" aria-labelledby="dlg-omdoeb-h">
+  <h2 id="dlg-omdoeb-h" data-t="omdoebH">Omdøb sagen</h2>
+  <div class="dlg-felter">
+    <div class="felt">
+      <label class="label" for="omdoeb-navn" data-t="feltNavn">Navn</label>
+      <input id="omdoeb-navn" type="text" data-t-aria="feltNavn" maxlength="120" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-describedby="omdoeb-fejl">
+    </div>
+  </div>
+  <p class="dlg-fejl" id="omdoeb-fejl" role="alert"></p>
+  <div class="dlg-knapper">
+    <button type="button" class="btn" data-luk data-t="annuller">Annullér</button>
+    <button type="button" class="btn primary" id="omdoeb-ok" data-t="kOmdoeb">Omdøb</button>
+  </div>
+</dialog>
+
+<dialog class="dlg" id="dlg-udloeb" aria-labelledby="dlg-udloeb-h">
+  <h2 id="dlg-udloeb-h" data-t="udloebH">Udløb</h2>
+  <p id="dlg-udloeb-p" data-t="udloebP"></p>
+  <div class="dlg-felter">
+    <div class="felt">
+      <label class="label" for="udloeb-dato" data-t="feltUdloeb">Udløber</label>
+      <input id="udloeb-dato" type="date" data-t-aria="feltUdloeb" aria-describedby="udloeb-fejl">
+    </div>
+    <label class="afkryds"><input id="udloeb-ingen" type="checkbox" data-t-aria="ingenUdloeb"> <span data-t="ingenUdloeb">Ingen udløb</span></label>
+  </div>
+  <p class="dlg-fejl" id="udloeb-fejl" role="alert"></p>
+  <div class="dlg-knapper">
+    <button type="button" class="btn" data-luk data-t="annuller">Annullér</button>
+    <button type="button" class="btn primary" id="udloeb-ok" data-t="gem">Gem</button>
+  </div>
+</dialog>
+
+<dialog class="dlg" id="dlg-slet" aria-labelledby="dlg-slet-h">
+  <h2 id="dlg-slet-h" data-t="sletH">Slet sagen?</h2>
+  <p id="dlg-slet-p" data-t="sletP" data-v=""></p>
+  <p class="dlg-fejl" id="slet-fejl" role="alert"></p>
+  <div class="dlg-knapper">
+    <button type="button" class="btn" data-luk data-t="annuller">Annullér</button>
+    <button type="button" class="btn danger" id="slet-ok" data-t="kSletSag">Slet sag</button>
+  </div>
+</dialog>
+
+<dialog class="dlg" id="dlg-kasser" aria-labelledby="dlg-kasser-h">
+  <h2 id="dlg-kasser-h" data-t="kasserAfslutH">Gem den midlertidige sag?</h2>
+  <p id="dlg-kasser-p" data-t="kasserP" data-v="0"></p>
+  <div class="dlg-knapper">
+    <button type="button" class="btn" data-luk data-t="annuller">Annullér</button>
+    <button type="button" class="btn danger" id="kasser-ok" data-t="kasser">Kassér</button>
+    <button type="button" class="btn primary" id="kasser-gem" data-t="gemSomSag">Gem som sag</button>
   </div>
 </dialog>
 </body>

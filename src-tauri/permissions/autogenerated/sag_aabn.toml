@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-sag-aabn"
+description = "Enables the sag_aabn command without any pre-configured scope."
+commands.allow = ["sag_aabn"]
+
+[[permission]]
+identifier = "deny-sag-aabn"
+description = "Denies the sag_aabn command without any pre-configured scope."
+commands.deny = ["sag_aabn"]

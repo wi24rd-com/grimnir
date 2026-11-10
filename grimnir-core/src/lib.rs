@@ -23,6 +23,9 @@
 #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 
+/// Kernens versionsnummer (`version` i `grimnir-core/Cargo.toml`, sat af Cargo ved oversættelsen).
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 mod analyse;
 mod demasker;
 mod foreslaa;

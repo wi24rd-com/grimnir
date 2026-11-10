@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-sag-liste"
+description = "Enables the sag_liste command without any pre-configured scope."
+commands.allow = ["sag_liste"]
+
+[[permission]]
+identifier = "deny-sag-liste"
+description = "Denies the sag_liste command without any pre-configured scope."
+commands.deny = ["sag_liste"]

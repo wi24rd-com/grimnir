@@ -17,3 +17,7 @@ grimnir-core = { path = "../grimnir-core" }
 tauri = { version = "2.12.5", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# V-SAG.1: sager på disk (D7). Nøglen pr. sag i Keychain/Credential Manager; XChaCha20-Poly1305; nulstilling i hukommelsen.
+keyring = { version = "=3.6.3", default-features = false, features = ["apple-native", "windows-native"] }
+chacha20poly1305 = { version = "0.11.0", default-features = false, features = ["alloc", "getrandom", "zeroize"] }
+zeroize = "1.9.1"

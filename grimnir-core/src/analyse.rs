@@ -16,7 +16,7 @@ use crate::net::{
     find_ipv4, find_ipv6, find_mac, klassificer_ipv4, klassificer_ipv6, klassificer_mac, laes_ipv4, laes_ipv6, Ipv4, Ipv4Klasse, Ipv6,
     Ipv6Klasse, Mac, MacForm, MacKlasse,
 };
-use crate::ordbog::Ordbog;
+use crate::ordbog::{Opslag, Ordbog};
 use crate::typer::{Art, Fund, Sammensat, Sikkerhed};
 
 const N: Moenster = Moenster::Navn;
@@ -73,6 +73,7 @@ impl Daekning {
 struct Ctx<'a> {
     t: &'a [u8],
     ordbog: &'a Ordbog,
+    opslag: &'a Opslag,
     dns: Vec<String>,
     netbios: Vec<String>,
     k: Vec<Kandidat>,
@@ -103,14 +104,14 @@ impl Ctx<'_> {
     }
 
     fn ipv4_fund(&self, start: usize, slut: usize, ip: Ipv4) -> Option<Fund> {
-        if self.ordbog.aldrig_ipv4(ip.verdi) {
+        if self.opslag.aldrig_ipv4(ip.verdi) {
             return None;
         }
         let (art, sikkerhed) = match klassificer_ipv4(ip.verdi) {
             Ipv4Klasse::Aldrig => return None,
             Ipv4Klasse::Kodeomraade => (Art::LignerKode, Sikkerhed::TjekSelv),
             Ipv4Klasse::Privat => (Art::Ipv4Egen, Sikkerhed::Sikker),
-            Ipv4Klasse::Fremmed if self.ordbog.eget_net(ip.verdi) => (Art::Ipv4Egen, Sikkerhed::Ordbog),
+            Ipv4Klasse::Fremmed if self.opslag.eget_net(ip.verdi) => (Art::Ipv4Egen, Sikkerhed::Ordbog),
             Ipv4Klasse::Fremmed => (Art::Ipv4Fremmed, Sikkerhed::Sikker),
         };
         Some(fund(start, slut, art, sikkerhed, None))
@@ -325,9 +326,11 @@ const NETBIOS_UNDTAGET: [&str; 16] = [
 /// Finder fund i teksten. Spændene er byte-positioner og ligger altid på tegngrænser.
 pub fn analyser(tekst: &str, ordbog: &Ordbog) -> Vec<Fund> {
     let t = tekst.as_bytes();
+    let opslag = ordbog.opslag();
     let mut c = Ctx {
         t,
         ordbog,
+        opslag: &opslag,
         dns: ordbog.dns_domaener(),
         netbios: ordbog.netbios(),
         k: Vec::new(),
@@ -341,10 +344,10 @@ pub fn analyser(tekst: &str, ordbog: &Ordbog) -> Vec<Fund> {
 
     // "Maskér aldrig" vinder over alt: delen fjernes, men spændet bliver optaget.
     for k in &mut c.k {
-        if ordbog.aldrig_tekst(&t[k.start..k.slut]) {
+        if opslag.aldrig_tekst(&t[k.start..k.slut]) {
             k.dele.clear();
         } else {
-            k.dele.retain(|f| !ordbog.aldrig_tekst(&t[f.start..f.slut]));
+            k.dele.retain(|f| !opslag.aldrig_tekst(&t[f.start..f.slut]));
         }
     }
 
@@ -358,10 +361,11 @@ pub fn analyser(tekst: &str, ordbog: &Ordbog) -> Vec<Fund> {
     let mut daekket = Daekning::ny(t.len());
     let mut ud = Vec::new();
     loes(sikre, &mut daekket, &mut ud);
-    afledte(t, ordbog, &mut daekket, &mut ud);
+    afledte(t, &opslag, &mut daekket, &mut ud);
     let mut c2 = Ctx {
         t,
         ordbog,
+        opslag: &opslag,
         dns: Vec::new(),
         netbios: Vec::new(),
         k: tjek,
@@ -397,14 +401,14 @@ fn loes(mut k: Vec<Kandidat>, daekket: &mut Daekning, ud: &mut Vec<Fund>) {
 }
 
 /// Afledte former: dele af sammensatte værdier (brugernavn, kort værtsnavn, domæne) søges som ord i hele teksten.
-fn afledte(t: &[u8], ordbog: &Ordbog, daekket: &mut Daekning, ud: &mut Vec<Fund>) {
+fn afledte(t: &[u8], opslag: &Opslag, daekket: &mut Daekning, ud: &mut Vec<Fund>) {
     let mut ord: HashMap<Vec<u8>, (Art, Sikkerhed)> = HashMap::new();
     for f in ud.iter() {
         if !matches!(f.art, Art::Vaert | Art::Bruger | Art::NetbiosDomaene | Art::Domaene) {
             continue;
         }
         let s = t[f.start..f.slut].to_ascii_lowercase();
-        if s.len() < 3 || !s.iter().any(u8::is_ascii_alphabetic) || STOPORD.iter().any(|o| o.as_bytes() == s) || ordbog.aldrig_tekst(&s) {
+        if s.len() < 3 || !s.iter().any(u8::is_ascii_alphabetic) || STOPORD.iter().any(|o| o.as_bytes() == s) || opslag.aldrig_tekst(&s) {
             continue;
         }
         ord.entry(s).or_insert((f.art, f.sikkerhed));

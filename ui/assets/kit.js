@@ -39,6 +39,8 @@
     hoejre: [['path', { d: 'M9 6l6 6-6 6' }]],
     filter: [['path', { d: 'M4 5h16l-6 7v6l-4 2v-8z' }]],
     luk: [['path', { d: 'M6 6l12 12M18 6L6 18' }]],
+    rediger: [['path', { d: 'M4 20l1-4L16 5l3 3L8 19z' }], ['path', { d: 'M14 7l3 3' }]],
+    kalender: [['rect', { x: 4, y: 5, width: 16, height: 15, rx: 1.5 }], ['path', { d: 'M4 10h16M8 3v4M16 3v4' }]],
   };
 
   function ikon(navn, klasse) {

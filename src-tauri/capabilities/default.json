@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Hovedvinduet: kernens standardrettigheder minus core:tray:default og core:menu:default (webvisningen kan hverken lave menulinjeikoner eller erstatte programmenuen; menuen bygges i Rust), plus core:window:allow-start-dragging (titellinjen er vinduets trækbare linje, titleBarStyle Overlay) og appens egne kommandoer (kerne_version, analyser, gem_og_masker, demasker, sag_status, sag_nulstil, menu_sprog). Ingen plugins.",
+  "description": "Hovedvinduet: kernens standardrettigheder minus core:tray:default og core:menu:default (webvisningen kan hverken lave menulinjeikoner eller erstatte programmenuen; menuen bygges i Rust), plus core:window:allow-start-dragging (titellinjen er vinduets trækbare linje, titleBarStyle Overlay) og appens egne kommandoer (kerne_version, analyser, gem_og_masker, demasker, sag_status, sag_nulstil, menu_sprog; V-SAG.1: sag_ny, sag_liste, sag_aabn, sag_luk, sag_omdoeb, sag_udloeb, sag_slet, program_afslut). Ingen plugins.",
   "windows": ["main"],
   "permissions": [
     "core:path:default",
@@ -18,6 +18,14 @@
     "allow-demasker",
     "allow-sag-status",
     "allow-sag-nulstil",
-    "allow-menu-sprog"
+    "allow-menu-sprog",
+    "allow-sag-ny",
+    "allow-sag-liste",
+    "allow-sag-aabn",
+    "allow-sag-luk",
+    "allow-sag-omdoeb",
+    "allow-sag-udloeb",
+    "allow-sag-slet",
+    "allow-program-afslut"
   ]
 }

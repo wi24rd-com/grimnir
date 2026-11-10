@@ -5,9 +5,10 @@
    et textarea gør CRLF til LF. Resultatet kopieres fra strengen i hukommelsen, ikke fra et felt.
 
    Intet her skriver til konsollen eller til localStorage. Teksten, fundene og resultatet lever kun i denne side og i
-   Rust-processens hukommelse; lukkes programmet, er de væk.
+   Rust-processens hukommelse; lukkes programmet, er de væk. Sagen (nøgletabellen) gemmer Rust krypteret, når den er
+   navngiven (V-SAG.1); titellinjen og sagerne styres af sager.js.
 
-   Rust-kommandoer: analyser, gem_og_masker, demasker, sag_status, sag_nulstil, menu_sprog. */
+   Rust-kommandoer: analyser, gem_og_masker, demasker, menu_sprog. */
 (function () {
   'use strict';
   const G = window.Grimnir, K = window.Kit, S = window.Sprog;
@@ -15,6 +16,7 @@
   const invoke = G.tauri && G.tauri.core && G.tauri.core.invoke ? (c, a) => G.tauri.core.invoke(c, a) : () => Promise.reject({ art: 'ingen_rust' });
 
   const MAKS_BYTES = 5 * 1024 * 1024; // som MAKS_BYTES i src-tauri/src/maskering.rs
+  const MAKS_DEMASKER = 8 * 1024 * 1024; // som MAKS_DEMASKER (V-SAG.1)
   const MAKS_VIST = 200000; // tegn, der vises i tekstfeltet
   const SIDE = 500; // rækker, der tegnes ad gangen
 
@@ -71,6 +73,12 @@
     analyser: () => ['genvejTitel', G.mod + '↵', (G.mac ? 'Meta' : 'Control') + '+Enter'],
     kopier: () => ['genvejTitel', (G.mac ? '⇧⌘' : 'Ctrl+Shift+') + 'C', (G.mac ? 'Meta' : 'Control') + '+Shift+C'],
   };
+
+  /* En sagsfejl fra Rust ({art: 'sag', fejl: {art, …}}) som tekst på det aktuelle sprog. */
+  function sagFejlTekst(e) {
+    const f = e && e.art === 'sag' ? e.fejl : e && e.art === 'ingen_arkiv' ? { art: 'ingen_arkiv' } : { art: 'andet' };
+    return S.t('sagfejl_' + f.art, f.version != null ? f.version : f.hvad) || S.t('sagfejl_andet');
+  }
 
   /* Banner med sprognøgle, {v} og højst én handling. */
   function banner(rod, variant, t, v, handling) {
@@ -156,28 +164,16 @@
     if (m && !m.disabled) m.focus();
   }
 
-  /* ═════════════════════════════ Sagen (titellinjen og nulstil) ═════════════════════════════ */
-  let poster = 0;
-  const sagSpan = document.getElementById('sag'), sagKnap = document.getElementById('sag-knap');
+  /* ═════════════════════════════ Sagen ═════════════════════════════ */
+  /* Antal poster i den aktuelle sag og antal gemte sager. Titellinjen og sagerne står i sager.js; den får besked med
+     hændelsen 'grimnir-poster' og sætter selv tallene med saetSag og saetGemteSager. */
+  let poster = 0, gemteSager = 0;
   function saetSag(n) {
     poster = n;
-    sagSpan.hidden = n > 0;
-    sagKnap.hidden = n === 0;
-    sagKnap.setAttribute('data-v', String(n));
-    document.getElementById('dlg-sag-p').setAttribute('data-v', String(n));
-    S.anvend(sagKnap);
-    S.anvend(document.getElementById('dlg-sag-p'));
     D.opdater();
+    document.dispatchEvent(new CustomEvent('grimnir-poster', { detail: n }));
   }
-  sagKnap.addEventListener('click', () => G.aabnDialog('dlg-sag'));
-  document.getElementById('sag-nulstil').addEventListener('click', () => {
-    invoke('sag_nulstil').then(s => {
-      document.getElementById('dlg-sag').close();
-      M.nulstilt();
-      D.nulstilt();
-      saetSag(s.poster);
-    }).catch(() => { /* sagen er uændret */ });
-  });
+  function saetGemteSager(n) { gemteSager = n; D.opdater(); }
 
   /* ═════════════════════════════ Maskér ═════════════════════════════ */
   const M = (function () {
@@ -276,7 +272,14 @@
 
     let fejlBanner = null;
     function fejl(e) {
-      fejlBanner = e && e.art === 'raekker' ? ['bRettelserAfvist', e.fejl.length] : e && e.art === 'for_stor' ? ['bForStor', mb(e.bytes)] : ['bFejl', null];
+      if (e && e.art === 'sag' && e.fejl && e.fejl.art === 'konflikt') {
+        // To vinduer mod samme sag (D8): intet er overskrevet; brugeren åbner sagen igen fra disken.
+        fejlBanner = ['bKonflikt', null, { t: 'hAabnIgen', ved: () => { if (window.GrimnirSager) window.GrimnirSager.aabnIgen(); } }];
+      } else if (e && (e.art === 'sag' || e.art === 'ingen_arkiv')) {
+        fejlBanner = ['bSagIkkeGemt', sagFejlTekst(e)];
+      } else {
+        fejlBanner = e && e.art === 'raekker' ? ['bRettelserAfvist', e.fejl.length] : e && e.art === 'for_stor' ? ['bForStor', mb(e.bytes)] : ['bFejl', null];
+      }
     }
 
     /* ── tegning ── */
@@ -289,7 +292,7 @@
     }
     function tegnBannere() {
       f.bannere.textContent = '';
-      if (fejlBanner) { banner(f.bannere, 'danger', fejlBanner[0], fejlBanner[1]); fejlBanner = null; }
+      if (fejlBanner) { banner(f.bannere, 'danger', fejlBanner[0], fejlBanner[1], fejlBanner[2]); fejlBanner = null; }
       if (st.resultat) {
         const n = st.resultat.rester.reduce((a, r) => a + r.antal, 0);
         if (n === 0) banner(f.bannere, 'ok', 'bLaekIngen');
@@ -362,9 +365,9 @@
       inp.setAttribute('data-felt', 'kode');
       inp.setAttribute('data-t-aria', 'ariaErstatning');
       inp.setAttribute('data-v', String(r.linje));
-      const flere = new Set(r.koder).size > 1;
-      inp.value = st.rettelser.has(r.id) ? st.rettelser.get(r.id) : r.koder.join(', ');
-      if (flere) { inp.readOnly = true; inp.setAttribute('data-t-title', 'hvorforFlereStavemaader'); }
+      // Flere stavemåder: feltet viser alle koder; en ny kode omdøber hele enheden, og Rust spejler store/små (V-SAG.1).
+      const vist = r.koder.join(', ');
+      inp.value = st.rettelser.has(r.id) ? st.rettelser.get(r.id) : vist;
       if (!on) inp.disabled = true;
       const fe = st.fejl.get(r.id);
       c.appendChild(inp);
@@ -377,10 +380,9 @@
       }
       inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.metaKey && !e.ctrlKey) { e.preventDefault(); inp.blur(); } });
       inp.addEventListener('change', () => {
-        if (flere) return;
         const v = inp.value.trim();
-        if (v === '' || (!st.rettelser.has(r.id) && v === r.koder[0])) {
-          if (!st.rettelser.has(r.id)) { inp.value = r.koder[0]; return; }
+        if (v === '' || (!st.rettelser.has(r.id) && v === vist)) {
+          if (!st.rettelser.has(r.id)) { inp.value = vist; return; }
           st.rettelser.delete(r.id);
         } else if (st.rettelser.get(r.id) === v) {
           return;
@@ -544,13 +546,18 @@
       ark.append(delt, tabelPanel.p);
     });
     const d = f.d;
+    // Den tomme tilstand peger på Sager, når den aktuelle sag er tom, og der findes gemte sager (V-SAG.1).
+    const tilSager = K.knap({ t: 'kGaaTilSager', ikon: 'mappe', ved: () => G.vis('sager') });
+    tilSager.hidden = true;
+    d.tom.appendChild(tilSager);
+    S.anvend(tilSager);
 
     function modtag(s) {
       f.tomBannere.textContent = '';
       f.bannere.textContent = '';
       if (!s) { banner(st.tekst ? f.bannere : f.tomBannere, 'info', 'bIngenTekst'); return; }
       const bytes = utf8Laengde(s);
-      if (bytes > MAKS_BYTES) { banner(st.tekst ? f.bannere : f.tomBannere, 'danger', 'bForStor', mb(bytes)); return; }
+      if (bytes > MAKS_DEMASKER) { banner(st.tekst ? f.bannere : f.tomBannere, 'danger', 'bForStorDemasker', mb(bytes)); return; }
       st.tekst = s; st.bytes = bytes; st.resultat = null; st.nr++; st.travl = false;
       tegn();
       svar.pre.focus();
@@ -566,7 +573,7 @@
         st.travl = false; st.resultat = r; tegn();
       }).catch(e => {
         if (nr !== st.nr) return;
-        st.travl = false; fejlBanner = e && e.art === 'for_stor' ? ['bForStor', mb(e.bytes)] : ['bFejl', null]; tegn();
+        st.travl = false; fejlBanner = e && e.art === 'for_stor' ? ['bForStorDemasker', mb(e.bytes)] : ['bFejl', null]; tegn();
       });
     }
 
@@ -584,13 +591,14 @@
       f.tomBannere.hidden = Boolean(st.tekst);
       f.ark.hidden = !st.tekst;
       d.soeg.disabled = !st.resultat;
-      d.tomP.setAttribute('data-t', poster > 0 ? 'tomDemaskerP' : 'tomDemaskerTomSagP');
+      d.tomP.setAttribute('data-t', poster > 0 ? 'tomDemaskerP' : gemteSager > 0 ? 'tomDemaskerAabnSagP' : 'tomDemaskerTomSagP');
       S.anvend(d.tomP);
+      tilSager.hidden = !(poster === 0 && gemteSager > 0);
     }
     function tegnBannere() {
       f.bannere.textContent = '';
       if (fejlBanner) { banner(f.bannere, 'danger', fejlBanner[0], fejlBanner[1]); fejlBanner = null; }
-      if (st.tekst && poster === 0 && !st.resultat) banner(f.bannere, 'info', 'bSagTom');
+      if (st.tekst && poster === 0 && !st.resultat) banner(f.bannere, 'info', gemteSager > 0 ? 'bSagTomAabn' : 'bSagTom', null, gemteSager > 0 ? { t: 'kGaaTilSager', ved: () => G.vis('sager') } : null);
       if (!st.resultat) return;
       const a = advarsler(), n = a.reduce((x, y) => x + y.antal, 0);
       if (n) banner(f.bannere, 'warn', 'bAdvarsler', n, { t: 'hVisAdvarsler', ved: () => vaelg('advarsler') });
@@ -651,7 +659,7 @@
       }
     }
     function tegnKommandoer() {
-      kommando('demasker', 'demasker', Boolean(st.tekst) && poster > 0 && !st.travl, poster === 0 ? 'hvorforMaskerFoerstSag' : st.tekst ? 'hvorforVent' : 'hvorforIndsaetSvar', GV.analyser());
+      kommando('demasker', 'demasker', Boolean(st.tekst) && poster > 0 && !st.travl, poster === 0 ? (gemteSager > 0 ? 'hvorforAabnSag' : 'hvorforMaskerFoerstSag') : st.tekst ? 'hvorforVent' : 'hvorforIndsaetSvar', GV.analyser());
       kommando('demasker', 'kopier-resultat', Boolean(st.resultat), 'hvorforDemaskerFoerst', GV.kopier());
     }
     function tegnChip() {
@@ -748,7 +756,6 @@
 
   M.tegn();
   D.tegn();
-  invoke('sag_status').then(s => saetSag(s.poster)).catch(() => saetSag(0));
   menuSprog();
-  window.GrimnirMaskering = { M, D, utf8Laengde, MAKS_BYTES };
+  window.GrimnirMaskering = { M, D, utf8Laengde, MAKS_BYTES, MAKS_DEMASKER, saetSag, saetGemteSager, kommando, sagFejlTekst, banner, get poster() { return poster; } };
 })();

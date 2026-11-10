@@ -82,3 +82,19 @@
 .mini:hover, .btn.mini:hover { background: var(--surface-raised); }
 /* Titellinjens sag: knap, når der er en sag. */
 .titel #sag-knap { font-size: 13px; }
+
+/* ── Sager (V-SAG.1) ── */
+/* Fuldskærm på macOS: trafiklysene er skjult, så titellinjen holder ikke plads til dem (Rust melder "fuldskaerm"). */
+[data-platform="macos"][data-fuldskaerm] .titel { padding-left: var(--space-3); }
+.dlg-felter { display: flex; flex-direction: column; gap: var(--space-3); margin: 0 0 var(--space-3); }
+.dlg-fejl { margin: 0 0 var(--space-3); color: var(--danger); font-size: var(--small-size); line-height: var(--small-line); }
+.dlg-fejl:empty { display: none; }
+.afkryds { display: flex; align-items: center; gap: var(--space-2); cursor: pointer; }
+.afkryds input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+.sagtabel tbody tr { cursor: pointer; }
+.sagtabel th:nth-child(2) { width: 80px; }
+.sagtabel th:nth-child(3), .sagtabel th:nth-child(4), .sagtabel th:nth-child(5) { width: 128px; }
+.sagtabel th:nth-child(6) { width: 140px; }
+.sagnavn .muted { margin-left: var(--space-2); font-size: var(--small-size); }
+.sagtabel .tabelvaert, .sagliste .tabelvaert { height: auto; max-height: 70vh; }
+.tom .btn { margin-top: var(--space-2); }

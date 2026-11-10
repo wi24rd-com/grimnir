@@ -1,9 +1,10 @@
 /* Grimnir — programskallen bygget af kittet (window.Kit). Fire visninger (Maskér, Demaskér, Sager, Ordbog), hver med sin
    CommandBar (fanerne Start og Vis), sit træ i NavPane, sin værktøjslinje og en tom tilstand. Visningen står i adressen
-   (#masker …) og skiftes med visningsskiftet eller ⌘1–⌘4 (Ctrl på Windows). Maskér og Demaskér virker (maskering.js
-   styrer dem via window.Grimnir); resten af kommandoerne fra design/skaerme/ står nedtonet med en forklaring, til
-   funktionen kommer (B3).
-   Rust giver: kerne_version (fodlinjen), hændelsen 'menu' ("om" | "indstillinger") og platformen (<html data-platform>). */
+   (#masker …) og skiftes med visningsskiftet eller ⌘1–⌘4 (Ctrl på Windows). Maskér og Demaskér (maskering.js) og Sager
+   (sager.js) virker via window.Grimnir; resten af kommandoerne fra design/skaerme/ står nedtonet med en forklaring, til
+   funktionen kommer (B3b, v2).
+   Rust giver: kerne_version (fodlinjen), hændelsen 'menu' ("om" | "indstillinger" | "afslut"), hændelsen 'fuldskaerm'
+   (true | false) og platformen (<html data-platform>). */
 (function () {
   'use strict';
   const K = window.Kit, S = window.Sprog, T = window.Tema;
@@ -53,9 +54,9 @@
       id: 'sager', t: 'vSager', ikon: 'mappe', soeg: 'soegSager', chip: 'chipIngenSager', fod: 'fodSager',
       tom: ['tomSagerH', 'tomSagerP'],
       grupper: [
-        { t: 'gSag', knapper: [senere('ny-sag', 'kNySag', 'plus', true), senere('aabn-i-masker', 'kAabnIMasker', 'aabn')] },
+        { t: 'gSag', knapper: [aktiv('sager', 'ny-sag', 'kNySag', 'plus', true, true), aktiv('sager', 'aabn-i-masker', 'kAabnIMasker', 'aabn'), aktiv('sager', 'omdoeb', 'kOmdoeb', 'rediger'), aktiv('sager', 'udloeb', 'kUdloeb', 'kalender')] },
         { t: 'gDeling', knapper: [senere('eksporter', 'kEksporter', 'eksport'), senere('importer', 'kImporter', 'import')] },
-        { t: 'gOprydning', knapper: [senere('slet-sag', 'kSletSag', 'slet')] },
+        { t: 'gOprydning', knapper: [aktiv('sager', 'slet-sag', 'kSletSag', 'slet')] },
       ],
       trae: [
         { id: 'sager', t: 'tSager', boern: [{ id: 'alle', t: 'tAlle', antal: 0 }, { id: 'udloeber', t: 'tUdloeberSnart', antal: 0 }, { id: 'uden-udloeb', t: 'tUdenUdloeb', antal: 0 }] },
@@ -258,7 +259,11 @@
   if (tauri) {
     if (tauri.app && tauri.app.getVersion) tauri.app.getVersion().then(v => saetVersion(['fod-version', 'om-version'], v)).catch(() => { });
     if (tauri.core && tauri.core.invoke) tauri.core.invoke('kerne_version').then(v => saetVersion(['fod-kerne', 'om-kerne'], v)).catch(() => { });
-    if (tauri.event && tauri.event.listen) tauri.event.listen('menu', e => { if (MENU[e.payload]) aabnDialog(MENU[e.payload]); });
+    if (tauri.event && tauri.event.listen) {
+      tauri.event.listen('menu', e => { if (MENU[e.payload]) aabnDialog(MENU[e.payload]); });
+      // Fuldskærm på macOS: trafiklysene er skjult, og titellinjen giver ikke plads til dem (app.css).
+      tauri.event.listen('fuldskaerm', e => document.documentElement.toggleAttribute('data-fuldskaerm', e.payload === true));
+    }
   }
 
   fraAdresse();

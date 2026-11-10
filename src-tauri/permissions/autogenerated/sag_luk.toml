@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-sag-luk"
+description = "Enables the sag_luk command without any pre-configured scope."
+commands.allow = ["sag_luk"]
+
+[[permission]]
+identifier = "deny-sag-luk"
+description = "Denies the sag_luk command without any pre-configured scope."
+commands.deny = ["sag_luk"]

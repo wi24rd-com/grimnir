@@ -2,7 +2,7 @@
 //! opfundne navne og hemmeligheder.
 
 use grimnir_lib::maskering::{
-    analyser, demasker, gem_og_masker, sag_nulstil, sag_status, Analyse, Raekke, Rettelse, Tilstand, UiFejl, MAKS_BYTES,
+    analyser, demasker, gem_og_masker, sag_nulstil, sag_status, Analyse, Raekke, Rettelse, Tilstand, UiFejl, MAKS_BYTES, MAKS_DEMASKER,
 };
 
 /// En opdigtet log med CRLF (Windows), en bruger i to stavemåder, en version, der ligner en adresse, og to hemmeligheder.
@@ -175,7 +175,8 @@ fn afvist_rettelse_kommer_tilbage_paa_raekken_og_intet_gemmes() {
     let a2 = analyser(&t, TEKST, Some(&fravalgt(&a)), &to).unwrap();
     assert_eq!(a2.fejl.len(), 1);
     assert_eq!((a2.fejl[0].id, a2.fejl[0].fejl), (fw, "kollision"));
-    // En rettelse af en række med flere stavemåder afvises (kernens `ret` virker pr. stavemåde).
+    // V-SAG.1: en række med flere stavemåder omdøbes samlet og spejler store/små (kernens `ret_enhed`, fund 3 i
+    // V-SKAL.2). Før blev den afvist med `flere_stavemaader`.
     let b = raekke(&a, "bruger060").id;
     let a3 = analyser(
         &t,
@@ -187,7 +188,8 @@ fn afvist_rettelse_kommer_tilbage_paa_raekken_og_intet_gemmes() {
         }],
     )
     .unwrap();
-    assert_eq!(a3.fejl[0].fejl, "flere_stavemaader");
+    assert!(a3.fejl.is_empty(), "{:?}", a3.fejl);
+    assert_eq!(a3.raekker.iter().find(|r| r.id == b).unwrap().koder, ["kunde7", "KUNDE7"]);
     // Fejlene nævner ingen original.
     let json = serde_json::to_string(&f).unwrap() + &serde_json::to_string(&a2.fejl).unwrap();
     for o in ["Kunde_DB", "FW-KONTOR01", HEMMELIG, "bruger060"] {
@@ -231,7 +233,9 @@ fn for_stor_og_tom_tekst_afvises() {
     let stor = "x".repeat(MAKS_BYTES + 1);
     assert!(matches!(analyser(&t, &stor, None, &[]), Err(UiFejl::ForStor { .. })));
     assert!(matches!(gem_og_masker(&t, &stor, &[], &[]), Err(UiFejl::ForStor { .. })));
-    assert!(matches!(demasker(&t, &stor), Err(UiFejl::ForStor { .. })));
+    // V-SAG.1: Demaskér tager op til 8 MiB (fund 1 i V-SKAL.2); grænsen for Maskér er stadig 5 MiB.
+    assert!(demasker(&t, &stor).is_ok());
+    assert!(matches!(demasker(&t, &"x".repeat(MAKS_DEMASKER + 1)), Err(UiFejl::ForStor { .. })));
     assert_eq!(analyser(&t, "", None, &[]).unwrap_err(), UiFejl::TomTekst);
 }
 

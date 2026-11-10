@@ -74,6 +74,7 @@ pub fn foreslaa(fund: &[Fund], tekst: &str, sag: &mut Sag) -> Vec<Erstatning> {
 ///    demaskeringen aldrig kan sætte en forkert original ind.
 pub fn foreslaa_med_ordbog(fund: &[Fund], tekst: &str, sag: &mut Sag, ordbog: &Ordbog) -> Vec<Erstatning> {
     let t = tekst.as_bytes();
+    let opslag = ordbog.opslag();
     sag.reserver(t);
     let valg = sag.valg();
     let mut ud: Vec<Erstatning> = Vec::new();
@@ -89,7 +90,7 @@ pub fn foreslaa_med_ordbog(fund: &[Fund], tekst: &str, sag: &mut Sag, ordbog: &O
     for (s, e, p) in sag.find_originaler(t) {
         let i = fund.partition_point(|x| x.slut <= s);
         let daekket = fund[i..].iter().take_while(|x| x.start < e).any(|x| x.slut > s);
-        if daekket || ordbog.aldrig_tekst(&t[s..e]) || !tekst.is_char_boundary(s) || !tekst.is_char_boundary(e) {
+        if daekket || opslag.aldrig_tekst(&t[s..e]) || !tekst.is_char_boundary(s) || !tekst.is_char_boundary(e) {
             continue;
         }
         let art = sag.klasse_af(p).art();

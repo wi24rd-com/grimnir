@@ -99,7 +99,7 @@ proptest! {
         let kb = kaede(&b, &ordbog(), &mut sag);
         prop_assert_eq!(kb.tilbage, b);
         // Den første tekst kan stadig demaskeres, selv om sagen er vokset
-        prop_assert_eq!(grimnir_core::demasker(&ka.maskeret, &sag).0, a);
+        prop_assert_eq!(&grimnir_core::demasker(&ka.maskeret, &sag).0, &a);
     }
 }
 
@@ -136,5 +136,32 @@ proptest! {
         let kb = kaede(&b, &ordbog(), &mut sag);
         prop_assert!(kb.rester.is_empty(), "rester i B: {:?} i {:?}", kb.rester, kb.maskeret);
         prop_assert_eq!(&kb.tilbage, &b);
+    }
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig { cases: 512, ..ProptestConfig::default() })]
+
+    /// V-SAG.1 (D18): ret en kode (én stavemåde eller hele enheden), maskér mere, demaskér den første tekst. En afvist
+    /// rettelse ændrer intet; en godkendt gør den gamle kode til et alias, så den første tekst stadig kan demaskeres.
+    #[test]
+    fn ret_en_kode_masker_mere_demasker_den_foerste(
+        a in tekst(),
+        b in tekst(),
+        valg in 0usize..1000,
+        hele_enheden in any::<bool>(),
+        ny in "[a-z][a-z0-9-]{1,8}[a-z0-9]",
+    ) {
+        let mut sag = Sag::default();
+        let ka = kaede(&a, &ordbog(), &mut sag);
+        prop_assume!(sag.antal_poster() > 0);
+        let kode = sag.data().poster[valg % sag.antal_poster()].kode.clone();
+        let _ = if hele_enheden { sag.ret_enhed(&kode, &ny, &a).map(|_| ()) } else { sag.ret(&kode, &ny, &a) };
+        let kb = kaede(&b, &ordbog(), &mut sag);
+        prop_assert_eq!(kb.tilbage, b);
+        prop_assert_eq!(&grimnir_core::demasker(&ka.maskeret, &sag).0, &a);
+        // Efter rettelsen kan sagen genskabes fra sine data og demaskerer stadig den første tekst.
+        let igen = Sag::fra_data(sag.data().clone()).expect("data hænger sammen");
+        prop_assert_eq!(grimnir_core::demasker(&ka.maskeret, &igen).0, a);
     }
 }

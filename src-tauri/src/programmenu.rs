@@ -9,14 +9,21 @@ pub const OM: &str = "pm-om";
 /// Indstillinger… (⌘,).
 pub const INDSTILLINGER: &str = "pm-indstillinger";
 
+/// Afslut (⌘Q). Et eget menupunkt, ikke systemets `terminate:`: lukkes programmet med en midlertidig sag med poster,
+/// spørger webvisningen først (V-SAG.1, G4). Systemets punkt afslutter uden at spørge.
+pub const AFSLUT: &str = "pm-afslut";
+
 /// Genvejen til Indstillinger (Tauris accelerator-syntaks).
 pub const GENVEJ_INDSTILLINGER: &str = "CmdOrCtrl+,";
+/// Genvejen til Afslut.
+pub const GENVEJ_AFSLUT: &str = "CmdOrCtrl+Q";
 
 /// Menupunktets id → navnet, webvisningen får i hændelsen `menu`; `None` for alt andet. Ren funktion.
 pub fn handling(id: &str) -> Option<&'static str> {
     match id {
         OM => Some("om"),
         INDSTILLINGER => Some("indstillinger"),
+        AFSLUT => Some("afslut"),
         _ => None,
     }
 }
@@ -117,7 +124,7 @@ pub fn byg(app: &tauri::AppHandle, t: &Tekster) -> tauri::Result<tauri::menu::Me
             &P::hide_others(app, Some(t.skjul_andre))?,
             &P::show_all(app, Some(t.vis_alle))?,
             &P::separator(app)?,
-            &P::quit(app, Some(t.afslut))?,
+            &MenuItem::with_id(app, AFSLUT, t.afslut, true, Some(GENVEJ_AFSLUT))?,
         ],
     )?;
     let rediger = Submenu::with_items(
@@ -171,8 +178,10 @@ mod tests {
     fn menupunkter_giver_de_rigtige_hændelser() {
         assert_eq!(handling(OM), Some("om"));
         assert_eq!(handling(INDSTILLINGER), Some("indstillinger"));
+        assert_eq!(handling(AFSLUT), Some("afslut"));
         assert_eq!(handling("noget-andet"), None);
         assert_eq!(GENVEJ_INDSTILLINGER, "CmdOrCtrl+,");
+        assert_eq!(GENVEJ_AFSLUT, "CmdOrCtrl+Q");
     }
 
     #[test]

@@ -22,9 +22,9 @@ Pakkerne er kontrolleret mod npm-registrets `dist.integrity` (sha512) før brug.
 
 ## Rust-crates og npm-pakker
 
-Skallens direkte afhængigheder: `tauri` 2.12.5 (Apache-2.0 OR MIT), `serde` 1.0.229 og `serde_json` 1.0.154 (MIT OR Apache-2.0) og `grimnir-core` (Grimnirs egen, Apache-2.0) med `regex` 1.13.1 (MIT OR Apache-2.0) og `aho-corasick` 1.1.5 (Unlicense OR MIT).
+Skallens direkte afhængigheder: `tauri` 2.12.5 (Apache-2.0 OR MIT), `serde` 1.0.229 og `serde_json` 1.0.154 (MIT OR Apache-2.0), `keyring` 3.6.3 med `apple-native` og `windows-native` (MIT OR Apache-2.0), `chacha20poly1305` 0.11.0 (Apache-2.0 OR MIT), `zeroize` 1.9.1 (Apache-2.0 OR MIT) og `grimnir-core` (Grimnirs egen, Apache-2.0) med `regex` 1.13.1 (MIT OR Apache-2.0) og `aho-corasick` 1.1.5 (Unlicense OR MIT). Sagernes crates (V-SAG.1) trækker kun MIT OR Apache-2.0-crates ind (RustCrypto, `security-framework` på macOS, `windows-sys` på Windows), undtagen `byteorder` 1.5.0 (Unlicense OR MIT, kun Windows).
 
-Hele træet på macOS er 207 crates (`cargo tree -p grimnir -e normal --format '{p} {l}'`). De fleste er MIT og/eller Apache-2.0; resten, alle trukket ind af `tauri`:
+Hele træet på macOS er 216 crates (`cargo tree -p grimnir -e normal --format '{p} {l}'`). De fleste er MIT og/eller Apache-2.0; resten, alle trukket ind af `tauri`:
 - MPL-2.0: `cssparser`, `cssparser-macros`, `dtoa-short`, `option-ext`, `selectors`.
 - Unicode-3.0: `icu_*` (7 crates), `litemap`, `potential_utf`, `tinystr`, `writeable`, `yoke`, `yoke-derive`, `zerofrom`, `zerofrom-derive`, `zerotrie`, `zerovec`, `zerovec-derive`; `unicode-ident` er (MIT OR Apache-2.0) AND Unicode-3.0.
 - BSD-3-Clause: `alloc-no-stdlib`, `alloc-stdlib`; `brotli` (BSD-3-Clause AND MIT), `brotli-decompressor` (BSD-3-Clause/MIT).

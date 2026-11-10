@@ -12,6 +12,7 @@ use crate::typer::{Rest, RestArt};
 /// Finder alt i det maskerede resultat, der ikke er en af sagens koder, men burde være maskeret.
 pub fn laekagetjek(maskeret: &str, sag: &Sag, ordbog: &Ordbog) -> Vec<Rest> {
     let t = maskeret.as_bytes();
+    let opslag = ordbog.opslag();
     let mut rester = Vec::new();
 
     // 1. Sagens originaler, uafhængigt af store/små bogstaver
@@ -25,7 +26,7 @@ pub fn laekagetjek(maskeret: &str, sag: &Sag, ordbog: &Ordbog) -> Vec<Rest> {
             for m in ac.find_iter(t) {
                 let p = m.pattern().as_usize();
                 let tekst = &maskeret[m.start()..m.end()];
-                if poster[p].original.is_empty() || sag.opslag(tekst).is_some() || ordbog.aldrig_tekst(tekst.as_bytes()) {
+                if poster[p].original.is_empty() || sag.opslag(tekst).is_some() || opslag.aldrig_tekst(tekst.as_bytes()) {
                     continue;
                 }
                 if ved_graense(t, m.start(), m.end(), sag.moenster_af(p)) {

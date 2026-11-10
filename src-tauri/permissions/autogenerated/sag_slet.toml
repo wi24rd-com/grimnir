@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-sag-slet"
+description = "Enables the sag_slet command without any pre-configured scope."
+commands.allow = ["sag_slet"]
+
+[[permission]]
+identifier = "deny-sag-slet"
+description = "Denies the sag_slet command without any pre-configured scope."
+commands.deny = ["sag_slet"]

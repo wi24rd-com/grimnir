@@ -115,6 +115,10 @@ pub struct SagData {
     /// Koder, brugeren selv har skrevet med [`Sag::ret`], også tidligere rettelser (F6). Indgår i
     /// reservationen af senere tekster; kollisionspasset finder de nuværende via sagens koder.
     pub rettede_koder: Vec<String>,
+    /// Gamle koder (ADR D18): (koden, posten). En rettet kode bliver ved med at pege på sin post, så tekster, der er
+    /// maskeret før rettelsen, stadig kan demaskeres. En alias-kode er reserveret: den tildeles aldrig til en anden
+    /// værdi, og kollisionspasset maskerer den som en af sagens koder.
+    pub aliaser: Vec<(String, usize)>,
 }
 
 #[derive(Default)]
@@ -123,6 +127,8 @@ struct Indeks {
     enhed: HashMap<(Klasse, Original), usize>,
     kode: HashMap<String, usize>,
     kode_smaa: HashMap<String, usize>,
+    alias: HashMap<String, usize>,
+    alias_smaa: HashMap<String, Vec<usize>>,
     net4: HashMap<u32, u32>,
     maal4: HashMap<u32, u32>,
     net6: HashMap<u64, u64>,
@@ -205,6 +211,30 @@ fn med_suffiks(kode: &str, k: u64, klasse: Klasse) -> String {
     }
 }
 
+/// En kode, brugeren skriver, skal begynde og slutte med et bogstav eller et ciffer (ellers kan den ikke findes ved
+/// grænsereglen).
+fn gyldig_kode(ny: &str) -> Result<(), Fejl> {
+    let nb = ny.as_bytes();
+    if nb.is_empty() || !nb[0].is_ascii_alphanumeric() || !nb[nb.len() - 1].is_ascii_alphanumeric() {
+        return Err(Fejl::UgyldigKode { kode: ny.to_string() });
+    }
+    Ok(())
+}
+
+/// `ny` med originalens store/små bogstaver, som [`Sag::kode_navn`] spejler grundformen.
+fn spejlet(klasse: Klasse, ny: &str, original: &str) -> String {
+    let o = original.as_bytes();
+    if !klasse.spejler() {
+        ny.to_string()
+    } else if !o.iter().any(u8::is_ascii_uppercase) {
+        ny.to_ascii_lowercase()
+    } else if !o.iter().any(u8::is_ascii_lowercase) {
+        ny.to_ascii_uppercase()
+    } else {
+        ny.to_string()
+    }
+}
+
 /// Om en kendt original må genbruges som frit ord i en ny tekst (F1).
 ///
 /// Adresser er udeladt, fordi genkenderne altid finder dem. Under fire tegn, rene tal og stopord
@@ -272,6 +302,14 @@ impl Sag {
                 _ => {}
             }
         }
+        for (k, p) in &data.aliaser {
+            if k.is_empty() || *p >= data.poster.len() || idx.kode.contains_key(k) || idx.alias.insert(k.clone(), *p).is_some() {
+                return Err(Fejl::UgyldigeSagsdata {
+                    hvad: "alias er tom, peger på ukendt post eller findes to gange",
+                });
+            }
+            idx.alias_smaa.entry(smaa(k)).or_default().push(*p);
+        }
         for (n, m) in &data.net4 {
             let net = n.som_tekst().parse::<u32>().map_err(|_| Fejl::UgyldigeSagsdata { hvad: "net4" })?;
             idx.net4.insert(net, *m);
@@ -318,9 +356,14 @@ impl Sag {
         self.data.poster.len()
     }
 
-    /// Originalen bag en kode.
+    /// Originalen bag en kode eller en gammel kode (alias, D18).
     pub fn opslag(&self, kode: &str) -> Option<&Original> {
-        self.idx.kode.get(kode).map(|i| &self.data.poster[*i].original)
+        self.post_for(kode).map(|i| &self.data.poster[i].original)
+    }
+
+    /// Posten bag en kode eller et alias.
+    fn post_for(&self, kode: &str) -> Option<usize> {
+        self.idx.kode.get(kode).or_else(|| self.idx.alias.get(kode)).copied()
     }
 
     /// Koden for en original (præcis stavemåde), hvis den findes.
@@ -336,44 +379,136 @@ impl Sag {
         std::mem::take(&mut self.advarsler)
     }
 
-    /// Brugerens rettelse af en kode (fri tekst). Afvises, hvis den nye kode findes i sagen eller i teksten.
+    /// Brugerens rettelse af en kode (fri tekst) for én stavemåde. Afvises, hvis den nye kode findes i sagen (også som
+    /// alias for en anden post og uafhængigt af store/små), er reserveret eller står i teksten. Den gamle kode bliver et
+    /// alias (D18): den peger stadig på posten ved demaskering og kan ikke gives til en anden værdi.
     pub fn ret(&mut self, kode: &str, ny: &str, tekst: &str) -> Result<(), Fejl> {
         let i = *self.idx.kode.get(kode).ok_or_else(|| Fejl::UkendtKode { kode: kode.to_string() })?;
-        let nb = ny.as_bytes();
-        if nb.is_empty() || !nb[0].is_ascii_alphanumeric() || !nb[nb.len() - 1].is_ascii_alphanumeric() {
-            return Err(Fejl::UgyldigKode { kode: ny.to_string() });
-        }
-        let moenster = self.klasse_af(i).moenster();
-        let i_tekst = {
-            let t = tekst.as_bytes();
-            let l = smaa(ny);
-            let tl = t.to_ascii_lowercase();
-            let mut fundet = false;
-            let mut pos = 0;
-            while let Some(p) = tl[pos..].windows(nb.len()).position(|w| w == l.as_bytes()) {
-                if ved_graense(t, pos + p, pos + p + nb.len(), moenster) {
-                    fundet = true;
-                    break;
-                }
-                pos += p + 1;
-            }
-            fundet
-        };
-        if self.idx.kode.contains_key(ny) || self.idx.kode_smaa.contains_key(&smaa(ny)) || self.idx.res_navne.contains(&smaa(ny)) || i_tekst
-        {
+        gyldig_kode(ny)?;
+        if ny == kode {
             return Err(Fejl::KodeKolliderer { kode: ny.to_string() });
         }
-        let gammel = std::mem::replace(&mut self.data.poster[i].kode, ny.to_string());
-        self.data.poster[i].rettet = true;
-        if !self.data.rettede_koder.iter().any(|k| k == ny) {
-            self.data.rettede_koder.push(ny.to_string());
+        self.omdoeb(&[(i, ny.to_string())], ny, tekst)
+    }
+
+    /// Omdøber en hel enhed (alle dens stavemåder) samlet (fund 3 i V-SKAL.2). Den nye kode spejler hver stavemådes
+    /// store/små bogstaver som de automatiske koder: en stavemåde med kun små bogstaver får `ny` med små, en med kun
+    /// store får `ny` med store, en blandet får `ny`, som den er skrevet. Falder to stavemåder sammen, får den næste
+    /// et bogstav bagefter (`kunde7b`), som de automatiske koder. De gamle koder bliver aliaser (D18), og nye stavemåder
+    /// af enheden får senere en kode ud fra `ny`.
+    ///
+    /// Svaret er (gammel kode, ny kode) for hver stavemåde, der fik en ny kode.
+    pub fn ret_enhed(&mut self, kode: &str, ny: &str, tekst: &str) -> Result<Vec<(String, String)>, Fejl> {
+        let i = *self.idx.kode.get(kode).ok_or_else(|| Fejl::UkendtKode { kode: kode.to_string() })?;
+        gyldig_kode(ny)?;
+        let enhed = self.data.poster[i].enhed;
+        let klasse = self.data.enheder[enhed].klasse;
+        let mut nye: Vec<(usize, String)> = Vec::new();
+        for (j, p) in self.data.poster.iter().enumerate().filter(|(_, p)| p.enhed == enhed) {
+            let foerste = spejlet(klasse, ny, p.original.som_tekst());
+            let k = if nye.iter().any(|(_, x)| *x == foerste) {
+                (1..)
+                    .map(|n| med_suffiks(&foerste, n, klasse))
+                    .find(|c| !nye.iter().any(|(_, x)| x == c))
+                    .unwrap_or_default()
+            } else {
+                foerste
+            };
+            nye.push((j, k));
         }
-        self.idx.kode.remove(&gammel);
-        if self.idx.kode_smaa.get(&smaa(&gammel)) == Some(&i) {
-            self.idx.kode_smaa.remove(&smaa(&gammel));
+        let par: Vec<(String, String)> = nye
+            .iter()
+            .filter(|(j, k)| self.data.poster[*j].kode != *k)
+            .map(|(j, k)| (self.data.poster[*j].kode.clone(), k.clone()))
+            .collect();
+        if par.is_empty() {
+            return Ok(par);
         }
-        self.idx.kode.insert(ny.to_string(), i);
-        self.idx.kode_smaa.entry(smaa(ny)).or_insert(i);
+        self.omdoeb(&nye, ny, tekst)?;
+        if klasse.spejler() {
+            self.data.enheder[enhed].grundform = ny.to_string();
+        }
+        Ok(par)
+    }
+
+    /// Giver posterne nye koder samlet. `oensket` er brugerens kode (til fejlen). Alt kontrolleres, før noget ændres.
+    fn omdoeb(&mut self, nye: &[(usize, String)], oensket: &str, tekst: &str) -> Result<(), Fejl> {
+        let kollision = || Fejl::KodeKolliderer { kode: oensket.to_string() };
+        let saet: HashSet<usize> = nye.iter().map(|(i, _)| *i).collect();
+        let t = tekst.as_bytes();
+        let tl = t.to_ascii_lowercase();
+        for (a, (i, ny)) in nye.iter().enumerate() {
+            gyldig_kode(ny)?;
+            let l = smaa(ny);
+            let moenster = self.klasse_af(*i).moenster();
+            let andre_poster = self.idx.kode.get(ny.as_str()).is_some_and(|j| j != i)
+                || self
+                    .data
+                    .poster
+                    .iter()
+                    .enumerate()
+                    .any(|(j, p)| !saet.contains(&j) && smaa(&p.kode) == l);
+            let andre_aliaser = self.idx.alias.get(ny.as_str()).is_some_and(|j| j != i)
+                || self.idx.alias_smaa.get(&l).is_some_and(|v| v.iter().any(|j| !saet.contains(j)));
+            let i_tekst = {
+                let nb = l.as_bytes();
+                let mut pos = 0;
+                let mut fundet = false;
+                while let Some(p) = tl[pos..].windows(nb.len()).position(|w| w == nb) {
+                    if ved_graense(t, pos + p, pos + p + nb.len(), moenster) {
+                        fundet = true;
+                        break;
+                    }
+                    pos += p + 1;
+                }
+                fundet
+            };
+            if nye[..a].iter().any(|(_, k)| k == ny) || andre_poster || andre_aliaser || self.idx.res_navne.contains(&l) || i_tekst {
+                return Err(kollision());
+            }
+        }
+        let mut beroerte: HashSet<String> = HashSet::new();
+        for (i, ny) in nye {
+            let i = *i;
+            if self.data.poster[i].kode == *ny {
+                continue;
+            }
+            // Brugeren går tilbage til en af postens egne gamle koder: den er ikke længere et alias.
+            if self.idx.alias.get(ny.as_str()) == Some(&i) {
+                self.idx.alias.remove(ny.as_str());
+                if let Some(v) = self.idx.alias_smaa.get_mut(&smaa(ny)) {
+                    if let Some(x) = v.iter().position(|j| *j == i) {
+                        v.remove(x);
+                    }
+                    if v.is_empty() {
+                        self.idx.alias_smaa.remove(&smaa(ny));
+                    }
+                }
+                self.data.aliaser.retain(|(k, p)| !(k == ny && *p == i));
+            }
+            let gammel = std::mem::replace(&mut self.data.poster[i].kode, ny.clone());
+            self.data.poster[i].rettet = true;
+            if !self.data.rettede_koder.iter().any(|k| k == ny) {
+                self.data.rettede_koder.push(ny.clone());
+            }
+            self.idx.kode.remove(&gammel);
+            self.idx.kode.insert(ny.clone(), i);
+            beroerte.insert(smaa(&gammel));
+            beroerte.insert(smaa(ny));
+            self.idx.alias.insert(gammel.clone(), i);
+            self.idx.alias_smaa.entry(smaa(&gammel)).or_default().push(i);
+            self.data.aliaser.push((gammel, i));
+        }
+        // Opslaget uafhængigt af store/små: første post med koden, som `fra_data` bygger det.
+        for l in &beroerte {
+            self.idx.kode_smaa.remove(l);
+        }
+        for (j, p) in self.data.poster.iter().enumerate() {
+            let l = smaa(&p.kode);
+            if beroerte.contains(&l) {
+                self.idx.kode_smaa.entry(l).or_insert(j);
+            }
+        }
         Ok(())
     }
 
@@ -396,8 +531,14 @@ impl Sag {
         self.idx.res_navne.contains(&smaa(kode))
     }
 
+    /// Posten for en kode eller et alias uafhængigt af store/små bogstaver (F4).
     pub(crate) fn kode_smaa(&self, kode: &str) -> Option<usize> {
-        self.idx.kode_smaa.get(&smaa(kode)).copied()
+        let l = smaa(kode);
+        self.idx
+            .kode_smaa
+            .get(&l)
+            .copied()
+            .or_else(|| self.idx.alias_smaa.get(&l).and_then(|v| v.first().copied()))
     }
 
     /// Det egne /24 bag et mål-/24.
@@ -530,17 +671,24 @@ impl Sag {
         ud
     }
 
-    /// Alle sagens koder i teksten ved grænser: (start, slut, post). Samme søgning bruges af
+    /// Alle sagens koder og aliaser (D18) i teksten ved grænser: (start, slut, post). Samme søgning bruges af
     /// kollisionskontrollen og demaskeringen.
     pub(crate) fn find_koder(&self, t: &[u8]) -> Vec<(usize, usize, usize)> {
         let mut ud = Vec::new();
         if self.data.poster.is_empty() {
             return ud;
         }
-        let Ok(ac) = AhoCorasick::builder()
-            .match_kind(MatchKind::LeftmostLongest)
-            .build(self.data.poster.iter().map(|p| p.kode.as_bytes()))
-        else {
+        // Mønster nr. → post: først sagens koder (nr. = post), derefter aliaserne.
+        let post_af: Vec<usize> = (0..self.data.poster.len())
+            .chain(self.data.aliaser.iter().map(|(_, p)| *p))
+            .collect();
+        let Ok(ac) = AhoCorasick::builder().match_kind(MatchKind::LeftmostLongest).build(
+            self.data
+                .poster
+                .iter()
+                .map(|p| p.kode.as_bytes())
+                .chain(self.data.aliaser.iter().map(|(k, _)| k.as_bytes())),
+        ) else {
             return ud;
         };
         let mut pos = 0;
@@ -548,7 +696,7 @@ impl Sag {
             let Some(m) = ac.find(Input::new(t).span(pos..t.len())) else {
                 break;
             };
-            let p = m.pattern().as_usize();
+            let p = post_af[m.pattern().as_usize()];
             if ved_graense(t, m.start(), m.end(), self.klasse_af(p).moenster()) {
                 ud.push((m.start(), m.end(), p));
                 pos = m.end();
@@ -557,7 +705,7 @@ impl Sag {
             // En kortere kode med samme start kan stå ved en grænse.
             let kortere = (m.start() + 1..m.end()).rev().find_map(|e| {
                 let s = std::str::from_utf8(&t[m.start()..e]).ok()?;
-                let q = *self.idx.kode.get(s)?;
+                let q = self.post_for(s)?;
                 ved_graense(t, m.start(), e, self.klasse_af(q).moenster()).then_some((e, q))
             });
             match kortere {
@@ -607,7 +755,7 @@ impl Sag {
     }
 
     fn fri_kode(&self, kode: &str) -> bool {
-        !self.idx.kode.contains_key(kode) && !self.idx.res_navne.contains(&smaa(kode))
+        !self.idx.kode.contains_key(kode) && !self.idx.alias.contains_key(kode) && !self.idx.res_navne.contains(&smaa(kode))
     }
 
     fn nyt_nummer(&mut self, k: Klasse) -> u64 {
@@ -615,7 +763,7 @@ impl Sag {
             self.data.taellere.navne[k.nr()] += 1;
             let n = self.data.taellere.navne[k.nr()];
             let g = smaa(&k.grundform(n));
-            if !self.idx.kode_smaa.contains_key(&g) && !self.idx.res_navne.contains(&g) {
+            if !self.idx.kode_smaa.contains_key(&g) && !self.idx.alias_smaa.contains_key(&g) && !self.idx.res_navne.contains(&g) {
                 return n;
             }
         }
