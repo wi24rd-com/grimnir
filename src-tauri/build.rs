@@ -24,6 +24,16 @@ const KOMMANDOER: &[&str] = &[
     "ordbog_proev",
     "indstillinger_hent",
     "indstillinger_gem",
+    "fil_aabn",
+    "fil_aabn_sluppet",
+    "fil_luk",
+    "fil_analyser",
+    "fil_raekker",
+    "fil_gem_og_masker",
+    "fil_demasker",
+    "fil_kopi",
+    "fil_gem",
+    "ordbog_start_forfra",
 ];
 
 fn main() {

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-fil-luk"
+description = "Enables the fil_luk command without any pre-configured scope."
+commands.allow = ["fil_luk"]
+
+[[permission]]
+identifier = "deny-fil-luk"
+description = "Denies the fil_luk command without any pre-configured scope."
+commands.deny = ["fil_luk"]

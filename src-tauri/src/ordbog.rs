@@ -370,9 +370,17 @@ impl Ordbogsfil {
                 // Filen er slettet et andet sted, efter ordbogen blev læst.
                 return Err(SagFejl::Konflikt);
             }
-            let n = Noegle::ny()?;
-            self.lager.gem_konto(KONTO, &n)?;
-            n
+            // V-FIL.1 F5: findes nøglen allerede (fx efter "Start forfra", hvor den gamle fil er flyttet til side), bruges
+            // den igen, så den flyttede fil stadig kan læses med den. Ellers en ny nøgle.
+            match self.lager.hent_konto(KONTO) {
+                Ok(n) => n,
+                Err(SagFejl::ManglerNoegle) => {
+                    let n = Noegle::ny()?;
+                    self.lager.gem_konto(KONTO, &n)?;
+                    n
+                }
+                Err(f) => return Err(f),
+            }
         };
         let hoved = Hoved::for_poster(poster, laest + 1);
         let hoved_klar = json_klar(&hoved, 256)?;
@@ -380,6 +388,34 @@ impl Ordbogsfil {
         let bytes = byg_krypteret(&noegle, Ident::Ordbog, hoved_klar.bytes(), krop_klar.bytes())?;
         skriv_atomart(&fil, &bytes, foer_omdoeb)?;
         Ok(hoved.skrivetaeller)
+    }
+}
+
+impl Ordbogsfil {
+    /// V-FIL.1 F5, "Start forfra": flytter en ordbog, der ikke kan åbnes, til side som `ordbog.<dato>.ulaeselig` (med
+    /// `-2`, `-3` … hvis navnet er taget) i samme mappe. Filen slettes ikke, og nøglen bliver i nøgleringen. Svarer med
+    /// det nye filnavn (`None`, hvis der ingen fil var). `dato` er `ÅÅÅÅ-MM-DD` (kontrolleret af kalderen).
+    pub fn flyt_ulaeselig(&self, dato: &str) -> Result<Option<String>, SagFejl> {
+        let fil = self.sti();
+        let _laas = tag_laas(&fil)?;
+        if !fil.exists() {
+            return Ok(None);
+        }
+        for n in 1..1000 {
+            let navn = if n == 1 {
+                format!("ordbog.{dato}.ulaeselig")
+            } else {
+                format!("ordbog.{dato}-{n}.ulaeselig")
+            };
+            let ny = self.mappe.join(&navn);
+            if !ny.exists() {
+                std::fs::rename(&fil, &ny)?;
+                return Ok(Some(navn));
+            }
+        }
+        Err(SagFejl::Disk {
+            hvad: "AlreadyExists".into(),
+        })
     }
 }
 

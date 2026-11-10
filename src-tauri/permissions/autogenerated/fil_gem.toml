@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-fil-gem"
+description = "Enables the fil_gem command without any pre-configured scope."
+commands.allow = ["fil_gem"]
+
+[[permission]]
+identifier = "deny-fil-gem"
+description = "Denies the fil_gem command without any pre-configured scope."
+commands.deny = ["fil_gem"]

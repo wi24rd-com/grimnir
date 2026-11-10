@@ -827,12 +827,22 @@ fn stamme(fil: &Path) -> String {
 /// Skriver filen atomart: en ny fil i samme mappe (`.<stamme>.<8 hextegn>.tmp`), synkroniseret og omdøbt til filen.
 /// `foer_omdoeb` kaldes lige før omdøbningen (tests afbryder dér). Fælles for sager, ordbogen og indstillingerne.
 pub fn skriv_atomart(fil: &Path, bytes: &[u8], foer_omdoeb: &mut dyn FnMut() -> io::Result<()>) -> Result<(), SagFejl> {
+    skriv_atomart_med(fil, &mut |f| f.write_all(bytes), foer_omdoeb)
+}
+
+/// Som [`skriv_atomart`], men indholdet skrives af `skriv` i stykker (V-FIL.1: en fil på op til 100 MiB kodes til
+/// UTF-16 undervejs i stedet for at blive kopieret hel først).
+pub fn skriv_atomart_med(
+    fil: &Path,
+    skriv: &mut dyn FnMut(&mut File) -> io::Result<()>,
+    foer_omdoeb: &mut dyn FnMut() -> io::Result<()>,
+) -> Result<(), SagFejl> {
     let mappe = fil.parent().ok_or(SagFejl::Disk { hvad: "NotFound".into() })?;
     let tilfaeldig = SagsId::ny()?;
     let midl = mappe.join(format!(".{}.{}.tmp", stamme(fil), &tilfaeldig.hex()[..8]));
     let resultat = (|| -> io::Result<()> {
         let mut f = OpenOptions::new().write(true).create_new(true).open(&midl)?;
-        f.write_all(bytes)?;
+        skriv(&mut f)?;
         f.sync_all()?;
         drop(f);
         foer_omdoeb()?;

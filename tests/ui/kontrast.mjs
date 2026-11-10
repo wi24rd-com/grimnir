@@ -94,6 +94,14 @@ export const PAR = [
   ['accent', 'surface', KANT, 'radioknapper og afkrydsning i Indstillinger (accent-color)'],
   // Den primære knaps fokusring står 2 px uden for knappen (outline-offset i kit.css) og ligger derfor på fladen omkring
   // den (info på surface/bg), ikke på accent. info på accent er 1,1:1 og må aldrig bruges.
+  // V-FIL.1: filen i værktøjslinjen, "Grimnir arbejder", træk og slip, advarslen i Tilføj post.
+  ['text', 'surface', TEKST, 'Fil: filnavnet i værktøjslinjen'],
+  ['text-muted', 'surface', TEKST, 'Fil: størrelse, tegnsæt og linjeskift i værktøjslinjen'],
+  ['text', 'info-soft', TEKST, 'Fil: Grimnir arbejder'],
+  ['info', 'surface', KANT, 'Fil: fladens kant under et træk'],
+  ['info', 'surface-raised', KANT, 'Fil: fladens kant under et træk over et panelhoved'],
+  ['text-muted', 'surface', TEKST, 'Ordbog: advarslen om en adgangskode i Tilføj post'],
+  ['warn', 'surface', TEKST, 'Ordbog: advarselstegnet i Tilføj post'],
 ];
 
 function lin(c) {

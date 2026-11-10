@@ -39,6 +39,7 @@ use grimnir_core::{
 };
 use serde::{Deserialize, Serialize};
 
+use crate::fil::{self, Fil, FilFejl, Linjeskift, Tegnsaet};
 use crate::indstillinger::{self, Indstillinger};
 use crate::ordbog::{self as ob, FeltFejl, OrdbogPost, Ordbogsfil, PostType};
 use crate::sager::{nulstil, opret_mappe, rens_navn, ryd_midlertidige, tjek_dato, AabenSag, Arkiv, Noeglelager, SagFejl, SagsId};
@@ -49,11 +50,13 @@ pub const MAKS_BYTES: usize = 5 * 1024 * 1024;
 /// koderne kan være længere end værdierne (fund 1 i V-SKAL.2).
 pub const MAKS_DEMASKER: usize = 8 * 1024 * 1024;
 
-/// Den sag, der er i brug: sagen i hukommelsen og, hvis den er navngiven, dens fil og nøgle.
+/// Den sag, der er i brug: sagen i hukommelsen og, hvis den er navngiven, dens fil og nøgle. `nr` tælles op, hver gang
+/// sagen erstattes (V-FIL.1: en maskeret fil i hukommelsen hører til den sag, der lavede den).
 #[derive(Default)]
 struct Aktuel {
     sag: Sag,
     aaben: Option<AabenSag>,
+    nr: u64,
 }
 
 /// Ordbogen i hukommelsen: posterne, skrivetælleren, de blev læst med, kernens ordbog og fejlen, hvis filen ikke kunne
@@ -94,6 +97,8 @@ pub struct Tilstand {
     indst_fil: Option<PathBuf>,
     indst: Mutex<Indstillinger>,
     afslut: AtomicBool,
+    /// V-FIL.1: den åbne fil i Maskér (0) og i Demaskér (1). Låsen til en fil tages altid før sagens.
+    filer: [Mutex<Option<HoldtFil>>; 2],
 }
 
 impl Tilstand {
@@ -123,6 +128,7 @@ impl Tilstand {
             sag: Mutex::new(Aktuel {
                 sag: Sag::ny(indst.valg()),
                 aaben: None,
+                nr: 0,
             }),
             arkiv: Some(Arkiv::ny(mappe.join("sager"), Box::new(lager.clone()))),
             ordbogsfil: Some(Ordbogsfil::ny(mappe, Box::new(lager))),
@@ -130,6 +136,7 @@ impl Tilstand {
             indst_fil: Some(indst_fil),
             indst: Mutex::new(indst),
             afslut: AtomicBool::new(false),
+            filer: Default::default(),
         }
     }
 
@@ -178,12 +185,21 @@ impl Tilstand {
 
     /// Sand, hvis programmet skal spørge, før det lukkes: en midlertidig sag med poster, og brugeren har ikke allerede
     /// svaret (Gem som sag, Kassér).
+    ///
+    /// Kaldes på hovedtråden (menuen, vinduets lukkeknap); derfor ventes der ikke på sagens lås. Er den optaget (en
+    /// maskering af en stor fil kører), spørger programmet hellere end at fryse vinduet (V-FIL.1).
     pub fn skal_spoerge_ved_luk(&self) -> bool {
         if self.afslut.load(Ordering::SeqCst) {
             return false;
         }
-        let a = self.sag();
-        a.aaben.is_none() && a.sag.antal_poster() > 0
+        match self.sag.try_lock() {
+            Ok(a) => a.aaben.is_none() && a.sag.antal_poster() > 0,
+            Err(std::sync::TryLockError::Poisoned(e)) => {
+                let a = e.into_inner();
+                a.aaben.is_none() && a.sag.antal_poster() > 0
+            }
+            Err(std::sync::TryLockError::WouldBlock) => true,
+        }
     }
 
     /// Brugeren har svaret; programmet må lukke uden at spørge igen.
@@ -196,6 +212,7 @@ impl Tilstand {
 fn erstat(a: &mut Aktuel, sag: Sag, aaben: Option<AabenSag>) {
     let gammel = std::mem::replace(&mut a.sag, sag);
     a.aaben = aaben;
+    a.nr += 1;
     nulstil(gammel.til_data());
 }
 
@@ -278,6 +295,37 @@ pub enum UiFejl {
         /// Årsagen fra disken.
         fejl: Option<SagFejl>,
     },
+    /// V-FIL.1: en fil kunne ikke læses eller skrives.
+    Fil {
+        /// Årsagen (uden indhold og sti).
+        fejl: FilFejl,
+    },
+    /// Der er ingen åben fil i visningen.
+    IngenFil,
+    /// Der er intet resultat at gemme eller kopiere (maskér eller demaskér først).
+    IntetResultat,
+    /// Den maskerede fil i hukommelsen hører til en sag, der ikke er åben længere; maskér igen.
+    Foraeldet,
+    /// Lækagetjekket fandt rester; filen gemmes kun med "Gem alligevel".
+    Rester {
+        /// Antal rester.
+        antal: usize,
+    },
+    /// Den demaskerede fil gemmes kun efter brugerens bekræftelse.
+    IkkeBekraeftet,
+    /// Resultatet er for stort til udklipsholderen (over 5 MiB); gem det som fil.
+    ForStorTilKopi {
+        /// Resultatets størrelse i bytes (UTF-8).
+        bytes: usize,
+        /// Grænsen.
+        maks: usize,
+    },
+}
+
+impl From<FilFejl> for UiFejl {
+    fn from(fejl: FilFejl) -> Self {
+        UiFejl::Fil { fejl }
+    }
 }
 
 impl From<Fejl> for UiFejl {
@@ -629,11 +677,23 @@ struct Beregning {
     linjer: Linjer,
 }
 
+/// Hvilke rækker der maskeres.
+#[derive(Clone, Copy)]
+enum Udvalg<'a> {
+    /// Kernens standard.
+    Standard,
+    /// Alle undtagen disse rækker.
+    Fravalgt(&'a [usize]),
+    /// Kernens standard, undtagen de rækker, brugeren selv har slået til (`true`) eller fra (`false`). V-FIL.1: det,
+    /// maskering.js gør i to kald for indsat tekst, når ordbogen ændres (`analyserIgen`), gør Rust i ét for en fil.
+    Rort(&'a HashMap<usize, bool>),
+}
+
 /// Regner forslag, valg og rettelser ud på en kopi af sagen. Sagen selv røres ikke.
 ///
-/// `fravalgt`: rækker, der ikke maskeres (`None`: kernens standard). `rettelser`: koder, brugeren har skrevet.
+/// `udvalg`: rækker, der maskeres. `rettelser`: koder, brugeren har skrevet.
 /// `ordbog`: brugerens ordbog (V-ORDBOG.1); den finder værdier, og "maskér aldrig" vinder over alt.
-fn beregn(sag: &Sag, tekst: &str, fravalgt: Option<&[usize]>, rettelser: &[Rettelse], ordbog: &Ordbog) -> Result<Beregning, UiFejl> {
+fn beregn(sag: &Sag, tekst: &str, udvalg: Udvalg<'_>, rettelser: &[Rettelse], ordbog: &Ordbog) -> Result<Beregning, UiFejl> {
     let linjer = Linjer::ny(tekst);
     let fund = kerne_analyser(tekst, ordbog);
     let fund_ved: HashMap<(usize, usize), &Fund> = fund.iter().map(|f| ((f.start, f.slut), f)).collect();
@@ -679,12 +739,16 @@ fn beregn(sag: &Sag, tekst: &str, fravalgt: Option<&[usize]>, rettelser: &[Rette
     drop(post_af);
     drop(alle);
 
-    let fra: Option<HashSet<usize>> = fravalgt.map(|f| f.iter().copied().collect());
+    let fra: Option<HashSet<usize>> = match udvalg {
+        Udvalg::Fravalgt(f) => Some(f.iter().copied().collect()),
+        _ => None,
+    };
     let valgt: Vec<bool> = grupper
         .iter()
-        .map(|g| match &fra {
-            None => g.standard,
-            Some(f) => !f.contains(&g.id),
+        .map(|g| match (&fra, udvalg) {
+            (Some(f), _) => !f.contains(&g.id),
+            (None, Udvalg::Rort(r)) => r.get(&g.id).copied().unwrap_or(g.standard),
+            (None, _) => g.standard,
         })
         .collect();
 
@@ -876,13 +940,19 @@ fn beregn(sag: &Sag, tekst: &str, fravalgt: Option<&[usize]>, rettelser: &[Rette
 /// Finder fundene og regner koderne ud på en kladde af sagen. Sagen ændres ikke.
 pub fn analyser(t: &Tilstand, tekst: &str, fravalgt: Option<&[usize]>, rettelser: &[Rettelse]) -> Result<Analyse, UiFejl> {
     tjek_tekst(tekst)?;
+    analyser_i(t, tekst, fravalgt.map_or(Udvalg::Standard, Udvalg::Fravalgt), rettelser)
+}
+
+/// [`analyser`] uden tekstens grænse (en fil har sin egen, [`fil::MAKS_FIL`]).
+fn analyser_i(t: &Tilstand, tekst: &str, udvalg: Udvalg<'_>, rettelser: &[Rettelse]) -> Result<Analyse, UiFejl> {
     let ordbog = t.kerne_ordbog();
     // Sagen kopieres under låsen; selve beregningen sker uden lås.
     let sag = {
         let laast = t.sag();
         kopi(&laast.sag, laast.sag.valg().masker_fremmede)?
     };
-    let b = beregn(&sag, tekst, fravalgt, rettelser, &ordbog);
+    let b = beregn(&sag, tekst, udvalg, rettelser, &ordbog);
+    nulstil(sag.til_data());
     ob::nulstil_kerne(ordbog);
     let b = b?;
     let ud = Analyse {
@@ -901,9 +971,14 @@ pub fn analyser(t: &Tilstand, tekst: &str, fravalgt: Option<&[usize]>, rettelser
 /// skrives sagen krypteret til disk, før svaret sendes; fejler det, er intet ændret, og der er ingen maskeret tekst.
 pub fn gem_og_masker(t: &Tilstand, tekst: &str, fravalgt: &[usize], rettelser: &[Rettelse]) -> Result<Maskering, UiFejl> {
     tjek_tekst(tekst)?;
+    gem_og_masker_i(t, tekst, fravalgt, rettelser).map(|(m, _)| m)
+}
+
+/// [`gem_og_masker`] uden tekstens grænse. Svarer også med sagens nummer efter gemningen.
+fn gem_og_masker_i(t: &Tilstand, tekst: &str, fravalgt: &[usize], rettelser: &[Rettelse]) -> Result<(Maskering, u64), UiFejl> {
     let ordbog = t.kerne_ordbog();
     let mut a = t.sag();
-    let b = beregn(&a.sag, tekst, Some(fravalgt), rettelser, &ordbog);
+    let b = beregn(&a.sag, tekst, Udvalg::Fravalgt(fravalgt), rettelser, &ordbog);
     ob::nulstil_kerne(ordbog);
     let b = b?;
     if !b.fejl.is_empty() {
@@ -957,17 +1032,25 @@ pub fn gem_og_masker(t: &Tilstand, tekst: &str, fravalgt: &[usize], rettelser: &
     let aaben = aktuel.aaben.take();
     ob::nulstil_kerne(b.aldrig);
     erstat(aktuel, b.kladde, aaben);
-    Ok(Maskering {
-        maskeret,
-        rester,
-        advarsler,
-        poster,
-    })
+    Ok((
+        Maskering {
+            maskeret,
+            rester,
+            advarsler,
+            poster,
+        },
+        aktuel.nr,
+    ))
 }
 
 /// Sætter sagens originaler tilbage i en tekst.
 pub fn demasker(t: &Tilstand, tekst: &str) -> Result<Demaskering, UiFejl> {
     tjek_tekst_op_til(tekst, MAKS_DEMASKER)?;
+    demasker_i(t, tekst)
+}
+
+/// [`demasker`] uden tekstens grænse.
+fn demasker_i(t: &Tilstand, tekst: &str) -> Result<Demaskering, UiFejl> {
     let a = t.sag();
     let sag = &a.sag;
     let (ud, adv) = kerne_demasker(tekst, sag);
@@ -1367,6 +1450,464 @@ pub fn indstillinger_gem(t: &Tilstand, ny: Indstillinger) -> Result<Indstillinge
     }
     *g = ny;
     Ok(ny)
+}
+
+// ------------------------------------------------------------------------------------------------------- filer (V-FIL.1)
+
+/// Visningen, en fil hører til.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Visning {
+    /// Maskér: originalen.
+    Masker,
+    /// Demaskér: den maskerede fil, der er kommet tilbage.
+    Demasker,
+}
+
+impl Visning {
+    fn i(self) -> usize {
+        match self {
+            Visning::Masker => 0,
+            Visning::Demasker => 1,
+        }
+    }
+}
+
+/// Et resultat i hukommelsen: den maskerede eller demaskerede tekst. Nulstilles, når det slippes.
+struct Resultat {
+    tekst: String,
+    /// Antal rester fra lækagetjekket (Maskér).
+    rester: usize,
+    /// Sagens nummer, da teksten blev maskeret (Maskér; `None` under Demaskér).
+    sag_nr: Option<u64>,
+}
+
+impl Drop for Resultat {
+    fn drop(&mut self) {
+        zeroize::Zeroize::zeroize(&mut self.tekst);
+    }
+}
+
+/// En åben fil (F2): teksten, rækkerne fra seneste analyse og resultatet bliver i Rust; webvisningen får filnavnet,
+/// tallene, et uddrag og én side rækker ad gangen.
+pub struct HoldtFil {
+    fil: Fil,
+    raekker: Vec<Raekke>,
+    fejl: Vec<RaekkeFejl>,
+    resultat: Option<Resultat>,
+}
+
+/// Nulstiller rækkernes originaler.
+fn nulstil_raekker(raekker: &mut Vec<Raekke>) {
+    for r in raekker.iter_mut() {
+        for v in r.vaerdier.iter_mut() {
+            zeroize::Zeroize::zeroize(v);
+        }
+    }
+    raekker.clear();
+}
+
+impl Drop for HoldtFil {
+    fn drop(&mut self) {
+        nulstil_raekker(&mut self.raekker);
+    }
+}
+
+impl Tilstand {
+    /// Låsen til visningens fil (tages før sagens; Maskérs før Demaskérs).
+    fn fil(&self, v: Visning) -> MutexGuard<'_, Option<HoldtFil>> {
+        self.filer[v.i()].lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// Stierne til de åbne filer: dem skriver Grimnir aldrig til. Hver lås tages for sig.
+    fn aabne_stier(&self) -> Vec<PathBuf> {
+        [Visning::Masker, Visning::Demasker]
+            .iter()
+            .filter_map(|&v| self.fil(v).as_ref().map(|h| h.fil.sti.clone()))
+            .collect()
+    }
+}
+
+/// Det, webvisningen får at vide om en åben fil. Ingen sti.
+#[derive(Clone, Debug, Serialize)]
+pub struct FilInfo {
+    /// Filnavnet.
+    pub navn: String,
+    /// Størrelsen i bytes.
+    pub bytes: u64,
+    /// Tegnsættet.
+    pub tegnsaet: Tegnsaet,
+    /// Linjeskiftene.
+    pub linjeskift: Linjeskift,
+    /// Antal linjer.
+    pub linjer: usize,
+    /// De første 200 000 tegn.
+    pub uddrag: String,
+    /// Antal tegn efter uddraget, der ikke vises.
+    pub ikke_vist: usize,
+}
+
+/// Åbner en fil i visningen. En tidligere fil i samme visning slippes (og nulstilles). Filen læses, før låsen tages.
+pub fn fil_aabn(t: &Tilstand, v: Visning, sti: &std::path::Path) -> Result<FilInfo, UiFejl> {
+    let f = fil::laes(sti)?;
+    let (uddrag, ikke_vist) = fil::uddrag(&f.tekst);
+    let info = FilInfo {
+        navn: f.navn.clone(),
+        bytes: f.bytes,
+        tegnsaet: f.tegnsaet,
+        linjeskift: f.linjeskift,
+        linjer: f.linjer(),
+        uddrag,
+        ikke_vist,
+    };
+    let ny = HoldtFil {
+        fil: f,
+        raekker: Vec::new(),
+        fejl: Vec::new(),
+        resultat: None,
+    };
+    let gammel = t.fil(v).replace(ny);
+    drop(gammel);
+    Ok(info)
+}
+
+/// Slipper visningens fil (brugeren har sat tekst ind i stedet). Teksten og resultatet nulstilles.
+pub fn fil_luk(t: &Tilstand, v: Visning) {
+    let gammel = t.fil(v).take();
+    drop(gammel);
+}
+
+/// Filter, søgning og sidestørrelse for rækkerne i en fil (som maskering.js gør det for indsat tekst).
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct SideValg {
+    /// `alle` | `tjek` | `hemmelig` | `seneste`
+    pub filter: String,
+    /// Søgeteksten (koder; værdier undtagen skjulte hemmeligheder).
+    pub soeg: String,
+    /// Hemmeligheder, brugeren har trykket Vis på (rækkernes id); kun dem søges der i.
+    pub vist: Vec<usize>,
+    /// Antal rækker, der sendes (500, 1000 …).
+    pub antal: usize,
+}
+
+/// Største side: så mange rækker sendes højst ad gangen.
+pub const MAKS_SIDE: usize = 50_000;
+
+/// Antallene i træet (over alle rækker).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
+pub struct TraeAntal {
+    /// Alle rækker.
+    pub alle: usize,
+    /// "Skal tjekkes": status `tjek` eller en afvist rettelse.
+    pub tjek: usize,
+    /// Hemmeligheder.
+    pub hemmelig: usize,
+    /// Kendt fra sagen.
+    pub seneste: usize,
+    /// Kun status `tjek` (StatusChip'en).
+    pub status_tjek: usize,
+}
+
+/// Én side rækker og tallene over alle.
+#[derive(Clone, Debug, Serialize)]
+pub struct RaekkeSide {
+    /// De første `antal` rækker efter filter og søgning.
+    pub raekker: Vec<Raekke>,
+    /// Antal rækker efter filter og søgning.
+    pub i_alt: usize,
+    /// Træets antal.
+    pub antal: TraeAntal,
+    /// Antal rækker, der maskeres.
+    pub valgte: usize,
+}
+
+fn side_af(raekker: &[Raekke], fejl: &[RaekkeFejl], valg: &SideValg) -> RaekkeSide {
+    let med_fejl: HashSet<usize> = fejl.iter().map(|f| f.id).collect();
+    let tjek = |r: &Raekke| r.status == "tjek" || med_fejl.contains(&r.id);
+    let antal = TraeAntal {
+        alle: raekker.len(),
+        tjek: raekker.iter().filter(|r| tjek(r)).count(),
+        hemmelig: raekker.iter().filter(|r| r.hemmelig).count(),
+        seneste: raekker.iter().filter(|r| r.kendt).count(),
+        status_tjek: raekker.iter().filter(|r| r.status == "tjek").count(),
+    };
+    let q = valg.soeg.trim().to_lowercase();
+    let vist: HashSet<usize> = valg.vist.iter().copied().collect();
+    let passer = |r: &&Raekke| {
+        let i_filter = match valg.filter.as_str() {
+            "tjek" => tjek(r),
+            "hemmelig" => r.hemmelig,
+            "seneste" => r.kendt,
+            _ => true,
+        };
+        i_filter
+            && (q.is_empty()
+                || r.koder.iter().any(|k| k.to_lowercase().contains(&q))
+                || ((!r.hemmelig || vist.contains(&r.id)) && r.vaerdier.iter().any(|v| v.to_lowercase().contains(&q))))
+    };
+    let antal_side = valg.antal.clamp(1, MAKS_SIDE);
+    let mut i_alt = 0;
+    let mut side = Vec::new();
+    for r in raekker.iter().filter(passer) {
+        if side.len() < antal_side {
+            side.push(r.clone());
+        }
+        i_alt += 1;
+    }
+    RaekkeSide {
+        raekker: side,
+        i_alt,
+        antal,
+        valgte: raekker.iter().filter(|r| r.valgt).count(),
+    }
+}
+
+/// Svaret fra `fil_analyser`.
+#[derive(Clone, Debug, Serialize)]
+pub struct FilAnalyse {
+    /// Første side rækker efter `side`.
+    pub side: RaekkeSide,
+    /// Rettelser, der ville blive afvist.
+    pub fejl: Vec<RaekkeFejl>,
+    /// Overløb under tildelingen.
+    pub advarsler: Vec<AdvarselUd>,
+    /// Filens størrelse i bytes.
+    pub bytes: u64,
+    /// Antal linjer.
+    pub linjer: usize,
+    /// Alle rækker, der ikke maskeres (id'er), så webvisningen kender valget uden at have alle rækker.
+    pub fravalgt: Vec<usize>,
+}
+
+/// `analyser` for den åbne fil i Maskér. `rort` (vinder over `fravalgt`): kernens standard undtagen rækker, brugeren
+/// selv har slået til eller fra. Et tidligere resultat slippes (valget kan være ændret).
+pub fn fil_analyser(
+    t: &Tilstand,
+    fravalgt: Option<&[usize]>,
+    rort: Option<&[(usize, bool)]>,
+    rettelser: &[Rettelse],
+    side: &SideValg,
+) -> Result<FilAnalyse, UiFejl> {
+    let mut g = t.fil(Visning::Masker);
+    let h = g.as_mut().ok_or(UiFejl::IngenFil)?;
+    h.resultat = None;
+    let rort: Option<HashMap<usize, bool>> = rort.map(|r| r.iter().copied().collect());
+    let udvalg = match (&rort, fravalgt) {
+        (Some(r), _) => Udvalg::Rort(r),
+        (None, Some(f)) => Udvalg::Fravalgt(f),
+        (None, None) => Udvalg::Standard,
+    };
+    let a = analyser_i(t, &h.fil.tekst, udvalg, rettelser)?;
+    let mut gamle = std::mem::replace(&mut h.raekker, a.raekker);
+    nulstil_raekker(&mut gamle);
+    h.fejl = a.fejl.clone();
+    Ok(FilAnalyse {
+        side: side_af(&h.raekker, &h.fejl, side),
+        fravalgt: h.raekker.iter().filter(|r| !r.valgt).map(|r| r.id).collect(),
+        fejl: a.fejl,
+        advarsler: a.advarsler,
+        bytes: h.fil.bytes,
+        linjer: a.linjer,
+    })
+}
+
+/// En ny side rækker fra seneste analyse (filter, søgning, "Vis flere").
+pub fn fil_raekker(t: &Tilstand, side: &SideValg) -> Result<RaekkeSide, UiFejl> {
+    let g = t.fil(Visning::Masker);
+    let h = g.as_ref().ok_or(UiFejl::IngenFil)?;
+    Ok(side_af(&h.raekker, &h.fejl, side))
+}
+
+/// Svaret fra `fil_gem_og_masker`.
+#[derive(Clone, Debug, Serialize)]
+pub struct FilMaskering {
+    /// De første 200 000 tegn af den maskerede tekst.
+    pub uddrag: String,
+    /// Antal tegn, der ikke vises.
+    pub ikke_vist: usize,
+    /// Rester fra lækagetjekket.
+    pub rester: Vec<RestUd>,
+    /// Overløb under tildelingen.
+    pub advarsler: Vec<AdvarselUd>,
+    /// Sagens antal poster efter gemningen.
+    pub poster: usize,
+    /// Den maskerede teksts størrelse (UTF-8).
+    pub bytes: usize,
+    /// Kopiér kan bruges (højst 5 MiB).
+    pub kopierbar: bool,
+}
+
+/// `gem_og_masker` for den åbne fil i Maskér: sagen gemmes (i en navngiven sag krypteret på disken), og den maskerede
+/// tekst bliver i Rust til "Gem maskeret fil". Fejler gemningen, er der intet resultat, og ingen fil kan gemmes.
+pub fn fil_gem_og_masker(t: &Tilstand, fravalgt: &[usize], rettelser: &[Rettelse]) -> Result<FilMaskering, UiFejl> {
+    let mut g = t.fil(Visning::Masker);
+    let h = g.as_mut().ok_or(UiFejl::IngenFil)?;
+    h.resultat = None;
+    let (m, nr) = gem_og_masker_i(t, &h.fil.tekst, fravalgt, rettelser)?;
+    let (uddrag, ikke_vist) = fil::uddrag(&m.maskeret);
+    let bytes = m.maskeret.len();
+    let rester = m.rester.iter().map(|r| r.antal).sum();
+    h.resultat = Some(Resultat {
+        tekst: m.maskeret,
+        rester,
+        sag_nr: Some(nr),
+    });
+    Ok(FilMaskering {
+        uddrag,
+        ikke_vist,
+        rester: m.rester,
+        advarsler: m.advarsler,
+        poster: m.poster,
+        bytes,
+        kopierbar: bytes <= fil::MAKS_KOPI,
+    })
+}
+
+/// Svaret fra `fil_demasker`.
+#[derive(Clone, Debug, Serialize)]
+pub struct FilDemaskering {
+    /// De første 200 000 tegn af teksten med de rigtige værdier.
+    pub uddrag: String,
+    /// Antal tegn, der ikke vises.
+    pub ikke_vist: usize,
+    /// Kernens advarsler, samlet.
+    pub advarsler: Vec<AdvarselUd>,
+    /// Sagens koder, der forekommer i teksten.
+    pub koder: Vec<String>,
+    /// Tekstens størrelse (UTF-8).
+    pub bytes: usize,
+    /// Kopiér kan bruges (højst 5 MiB).
+    pub kopierbar: bool,
+}
+
+/// `demasker` for den åbne fil i Demaskér. Teksten med de rigtige værdier bliver i Rust til "Gem som fil".
+pub fn fil_demasker(t: &Tilstand) -> Result<FilDemaskering, UiFejl> {
+    let mut g = t.fil(Visning::Demasker);
+    let h = g.as_mut().ok_or(UiFejl::IngenFil)?;
+    h.resultat = None;
+    let d = demasker_i(t, &h.fil.tekst)?;
+    let (uddrag, ikke_vist) = fil::uddrag(&d.tekst);
+    let bytes = d.tekst.len();
+    h.resultat = Some(Resultat {
+        tekst: d.tekst,
+        rester: 0,
+        sag_nr: None,
+    });
+    Ok(FilDemaskering {
+        uddrag,
+        ikke_vist,
+        advarsler: d.advarsler,
+        koder: d.koder,
+        bytes,
+        kopierbar: bytes <= fil::MAKS_KOPI,
+    })
+}
+
+/// Hele resultatet til udklipsholderen (Kopiér), højst 5 MiB.
+pub fn fil_kopi(t: &Tilstand, v: Visning) -> Result<String, UiFejl> {
+    let g = t.fil(v);
+    let r = g.as_ref().ok_or(UiFejl::IngenFil)?.resultat.as_ref().ok_or(UiFejl::IntetResultat)?;
+    if r.tekst.len() > fil::MAKS_KOPI {
+        return Err(UiFejl::ForStorTilKopi {
+            bytes: r.tekst.len(),
+            maks: fil::MAKS_KOPI,
+        });
+    }
+    Ok(r.tekst.clone())
+}
+
+/// Forslaget til Gem-dialogen: mappen (den åbne fils) og filnavnet. Bliver i Rust.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Forslag {
+    /// Mappen.
+    pub mappe: Option<PathBuf>,
+    /// Filnavnet.
+    pub navn: String,
+}
+
+/// Må resultatet gemmes? Maskér: et resultat for den åbne sag, og rester kræver `alligevel`. Demaskér: et resultat og
+/// brugerens bekræftelse (`bekraeftet`).
+fn tjek_gem(t: &Tilstand, v: Visning, h: &HoldtFil, ok: bool) -> Result<(), UiFejl> {
+    let r = h.resultat.as_ref().ok_or(UiFejl::IntetResultat)?;
+    match v {
+        Visning::Masker => {
+            if r.sag_nr != Some(t.sag().nr) {
+                return Err(UiFejl::Foraeldet);
+            }
+            if r.rester > 0 && !ok {
+                return Err(UiFejl::Rester { antal: r.rester });
+            }
+        }
+        Visning::Demasker => {
+            if !ok {
+                return Err(UiFejl::IkkeBekraeftet);
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Tjekker, at resultatet må gemmes, og foreslår mappe og navn: `<navn>.maskeret.<endelse>` (Maskér) eller
+/// `<navn>.demaskeret.<endelse>` (Demaskér). `ok`: "Gem alligevel" (Maskér) eller bekræftelsen (Demaskér).
+pub fn fil_gem_forslag(t: &Tilstand, v: Visning, ok: bool) -> Result<Forslag, UiFejl> {
+    let g = t.fil(v);
+    let h = g.as_ref().ok_or(UiFejl::IngenFil)?;
+    tjek_gem(t, v, h, ok)?;
+    Ok(Forslag {
+        mappe: h.fil.sti.parent().map(|p| p.to_path_buf()),
+        navn: match v {
+            Visning::Masker => fil::forslag(&h.fil.navn, "maskeret"),
+            Visning::Demasker => fil::forslag_demaskeret(&h.fil.navn),
+        },
+    })
+}
+
+/// Skriver resultatet til `sti` med filens tegnsæt (og BOM) atomart, efter samme tjek som [`fil_gem_forslag`]. De åbne
+/// filer overskrives aldrig. Svarer med filnavnet.
+pub fn fil_gem_til(t: &Tilstand, v: Visning, sti: &std::path::Path, ok: bool) -> Result<String, UiFejl> {
+    let aabne = t.aabne_stier();
+    let g = t.fil(v);
+    let h = g.as_ref().ok_or(UiFejl::IngenFil)?;
+    tjek_gem(t, v, h, ok)?;
+    let r = h.resultat.as_ref().ok_or(UiFejl::IntetResultat)?;
+    let ikke_til: Vec<&std::path::Path> = aabne.iter().map(PathBuf::as_path).collect();
+    fil::skriv(sti, &r.tekst, h.fil.tegnsaet, &ikke_til)?;
+    Ok(sti.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default())
+}
+
+/// Svaret fra "Start forfra".
+#[derive(Clone, Serialize)]
+pub struct StartForfra {
+    /// Den nye, tomme ordbog.
+    pub ordbog: OrdbogUd,
+    /// Det nye navn på den gamle fil (`None`: der var ingen fil).
+    pub flyttet_til: Option<String>,
+}
+
+/// V-FIL.1 F5: en ordbog, der ikke kan åbnes, flyttes til side som `ordbog.<dato>.ulaeselig` (slettes ikke), og en tom
+/// ordbog tager over. Kan ordbogen åbnes, gør kommandoen intet. `dato`: i dag, `ÅÅÅÅ-MM-DD` (webvisningens kalender).
+pub fn ordbog_start_forfra(t: &Tilstand, dato: &str) -> Result<StartForfra, UiFejl> {
+    tjek_dato(dato)?;
+    let mut g = t.ordbog();
+    let o = g.get_or_insert_with(OrdbogTilstand::default);
+    if o.fejl.is_none() {
+        return Ok(StartForfra {
+            ordbog: ordbog_ud(o),
+            flyttet_til: None,
+        });
+    }
+    let flyttet_til = match &t.ordbogsfil {
+        Some(fil) => fil.flyt_ulaeselig(dato).map_err(|fejl| UiFejl::OrdbogFil { fejl })?,
+        None => None,
+    };
+    o.erstat(Vec::new());
+    o.taeller = 0;
+    o.fejl = None;
+    Ok(StartForfra {
+        ordbog: ordbog_ud(o),
+        flyttet_til,
+    })
 }
 
 #[cfg(test)]

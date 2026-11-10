@@ -210,8 +210,9 @@
     </div>
     <div class="felt">
       <label class="label" for="opost-vaerdi" data-t="feltVaerdi">Værdi eller mønster</label>
-      <input id="opost-vaerdi" class="mono" type="text" maxlength="253" data-t-aria="feltVaerdi" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-describedby="opost-vaerdi-fejl">
+      <input id="opost-vaerdi" class="mono" type="text" maxlength="253" data-t-aria="feltVaerdi" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-describedby="opost-vaerdi-fejl opost-vaerdi-adv">
       <span class="hj fejltekst" id="opost-vaerdi-fejl"></span>
+      <span class="raekkeadv" id="opost-vaerdi-adv" role="status" hidden></span>
     </div>
     <div class="felt">
       <label class="label" for="opost-note" data-t="feltNote">Note (valgfri)</label>
@@ -247,6 +248,25 @@
   <div class="dlg-knapper">
     <button type="button" class="btn" data-luk data-t="luk">Luk</button>
     <button type="button" class="btn primary" id="proev-ok" data-t="kProevKoer">Prøv</button>
+  </div>
+</dialog>
+
+<dialog class="dlg" id="dlg-demfil" aria-labelledby="dlg-demfil-h" aria-describedby="dlg-demfil-p">
+  <h2 id="dlg-demfil-h" data-t="demfilH">Gem med de rigtige værdier?</h2>
+  <p id="dlg-demfil-p" data-t="demfilP"></p>
+  <div class="dlg-knapper">
+    <button type="button" class="btn" id="demfil-nej" data-luk data-t="annuller">Annullér</button>
+    <button type="button" class="btn danger" id="demfil-ok" data-t="demfilOk">Vælg sted og gem</button>
+  </div>
+</dialog>
+
+<dialog class="dlg" id="dlg-oforfra" aria-labelledby="dlg-oforfra-h" aria-describedby="dlg-oforfra-p">
+  <h2 id="dlg-oforfra-h" data-t="oforfraH">Start forfra med en tom ordbog?</h2>
+  <p id="dlg-oforfra-p" data-t="oforfraP" data-v=""></p>
+  <p class="dlg-fejl" id="oforfra-fejl" role="alert"></p>
+  <div class="dlg-knapper">
+    <button type="button" class="btn" id="oforfra-nej" data-luk data-t="annuller">Annullér</button>
+    <button type="button" class="btn danger" id="oforfra-ok" data-t="hStartForfra">Start forfra</button>
   </div>
 </dialog>
 

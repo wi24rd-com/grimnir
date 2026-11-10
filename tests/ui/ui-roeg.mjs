@@ -11,6 +11,9 @@
 // V-ORDBOG.1: Ordbog med en efterlignet Rust (falskOrdbogRust): tilføj, ret, fjern, søg, træ, Prøv på tekst, fra Maskér til
 // ordbogen, guiden (frem, tilbage, spring over, vises ikke igen), indstillinger (gemmes, gælder en ny sag), advarslen ved
 // egen kode, kittets Wizard og Fletbånd.
+// V-FIL.1: Åbn fil og Gem som fil med en efterlignet Rust (falskFilRust): åbn (menu, knap, ⌘O/Ctrl+O), uddrag og filinfo,
+// rækker fra Rust i sider, søgning over alle rækker, gem og kopiér, rester → Gem alligevel, Demaskér med bekræftelse,
+// træk og slip (én fil, flere filer, en mappe), arbejder-tilstand; ingen fil-rettigheder; Start forfra; adgangskode-advarsel.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -108,15 +111,15 @@ const VIS = ['masker', 'demasker', 'sager', 'ordbog'];
     const bar = d.querySelector(`#baand > [data-visning="${id}"]`);
     tjek(`${id}: kun visningens CommandBar vises`, !bar.hidden && [...d.querySelectorAll('#baand > [data-visning]')].filter(b => !b.hidden).length === 1);
     tjek(`${id}: én primær kommando på Start`, bar.querySelectorAll('.grupper[data-fane="start"] .cb.pri').length === 1);
-    // Uden tekst er alt nedtonet med en forklaring, undtagen Indsæt i Maskér og Demaskér, Ny sag i Sager (V-SAG.1) og
-    // Tilføj post og Prøv på tekst i Ordbog (V-ORDBOG.1).
-    tjek(`${id}: kommandoerne er nedtonede med forklaring`, [...bar.querySelectorAll('.grupper[data-fane="start"] .cb')].every(b => (b.getAttribute('aria-disabled') === 'true' && b.title.length > 10) || (b.dataset.kommando === 'indsaet' && ['masker', 'demasker'].includes(id)) || (b.dataset.kommando === 'ny-sag' && id === 'sager') || (['tilfoej-post', 'proev'].includes(b.dataset.kommando) && id === 'ordbog')));
+    // Uden tekst er alt nedtonet med en forklaring, undtagen Indsæt i Maskér og Demaskér, Ny sag i Sager (V-SAG.1),
+    // Tilføj post og Prøv på tekst i Ordbog (V-ORDBOG.1) og Åbn fil i Maskér og Demaskér (V-FIL.1).
+    tjek(`${id}: kommandoerne er nedtonede med forklaring`, [...bar.querySelectorAll('.grupper[data-fane="start"] .cb')].every(b => (b.getAttribute('aria-disabled') === 'true' && b.title.length > 10) || (['indsaet', 'aabn-fil'].includes(b.dataset.kommando) && ['masker', 'demasker'].includes(id)) || (b.dataset.kommando === 'ny-sag' && id === 'sager') || (['tilfoej-post', 'proev'].includes(b.dataset.kommando) && id === 'ordbog')));
     tjek(`${id}: tom tilstand med overskrift og én sætning`, (() => { const t = d.querySelector(`section[data-visning="${id}"] .tom`); const p = t && t.querySelector('p').textContent; return t && t.querySelector('h2').textContent.length > 3 && p.length > 20 && (p.match(/[.]\s/g) || []).length === 0 && p.endsWith('.'); })());
     tjek(`${id}: fodlinjen siger, hvad fladen viser`, /^0 /.test(d.getElementById('fod-venstre').textContent));
     tjek(`${id}: træets valgte punkt har aria-current`, d.querySelectorAll(`.navdel[data-visning="${id}"] .tr[aria-current="true"]`).length === 1);
     tjek(`${id}: ${i + 1}. visning`, links[i].classList.contains('on'));
   }
-  const kommandoer = { masker: ['Indsæt', 'Åbn fil', 'Analysér', 'Gem og maskér', 'Før og efter', 'Kopiér', 'Kvittering'], demasker: ['Indsæt', 'Åbn fil', 'Demaskér', 'Næste advarsel', 'Kopiér resultat', 'Gem som fil'], sager: ['Ny sag', 'Åbn i Maskér', 'Omdøb', 'Udløb', 'Eksportér', 'Importér', 'Slet sag'], ordbog: ['Tilføj post', 'Ret', 'Prøv på tekst', 'Importér', 'Eksportér', 'Fjern post'] };
+  const kommandoer = { masker: ['Indsæt', 'Åbn fil', 'Analysér', 'Gem og maskér', 'Før og efter', 'Kopiér', 'Gem maskeret fil', 'Kvittering'], demasker: ['Indsæt', 'Åbn fil', 'Demaskér', 'Næste advarsel', 'Kopiér resultat', 'Gem som fil'], sager: ['Ny sag', 'Åbn i Maskér', 'Omdøb', 'Udløb', 'Eksportér', 'Importér', 'Slet sag'], ordbog: ['Tilføj post', 'Ret', 'Prøv på tekst', 'Importér', 'Eksportér', 'Fjern post'] };
   for (const [id, liste] of Object.entries(kommandoer)) {
     const ord = [...d.querySelectorAll(`#baand > [data-visning="${id}"] .grupper[data-fane="start"] .cb`)].map(b => b.textContent.trim());
     tjek(`${id}: kommandoerne fra design/skaerme/`, JSON.stringify(ord) === JSON.stringify(liste), JSON.stringify(ord));
@@ -1351,6 +1354,340 @@ const enter = (w, el) => el.dispatchEvent(new w.KeyboardEvent('keydown', { key: 
   fr2.checked = true;
   fr2.dispatchEvent(new s2.w.Event('change', { bubbles: true })); await vent(10);
   tjek('Indstillinger: en fejl står i dialogen, og valget springer tilbage', s2.d.getElementById('indst-fejl').textContent === 'Indstillingen blev ikke gemt: disken kunne ikke bruges (PermissionDenied).' && !fr2.checked);
+}
+
+// ══════════════════════════ V-FIL.1: Åbn fil og Gem som fil ══════════════════════════
+
+/* Efterlignet Rust for filerne (samme felter som FilInfo, FilAnalyse, RaekkeSide, FilMaskering, FilDemaskering i
+   src-tauri/src/maskering.rs). Filen har `antal` rækker (opdigtede adresser i 10.20.0.0/16 og én hemmelighed); søgning,
+   filter og sider sker "i Rust" (her), så testen kan se, at webvisningen beder om dem i stedet for selv at have alle
+   rækker. Ingen stier: Rust sender kun filnavnet. */
+function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = true } = {}) {
+  const r = falskRust({ rester });
+  const RAEKKER = Array.from({ length: antal }, (_, i) => ({
+    id: 10 + i * 30, art: i === 0 ? 'hemmelighed' : 'ipv4_egen', status: i === 1 ? 'tjek' : 'sikker', standard: i !== 1, hemmelig: i === 0,
+    vaerdier: [i === 0 ? HEMMELIG : `10.20.${Math.floor(i / 250)}.${(i % 250) + 1}`], koder: [i === 0 ? 'GRIMNIR_SECRET_0001' : `198.18.${Math.floor(i / 250)}.${(i % 250) + 1}`],
+    linje: i + 1, laast: false, antal: 1, kendt: false, rettet: false,
+  }));
+  let valgt = new Map(RAEKKER.map(x => [x.id, x.standard]));
+  const fil = { masker: null, demasker: null };
+  let sluppet = null;
+  const gemt = [];
+  const pause = () => new Promise(res => setTimeout(res, forsinkelse));
+  const info = navn => ({ navn, bytes: 12345678, tegnsaet: 'utf16le', linjeskift: 'crlf', linjer: antal + 2, uddrag: 'Password=Sommer2026!;\r\nsrcip=10.20.0.2 msg=ok\r\n', ikke_vist: 1234567 });
+  const side = sv => {
+    const q = (sv.soeg || '').trim().toLowerCase(), vist = new Set(sv.vist || []);
+    const alle = RAEKKER.map(x => ({ ...x, valgt: valgt.get(x.id) }));
+    const passer = x => (sv.filter === 'tjek' ? x.status === 'tjek' : sv.filter === 'hemmelig' ? x.hemmelig : sv.filter === 'seneste' ? x.kendt : true)
+      && (!q || x.koder.some(k => k.toLowerCase().includes(q)) || ((!x.hemmelig || vist.has(x.id)) && x.vaerdier.some(v => v.toLowerCase().includes(q))));
+    const f = alle.filter(passer);
+    return {
+      raekker: f.slice(0, sv.antal), i_alt: f.length, valgte: alle.filter(x => x.valgt).length,
+      antal: { alle: alle.length, tjek: alle.filter(x => x.status === 'tjek').length, hemmelig: alle.filter(x => x.hemmelig).length, seneste: 0, status_tjek: alle.filter(x => x.status === 'tjek').length },
+    };
+  };
+  return {
+    ...r,
+    fil: { gemt, set sluppet(v) { sluppet = v; }, get aaben() { return fil; } },
+    fil_aabn: async ({ visning }) => { await pause(); fil[visning] = info(visning === 'masker' ? 'app.log' : 'app.maskeret.log'); return fil[visning]; },
+    fil_aabn_sluppet: ({ visning }) => { if (!sluppet) return null; fil[visning] = info(sluppet); sluppet = null; return fil[visning]; },
+    fil_luk: ({ visning }) => { fil[visning] = null; return null; },
+    fil_analyser: async ({ fravalgt, rort, side: sv }) => {
+      await pause();
+      valgt = new Map(RAEKKER.map(x => [x.id, rort ? (new Map(rort).has(x.id) ? new Map(rort).get(x.id) : x.standard) : fravalgt ? !fravalgt.includes(x.id) : x.standard]));
+      return { side: side(sv), fejl: [], advarsler: [], bytes: 12345678, linjer: antal + 2, fravalgt: RAEKKER.filter(x => !valgt.get(x.id)).map(x => x.id) };
+    },
+    fil_raekker: ({ side: sv }) => side(sv),
+    fil_gem_og_masker: async () => {
+      await pause();
+      return { uddrag: 'Password=GRIMNIR_SECRET_0001;\r\nsrcip=198.18.0.2 msg=ok\r\n', ikke_vist: 1234000, rester, advarsler: [], poster: antal, bytes: kopierbar ? 1000 : 6 * 1048576, kopierbar };
+    },
+    fil_demasker: async () => { await pause(); return { uddrag: 'Password=Sommer2026!;\r\n', ikke_vist: 99, advarsler: [], koder: ['198.18.0.2'], bytes: kopierbar ? 1000 : 6 * 1048576, kopierbar }; },
+    fil_kopi: ({ visning }) => (visning === 'masker' ? 'MASKERET-HELE-FILEN' : 'RIGTIGE-HELE-FILEN'),
+    fil_gem: ({ visning, ok }) => {
+      if (visning === 'masker' && rester.length && !ok) throw { art: 'rester', antal: rester.length };
+      if (visning === 'demasker' && !ok) throw { art: 'ikke_bekraeftet' };
+      gemt.push([visning, ok]);
+      return visning === 'masker' ? 'app.maskeret.log' : 'app.demaskeret.log';
+    },
+  };
+}
+
+// ── Statisk: ingen fil-rettigheder, ingen lytter på Tauris træk-og-slip med stier, tekster til Rusts filfejl ──
+{
+  const cap = JSON.parse(fs.readFileSync(path.join(repo, 'src-tauri', 'capabilities', 'default.json'), 'utf8'));
+  tjek('capabilities: ingen fs- eller dialog-rettigheder (webvisningen har ingen fil-rettigheder)', !cap.permissions.some(p => /^(fs|dialog)[:-]/.test(p) || /plugin/.test(p)), cap.permissions.join(', '));
+  const build = fs.readFileSync(path.join(repo, 'src-tauri', 'build.rs'), 'utf8');
+  const kmd = [...build.matchAll(/^\s+"([a-z_]+)",$/gm)].map(m => m[1]);
+  const mangler = kmd.filter(k => !cap.permissions.includes('allow-' + k.replace(/_/g, '-')));
+  tjek('capabilities: hver kommando i build.rs har sin rettighed (også fil_*)', kmd.length >= 33 && kmd.includes('fil_gem') && mangler.length === 0, mangler.join(', '));
+  const alle = fs.readdirSync(path.join(repo, 'ui', 'assets')).filter(f => f.endsWith('.js')).map(f => ui('assets/' + f)).join('\n') + ui('index.html');
+  tjek('ui/: ingen lytter på tauri://drag-drop (stierne når aldrig webvisningen)', !/drag-drop|drag-enter|onDragDropEvent|tauri:\/\/drag/i.test(alle));
+  tjek('ui/: ingen fil-API i webvisningen (FileReader, dataTransfer.files, input type=file)', !/FileReader|dataTransfer\.files|type=["']file["']/.test(alle));
+  const filrs = fs.readFileSync(path.join(repo, 'src-tauri', 'src', 'fil.rs'), 'utf8');
+  const blok = filrs.slice(filrs.indexOf('pub enum FilFejl {'), filrs.indexOf('\n}\n', filrs.indexOf('pub enum FilFejl {')));
+  const snake = n => n.replace(/[A-Z]/g, (c, i) => (i ? '_' : '') + c.toLowerCase());
+  const arter = [...blok.matchAll(/^ {4}([A-Z][A-Za-z0-9]+)/gm)].map(m => snake(m[1])).filter(a => a !== 'tegnsaet');
+  const ligner = [...blok.matchAll(/`([a-z0-9_]+)`/g)].map(m => m[1]).filter(x => !['ligner', 'byte'].includes(x));
+  const { w } = side();
+  const T = w.Sprog.TEKST;
+  const uden = [...arter.map(a => 'ffejl_' + a), ...ligner.map(l => 'ffejl_tegnsaet_' + l)].filter(k => !(k in T.da && k in T.en));
+  tjek(`sprog: hver FilFejl (${arter.length}) og hvert "ligner" (${ligner.length}) fra fil.rs har en tekst`, arter.length >= 7 && ligner.length === 6 && uden.length === 0, uden.join(', '));
+  tjek('fil.rs: hvert "ligner" i dokumentationen bruges i koden', ligner.every(l => filrs.includes(`"${l}"`)));
+  const GMw = w.GrimnirMaskering;
+  tjek('filfejl som tekst: Latin-1 med byteposition og stor fil med MB', GMw.filFejlTekst({ art: 'tegnsaet', ligner: 'enkeltbyte', byte: 1234 }).includes('position 1.234') && GMw.filFejlTekst({ art: 'for_stor', bytes: 110100480, maks: 104857600 }) === 'filen er 105.0 MB, og grænsen er 100.0 MB');
+}
+
+// ── Maskér med en fil: åbn, uddrag, rækker fra Rust, søgning over alle, gem, kopiér ──
+{
+  const skrevet = [];
+  const rust = falskFilRust();
+  const s = side({ rust, foer: w => Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async t => { skrevet.push(t); } }, configurable: true }) });
+  const { d, w } = s;
+  await vent(5);
+  const G = w.GrimnirMaskering;
+  const sek = d.querySelector('section[data-visning="masker"]');
+  tjek('Maskér: Åbn fil er aktiv fra start, med genvejen ⌘O', kommandoAktiv(d, 'masker', 'aabn-fil') && knapI(d, 'masker', 'aabn-fil').title === 'Genvej: ⌘O');
+  tjek('Maskér: den tomme tilstand har knappen Åbn fil', [...sek.querySelectorAll('.tom button')].some(b => b.textContent.trim() === 'Åbn fil'));
+  tjek('Maskér: Gem maskeret fil er nedtonet uden fil, med forklaring', !kommandoAktiv(d, 'masker', 'gem-fil') && knapI(d, 'masker', 'gem-fil').title === 'Åbn en fil først; en indsat tekst kopieres med Kopiér');
+  tjek('Maskér: Kvittering er stadig nedtonet (v2)', !kommandoAktiv(d, 'masker', 'kvittering') && knapI(d, 'masker', 'kvittering').title === 'Kommer i en senere version af Grimnir');
+  s.emit('menu', 'aabn');
+  await vent(10);
+  tjek('Arkiv → Åbn… (⌘O): fil_aabn for Maskér', s.kald.some(k => k[0] === 'fil_aabn' && k[1].visning === 'masker') && G.M.st.fil && G.M.st.fil.navn === 'app.log');
+  const fi = sek.querySelector('.vl .filinfo');
+  tjek('værktøjslinjen: filnavn, størrelse, tegnsæt og linjeskift', fi && !fi.hidden && fi.textContent === 'app.log11.8 MBUTF-16 LECRLF', fi && fi.textContent);
+  tjek('uddraget vises, og en linje siger, hvor meget der ikke vises', sek.querySelector('pre.tekst').textContent.startsWith('Password=') && sek.querySelector('.afkortet').textContent === 'Viser de første 200.000 tegn. 1.234.567 tegn mere er med i maskeringen, men vises ikke.' && !sek.querySelector('.afkortet').hidden);
+  tjek('tekstpanelet viser filens linjer og størrelse', sek.querySelector('.panel .panel-hoved .muted').textContent.includes('1202'));
+  s.tast('Enter', { metaKey: true });
+  await vent(10);
+  const fa = s.kald.filter(k => k[0] === 'fil_analyser');
+  tjek('⌘↵: fil_analyser uden tekst, med kernens standard og første side', fa.length === 1 && !('tekst' in fa[0][1]) && fa[0][1].fravalgt === null && fa[0][1].side.antal === 500 && fa[0][1].side.filter === 'alle' && !s.kald.some(k => k[0] === 'analyser'));
+  tjek('tabellen: 500 rækker ad gangen, "Viser 500 af 1200"', fundRaekker(d).length === 500 && sek.querySelector('.flere').textContent.includes('500') && sek.querySelector('.flere').textContent.includes('1200') && !sek.querySelector('.flere').hidden);
+  const trae = n => d.querySelector(`.navdel[data-visning="masker"] [data-punkt="${n}"] .ant`).textContent;
+  tjek('træets antal er over alle rækker (fra Rust)', [trae('alle'), trae('tjek'), trae('hemmelig'), trae('seneste')].join() === '1200,1,1,0');
+  tjek('fodlinjen: alle fund og antal valgt (fra Rust)', d.getElementById('fod-venstre').textContent === '1200 fund · 1199 maskeres', d.getElementById('fod-venstre').textContent);
+  sek.querySelector('.flere button').click();
+  await vent(5);
+  tjek('Vis flere: fil_raekker med 1000', s.kald.some(k => k[0] === 'fil_raekker' && k[1].side.antal === 1000) && fundRaekker(d).length === 1000);
+  const soeg = sek.querySelector('.vl input[type="search"]');
+  soeg.value = '10.20.4.150';
+  soeg.dispatchEvent(new w.Event('input', { bubbles: true }));
+  await vent(5);
+  tjek('søgning dækker alle rækker: en adresse langt ude i filen findes', fundRaekker(d).length === 1 && fundRaekker(d)[0].textContent.includes('10.20.4.150') && s.kald.some(k => k[0] === 'fil_raekker' && k[1].side.soeg === '10.20.4.150'));
+  soeg.value = 'sommer';
+  soeg.dispatchEvent(new w.Event('input', { bubbles: true }));
+  await vent(5);
+  tjek('søgning: en skjult hemmelighed findes ikke på værdien', fundRaekker(d).length === 0);
+  soeg.value = '';
+  soeg.dispatchEvent(new w.Event('input', { bubbles: true }));
+  await vent(5);
+  d.querySelector('.navdel[data-visning="masker"] [data-punkt="hemmelig"]').click();
+  await vent(5);
+  tjek('filteret Hemmeligheder hentes fra Rust', fundRaekker(d).length === 1 && s.kald.some(k => k[0] === 'fil_raekker' && k[1].side.filter === 'hemmelig'));
+  d.querySelector('.navdel[data-visning="masker"] [data-punkt="alle"]').click();
+  await vent(5);
+  const cb = raekkeMed(d, 70).querySelector('input[type="checkbox"]');
+  cb.checked = false;
+  cb.dispatchEvent(new w.Event('change', { bubbles: true }));
+  await vent(400);
+  const fa2 = s.kald.filter(k => k[0] === 'fil_analyser').pop();
+  tjek('et fravalg sendes til Rust (fil_analyser med fravalgt)', fa2[1].fravalgt.includes(70) && d.getElementById('fod-venstre').textContent === '1200 fund · 1198 maskeres', d.getElementById('fod-venstre').textContent);
+  s.tast('Enter', { metaKey: true });
+  await vent(10);
+  tjek('Gem og maskér: fil_gem_og_masker uden tekst', s.kald.some(k => k[0] === 'fil_gem_og_masker' && !('tekst' in k[1]) && k[1].fravalgt.includes(70)));
+  tjek('efter maskeringen: det maskerede uddrag vises', sek.querySelector('pre.tekst').textContent.startsWith('Password=GRIMNIR_SECRET_0001') && sek.querySelector('.afkortet').textContent.includes('1.234.000'));
+  tjek('Gem maskeret fil og Kopiér er aktive (⌘S og ⇧⌘C)', kommandoAktiv(d, 'masker', 'gem-fil') && knapI(d, 'masker', 'gem-fil').title === 'Genvej: ⌘S' && kommandoAktiv(d, 'masker', 'kopier'));
+  knapI(d, 'masker', 'kopier').click();
+  await vent(10);
+  tjek('Kopiér: hele resultatet hentes fra Rust (fil_kopi) og kopieres', s.kald.some(k => k[0] === 'fil_kopi' && k[1].visning === 'masker') && skrevet.pop() === 'MASKERET-HELE-FILEN');
+  s.emit('menu', 'gem');
+  await vent(10);
+  tjek('Arkiv → Gem… (⌘S): fil_gem for Maskér uden "alligevel"', rust.fil.gemt.length === 1 && rust.fil.gemt[0].join() === 'masker,false' && sek.querySelector('.besked').textContent === 'Gemt som app.maskeret.log.');
+  tjek('ingen kommando har fået en sti eller hele filen', s.kald.every(k => !/sti|path|\//i.test(JSON.stringify(Object.keys(k[1]))) && !('tekst' in k[1] && /^fil_/.test(k[0]))));
+  // En indsat tekst tager over: filen slippes i Rust.
+  indsaet(w, sek.querySelector('pre.tekst'), TEKST);
+  await vent(5);
+  tjek('indsæt efter en fil: fil_luk, og værktøjslinjen viser ingen fil', s.kald.some(k => k[0] === 'fil_luk' && k[1].visning === 'masker') && G.M.st.fil === null && fi.hidden && G.M.st.tekst === TEKST);
+}
+
+// ── Maskér: rester kræver Gem alligevel; Kopiér over 5 MB er nedtonet ──
+{
+  const rust = falskFilRust({ antal: 3, rester: [{ art: 'original', type_: 'hemmelighed', tekst: 'SOMMER2026!', antal: 1, linje: 4 }], kopierbar: false });
+  const s = side({ rust });
+  const { d } = s;
+  await vent(5);
+  const sek = d.querySelector('section[data-visning="masker"]');
+  knapI(d, 'masker', 'aabn-fil').click();
+  await vent(10);
+  s.tast('Enter', { metaKey: true }); await vent(10);
+  s.tast('Enter', { metaKey: true }); await vent(10);
+  tjek('rester: banneret om rester står', sek.textContent.includes('Lækagetjekket fandt 1 steder i resultatet'));
+  tjek('over 5 MB: Kopiér er nedtonet med forklaring', !kommandoAktiv(d, 'masker', 'kopier') && knapI(d, 'masker', 'kopier').title === 'Over 5 MB kan ikke kopieres; gem resultatet som fil');
+  knapI(d, 'masker', 'gem-fil').click();
+  await vent(5);
+  const alligevel = [...sek.querySelectorAll('.ban button')].find(b => b.textContent === 'Gem alligevel');
+  tjek('Gem maskeret fil med rester: intet gemt, et ekstra tryk kræves', rust.fil.gemt.length === 0 && !s.kald.some(k => k[0] === 'fil_gem') && alligevel && sek.textContent.includes('står i klartekst i filen'));
+  alligevel.click();
+  await vent(10);
+  tjek('Gem alligevel: fil_gem med ok', rust.fil.gemt.length === 1 && rust.fil.gemt[0].join() === 'masker,true');
+}
+
+// ── Arbejder-tilstand: over et sekund vises "Grimnir arbejder", og kommandoerne er nedtonede ──
+{
+  const rust = falskFilRust({ antal: 3, forsinkelse: 1300 });
+  const s = side({ rust });
+  const { d } = s;
+  await vent(5);
+  const sek = d.querySelector('section[data-visning="masker"]');
+  knapI(d, 'masker', 'aabn-fil').click();
+  await vent(50);
+  const arb = sek.querySelector('.arbejder');
+  tjek('arbejder: kommandoerne er nedtonede med det samme', !kommandoAktiv(d, 'masker', 'aabn-fil') && knapI(d, 'masker', 'aabn-fil').title === 'Vent, Grimnir arbejder' && sek.querySelector('.vl .chip').textContent.includes('Arbejder'));
+  tjek('arbejder: under et sekund vises ingen besked', arb.hidden);
+  await vent(1050);
+  tjek('arbejder: efter et sekund står "Grimnir arbejder" (role=status), og fladen er aria-busy', !arb.hidden && arb.getAttribute('role') === 'status' && arb.textContent.startsWith('Grimnir arbejder') && sek.querySelector('.flade').getAttribute('aria-busy') === 'true');
+  await vent(300);
+  tjek('arbejder: færdig: beskeden er væk, og Åbn fil er aktiv igen', arb.hidden && kommandoAktiv(d, 'masker', 'aabn-fil') && !sek.querySelector('.flade').hasAttribute('aria-busy'));
+}
+
+// ── Træk og slip: én fil åbnes; flere filer og en mappe afvises ──
+{
+  const rust = falskFilRust({ antal: 3 });
+  const s = side({ rust });
+  const { d, w } = s;
+  await vent(5);
+  const G = w.GrimnirMaskering;
+  const flade = d.querySelector('section[data-visning="masker"] .flade');
+  s.emit('fil-traek', true);
+  tjek('træk over vinduet: fladen viser, at den tager imod', flade.hasAttribute('data-traek'));
+  rust.fil.sluppet = 'sluppet.log';
+  s.emit('fil-sluppet', { navn: 'sluppet.log', fejl: null });
+  await vent(10);
+  tjek('slip én fil: fil_aabn_sluppet i Maskér, og filen er åben', !flade.hasAttribute('data-traek') && s.kald.some(k => k[0] === 'fil_aabn_sluppet' && k[1].visning === 'masker') && G.M.st.fil && G.M.st.fil.navn === 'sluppet.log');
+  s.emit('fil-sluppet', { navn: null, fejl: 'flere' });
+  await vent(5);
+  tjek('slip flere filer: afvist med besked', d.querySelector('section[data-visning="masker"]').textContent.includes('Træk én fil ad gangen ind'));
+  s.w.location.hash = 'demasker';
+  await vent(5);
+  s.emit('fil-sluppet', { navn: null, fejl: 'mappe' });
+  await vent(5);
+  tjek('slip en mappe i Demaskér: afvist med besked dér', d.querySelector('section[data-visning="demasker"]').textContent.includes('En mappe kan ikke åbnes'));
+  rust.fil.sluppet = 'svar.log';
+  s.emit('fil-sluppet', { navn: 'svar.log', fejl: null });
+  await vent(10);
+  tjek('slip i Demaskér: filen åbnes i Demaskér', s.kald.some(k => k[0] === 'fil_aabn_sluppet' && k[1].visning === 'demasker') && G.D.st.fil && G.D.st.fil.navn === 'svar.log');
+  s.w.location.hash = 'sager';
+  await vent(5);
+  rust.fil.sluppet = 'fra-sager.log';
+  s.emit('fil-sluppet', { navn: 'fra-sager.log', fejl: null });
+  await vent(20);
+  tjek('slip i Sager: Maskér overtager og åbner filen', JSON.stringify(synlige(d)) === '["masker"]' && G.M.st.fil && G.M.st.fil.navn === 'fra-sager.log');
+}
+
+// ── Demaskér med en fil: bekræftelse før Gem som fil ──
+{
+  const skrevet = [];
+  const rust = falskFilRust({ antal: 3 });
+  const s = side({ hash: '#demasker', rust, foer: w => Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async t => { skrevet.push(t); } }, configurable: true }) });
+  const { d, w } = s;
+  await vent(5);
+  w.GrimnirMaskering.saetSag(3);
+  const sek = d.querySelector('section[data-visning="demasker"]');
+  tjek('Demaskér: Åbn fil aktiv; Gem som fil nedtonet med forklaring', kommandoAktiv(d, 'demasker', 'aabn-fil') && !kommandoAktiv(d, 'demasker', 'gem-fil') && knapI(d, 'demasker', 'gem-fil').title === 'Åbn en fil først; en indsat tekst kopieres med Kopiér');
+  s.emit('menu', 'aabn');
+  await vent(10);
+  tjek('Demaskér: fil_aabn for Demaskér, filinfo i værktøjslinjen', s.kald.some(k => k[0] === 'fil_aabn' && k[1].visning === 'demasker') && sek.querySelector('.vl .filinfo').textContent.startsWith('app.maskeret.log'));
+  s.tast('Enter', { metaKey: true });
+  await vent(10);
+  tjek('Demaskér: fil_demasker uden tekst; de rigtige værdier i uddrag', s.kald.some(k => k[0] === 'fil_demasker' && !('tekst' in k[1])) && sek.querySelectorAll('pre.tekst')[1].textContent === 'Password=Sommer2026!;\r\n');
+  tjek('Demaskér: Gem som fil er aktiv (⌘S)', kommandoAktiv(d, 'demasker', 'gem-fil') && knapI(d, 'demasker', 'gem-fil').title === 'Genvej: ⌘S');
+  knapI(d, 'demasker', 'gem-fil').click();
+  await vent(5);
+  const dlg = d.getElementById('dlg-demfil');
+  tjek('Gem som fil: først en bekræftelse om klartekst; intet gemt endnu', dlg.open && dlg.textContent.includes('rigtige værdier i klartekst') && !s.kald.some(k => k[0] === 'fil_gem') && d.activeElement === d.getElementById('demfil-nej'));
+  d.getElementById('demfil-nej').click();
+  await vent(5);
+  tjek('Annullér: intet gemt', !dlg.open && !s.kald.some(k => k[0] === 'fil_gem'));
+  s.emit('menu', 'gem');
+  await vent(5);
+  tjek('⌘S i Demaskér: også først bekræftelsen', dlg.open && !s.kald.some(k => k[0] === 'fil_gem'));
+  d.getElementById('demfil-ok').click();
+  await vent(10);
+  tjek('Bekræftet: fil_gem for Demaskér med ok, og besked med filnavnet', !dlg.open && rust.fil.gemt.length === 1 && rust.fil.gemt[0].join() === 'demasker,true' && sek.querySelector('.besked').textContent === 'Gemt som app.demaskeret.log.');
+  knapI(d, 'demasker', 'kopier-resultat').click();
+  await vent(10);
+  tjek('Kopiér resultat: fra Rust (fil_kopi)', skrevet.pop() === 'RIGTIGE-HELE-FILEN');
+}
+
+// ── Windows: Ctrl+O og Ctrl+S ──
+{
+  const rust = falskFilRust({ antal: 3 });
+  const s = side({ platform: 'windows', rust });
+  const { d, w } = s;
+  await vent(5);
+  tjek('Windows: Åbn fil har genvejen Ctrl+O', knapI(d, 'masker', 'aabn-fil').title === 'Genvej: Ctrl+O');
+  s.tast('o', { ctrlKey: true, code: 'KeyO' });
+  await vent(10);
+  tjek('Windows: Ctrl+O åbner en fil i Maskér', w.GrimnirMaskering.M.st.fil && w.GrimnirMaskering.M.st.fil.navn === 'app.log');
+  s.tast('Enter', { ctrlKey: true }); await vent(10);
+  s.tast('Enter', { ctrlKey: true }); await vent(10);
+  s.tast('s', { ctrlKey: true, code: 'KeyS' });
+  await vent(10);
+  tjek('Windows: Ctrl+S gemmer den maskerede fil', rust.fil.gemt.length === 1 && rust.fil.gemt[0][0] === 'masker');
+  const s2 = side({ rust: falskFilRust({ antal: 3 }) });
+  await vent(5);
+  s2.tast('o', { ctrlKey: true, code: 'KeyO' });
+  await vent(10);
+  tjek('macOS: Ctrl+O gør intet (menuen har ⌘O)', !s2.kald.some(k => k[0] === 'fil_aabn'));
+}
+
+// ── Ordbog (F5): Start forfra og advarslen om en adgangskode ──
+{
+  const rust = falskOrdbogRust({ indst: { guide_vist: true }, laast: { art: 'beskadiget' } });
+  rust.ordbog_start_forfra = ({ dato }) => { rust.ob.laast = null; return { ordbog: { poster: [], fejl: null }, flyttet_til: `ordbog.${dato}.ulaeselig` }; };
+  const s = side({ hash: '#ordbog', rust });
+  const { d } = s;
+  await vent(20);
+  const sek = d.querySelector('section[data-visning="ordbog"]');
+  const knap = [...sek.querySelectorAll('.ban button')].find(b => b.textContent === 'Start forfra');
+  tjek('Ordbog, der ikke kan åbnes: banneret har Start forfra', Boolean(knap));
+  knap.click();
+  await vent(5);
+  const dlg = d.getElementById('dlg-oforfra');
+  const idag = (() => { const x = new Date(); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; })();
+  tjek('Start forfra: bekræftelse med det nye filnavn; filen slettes ikke', dlg.open && dlg.textContent.includes(`ordbog.${idag}.ulaeselig`) && dlg.textContent.includes('slettes ikke') && !s.kald.some(k => k[0] === 'ordbog_start_forfra'));
+  d.getElementById('oforfra-ok').click();
+  await vent(10);
+  tjek('Start forfra: kaldt med dagens dato; ordbogen er tom og kan ændres', s.kald.some(k => k[0] === 'ordbog_start_forfra' && k[1].dato === idag) && !dlg.open && sek.textContent.includes(`Den gamle ordbog hedder nu ordbog.${idag}.ulaeselig`) && kommandoAktiv(d, 'ordbog', 'tilfoej-post'));
+}
+{
+  const rust = falskOrdbogRust({ indst: { guide_vist: true } });
+  const s = side({ hash: '#ordbog', rust });
+  const { d, w } = s;
+  await vent(20);
+  knapI(d, 'ordbog', 'tilfoej-post').click();
+  await vent(5);
+  const v = d.getElementById('opost-vaerdi'), adv = d.getElementById('opost-vaerdi-adv');
+  vaelgType(w, d.getElementById('opost-type'), 'ord');
+  v.value = 'Sommer2026!';
+  v.dispatchEvent(new w.Event('input', { bubbles: true }));
+  tjek('Tilføj post: et ord, der ligner en adgangskode, giver advarslen', !adv.hidden && adv.textContent === 'Ligner en adgangskode. Hemmeligheder hører ikke hjemme i ordbogen.' && v.getAttribute('aria-describedby').includes('opost-vaerdi-adv'));
+  v.value = 'Uglebo';
+  v.dispatchEvent(new w.Event('input', { bubbles: true }));
+  tjek('Tilføj post: et almindeligt ord giver ingen advarsel', adv.hidden);
+  v.value = 'Kort1!';
+  v.dispatchEvent(new w.Event('input', { bubbles: true }));
+  tjek('Tilføj post: under 8 tegn giver ingen advarsel', adv.hidden);
+  vaelgType(w, d.getElementById('opost-type'), 'domaene');
+  v.value = 'srv01-a.kontor.test';
+  v.dispatchEvent(new w.Event('input', { bubbles: true }));
+  tjek('Tilføj post: et domæne advares ikke (egen syntaks)', adv.hidden);
+  vaelgType(w, d.getElementById('opost-type'), 'ord');
+  v.value = 'Vinter2027#';
+  v.dispatchEvent(new w.Event('input', { bubbles: true }));
+  d.getElementById('opost-ok').click();
+  await vent(10);
+  tjek('Tilføj post: advarslen blokerer ikke (posten tilføjes)', rust.ob.db.some(p => p.vaerdi === 'Vinter2027#') && !d.getElementById('dlg-opost').open);
 }
 
 console.log(`\n${ok + fejl} tjek: ${ok} ok, ${fejl} fejl`);

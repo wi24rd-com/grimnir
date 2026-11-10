@@ -7,7 +7,10 @@
    tekst" gemmes ingen steder: den slettes fra feltet, når dialogen lukkes. Intet her skriver til konsollen eller til
    localStorage.
 
-   Rust-kommandoer: ordbog_hent, ordbog_tilfoej, ordbog_ret, ordbog_fjern, ordbog_proev. En ændring melder
+   V-FIL.1 F5: en ordbog, der ikke kan åbnes, kan startes forfra (filen omdøbes til ordbog.<dato>.ulaeselig, den slettes
+   ikke), og Tilføj post advarer, når et ord ligner en adgangskode (advarslen blokerer ikke).
+
+   Rust-kommandoer: ordbog_hent, ordbog_tilfoej, ordbog_ret, ordbog_fjern, ordbog_proev, ordbog_start_forfra. En ændring melder
    'grimnir-ordbog' på document (Maskér analyserer igen). */
 (function () {
   'use strict';
@@ -17,7 +20,7 @@
   const $ = id => document.getElementById(id);
 
   const ALTID = ['domaene', 'netbios', 'navnemoenster', 'eget_net', 'ord', 'person'];
-  const st = { poster: [], fejl: null, valgt: null, filter: 'lister', soeg: '', fejlBanner: null };
+  const st = { poster: [], fejl: null, valgt: null, filter: 'lister', soeg: '', fejlBanner: null, infoBanner: null };
 
   /* "Maskér aldrig" har én type; i tabellen står, hvad værdien ligner (kun til visning). */
   const IPV4 = /^(\d{1,3}\.){3}\d{1,3}$/;
@@ -85,12 +88,13 @@
   function tegnFlade() {
     const har = st.poster.length > 0;
     d.tom.hidden = har || Boolean(st.fejl);
-    ark.hidden = !har && !st.fejl;
+    ark.hidden = !har && !st.fejl && !st.infoBanner;
     d.soeg.disabled = !har;
     hjaelp.hidden = Boolean(st.fejl) && !har;
     bannere.textContent = '';
-    if (st.fejl) GM.banner(bannere, 'danger', 'bOrdbogKanIkkeAabnes', sagFejl(st.fejl));
+    if (st.fejl) GM.banner(bannere, 'danger', 'bOrdbogKanIkkeAabnes', sagFejl(st.fejl), { t: 'hStartForfra', ved: () => aabnStartForfra() });
     else GM.banner(bannere, 'info', 'bOrdbogKrypteret');
+    if (st.infoBanner) { GM.banner(bannere, 'info', 'bOrdbogFlyttet', st.infoBanner); st.infoBanner = null; }
     if (st.fejlBanner) { GM.banner(bannere, 'danger', 'bOrdbogFejl', st.fejlBanner); st.fejlBanner = null; }
   }
   function tegnTabel() {
@@ -201,7 +205,7 @@
     span.textContent = tekst || '';
     if (tekst) inp.setAttribute('aria-invalid', 'true'); else inp.removeAttribute('aria-invalid');
   }
-  function nulstilFejl() { feltFejl('vaerdi', ''); feltFejl('note', ''); $('opost-fejl').textContent = ''; }
+  function nulstilFejl() { feltFejl('vaerdi', ''); feltFejl('note', ''); $('opost-fejl').textContent = ''; tegnAdvarsel(); }
   function visTypeHjaelp() {
     const hj = $('opost-type-hj');
     hj.setAttribute('data-t', 'hjt_' + pType.value);
@@ -258,6 +262,37 @@
   $('opost-ok').addEventListener('click', gemPost);
   for (const inp of [pVaerdi, pNote]) inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); gemPost(); } });
   $('dlg-opost').addEventListener('close', () => { if (post.efter) { const f = post.efter; post.efter = null; f(false); } });
+
+  /* Et ord, der ligner en adgangskode (V-FIL.1 F5): mindst 8 tegn uden mellemrum med både bogstaver, cifre og andre tegn.
+     Kun for de frie typer (ord, person, maskér aldrig); de andre har deres egen syntaks. Advarslen blokerer ikke. */
+  const LIGNER_ADGANGSKODE = v => v.length >= 8 && !/\s/.test(v) && /\p{L}/u.test(v) && /\d/.test(v) && /[^\p{L}\d]/u.test(v);
+  function tegnAdvarsel() {
+    const adv = $('opost-vaerdi-adv');
+    const on = ['ord', 'person', 'aldrig'].includes(pType.value) && LIGNER_ADGANGSKODE(pVaerdi.value.trim());
+    adv.hidden = !on;
+    adv.textContent = on ? S.t('advAdgangskode') : '';
+  }
+  pVaerdi.addEventListener('input', tegnAdvarsel);
+  pType.addEventListener('change', tegnAdvarsel);
+  $('dlg-opost').addEventListener('close', () => { $('opost-vaerdi-adv').hidden = true; });
+
+  /* ═════════════════════════════ Start forfra (V-FIL.1 F5) ═════════════════════════════ */
+  const iDag = () => { const d0 = new Date(); return `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}-${String(d0.getDate()).padStart(2, '0')}`; };
+  function aabnStartForfra() {
+    if (!st.fejl) return;
+    $('dlg-oforfra-p').setAttribute('data-v', iDag());
+    $('oforfra-fejl').textContent = '';
+    S.anvend($('dlg-oforfra'));
+    G.aabnDialog('dlg-oforfra');
+    $('oforfra-nej').focus();
+  }
+  $('oforfra-ok').addEventListener('click', () => {
+    invoke('ordbog_start_forfra', { dato: iDag() }).then(r => {
+      $('dlg-oforfra').close();
+      st.infoBanner = r.flyttet_til || null;
+      anvendSvar(r.ordbog);
+    }).catch(e => { $('oforfra-fejl').textContent = fejlTekst(e); });
+  });
 
   /* ═════════════════════════════ Fjern post ═════════════════════════════ */
   let fjernId = null;

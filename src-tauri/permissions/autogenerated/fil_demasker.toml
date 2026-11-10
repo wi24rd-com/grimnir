@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-fil-demasker"
+description = "Enables the fil_demasker command without any pre-configured scope."
+commands.allow = ["fil_demasker"]
+
+[[permission]]
+identifier = "deny-fil-demasker"
+description = "Denies the fil_demasker command without any pre-configured scope."
+commands.deny = ["fil_demasker"]

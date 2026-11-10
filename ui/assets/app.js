@@ -3,7 +3,8 @@
    (#masker …) og skiftes med visningsskiftet eller ⌘1–⌘4 (Ctrl på Windows). Maskér og Demaskér (maskering.js), Sager
    (sager.js), Ordbog (ordbog.js) og Indstillinger (indstillinger.js) virker via window.Grimnir; resten af kommandoerne
    fra design/skaerme/ står nedtonet med en forklaring, til funktionen kommer (v2).
-   Rust giver: kerne_version (fodlinjen), hændelsen 'menu' ("om" | "indstillinger" | "afslut"), hændelsen 'fuldskaerm'
+   Rust giver: kerne_version (fodlinjen), hændelsen 'menu' ("om" | "indstillinger" | "afslut"; "aabn" | "gem" håndteres
+   af maskering.js), hændelsen 'fuldskaerm'
    (true | false) og platformen (<html data-platform>). */
 (function () {
   'use strict';
@@ -27,9 +28,10 @@
       id: 'masker', t: 'vMasker', ikon: 'maske', soeg: 'soegMasker', chip: 'chipIntetIndsat', fod: 'fodMasker',
       tom: ['tomMaskerH', 'tomMaskerP'],
       grupper: [
-        { t: 'gTekst', knapper: [aktiv('masker', 'indsaet', 'kIndsaet', 'indsaet', false, true), senere('aabn-fil', 'kAabnFil', 'fil')] },
+        { t: 'gTekst', knapper: [aktiv('masker', 'indsaet', 'kIndsaet', 'indsaet', false, true), aktiv('masker', 'aabn-fil', 'kAabnFil', 'fil', false, true)] },
         { t: 'gMaskering', knapper: [aktiv('masker', 'analyser', 'kAnalyser', 'soeg'), aktiv('masker', 'gem-masker', 'kGemMasker', 'skjold', true), aktiv('masker', 'foer-efter', 'kFoerEfter', 'foerefter')] },
-        { t: 'gResultat', knapper: [aktiv('masker', 'kopier', 'kKopier', 'kopier'), senere('kvittering', 'kKvittering', 'kvittering')] },
+        // V-FIL.1: Gem maskeret fil ved siden af Kopiér; Kvittering er stadig v2.
+        { t: 'gResultat', knapper: [aktiv('masker', 'kopier', 'kKopier', 'kopier'), aktiv('masker', 'gem-fil', 'kGemMaskeretFil', 'gem'), senere('kvittering', 'kKvittering', 'kvittering')] },
       ],
       trae: [
         { id: 'denne', t: 'tDenneTekst', boern: [{ id: 'alle', t: 'tAlleFund', antal: 0 }, { id: 'tjek', t: 'tSkalTjekkes', antal: 0 }, { id: 'hemmelig', t: 'tHemmeligheder', antal: 0 }] },
@@ -41,9 +43,9 @@
       id: 'demasker', t: 'vDemasker', ikon: 'oeje', soeg: 'soegDemasker', chip: 'chipIntetSvar', fod: 'fodDemasker',
       tom: ['tomDemaskerH', 'tomDemaskerP'],
       grupper: [
-        { t: 'gSvar', knapper: [aktiv('demasker', 'indsaet', 'kIndsaet', 'indsaet', false, true), senere('aabn-fil', 'kAabnFil', 'fil')] },
+        { t: 'gSvar', knapper: [aktiv('demasker', 'indsaet', 'kIndsaet', 'indsaet', false, true), aktiv('demasker', 'aabn-fil', 'kAabnFil', 'fil', false, true)] },
         { t: 'gDemaskering', knapper: [aktiv('demasker', 'demasker', 'kDemasker', 'oeje', true), senere('naeste-advarsel', 'kNaesteAdvarsel', 'naeste')] },
-        { t: 'gResultat', knapper: [aktiv('demasker', 'kopier-resultat', 'kKopierResultat', 'kopier'), senere('gem-fil', 'kGemFil', 'gem')] },
+        { t: 'gResultat', knapper: [aktiv('demasker', 'kopier-resultat', 'kKopierResultat', 'kopier'), aktiv('demasker', 'gem-fil', 'kGemFil', 'gem')] },
       ],
       trae: [
         { id: 'dette', t: 'tDetteSvar', boern: [{ id: 'alle', t: 'tAlleKoder', antal: 0 }, { id: 'advarsler', t: 'tAdvarsler', antal: 0 }, { id: 'ikke-brugt', t: 'tIkkeBrugt', antal: 0 }] },

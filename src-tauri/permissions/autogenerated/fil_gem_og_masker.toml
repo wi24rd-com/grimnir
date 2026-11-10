@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-fil-gem-og-masker"
+description = "Enables the fil_gem_og_masker command without any pre-configured scope."
+commands.allow = ["fil_gem_og_masker"]
+
+[[permission]]
+identifier = "deny-fil-gem-og-masker"
+description = "Denies the fil_gem_og_masker command without any pre-configured scope."
+commands.deny = ["fil_gem_og_masker"]

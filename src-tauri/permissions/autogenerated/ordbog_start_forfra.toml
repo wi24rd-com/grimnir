@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-ordbog-start-forfra"
+description = "Enables the ordbog_start_forfra command without any pre-configured scope."
+commands.allow = ["ordbog_start_forfra"]
+
+[[permission]]
+identifier = "deny-ordbog-start-forfra"
+description = "Denies the ordbog_start_forfra command without any pre-configured scope."
+commands.deny = ["ordbog_start_forfra"]

@@ -156,3 +156,14 @@
 .guide-linje input { flex: 1; min-width: 0; }
 .guide-trin .hj { margin: 0; }
 .guide-liste { list-style: none; margin: 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 2px; max-height: 140px; overflow: auto; }
+/* V-FIL.1: den åbne fil i værktøjslinjen, "Grimnir arbejder", "Åbn fil" i den tomme tilstand og fladen under et træk. */
+.filinfo { display: flex; align-items: center; gap: var(--space-2); min-width: 0; font-size: var(--small-size); line-height: var(--small-line); color: var(--text); }
+.filinfo[hidden] { display: none; }
+.filinfo .ik { width: 16px; height: 16px; flex: none; }
+.filinfo .filnavn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280px; }
+.filinfo .muted { color: var(--text-muted); white-space: nowrap; }
+.filinfo .muted + .muted::before { content: "· "; }
+.arbejder { margin: 0; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); background: var(--info-soft); color: var(--text); font-size: var(--small-size); line-height: var(--small-line); }
+.arbejder[hidden] { display: none; }
+.tom .tom-aabn { margin-top: var(--space-2); }
+.flade[data-traek] { outline: 2px dashed var(--info); outline-offset: -6px; }

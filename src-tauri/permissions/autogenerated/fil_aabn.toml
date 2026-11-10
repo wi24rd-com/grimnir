@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-fil-aabn"
+description = "Enables the fil_aabn command without any pre-configured scope."
+commands.allow = ["fil_aabn"]
+
+[[permission]]
+identifier = "deny-fil-aabn"
+description = "Denies the fil_aabn command without any pre-configured scope."
+commands.deny = ["fil_aabn"]

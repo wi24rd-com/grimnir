@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-fil-aabn-sluppet"
+description = "Enables the fil_aabn_sluppet command without any pre-configured scope."
+commands.allow = ["fil_aabn_sluppet"]
+
+[[permission]]
+identifier = "deny-fil-aabn-sluppet"
+description = "Denies the fil_aabn_sluppet command without any pre-configured scope."
+commands.deny = ["fil_aabn_sluppet"]

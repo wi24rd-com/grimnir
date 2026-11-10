@@ -12,7 +12,14 @@
    (ordbog.js). Når ordbogen ændres (hændelsen 'grimnir-ordbog'), analyseres teksten igen; rækker, brugeren selv har slået
    til eller fra, beholder valget, og nye rækker får kernens standard.
 
-   Rust-kommandoer: analyser, gem_og_masker, demasker, menu_sprog. */
+   Filer (V-FIL.1): "Åbn fil" (⌘O, menuen Arkiv, eller træk en fil ind) åbner styresystemets dialog fra Rust. Teksten bliver i
+   Rust; her er kun filnavnet, tallene, et uddrag (de første 200.000 tegn) og én side rækker ad gangen. Søgning, filter og
+   "Vis flere" henter rækker fra Rust, så de dækker alle rækker. "Gem maskeret fil" (⌘S) og "Gem som fil" skriver fra Rust;
+   rester kræver "Gem alligevel", og den demaskerede fil kræver en bekræftelse. Stien ser webvisningen aldrig.
+
+   Rust-kommandoer: analyser, gem_og_masker, demasker, menu_sprog; fil_aabn, fil_aabn_sluppet, fil_luk, fil_analyser,
+   fil_raekker, fil_gem_og_masker, fil_demasker, fil_kopi, fil_gem. Hændelser fra Rust: menu ("aabn" | "gem"), fil-traek,
+   fil-sluppet (kun filnavnet). */
 (function () {
   'use strict';
   const G = window.Grimnir, K = window.Kit, S = window.Sprog;
@@ -76,7 +83,50 @@
   const GV = {
     analyser: () => ['genvejTitel', G.mod + '↵', (G.mac ? 'Meta' : 'Control') + '+Enter'],
     kopier: () => ['genvejTitel', (G.mac ? '⇧⌘' : 'Ctrl+Shift+') + 'C', (G.mac ? 'Meta' : 'Control') + '+Shift+C'],
+    aabn: () => ['genvejTitel', G.mod + 'O', (G.mac ? 'Meta' : 'Control') + '+O'],
+    gem: () => ['genvejTitel', G.mod + 'S', (G.mac ? 'Meta' : 'Control') + '+S'],
   };
+  const tal = n => Number(n).toLocaleString(S.lang === 'en' ? 'en-GB' : 'da-DK');
+
+  /* En filfejl fra Rust (FilFejl i src-tauri/src/fil.rs: {art, …}) som tekst på det aktuelle sprog. Ingen sti, intet indhold. */
+  function filFejlTekst(f) {
+    if (!f) return S.t('sagfejl_andet');
+    if (f.art === 'tegnsaet') return S.t('ffejl_tegnsaet_' + f.ligner, f.byte != null ? tal(f.byte) : null) || S.t('sagfejl_andet');
+    if (f.art === 'for_stor') return S.t('ffejl_for_stor', mb(f.bytes), mb(f.maks));
+    if (f.art === 'disk') return S.t('ffejl_disk', f.hvad);
+    return S.t('ffejl_' + f.art) || S.t('sagfejl_andet');
+  }
+
+  /* "Grimnir arbejder": vises, når en kommando har kørt i mere end et sekund (F4), og fjernes, når den er færdig. */
+  function arbejder(f, on) {
+    if (on) {
+      if (!f.arbTimer && f.arbejder.hidden) {
+        f.arbTimer = setTimeout(() => {
+          f.arbTimer = null;
+          f.arbejder.hidden = false;
+          f.d.flade.setAttribute('aria-busy', 'true');
+          S.anvend(f.arbejder);
+        }, 1000);
+      }
+    } else {
+      clearTimeout(f.arbTimer);
+      f.arbTimer = null;
+      f.arbejder.hidden = true;
+      f.d.flade.removeAttribute('aria-busy');
+    }
+  }
+
+  /* Den åbne fil i værktøjslinjen: navn, størrelse, tegnsæt og linjeskift. */
+  function tegnFilinfo(f, fil) {
+    f.filinfo.textContent = '';
+    f.filinfo.hidden = !fil;
+    if (!fil) return;
+    f.filinfo.appendChild(K.ikon('fil', 'ik'));
+    const navn = el('span', 'mono filnavn');
+    navn.textContent = fil.navn;
+    f.filinfo.append(navn, el('span', 'muted', 'filStr', mb(fil.bytes)), el('span', 'muted', 'ts_' + fil.tegnsaet), el('span', 'muted', 'ls_' + fil.linjeskift));
+    S.anvend(f.filinfo);
+  }
 
   /* En sagsfejl fra Rust ({art: 'sag', fejl: {art, …}}) som tekst på det aktuelle sprog. */
   function sagFejlTekst(e) {
@@ -128,8 +178,20 @@
     // Bannere uden tekst (fx afvist indsæt) skal også kunne ses, før der er en tekst: de står over den tomme tilstand.
     const tomBannere = el('div', 'bannere tom-bannere');
     d.flade.insertBefore(tomBannere, d.tom);
+    // V-FIL.1: den åbne fil i værktøjslinjen, "Grimnir arbejder" øverst på fladen og "Åbn fil" i den tomme tilstand.
+    const filinfo = el('span', 'filinfo');
+    filinfo.hidden = true;
+    d.sek.querySelector('.vl').insertBefore(filinfo, d.hoejre);
+    const arb = el('p', 'arbejder', 'arbejder');
+    arb.setAttribute('role', 'status');
+    arb.hidden = true;
+    d.flade.insertBefore(arb, d.flade.firstChild);
+    const fladen = { d, ark, bannere, besked, tomBannere, filinfo, arbejder: arb, arbTimer: null, vedAabn: null };
+    const aabnKnap = K.knap({ t: 'kAabnFil', ikon: 'fil', ved: () => { if (fladen.vedAabn) fladen.vedAabn(); } });
+    aabnKnap.classList.add('tom-aabn');
+    d.tom.appendChild(aabnKnap);
     S.anvend(d.flade);
-    return { d, ark, bannere, besked, tomBannere };
+    return fladen;
   }
 
   function panel(t, kl) {
@@ -149,7 +211,22 @@
     pre.setAttribute('data-t-aria', aria);
     const afk = el('p', 'afkortet', 'tekstAfkortet', '200.000');
     afk.hidden = true;
-    return { pre, afk, vis(s) { pre.textContent = s.length > MAKS_VIST ? s.slice(0, MAKS_VIST) : s; afk.hidden = s.length <= MAKS_VIST; } };
+    /* ikkeVist: for en fil er s Rusts uddrag, og ikkeVist er antallet af tegn efter det (null: indsat tekst). */
+    function vis(s, ikkeVist) {
+      if (ikkeVist == null) {
+        pre.textContent = s.length > MAKS_VIST ? s.slice(0, MAKS_VIST) : s;
+        afk.setAttribute('data-t', 'tekstAfkortet');
+        afk.setAttribute('data-v', '200.000');
+        afk.hidden = s.length <= MAKS_VIST;
+      } else {
+        pre.textContent = s;
+        afk.setAttribute('data-t', 'filAfkortet');
+        afk.setAttribute('data-v', tal(ikkeVist));
+        afk.hidden = ikkeVist === 0;
+      }
+      S.anvend(afk);
+    }
+    return { pre, afk, vis };
   }
 
   /* Fokus bevares over en ny tegning af tabellen (rækkens id + hvilket felt). */
@@ -181,7 +258,8 @@
 
   /* ═════════════════════════════ Maskér ═════════════════════════════ */
   const M = (function () {
-    const st = { tekst: null, bytes: 0, analyse: null, fravalgt: new Set(), rort: new Map(), rettelser: new Map(), fejl: new Map(), resultat: null, foerEfter: false, visRester: false, filter: 'alle', soeg: '', vist: new Set(), side: SIDE, nr: 0, travl: false, venter: null };
+    // fil: den åbne fil (FilInfo fra Rust) eller null; så er tekst Rusts uddrag, og analyse.side er rækkerne fra Rust.
+    const st = { tekst: null, bytes: 0, fil: null, analyse: null, fravalgt: new Set(), rort: new Map(), rettelser: new Map(), fejl: new Map(), resultat: null, foerEfter: false, visRester: false, spoergRester: false, filter: 'alle', soeg: '', vist: new Set(), side: SIDE, nr: 0, sideNr: 0, travl: false, venter: null };
     let tv, tabelvaert, flere, flereTekst, tekstPanel, tabelPanel, delt;
     const f = byggeFlade('masker', ark => {
       delt = el('div', 'delt');
@@ -192,7 +270,7 @@
       tabelvaert = el('div', 'tabelvaert');
       flere = el('div', 'flere');
       flereTekst = el('span', null);
-      const flereKnap = K.knap({ t: 'visFlere', ved: () => { st.side += SIDE; tegnTabel(); } });
+      const flereKnap = K.knap({ t: 'visFlere', ved: () => { st.side += SIDE; if (st.fil) hentSide(); else tegnTabel(); } });
       flereKnap.classList.add('mini');
       flere.append(flereTekst, flereKnap);
       flere.hidden = true;
@@ -204,7 +282,7 @@
 
     function nulstilValg() {
       st.analyse = null; st.fravalgt = new Set(); st.rort = new Map(); st.rettelser = new Map(); st.fejl = new Map(); st.resultat = null;
-      st.foerEfter = false; st.visRester = false; st.vist = new Set(); st.side = SIDE; st.nr++; st.travl = false;
+      st.foerEfter = false; st.visRester = false; st.spoergRester = false; st.vist = new Set(); st.side = SIDE; st.nr++; st.travl = false;
       if (st.venter) { clearTimeout(st.venter); st.venter = null; }
     }
 
@@ -214,11 +292,71 @@
       if (!s) { banner(st.tekst ? f.bannere : f.tomBannere, 'info', 'bIngenTekst'); return; }
       const bytes = utf8Laengde(s);
       if (bytes > MAKS_BYTES) { banner(st.tekst ? f.bannere : f.tomBannere, 'danger', 'bForStor', mb(bytes)); return; }
+      slipFil();
       nulstilValg();
       st.tekst = s;
       st.bytes = bytes;
       tegn();
       tv.pre.focus();
+    }
+
+    /* ── filer (V-FIL.1) ── */
+    /* En indsat tekst tager over: Rust slipper filen (og nulstiller teksten). */
+    function slipFil() {
+      if (!st.fil) return;
+      st.fil = null;
+      invoke('fil_luk', { visning: 'masker' }).catch(() => { /* intet at slippe */ });
+    }
+    /* Åbn fil (dialogen i Rust) eller filen fra et træk og slip (kommando 'fil_aabn_sluppet'). */
+    function aabnFil(kommando) {
+      if (st.travl) return Promise.resolve();
+      if (st.venter) { clearTimeout(st.venter); st.venter = null; }
+      const nr = ++st.nr;
+      st.travl = true;
+      tegnKommandoer();
+      tegnChip();
+      return invoke(kommando || 'fil_aabn', { visning: 'masker' })
+        .then(info => { if (nr !== st.nr) return; st.travl = false; if (info) modtagFil(info); else tegn(); })
+        .catch(e => { if (nr !== st.nr) return; st.travl = false; fejl(e); tegn(); });
+    }
+    function modtagFil(info) {
+      f.tomBannere.textContent = '';
+      f.bannere.textContent = '';
+      nulstilValg();
+      st.fil = info;
+      st.tekst = info.uddrag;
+      st.bytes = info.bytes;
+      tegn();
+      tv.pre.focus();
+    }
+    const sideValg = () => ({ filter: st.filter, soeg: st.soeg, vist: [...st.vist], antal: st.side });
+    /* Svaret fra fil_analyser i samme form som analyser: rækkerne er den første side. */
+    const fraFil = a => ({ ...a, raekker: a.side.raekker });
+    /* Filter, søgning og "Vis flere" for en fil: rækkerne hentes fra Rust (over alle rækker). */
+    function hentSide() {
+      if (!st.fil || !st.analyse) return Promise.resolve();
+      const nr = ++st.sideNr, analyse = st.analyse;
+      return invoke('fil_raekker', { side: sideValg() }).then(s => {
+        if (nr !== st.sideNr || analyse !== st.analyse) return;
+        st.analyse = { ...analyse, raekker: s.raekker, side: s };
+        tegnTabel(); tegnTrae(); tegnChip(); tegnFod();
+      }).catch(e => { fejl(e); tegnBannere(); });
+    }
+    /* Gem maskeret fil: rester kræver først "Gem alligevel" (Rust kræver det også). Dialogen og skrivningen er i Rust. */
+    function gemFil(alligevel) {
+      if (!st.fil || !st.resultat || st.travl) return Promise.resolve();
+      const n = st.resultat.rester.reduce((a, r) => a + r.antal, 0);
+      if (n && !alligevel) { st.spoergRester = true; tegnBannere(); return Promise.resolve(); }
+      st.spoergRester = false;
+      st.travl = true;
+      tegnKommandoer(); tegnChip(); tegnBannere();
+      return invoke('fil_gem', { visning: 'masker', ok: Boolean(alligevel) }).then(navn => {
+        st.travl = false;
+        if (navn) { besked(f, 'bFilGemt'); f.besked.setAttribute('data-v', navn); S.anvend(f.besked); }
+      }).catch(e => {
+        st.travl = false;
+        if (e && e.art === 'rester') st.spoergRester = true; else fejl(e);
+      }).then(() => { tegnKommandoer(); tegnChip(); tegnBannere(); });
     }
 
     function rettelser() { return [...st.rettelser].map(([id, kode]) => ({ id, kode })); }
@@ -231,11 +369,15 @@
       st.travl = true;
       tegnKommandoer();
       tegnChip();
-      return invoke('analyser', { tekst: st.tekst, fravalgt: foerste ? null : [...st.fravalgt], rettelser: foerste ? null : rettelser() })
+      const kald = st.fil
+        ? invoke('fil_analyser', { fravalgt: foerste ? null : [...st.fravalgt], rort: null, rettelser: foerste ? null : rettelser(), side: sideValg() }).then(fraFil)
+        : invoke('analyser', { tekst: st.tekst, fravalgt: foerste ? null : [...st.fravalgt], rettelser: foerste ? null : rettelser() });
+      return kald
         .then(a => {
           if (nr !== st.nr) return;
           st.travl = false;
-          if (foerste) st.fravalgt = new Set(a.raekker.filter(r => !r.valgt).map(r => r.id));
+          if (st.fil) st.fravalgt = new Set(a.fravalgt);
+          else if (foerste) st.fravalgt = new Set(a.raekker.filter(r => !r.valgt).map(r => r.id));
           for (const r of a.raekker) if (r.laast) st.fravalgt.delete(r.id);
           st.analyse = a;
           st.fejl = new Map(a.fejl.map(x => [x.id, x]));
@@ -255,6 +397,22 @@
       tegnKommandoer();
       tegnChip();
       const ret = rettelser();
+      // En fil: Rust gør begge trin i ét kald (rort = rækkerne, brugeren selv har slået til eller fra).
+      if (st.fil) {
+        return invoke('fil_analyser', { fravalgt: null, rort: [...st.rort], rettelser: ret, side: sideValg() }).then(fraFil)
+          .then(a => {
+            if (nr !== st.nr) return;
+            const ukendte = new Set(a.fejl.filter(x => x.fejl === 'ukendt_raekke').map(x => x.id));
+            for (const id of ukendte) st.rettelser.delete(id);
+            a.fejl = a.fejl.filter(x => !ukendte.has(x.id));
+            st.travl = false;
+            st.fravalgt = new Set(a.fravalgt);
+            st.analyse = a;
+            st.fejl = new Map(a.fejl.map(x => [x.id, x]));
+            tegn();
+          })
+          .catch(e => { if (nr !== st.nr) return; st.travl = false; fejl(e); tegn(); });
+      }
       return invoke('analyser', { tekst: st.tekst, fravalgt: null, rettelser: ret })
         .then(a => {
           if (nr !== st.nr) return null;
@@ -298,9 +456,11 @@
       st.travl = true;
       tegnKommandoer();
       try {
-        const m = await invoke('gem_og_masker', { tekst: st.tekst, fravalgt: [...st.fravalgt], rettelser: rettelser() });
+        const m = st.fil
+          ? fraFilMaskering(await invoke('fil_gem_og_masker', { fravalgt: [...st.fravalgt], rettelser: rettelser() }))
+          : await invoke('gem_og_masker', { tekst: st.tekst, fravalgt: [...st.fravalgt], rettelser: rettelser() });
         if (nr !== st.nr) return;
-        st.resultat = m; st.foerEfter = true; st.visRester = false; st.aendretEfter = false; st.travl = false;
+        st.resultat = m; st.foerEfter = true; st.visRester = false; st.spoergRester = false; st.aendretEfter = false; st.travl = false;
         st.fejl = new Map();
         saetSag(m.poster);
       } catch (e) {
@@ -312,8 +472,14 @@
       tegn();
     }
 
+    /* Svaret fra fil_gem_og_masker i samme form som gem_og_masker: maskeret er uddraget. */
+    const fraFilMaskering = m => ({ maskeret: m.uddrag, ikkeVist: m.ikke_vist, rester: m.rester, advarsler: m.advarsler, poster: m.poster, bytes: m.bytes, kopierbar: m.kopierbar, fil: true });
+
     let fejlBanner = null;
     function fejl(e) {
+      if (e && e.art === 'fil') { fejlBanner = ['bFilFejl', filFejlTekst(e.fejl)]; return; }
+      if (e && e.art === 'foraeldet') { fejlBanner = ['bForaeldet', null]; return; }
+      if (e && e.art === 'for_stor_til_kopi') { fejlBanner = ['bKopiForStor', null]; return; }
       if (e && e.art === 'sag' && e.fejl && e.fejl.art === 'konflikt') {
         // To vinduer mod samme sag (D8): intet er overskrevet; brugeren åbner sagen igen fra disken.
         fejlBanner = ['bKonflikt', null, { t: 'hAabnIgen', ved: () => { if (window.GrimnirSager) window.GrimnirSager.aabnIgen(); } }];
@@ -331,14 +497,17 @@
       f.tomBannere.hidden = Boolean(st.tekst);
       f.ark.hidden = !st.tekst;
       d.soeg.disabled = !st.analyse;
+      tegnFilinfo(f, st.fil);
     }
     function tegnBannere() {
       f.bannere.textContent = '';
-      if (fejlBanner) { banner(f.bannere, 'danger', fejlBanner[0], fejlBanner[1], fejlBanner[2]); fejlBanner = null; }
+      // En fejl, før der er en tekst (fx en fil, der ikke kan åbnes), står over den tomme tilstand.
+      if (fejlBanner) { if (!st.tekst) f.tomBannere.textContent = ''; banner(st.tekst ? f.bannere : f.tomBannere, 'danger', fejlBanner[0], fejlBanner[1], fejlBanner[2]); fejlBanner = null; }
       if (st.resultat) {
         const n = st.resultat.rester.reduce((a, r) => a + r.antal, 0);
         if (n === 0) banner(f.bannere, 'ok', 'bLaekIngen');
         else banner(f.bannere, 'warn', 'bLaekRester', n, { t: st.visRester ? 'hVisFund' : 'hVisRester', ved: () => { st.visRester = !st.visRester; tegnBannere(); tegnTabel(); } });
+        if (n && st.spoergRester && st.fil) banner(f.bannere, 'warn', 'bGemRester', n, { t: 'kGemAlligevel', ved: () => gemFil(true) });
         if (st.resultat.advarsler.length) banner(f.bannere, 'warn', 'bOverloeb', st.resultat.advarsler.length);
       } else if (st.aendretEfter) {
         banner(f.bannere, 'info', 'bValgAendret');
@@ -347,12 +516,12 @@
     }
     function tegnTekst() {
       const efter = st.foerEfter && st.resultat;
-      tv.vis(efter ? st.resultat.maskeret : st.tekst || '');
+      tv.vis(efter ? st.resultat.maskeret : st.tekst || '', st.fil ? (efter ? st.resultat.ikkeVist : st.fil.ikke_vist) : null);
       tekstPanel.h.setAttribute('data-t', efter ? 'pMaskeret' : 'pTekst');
       tekstPanel.p.setAttribute('data-t-aria', efter ? 'pMaskeret' : 'pTekst');
       tv.pre.setAttribute('data-t-aria', efter ? 'ariaMaskeret' : 'ariaTekst');
       tekstPanel.info.setAttribute('data-t', 'tekstInfo');
-      tekstPanel.info.setAttribute('data-v', st.analyse ? String(st.analyse.linjer) : '…');
+      tekstPanel.info.setAttribute('data-v', st.fil ? String(st.fil.linjer) : st.analyse ? String(st.analyse.linjer) : '…');
       tekstPanel.info.setAttribute('data-w', mb(st.bytes));
       S.anvend(tekstPanel.p);
       G.dele.masker.bar.knap('foer-efter').setAttribute('aria-pressed', String(Boolean(efter)));
@@ -361,6 +530,7 @@
     function valgt(r) { return r.laast || !st.fravalgt.has(r.id); }
     function filtrerede() {
       if (!st.analyse) return [];
+      if (st.fil) return st.analyse.raekker; // Rust har filtreret og søgt (fil_raekker)
       let r = st.analyse.raekker;
       if (st.filter === 'tjek') r = r.filter(x => x.status === 'tjek' || st.fejl.has(x.id));
       else if (st.filter === 'hemmelig') r = r.filter(x => x.hemmelig);
@@ -388,6 +558,8 @@
         b.addEventListener('click', () => {
           const n = fokusNoegle();
           if (st.vist.has(r.id)) st.vist.delete(r.id); else st.vist.add(r.id);
+          // En fil med søgning: om værdien kan søges, afhænger af Vis; Rust søger igen.
+          if (st.fil && st.soeg.trim()) { hentSide().then(() => genskabFokus(tabelvaert, n)); return; }
           tegnTabel();
           genskabFokus(tabelvaert, n);
         });
@@ -498,7 +670,10 @@
       }
       if (st.visRester && st.resultat) return tegnRester();
       const alle = filtrerede();
-      const vis = alle.slice(0, st.side);
+      const vis = st.fil ? alle : alle.slice(0, st.side);
+      // En fil: tallene er over alle rækker i Rust (side.i_alt, side.antal, side.valgte).
+      const side = st.fil ? st.analyse.side : null;
+      const iAlt = side ? side.i_alt : alle.length;
       const t = K.tabel({
         ariaT: 'pFund',
         kolonner: [{ t: 'kolMasker' }, { t: 'kolType' }, { t: 'kolVaerdi' }, { t: 'kolErstatning' }, { t: 'kolAntal', tal: true }, { t: 'kolStatus' }, { t: 'kolOrdbog' }],
@@ -529,15 +704,15 @@
       const tr = [...t.querySelectorAll('tbody tr')];
       vis.forEach((r, i) => { tr[i].setAttribute('data-id', String(r.id)); if (!valgt(r)) tr[i].classList.add('fra'); });
       tabelvaert.appendChild(t);
-      if (!vis.length) tabelvaert.appendChild(el('p', 'tabel-tom', st.analyse.raekker.length ? 'ingenIFilter' : 'ingenFund'));
-      flere.hidden = alle.length <= vis.length;
+      if (!vis.length) tabelvaert.appendChild(el('p', 'tabel-tom', (side ? side.antal.alle : st.analyse.raekker.length) ? 'ingenIFilter' : 'ingenFund'));
+      flere.hidden = iAlt <= vis.length;
       flereTekst.setAttribute('data-t', 'visesAf');
       flereTekst.setAttribute('data-v', String(vis.length));
-      flereTekst.setAttribute('data-w', String(alle.length));
+      flereTekst.setAttribute('data-w', String(iAlt));
       tabelPanel.h.setAttribute('data-t', 'pFund');
       tabelPanel.info.setAttribute('data-t', 'fundInfo');
-      tabelPanel.info.setAttribute('data-v', String(st.analyse.raekker.length));
-      tabelPanel.info.setAttribute('data-w', String(st.analyse.raekker.filter(valgt).length));
+      tabelPanel.info.setAttribute('data-v', String(side ? side.antal.alle : st.analyse.raekker.length));
+      tabelPanel.info.setAttribute('data-w', String(side ? side.valgte : st.analyse.raekker.filter(valgt).length));
       S.anvend(tabelPanel.p);
       genskabFokus(tabelvaert, n);
     }
@@ -561,35 +736,47 @@
     }
     function tegnTrae() {
       const r = st.analyse ? st.analyse.raekker : [];
-      const ant = { alle: r.length, tjek: r.filter(x => x.status === 'tjek' || st.fejl.has(x.id)).length, hemmelig: r.filter(x => x.hemmelig).length, seneste: r.filter(x => x.kendt).length };
-      for (const [id, n] of Object.entries(ant)) {
+      const ant = st.fil
+        ? (st.analyse ? st.analyse.side.antal : { alle: 0, tjek: 0, hemmelig: 0, seneste: 0 })
+        : { alle: r.length, tjek: r.filter(x => x.status === 'tjek' || st.fejl.has(x.id)).length, hemmelig: r.filter(x => x.hemmelig).length, seneste: r.filter(x => x.kendt).length };
+      for (const id of ['alle', 'tjek', 'hemmelig', 'seneste']) {
+        const n = ant[id];
         const a = d.nd.querySelector(`[data-punkt="${id}"] .ant`);
         if (a) a.textContent = String(n);
       }
     }
     function tegnKommandoer() {
-      const v = 'masker';
-      kommando(v, 'analyser', Boolean(st.tekst) && !st.travl, st.tekst ? 'hvorforVent' : 'hvorforIndsaetFoerst', st.analyse ? null : GV.analyser());
-      const gemHvorfor = !st.tekst ? 'hvorforIndsaetFoerst' : st.travl ? 'hvorforVent' : 'hvorforAnalyserFoerst';
-      kommando(v, 'gem-masker', Boolean(st.analyse) && !st.travl, gemHvorfor, st.analyse ? GV.analyser() : null);
-      kommando(v, 'foer-efter', Boolean(st.resultat), 'hvorforMaskerFoerst');
-      kommando(v, 'kopier', Boolean(st.resultat), 'hvorforMaskerFoerst', GV.kopier());
+      const v = 'masker', t = st.travl, res = st.resultat;
+      kommando(v, 'aabn-fil', !t, 'hvorforVent', GV.aabn());
+      kommando(v, 'analyser', Boolean(st.tekst) && !t, st.tekst ? 'hvorforVent' : 'hvorforIndsaetFoerst', st.analyse ? null : GV.analyser());
+      const gemHvorfor = !st.tekst ? 'hvorforIndsaetFoerst' : t ? 'hvorforVent' : 'hvorforAnalyserFoerst';
+      kommando(v, 'gem-masker', Boolean(st.analyse) && !t, gemHvorfor, st.analyse ? GV.analyser() : null);
+      kommando(v, 'foer-efter', Boolean(res) && !t, res ? 'hvorforVent' : 'hvorforMaskerFoerst');
+      // En fil over 5 MB kan ikke kopieres (F3): Kopiér er nedtonet med en forklaring.
+      kommando(v, 'kopier', Boolean(res) && !t && (!res.fil || res.kopierbar), !res ? 'hvorforMaskerFoerst' : t ? 'hvorforVent' : 'hvorforForStorTilKopi', GV.kopier());
+      kommando(v, 'gem-fil', Boolean(st.fil && res) && !t, !st.fil ? 'hvorforKunFil' : t ? 'hvorforVent' : 'hvorforMaskerFoerst', GV.gem());
+      arbejder(f, t);
     }
     function tegnChip() {
       d.hoejre.textContent = '';
       let c;
-      if (!st.tekst) c = chip('none', 'chipIntetIndsat');
-      else if (st.travl) c = chip('info', 'chipArbejder');
+      // Arbejder også før der er en tekst (en fil åbnes).
+      if (st.travl) c = chip('info', 'chipArbejder');
+      else if (!st.tekst) c = chip('none', 'chipIntetIndsat');
       else if (st.resultat) { const n = st.resultat.rester.length; c = n ? chip('warn', 'chipRester', n) : chip('ok', 'chipMaskeret'); }
       else if (!st.analyse) c = chip('info', 'chipIndsat');
-      else { const n = st.analyse.raekker.filter(x => x.status === 'tjek').length; c = n ? chip('warn', 'chipVenter', n) : chip('ok', 'chipFund', st.analyse.raekker.length); }
+      else {
+        const n = st.fil ? st.analyse.side.antal.status_tjek : st.analyse.raekker.filter(x => x.status === 'tjek').length;
+        c = n ? chip('warn', 'chipVenter', n) : chip('ok', 'chipFund', st.fil ? st.analyse.side.antal.alle : st.analyse.raekker.length);
+      }
       d.hoejre.appendChild(c);
       S.anvend(d.hoejre);
     }
     function tegnFod() {
       if (G.aktiv !== 'masker') return;
       const fod = document.getElementById('fod-venstre');
-      if (st.analyse) { fod.setAttribute('data-t', 'fodMaskerTal'); fod.setAttribute('data-v', String(st.analyse.raekker.length)); fod.setAttribute('data-w', String(st.analyse.raekker.filter(valgt).length)); }
+      const side = st.fil && st.analyse ? st.analyse.side : null;
+      if (st.analyse) { fod.setAttribute('data-t', 'fodMaskerTal'); fod.setAttribute('data-v', String(side ? side.antal.alle : st.analyse.raekker.length)); fod.setAttribute('data-w', String(side ? side.valgte : st.analyse.raekker.filter(valgt).length)); }
       else { fod.setAttribute('data-t', 'fodMasker'); fod.removeAttribute('data-v'); fod.removeAttribute('data-w'); }
       S.anvend(fod);
     }
@@ -600,12 +787,16 @@
     G.haandter('masker', 'foer-efter', () => { st.foerEfter = !st.foerEfter; tegnTekst(); });
     G.haandter('masker', 'kopier', () => kopierResultat());
     G.haandter('masker', 'indsaet', () => indsaetVia(st.tekst ? tv.pre : d.tom, f));
-    d.soeg.addEventListener('input', () => { st.soeg = d.soeg.value; st.side = SIDE; tegnTabel(); });
+    G.haandter('masker', 'aabn-fil', () => aabnFil());
+    G.haandter('masker', 'gem-fil', () => gemFil(false));
+    f.vedAabn = () => aabnFil();
+    d.soeg.addEventListener('input', () => { st.soeg = d.soeg.value; st.side = SIDE; if (st.fil) hentSide(); else tegnTabel(); });
     async function kopierResultat() {
-      if (!st.resultat) return;
-      const ok = await kopier(st.resultat.maskeret);
+      if (!st.resultat || st.travl) return;
+      if (st.resultat.fil && !st.resultat.kopierbar) { fejlBanner = ['bKopiForStor', null]; tegnBannere(); return; }
+      const ok = st.resultat.fil ? await kopierFraRust('masker', e => { fejl(e); tegnBannere(); }) : await kopier(st.resultat.maskeret);
       besked(f, ok ? 'bKopieret' : null);
-      if (!ok) banner(f.bannere, 'danger', 'bKopiFejl');
+      if (ok === false) banner(f.bannere, 'danger', 'bKopiFejl');
     }
 
     document.addEventListener('grimnir-ordbog', () => analyserIgen());
@@ -613,14 +804,17 @@
     return {
       st, modtag, analyser, analyserIgen, gem, kopierResultat, tegn, tegnFod, tegnTabel,
       genvejEnter() { return st.analyse ? gem() : analyser(); },
-      filter(id) { st.filter = id === 'denne' ? 'alle' : id; st.visRester = false; st.side = SIDE; tegnTabel(); tegnBannere(); },
+      filter(id) { st.filter = id === 'denne' ? 'alle' : id; st.visRester = false; st.side = SIDE; if (st.fil) hentSide(); else tegnTabel(); tegnBannere(); },
+      aabnFil, gemFil, modtagFil,
+      aabnSluppet() { return aabnFil('fil_aabn_sluppet'); },
+      slipAfvist(art) { fejlBanner = [art === 'mappe' ? 'bSlipMappe' : 'bSlipFlere', null]; tegnBannere(); },
       nulstilt() { if (st.tekst) { nulstilValg(); tegn(); } },
     };
   })();
 
   /* ═════════════════════════════ Demaskér ═════════════════════════════ */
   const D = (function () {
-    const st = { tekst: null, bytes: 0, resultat: null, filter: 'alle', soeg: '', nr: 0, travl: false };
+    const st = { tekst: null, bytes: 0, fil: null, resultat: null, filter: 'alle', soeg: '', nr: 0, travl: false };
     let svar, ud, svarPanel, udPanel, tabelvaert, tabelPanel;
     const f = byggeFlade('demasker', ark => {
       const delt = el('div', 'delt lige');
@@ -649,24 +843,75 @@
       if (!s) { banner(st.tekst ? f.bannere : f.tomBannere, 'info', 'bIngenTekst'); return; }
       const bytes = utf8Laengde(s);
       if (bytes > MAKS_DEMASKER) { banner(st.tekst ? f.bannere : f.tomBannere, 'danger', 'bForStorDemasker', mb(bytes)); return; }
+      slipFil();
       st.tekst = s; st.bytes = bytes; st.resultat = null; st.nr++; st.travl = false;
       tegn();
       svar.pre.focus();
     }
     let fejlBanner = null;
+    function fejl(e) {
+      fejlBanner = e && e.art === 'for_stor' ? ['bForStorDemasker', mb(e.bytes)]
+        : e && e.art === 'fil' ? ['bFilFejl', filFejlTekst(e.fejl)]
+          : e && e.art === 'for_stor_til_kopi' ? ['bKopiForStor', null] : ['bFejl', null];
+    }
     function demasker() {
       if (!st.tekst || st.travl || poster === 0) return Promise.resolve();
       const nr = ++st.nr;
       st.travl = true;
       tegnKommandoer();
-      return invoke('demasker', { tekst: st.tekst }).then(r => {
+      tegnChip();
+      const kald = st.fil
+        ? invoke('fil_demasker').then(r => ({ tekst: r.uddrag, ikkeVist: r.ikke_vist, advarsler: r.advarsler, koder: r.koder, bytes: r.bytes, kopierbar: r.kopierbar, fil: true }))
+        : invoke('demasker', { tekst: st.tekst });
+      return kald.then(r => {
         if (nr !== st.nr) return;
         st.travl = false; st.resultat = r; tegn();
       }).catch(e => {
         if (nr !== st.nr) return;
-        st.travl = false; fejlBanner = e && e.art === 'for_stor' ? ['bForStorDemasker', mb(e.bytes)] : ['bFejl', null]; tegn();
+        st.travl = false; fejl(e); tegn();
       });
     }
+
+    /* ── filer (V-FIL.1) ── */
+    function slipFil() {
+      if (!st.fil) return;
+      st.fil = null;
+      invoke('fil_luk', { visning: 'demasker' }).catch(() => { /* intet at slippe */ });
+    }
+    function aabnFil(kommando) {
+      if (st.travl) return Promise.resolve();
+      const nr = ++st.nr;
+      st.travl = true;
+      tegnKommandoer();
+      tegnChip();
+      return invoke(kommando || 'fil_aabn', { visning: 'demasker' })
+        .then(info => { if (nr !== st.nr) return; st.travl = false; if (info) modtagFil(info); else tegn(); })
+        .catch(e => { if (nr !== st.nr) return; st.travl = false; fejl(e); tegn(); });
+    }
+    function modtagFil(info) {
+      f.tomBannere.textContent = '';
+      f.bannere.textContent = '';
+      st.fil = info; st.tekst = info.uddrag; st.bytes = info.bytes; st.resultat = null; st.nr++; st.travl = false;
+      tegn();
+      svar.pre.focus();
+    }
+    /* Gem som fil: først en bekræftelse (filen får de rigtige værdier i klartekst); derefter dialogen i Rust. */
+    function gemFil() {
+      if (!st.fil || !st.resultat || st.travl) return;
+      G.aabnDialog('dlg-demfil');
+      document.getElementById('demfil-nej').focus();
+    }
+    function gemFilBekraeftet() {
+      document.getElementById('dlg-demfil').close();
+      if (!st.fil || !st.resultat || st.travl) return Promise.resolve();
+      st.travl = true;
+      tegnKommandoer(); tegnChip();
+      return invoke('fil_gem', { visning: 'demasker', ok: true }).then(navn => {
+        st.travl = false;
+        if (navn) { besked(f, 'bFilGemt'); f.besked.setAttribute('data-v', navn); S.anvend(f.besked); }
+      }).catch(e => { st.travl = false; fejl(e); }).then(() => { tegnKommandoer(); tegnChip(); tegnBannere(); });
+    }
+    document.getElementById('demfil-ok').addEventListener('click', () => gemFilBekraeftet());
 
     const ADV = {
       ukendt_adresse: 'danger', ukendt_kode: 'danger', ligner_anden_sag: 'danger',
@@ -682,13 +927,14 @@
       f.tomBannere.hidden = Boolean(st.tekst);
       f.ark.hidden = !st.tekst;
       d.soeg.disabled = !st.resultat;
+      tegnFilinfo(f, st.fil);
       d.tomP.setAttribute('data-t', poster > 0 ? 'tomDemaskerP' : gemteSager > 0 ? 'tomDemaskerAabnSagP' : 'tomDemaskerTomSagP');
       S.anvend(d.tomP);
       tilSager.hidden = !(poster === 0 && gemteSager > 0);
     }
     function tegnBannere() {
       f.bannere.textContent = '';
-      if (fejlBanner) { banner(f.bannere, 'danger', fejlBanner[0], fejlBanner[1]); fejlBanner = null; }
+      if (fejlBanner) { if (!st.tekst) f.tomBannere.textContent = ''; banner(st.tekst ? f.bannere : f.tomBannere, 'danger', fejlBanner[0], fejlBanner[1]); fejlBanner = null; }
       if (st.tekst && poster === 0 && !st.resultat) banner(f.bannere, 'info', gemteSager > 0 ? 'bSagTomAabn' : 'bSagTom', null, gemteSager > 0 ? { t: 'kGaaTilSager', ved: () => G.vis('sager') } : null);
       if (!st.resultat) return;
       const a = advarsler(), n = a.reduce((x, y) => x + y.antal, 0);
@@ -699,12 +945,12 @@
     }
     function vaelg(id) { G.dele.demasker.trae.vaelg(id); }
     function tegnTekst() {
-      svar.vis(st.tekst || '');
-      ud.vis(st.resultat ? st.resultat.tekst : '');
+      svar.vis(st.tekst || '', st.fil ? st.fil.ikke_vist : null);
+      ud.vis(st.resultat ? st.resultat.tekst : '', st.fil && st.resultat ? st.resultat.ikkeVist : null);
       udPanel.info.setAttribute('data-t', st.resultat ? 'blivPaaMaskinen' : 'tryk');
       udPanel.info.setAttribute('data-v', G.mod + '↵');
       svarPanel.info.setAttribute('data-t', 'tekstInfo');
-      svarPanel.info.setAttribute('data-v', String(st.tekst ? st.tekst.split('\n').length : 0));
+      svarPanel.info.setAttribute('data-v', String(st.fil ? st.fil.linjer : st.tekst ? st.tekst.split('\n').length : 0));
       svarPanel.info.setAttribute('data-w', mb(st.bytes));
       S.anvend(svarPanel.p);
       S.anvend(udPanel.p);
@@ -750,13 +996,17 @@
       }
     }
     function tegnKommandoer() {
-      kommando('demasker', 'demasker', Boolean(st.tekst) && poster > 0 && !st.travl, poster === 0 ? (gemteSager > 0 ? 'hvorforAabnSag' : 'hvorforMaskerFoerstSag') : st.tekst ? 'hvorforVent' : 'hvorforIndsaetSvar', GV.analyser());
-      kommando('demasker', 'kopier-resultat', Boolean(st.resultat), 'hvorforDemaskerFoerst', GV.kopier());
+      const t = st.travl, res = st.resultat;
+      kommando('demasker', 'aabn-fil', !t, 'hvorforVent', GV.aabn());
+      kommando('demasker', 'demasker', Boolean(st.tekst) && poster > 0 && !t, poster === 0 ? (gemteSager > 0 ? 'hvorforAabnSag' : 'hvorforMaskerFoerstSag') : st.tekst ? 'hvorforVent' : 'hvorforIndsaetSvar', GV.analyser());
+      kommando('demasker', 'kopier-resultat', Boolean(res) && !t && (!res.fil || res.kopierbar), !res ? 'hvorforDemaskerFoerst' : t ? 'hvorforVent' : 'hvorforForStorTilKopi', GV.kopier());
+      kommando('demasker', 'gem-fil', Boolean(st.fil && res) && !t, !st.fil ? 'hvorforKunFil' : t ? 'hvorforVent' : 'hvorforDemaskerFoerst', GV.gem());
+      arbejder(f, t);
     }
     function tegnChip() {
       d.hoejre.textContent = '';
-      if (!st.tekst) d.hoejre.appendChild(chip('none', 'chipIntetSvar'));
-      else if (st.travl) d.hoejre.appendChild(chip('info', 'chipArbejder'));
+      if (st.travl) d.hoejre.appendChild(chip('info', 'chipArbejder'));
+      else if (!st.tekst) d.hoejre.appendChild(chip('none', 'chipIntetSvar'));
       else if (!st.resultat) d.hoejre.appendChild(chip('info', 'chipIndsat'));
       else {
         d.hoejre.appendChild(chip('ok', 'chipSatTilbage', st.resultat.koder.length));
@@ -776,20 +1026,43 @@
     G.haandter('demasker', 'demasker', () => demasker());
     G.haandter('demasker', 'kopier-resultat', () => kopierResultat());
     G.haandter('demasker', 'indsaet', () => indsaetVia(st.tekst ? svar.pre : d.tom, f));
+    G.haandter('demasker', 'aabn-fil', () => aabnFil());
+    G.haandter('demasker', 'gem-fil', () => gemFil());
+    f.vedAabn = () => aabnFil();
     d.soeg.addEventListener('input', () => { st.soeg = d.soeg.value; tegnTabel(); });
     async function kopierResultat() {
-      if (!st.resultat) return;
-      const ok = await kopier(st.resultat.tekst);
+      if (!st.resultat || st.travl) return;
+      if (st.resultat.fil && !st.resultat.kopierbar) { fejlBanner = ['bKopiForStor', null]; tegnBannere(); return; }
+      const ok = st.resultat.fil ? await kopierFraRust('demasker', e => { fejl(e); tegnBannere(); }) : await kopier(st.resultat.tekst);
       besked(f, ok ? 'bKopieret' : null);
-      if (!ok) banner(f.bannere, 'danger', 'bKopiFejl');
+      if (ok === false) banner(f.bannere, 'danger', 'bKopiFejl');
     }
     return {
-      st, modtag, demasker, kopierResultat, tegn, tegnFod,
+      st, modtag, demasker, kopierResultat, tegn, tegnFod, aabnFil, gemFil, modtagFil,
+      aabnSluppet() { return aabnFil('fil_aabn_sluppet'); },
+      slipAfvist(art) { fejlBanner = [art === 'mappe' ? 'bSlipMappe' : 'bSlipFlere', null]; tegnBannere(); },
       opdater() { tegnFlade(); tegnBannere(); tegnKommandoer(); },
       filter(id) { st.filter = id === 'dette' ? 'alle' : id; tegnTabel(); },
       nulstilt() { st.resultat = null; st.nr++; st.travl = false; tegn(); },
     };
   })();
+
+  /* Kopiér et filresultat (højst 5 MiB) fra Rust. WebKit vil have, at udklipsholderen skrives i selve klikket: med
+     ClipboardItem gives teksten som et løfte, der først opfyldes, når Rust har svaret. Uden ClipboardItem hentes teksten
+     først og kopieres som en indsat tekst. Svar: true | false | null (fejlen er vist med vedFejl). */
+  async function kopierFraRust(visning, vedFejl) {
+    const hent = () => invoke('fil_kopi', { visning });
+    if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
+      try {
+        const blob = hent().then(t => new Blob([t], { type: 'text/plain' }));
+        await navigator.clipboard.write([new window.ClipboardItem({ 'text/plain': blob })]);
+        return true;
+      } catch (e) { /* prøv den anden vej; en fejl fra Rust kommer igen dér */ }
+    }
+    let tekst;
+    try { tekst = await hent(); } catch (e) { vedFejl(e); return null; }
+    return kopier(tekst);
+  }
 
   function besked(f, t) {
     f.besked.textContent = '';
@@ -825,6 +1098,9 @@
     if (!modTast || e.altKey || document.querySelector('dialog[open]')) return;
     const v = G.aktiv;
     if (v !== 'masker' && v !== 'demasker') return;
+    // Ctrl+O og Ctrl+S på Windows (på macOS fanger programmenuen ⌘O og ⌘S og sender hændelsen 'menu').
+    if (!G.mac && !e.shiftKey && (e.code === 'KeyO' || e.key === 'o' || e.key === 'O')) { e.preventDefault(); (v === 'masker' ? M : D).aabnFil(); return; }
+    if (!G.mac && !e.shiftKey && (e.code === 'KeyS' || e.key === 's' || e.key === 'S')) { e.preventDefault(); if (v === 'masker') M.gemFil(false); else D.gemFil(); return; }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (fokusIFelt(e)) e.target.blur();
@@ -841,6 +1117,32 @@
   });
   document.addEventListener('grimnir-visning', () => { M.tegnFod(); D.tegnFod(); });
 
+  /* Filer fra menuen (Arkiv → Åbn… ⌘O, Gem… ⌘S) og træk og slip (V-FIL.1). Rust sender kun filnavnet eller hvorfor et
+     træk blev afvist (flere filer, en mappe). En fil, der slippes uden for Maskér og Demaskér, åbnes i Maskér. */
+  function maalVisning() {
+    if (G.aktiv === 'demasker') return D;
+    if (G.aktiv !== 'masker') G.vis('masker');
+    return M;
+  }
+  function traek(on) {
+    for (const v of ['masker', 'demasker']) G.dele[v].flade.toggleAttribute('data-traek', on && G.aktiv === v);
+  }
+  if (G.tauri && G.tauri.event && G.tauri.event.listen) {
+    G.tauri.event.listen('menu', e => {
+      if (document.querySelector('dialog[open]')) return;
+      if (e.payload === 'aabn') maalVisning().aabnFil();
+      else if (e.payload === 'gem') { if (G.aktiv === 'masker') M.gemFil(false); else if (G.aktiv === 'demasker') D.gemFil(); }
+    });
+    G.tauri.event.listen('fil-traek', e => traek(e.payload === true));
+    G.tauri.event.listen('fil-sluppet', e => {
+      traek(false);
+      const p = e.payload || {};
+      const X = maalVisning();
+      if (p.fejl) { if (p.fejl !== 'ingen') X.slipAfvist(p.fejl); return; }
+      X.aabnSluppet();
+    });
+  }
+
   /* Programmenuen følger UI'ets sprog. */
   const menuSprog = () => invoke('menu_sprog', { sprog: S.lang }).catch(() => { /* ingen menu (Windows) */ });
   document.addEventListener('grimnir-sprog', menuSprog);
@@ -848,5 +1150,5 @@
   M.tegn();
   D.tegn();
   menuSprog();
-  window.GrimnirMaskering = { M, D, utf8Laengde, MAKS_BYTES, MAKS_DEMASKER, saetSag, saetGemteSager, kommando, sagFejlTekst, banner, get poster() { return poster; } };
+  window.GrimnirMaskering = { M, D, utf8Laengde, MAKS_BYTES, MAKS_DEMASKER, saetSag, saetGemteSager, kommando, sagFejlTekst, filFejlTekst, banner, get poster() { return poster; } };
 })();

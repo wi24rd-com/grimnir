@@ -1,5 +1,5 @@
-//! Programmenuen: Grimnir (Om Grimnir · Indstillinger… ⌘, · Tjenester · Skjul · Afslut ⌘Q), Rediger (uden den virker
-//! ⌘C/⌘V ikke i tekstfelter på macOS) og Vindue. Et klik på Om eller Indstillinger udsender hændelsen `menu` med
+//! Programmenuen: Grimnir (Om Grimnir · Indstillinger… ⌘, · Tjenester · Skjul · Afslut ⌘Q), Arkiv (Åbn… ⌘O · Gem… ⌘S,
+//! V-FIL.1), Rediger (uden den virker ⌘C/⌘V ikke i tekstfelter på macOS) og Vindue. Et klik på Om eller Indstillinger udsender hændelsen `menu` med
 //! "om" eller "indstillinger" til webvisningen, som åbner dialogen. Menuen følger UI'ets sprog: webvisningen kalder
 //! kommandoen `menu_sprog` ved start og ved hvert sprogskift, og menuen bygges igen med [`DA`] eller [`EN`].
 //! Visningsskiftet (⌘1–⌘4) ligger ikke i menuen: rammen fanger genvejene med `keydown`, så de virker ens på macOS og Windows.
@@ -13,6 +13,15 @@ pub const INDSTILLINGER: &str = "pm-indstillinger";
 /// spørger webvisningen først (V-SAG.1, G4). Systemets punkt afslutter uden at spørge.
 pub const AFSLUT: &str = "pm-afslut";
 
+/// Arkiv → Åbn… (⌘O): hændelsen `menu` med "aabn"; visningen (Maskér eller Demaskér) åbner filvalgsdialogen.
+pub const AABN: &str = "pm-aabn";
+/// Arkiv → Gem… (⌘S): hændelsen `menu` med "gem"; Maskér gemmer den maskerede fil, Demaskér spørger først.
+pub const GEM: &str = "pm-gem";
+/// Genvejen til Åbn….
+pub const GENVEJ_AABN: &str = "CmdOrCtrl+O";
+/// Genvejen til Gem….
+pub const GENVEJ_GEM: &str = "CmdOrCtrl+S";
+
 /// Genvejen til Indstillinger (Tauris accelerator-syntaks).
 pub const GENVEJ_INDSTILLINGER: &str = "CmdOrCtrl+,";
 /// Genvejen til Afslut.
@@ -24,6 +33,8 @@ pub fn handling(id: &str) -> Option<&'static str> {
         OM => Some("om"),
         INDSTILLINGER => Some("indstillinger"),
         AFSLUT => Some("afslut"),
+        AABN => Some("aabn"),
+        GEM => Some("gem"),
         _ => None,
     }
 }
@@ -39,6 +50,13 @@ pub struct Tekster {
     pub skjul_andre: &'static str,
     pub vis_alle: &'static str,
     pub afslut: &'static str,
+    pub arkiv: &'static str,
+    pub aabn: &'static str,
+    pub gem: &'static str,
+    /// Titlerne på filvalgsdialogerne (V-FIL.1; dialogerne åbnes fra Rust).
+    pub dlg_aabn: &'static str,
+    pub dlg_gem_maskeret: &'static str,
+    pub dlg_gem_demaskeret: &'static str,
     pub rediger: &'static str,
     pub fortryd: &'static str,
     pub gentag: &'static str,
@@ -62,6 +80,12 @@ pub const DA: Tekster = Tekster {
     skjul_andre: "Skjul andre",
     vis_alle: "Vis alle",
     afslut: "Afslut Grimnir",
+    arkiv: "Arkiv",
+    aabn: "Åbn…",
+    gem: "Gem…",
+    dlg_aabn: "Åbn fil",
+    dlg_gem_maskeret: "Gem maskeret fil",
+    dlg_gem_demaskeret: "Gem som fil (rigtige værdier)",
     rediger: "Rediger",
     fortryd: "Fortryd",
     gentag: "Gentag",
@@ -85,6 +109,12 @@ pub const EN: Tekster = Tekster {
     skjul_andre: "Hide Others",
     vis_alle: "Show All",
     afslut: "Quit Grimnir",
+    arkiv: "File",
+    aabn: "Open…",
+    gem: "Save…",
+    dlg_aabn: "Open file",
+    dlg_gem_maskeret: "Save masked file",
+    dlg_gem_demaskeret: "Save as file (real values)",
     rediger: "Edit",
     fortryd: "Undo",
     gentag: "Redo",
@@ -127,6 +157,15 @@ pub fn byg(app: &tauri::AppHandle, t: &Tekster) -> tauri::Result<tauri::menu::Me
             &MenuItem::with_id(app, AFSLUT, t.afslut, true, Some(GENVEJ_AFSLUT))?,
         ],
     )?;
+    let arkiv = Submenu::with_items(
+        app,
+        t.arkiv,
+        true,
+        &[
+            &MenuItem::with_id(app, AABN, t.aabn, true, Some(GENVEJ_AABN))?,
+            &MenuItem::with_id(app, GEM, t.gem, true, Some(GENVEJ_GEM))?,
+        ],
+    )?;
     let rediger = Submenu::with_items(
         app,
         t.rediger,
@@ -152,7 +191,7 @@ pub fn byg(app: &tauri::AppHandle, t: &Tekster) -> tauri::Result<tauri::menu::Me
             &P::close_window(app, Some(t.luk))?,
         ],
     )?;
-    Menu::with_items(app, &[&program, &rediger, &vindue])
+    Menu::with_items(app, &[&program, &arkiv, &rediger, &vindue])
 }
 
 /// Webvisningen får platformen som `<html data-platform>` (og `window.__GRIMNIR_PLATFORM__`), så rammen kan give plads
@@ -179,6 +218,13 @@ mod tests {
         assert_eq!(handling(OM), Some("om"));
         assert_eq!(handling(INDSTILLINGER), Some("indstillinger"));
         assert_eq!(handling(AFSLUT), Some("afslut"));
+        assert_eq!(handling(AABN), Some("aabn"));
+        assert_eq!(handling(GEM), Some("gem"));
+        assert_eq!((GENVEJ_AABN, GENVEJ_GEM), ("CmdOrCtrl+O", "CmdOrCtrl+S"));
+        assert_eq!(
+            (DA.arkiv, DA.aabn, DA.gem, EN.arkiv, EN.aabn),
+            ("Arkiv", "Åbn…", "Gem…", "File", "Open…")
+        );
         assert_eq!(handling("noget-andet"), None);
         assert_eq!(GENVEJ_INDSTILLINGER, "CmdOrCtrl+,");
         assert_eq!(GENVEJ_AFSLUT, "CmdOrCtrl+Q");
