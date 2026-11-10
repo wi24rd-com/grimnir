@@ -5,10 +5,10 @@ mod faelles;
 use faelles::{kaede, ordbog};
 use grimnir_core::{demasker, AdvarselArt, AfledtArt, Sag};
 
-const ORIGINAL: &str = "gw=10.20.30.1 vaert=srv-068.intern.eksempel.dk og srv-002 KONTOR\\bruger022 mail bruger022@eksempel.dk";
+const ORIGINAL: &str = "gw=10.20.30.1 vaert=srv-068.intern.kontor.test og srv-002 KONTOR\\bruger022 mail bruger022@kontor.test";
 
-/// En sag, der kender ORIGINAL. Koder: 10.20.30.1 → 198.18.0.1, srv-068 → h0001, intern.eksempel.dk → d01.example,
-/// srv-002 → h0002, KONTOR → NB01, bruger022 → user0001, eksempel.dk → d02.example.
+/// En sag, der kender ORIGINAL. Koder: 10.20.30.1 → 198.18.0.1, srv-068 → h0001, intern.kontor.test → d01.example,
+/// srv-002 → h0002, KONTOR → NB01, bruger022 → user0001, kontor.test → d02.example.
 fn sag() -> Sag {
     let mut sag = Sag::default();
     let k = kaede(ORIGINAL, &ordbog(), &mut sag);
@@ -28,7 +28,7 @@ fn arter(svar: &str, sag: &Sag) -> (String, Vec<AdvarselArt>) {
 fn q6_1_kendt_kode() {
     let s = sag();
     let (t, a) = arter("ret gw 198.18.0.1 på h0001.d01.example", &s);
-    assert_eq!(t, "ret gw 10.20.30.1 på srv-068.intern.eksempel.dk");
+    assert_eq!(t, "ret gw 10.20.30.1 på srv-068.intern.kontor.test");
     assert!(a.is_empty(), "{a:?}");
 }
 
@@ -61,7 +61,7 @@ fn q6_4_anden_stavemaade() {
 fn q6_5_fqdn_forkortet_og_domaenet_alene() {
     let s = sag();
     let (t, a) = arter("log ind på h0001 i d01.example", &s);
-    assert_eq!(t, "log ind på srv-068 i intern.eksempel.dk");
+    assert_eq!(t, "log ind på srv-068 i intern.kontor.test");
     assert_eq!(
         a,
         [
@@ -83,7 +83,7 @@ fn q6_6_adresse_med_maske_eller_port() {
 fn q6_7_escaped_i_json_og_url_kodet() {
     let s = sag();
     let (t, a) = arter(r#"{"konto": "NB01\\user0001", "q": "mail=user0001%40d02.example"}"#, &s);
-    assert_eq!(t, r#"{"konto": "KONTOR\\bruger022", "q": "mail=bruger022%40eksempel.dk"}"#);
+    assert_eq!(t, r#"{"konto": "KONTOR\\bruger022", "q": "mail=bruger022%40kontor.test"}"#);
     assert!(a.contains(&AdvarselArt::AfledtForm(AfledtArt::Escaped)), "{a:?}");
     assert!(a.contains(&AdvarselArt::AfledtForm(AfledtArt::UrlKodet)), "{a:?}");
 }

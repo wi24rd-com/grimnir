@@ -22,13 +22,13 @@ fn masker_med(tekst: &str, sag: &mut Sag) -> (Vec<Erstatning>, String) {
 #[test]
 fn kodernes_form_d6() {
     let mut sag = Sag::default();
-    let t = "srv-068.intern.eksempel.dk KONTOR\\bruger022 bruger022@eksempel.dk password=Sommer2026! Database=Kunde_DB Anna Testesen Projekt Uglebo";
+    let t = "srv-068.intern.kontor.test KONTOR\\bruger022 bruger022@kontor.test password=Sommer2026! Database=Kunde_DB Anna Testesen Projekt Uglebo";
     let (e, m) = masker_med(t, &mut sag);
     assert_eq!(kode(&e, "srv-068"), "h0001");
-    assert_eq!(kode(&e, "intern.eksempel.dk"), "d01.example");
+    assert_eq!(kode(&e, "intern.kontor.test"), "d01.example");
     assert_eq!(kode(&e, "KONTOR"), "NB01");
     assert_eq!(kode(&e, "bruger022"), "user0001");
-    assert_eq!(kode(&e, "eksempel.dk"), "d02.example");
+    assert_eq!(kode(&e, "kontor.test"), "d02.example");
     assert_eq!(kode(&e, "Sommer2026!"), "GRIMNIR_SECRET_0001");
     assert_eq!(kode(&e, "Kunde_DB"), "db0001");
     assert_eq!(kode(&e, "Anna Testesen"), "Person 0001");
@@ -170,12 +170,12 @@ fn kontrol_8_3_en_graenseregel() {
 #[test]
 fn kontrol_8_4_netbios_og_dns_er_to_enheder() {
     let mut sag = Sag::default();
-    let t = "KONTOR\\bruger022 og bruger022@eksempel.dk og kontor\\bruger023";
+    let t = "KONTOR\\bruger022 og bruger022@kontor.test og kontor\\bruger023";
     let k = kaede(t, &ordbog(), &mut sag);
     assert_eq!(k.maskeret, "NB01\\user0001 og user0001@d01.example og nb01\\user0002");
     assert_eq!(k.tilbage, t);
     assert_eq!(sag.kode_for_original(Klasse::Netbios, "KONTOR"), Some("NB01"));
-    assert_eq!(sag.kode_for_original(Klasse::Domaene, "eksempel.dk"), Some("d01.example"));
+    assert_eq!(sag.kode_for_original(Klasse::Domaene, "kontor.test"), Some("d01.example"));
 }
 
 #[test]

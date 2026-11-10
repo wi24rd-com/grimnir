@@ -2,7 +2,7 @@
 //!
 //! Alt er opfundet: RFC 1918-net 10.20.x, 172.16.5, 192.168.77, ordbogens net 100.70.0.0/16,
 //! fremmede adresser i 100.99.0.0/16 (RFC 6598, ikke på internettet), ULA fd00::/8, lokalt
-//! administrerede MAC-adresser (0a:…), `eksempel.dk`, opdigtede navne og hemmeligheder.
+//! administrerede MAC-adresser (0a:…), `kontor.test`, opdigtede navne og hemmeligheder.
 
 use std::collections::BTreeSet;
 
@@ -94,8 +94,8 @@ pub fn korpus() -> Korpus {
         fremmede: BTreeSet::new(),
     };
     for v in [
-        "eksempel.dk",
-        "intern.eksempel.dk",
+        "kontor.test",
+        "intern.kontor.test",
         "KONTOR",
         "FW-KONTOR01",
         "Kunde_DB",
@@ -116,7 +116,7 @@ pub fn korpus() -> Korpus {
     s += "end\nconfig user local\n";
     for _ in 0..4 {
         let (b, h) = (g.bruger(), g.hemmelighed());
-        s += &format!("    edit \"{b}\"\n        set passwd ENC {h}\n        set email-to \"{b}@eksempel.dk\"\n    next\n");
+        s += &format!("    edit \"{b}\"\n        set passwd ENC {h}\n        set email-to \"{b}@kontor.test\"\n    next\n");
     }
     s += "end\nconfig vpn ipsec phase1-interface\n";
     for i in 1..=3 {
@@ -146,7 +146,7 @@ pub fn korpus() -> Korpus {
         s += &format!("$cred = New-Object PSCredential(\"KONTOR\\{b}\", $kode)\n");
         s += &format!("Get-Service -ComputerName {v} -Credential $cred\n");
         s += &format!("Copy-Item \\\\{v}\\deling\\rapport.csv C:\\Temp\\\n");
-        s += &format!("Invoke-Command -ComputerName {v}.intern.eksempel.dk -ScriptBlock {{ Get-ChildItem C:\\Users\\{b}\\Documents }}\n");
+        s += &format!("Invoke-Command -ComputerName {v}.intern.kontor.test -ScriptBlock {{ Get-ChildItem C:\\Users\\{b}\\Documents }}\n");
     }
     filer.push(("script.ps1", s));
 
@@ -154,7 +154,7 @@ pub fn korpus() -> Korpus {
     let mut s = String::from("-- Opdigtet databasescript\nUSE [Kunde_DB];\n");
     for _ in 0..6 {
         let (v, b, h) = (g.vaert(), g.bruger(), g.hemmelighed());
-        s += &format!("-- Server={v}.intern.eksempel.dk;Database=Kunde_DB;User Id={b};Password={h};\n");
+        s += &format!("-- Server={v}.intern.kontor.test;Database=Kunde_DB;User Id={b};Password={h};\n");
         s += &format!("CREATE LOGIN [KONTOR\\{b}] FROM WINDOWS;\n");
     }
     filer.push(("database.sql", s));
@@ -193,7 +193,7 @@ pub fn korpus() -> Korpus {
         let (v, b, ip) = (g.vaert(), g.bruger(), g.ip());
         let sid = g.husk(format!("S-1-5-21-1111111111-2222222222-3333333333-{}", 1100 + i));
         s += &format!(
-            "<Event><System><EventID>4624</EventID><Computer>{v}.intern.eksempel.dk</Computer><Security UserID=\"{sid}\"/></System><EventData><Data Name=\"TargetUserName\">{b}</Data><Data Name=\"Konto\">KONTOR\\{b}</Data><Data Name=\"IpAddress\">{ip}</Data></EventData></Event>\n"
+            "<Event><System><EventID>4624</EventID><Computer>{v}.intern.kontor.test</Computer><Security UserID=\"{sid}\"/></System><EventData><Data Name=\"TargetUserName\">{b}</Data><Data Name=\"Konto\">KONTOR\\{b}</Data><Data Name=\"IpAddress\">{ip}</Data></EventData></Event>\n"
         );
     }
     s += "</Events>\n";
@@ -205,7 +205,7 @@ pub fn korpus() -> Korpus {
         let (gu, h, b, v) = (g.guid(), g.hemmelighed(), g.bruger(), g.vaert());
         let komma = if i < 7 { "," } else { "" };
         s += &format!(
-            "  {{\"tenant_id\": \"{gu}\", \"client_secret\": \"{h}\", \"owner\": \"{b}@eksempel.dk\", \"server\": \"{v}.intern.eksempel.dk\", \"sti\": \"C:\\\\Users\\\\{b}\\\\AppData\", \"konto\": \"KONTOR\\\\{b}\", \"ansvarlig\": \"Anna Testesen\"}}{komma}\n"
+            "  {{\"tenant_id\": \"{gu}\", \"client_secret\": \"{h}\", \"owner\": \"{b}@kontor.test\", \"server\": \"{v}.intern.kontor.test\", \"sti\": \"C:\\\\Users\\\\{b}\\\\AppData\", \"konto\": \"KONTOR\\\\{b}\", \"ansvarlig\": \"Anna Testesen\"}}{komma}\n"
         );
     }
     s += "]\n";
@@ -216,7 +216,7 @@ pub fn korpus() -> Korpus {
         "8.1 bench=198.18.0.11 peer=203.0.113.5 navn h0001 gw=10.20.30.1\n",
         "8.2 a=010.020.030.001 b=10.20.30.1 c=fd00:0:0:1::5 d=fd00:0:0:1:0:0:0:5 e=FD00:0:0:1::5\n",
         "8.3 hostname=srv-068 arkiv srv-068_backup.log\n",
-        "8.4 \"KONTOR\\\\bruger022\" og bruger022@eksempel.dk\n",
+        "8.4 \"KONTOR\\\\bruger022\" og bruger022@kontor.test\n",
     ));
     for v in [
         "010.020.030.001",
@@ -237,6 +237,34 @@ pub fn korpus() -> Korpus {
         g.fund.insert(format!("vaert-{i:05}"));
     }
     filer.push(("mange-vaerter.log", s));
+
+    // Windows-sikkerhedshændelser i tekstform: 4624, 4625 og 4776 (F2). Lagt sidst, så de øvrige
+    // filer ikke ændres af de ekstra tal fra generatoren.
+    let mut s = String::new();
+    for i in 0..3 {
+        let (maskine, bruger, bruger2, ip) = (g.vaert(), g.bruger(), g.bruger(), g.ip());
+        let maskine_stor = g.husk(maskine.to_ascii_uppercase());
+        let nr = g.n(9000) + 1000;
+        let ws = g.husk(format!("PC-{nr:04}"));
+        s += &format!(
+            "Log Name: Security\r\nEvent ID: 4624\r\nComputer: {maskine}.intern.kontor.test\r\nAn account was successfully logged on.\r\n\r\n\
+             Subject:\r\n\tSecurity ID:\t\tS-1-5-18\r\n\tAccount Name:\t\t{maskine_stor}$\r\n\tAccount Domain:\t\tKONTOR\r\n\r\n\
+             New Logon:\r\n\tAccount Name:\t\t{bruger}\r\n\tAccount Domain:\t\tKONTOR\r\n\r\n\
+             Network Information:\r\n\tWorkstation Name:\t{ws}\r\n\tSource Network Address:\t{ip}\r\n\tSource Port:\t\t5231{i}\r\n\r\n"
+        );
+        s += &format!(
+            "Log Name: Security\r\nEvent ID: 4625\r\nAn account failed to log on.\r\n\r\n\
+             Subject:\r\n\tAccount Name:\t\t-\r\n\tAccount Domain:\t\t-\r\n\r\n\
+             Account For Which Logon Failed:\r\n\tAccount Name:\t\t{bruger2}\r\n\tAccount Domain:\t\tKONTOR\r\n\r\n\
+             Failure Information:\r\n\tFailure Reason:\t\tUnknown user name or bad password.\r\n\r\n\
+             Network Information:\r\n\tWorkstation Name:\t{ws}\r\n\tSource Network Address:\t{ip}\r\n\r\n"
+        );
+        s += &format!(
+            "Log Name: Security\r\nEvent ID: 4776\r\nThe computer attempted to validate the credentials for an account.\r\n\
+             \tLogon Account:\t{bruger}\r\n\tSource Workstation:\t{ws}\r\n\tError Code:\t0xC000006A\r\nUser {bruger2} logged on\r\n\r\n"
+        );
+    }
+    filer.push(("windows-sikkerhed.log", s));
 
     Korpus {
         filer,

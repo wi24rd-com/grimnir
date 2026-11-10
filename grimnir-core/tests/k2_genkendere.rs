@@ -54,9 +54,9 @@ fn ipv6_og_mac() {
 #[test]
 fn mail_upn_og_domaene_bruger() {
     let o = ordbog();
-    let t = "bruger022@eksempel.dk og KONTOR\\bruger022 og ANDET\\bruger023 og \"KONTOR\\\\bruger024\"";
+    let t = "bruger022@kontor.test og KONTOR\\bruger022 og ANDET\\bruger023 og \"KONTOR\\\\bruger024\"";
     let fund = analyser(t, &o);
-    let mail = fund_for(t, &fund, "eksempel.dk").expect("domæne");
+    let mail = fund_for(t, &fund, "kontor.test").expect("domæne");
     assert_eq!((mail.art, mail.del_af), (Art::Domaene, Some(Sammensat::Mail)));
     let nb = fund_for(t, &fund, "KONTOR").expect("NetBIOS");
     assert_eq!((nb.art, nb.sikkerhed), (Art::NetbiosDomaene, Sikkerhed::Sikker));
@@ -68,9 +68,9 @@ fn mail_upn_og_domaene_bruger() {
 #[test]
 fn vaertsnavne() {
     let o = ordbog();
-    let t = "srv-068.intern.eksempel.dk";
+    let t = "srv-068.intern.kontor.test";
     let fund = analyser(t, &o);
-    assert_eq!(tekster(t, &fund), ["srv-068", "intern.eksempel.dk"]);
+    assert_eq!(tekster(t, &fund), ["srv-068", "intern.kontor.test"]);
     har("hostname=fw01", &o, "fw01", Art::Vaert);
     har("set hostname \"FW-KONTOR01\"", &o, "FW-KONTOR01", Art::Vaert);
     har("Get-Service -ComputerName pc-0042", &o, "pc-0042", Art::Vaert);
@@ -83,9 +83,9 @@ fn vaertsnavne() {
 #[test]
 fn url_opdeles() {
     let o = ordbog();
-    let t = "https://admin:Hemm3lig@srv-030.eksempel.dk:8443/sti?x=1";
+    let t = "https://admin:Hemm3lig@srv-030.kontor.test:8443/sti?x=1";
     let fund = analyser(t, &o);
-    assert_eq!(tekster(t, &fund), ["admin", "Hemm3lig", "srv-030", "eksempel.dk"]);
+    assert_eq!(tekster(t, &fund), ["admin", "Hemm3lig", "srv-030", "kontor.test"]);
     assert!(fund
         .iter()
         .all(|f| f.del_af == Some(Sammensat::Url) || f.del_af == Some(Sammensat::Fqdn)));
@@ -97,9 +97,9 @@ fn stier_ad_og_sid() {
     har("C:\\Users\\bruger022\\Documents", &o, "bruger022", Art::Bruger);
     har("/home/bruger022/.bashrc", &o, "bruger022", Art::Bruger);
     har_ikke("C:\\Users\\Public\\x /Users/Shared/y", &o);
-    let t = "CN=Anna Testesen,OU=Salg,DC=eksempel,DC=dk";
+    let t = "CN=Anna Testesen,OU=Salg,DC=kontor,DC=test";
     let fund = analyser(t, &o);
-    assert_eq!(tekster(t, &fund), ["Anna Testesen", "Salg", "eksempel"]);
+    assert_eq!(tekster(t, &fund), ["Anna Testesen", "Salg", "kontor"]);
     har(
         "S-1-5-21-1111111111-2222222222-3333333333-1105",
         &o,
@@ -161,9 +161,9 @@ fn guid_serie_cpr_og_entropi() {
 fn overlap_laengste_vinder() {
     let o = ordbog();
     // Mailadressen er længere end domænet alene; værten i URL'en får samme opdeling som alene
-    let t = "bruger022@srv-068.intern.eksempel.dk";
+    let t = "bruger022@srv-068.intern.kontor.test";
     let fund = analyser(t, &o);
-    assert_eq!(tekster(t, &fund), ["bruger022", "srv-068.intern.eksempel.dk"]);
+    assert_eq!(tekster(t, &fund), ["bruger022", "srv-068.intern.kontor.test"]);
     assert_eq!(fund[1].art, Art::Domaene);
 }
 
@@ -180,8 +180,8 @@ fn afledte_former() {
 #[test]
 fn maskeer_aldrig_vinder() {
     let mut o = ordbog();
-    o.aldrig = vec!["srv-068".into(), "10.20.30.0/24".into(), "support@eksempel.dk".into()];
-    let t = "srv-068 10.20.30.1 10.20.31.1 support@eksempel.dk";
+    o.aldrig = vec!["srv-068".into(), "10.20.30.0/24".into(), "support@kontor.test".into()];
+    let t = "srv-068 10.20.30.1 10.20.31.1 support@kontor.test";
     let fund = analyser(t, &o);
     assert_eq!(tekster(t, &fund), ["10.20.31.1"]);
 }

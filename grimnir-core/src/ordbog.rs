@@ -8,7 +8,7 @@ use crate::typer::Fejl;
 /// Ordbogen er selv følsom (den indeholder domæner og navne) og gemmes krypteret i B3.
 #[derive(Clone, Default)]
 pub struct Ordbog {
-    /// Egne DNS-domæner (`eksempel.dk`). En indgang uden punktum er et NetBIOS-domæne (`KONTOR`).
+    /// Egne DNS-domæner (`kontor.test`). En indgang uden punktum er et NetBIOS-domæne (`KONTOR`).
     pub domaener: Vec<String>,
     /// Navnemønstre for maskiner: `#` er ét ciffer, `*` er nul eller flere bogstaver, cifre og `-` (`srv-###`, `WS-*`).
     pub navnemoenstre: Vec<String>,

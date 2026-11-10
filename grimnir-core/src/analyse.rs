@@ -273,7 +273,7 @@ const VERSIONSORD: [&str; 10] = [
     "version", "ver", "v", "build", "release", "firmware", "fw", "rev", "revision", "versjon",
 ];
 const MASKEORD: [&str; 4] = ["mask", "netmask", "subnetmask", "wildcard"];
-const STOPORD: [&str; 18] = [
+pub(crate) const STOPORD: [&str; 18] = [
     "admin",
     "administrator",
     "root",
@@ -292,6 +292,16 @@ const STOPORD: [&str; 18] = [
     "default",
     "public",
     "local",
+];
+/// Værdier i Windows-hændelser, der ikke er navne (F2).
+const IKKE_NAVNE: [&str; 7] = [
+    "-",
+    "system",
+    "anonymous logon",
+    "local service",
+    "network service",
+    "n/a",
+    "localhost",
 ];
 const NETBIOS_UNDTAGET: [&str; 16] = [
     "hklm",
@@ -557,6 +567,35 @@ fn sammensatte(c: &mut Ctx) {
         ));
     }
 
+    // Mail og UPN, URL-kodet: bruger%40domæne og %40bruger%40domæne (F3). `%40` bevares.
+    let mail_kodet = statisk!(r"[A-Za-z0-9._+-]+%40[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}");
+    for m in mail_kodet.find_iter(t) {
+        let (mut s, e) = (m.start(), m.end());
+        // Et %XX foran (fx det første %40) hører ikke til brugernavnet
+        while s >= 1 && t[s - 1] == b'%' && s + 2 <= e && t[s].is_ascii_hexdigit() && t[s + 1].is_ascii_hexdigit() {
+            s += 2;
+        }
+        while s < e && matches!(t[s], b'.' | b'-' | b'+') {
+            s += 1;
+        }
+        let Some(at) = t[s..e].windows(3).position(|w| w == b"%40").map(|p| s + p) else {
+            continue;
+        };
+        if at == s || !ved_graense(t, s, e, N) {
+            continue;
+        }
+        let m = Some(Sammensat::Mail);
+        nye.push((
+            s,
+            e,
+            70,
+            vec![
+                fund(s, at, Art::Bruger, Sikkerhed::Sikker, m),
+                fund(at + 3, e, Art::Domaene, Sikkerhed::Sikker, m),
+            ],
+        ));
+    }
+
     // URL: bruger, adgangskode og vært
     let url = statisk!(r"(?i)[a-z][a-z0-9+.-]{1,15}://(?:([^\s/@:]+)(?::([^\s/@]*))?@)?(\[[0-9a-f:.]+\]|[A-Za-z0-9._-]+)");
     for m in url.captures_iter(t) {
@@ -605,7 +644,8 @@ fn sammensatte(c: &mut Ctx) {
             return false;
         };
         let foer = if nb.start() > 0 { t[nb.start() - 1] } else { b' ' };
-        if foer.is_ascii_alphanumeric() || matches!(foer, b'\\' | b'/' | b':' | b'.' | b'%' | b'$' | b'-') {
+        // Grænsereglen afgør starten, så `\r\nKONTOR\\bruger` og `%5CKONTOR` også findes (F3)
+        if !graense_foer(t, nb.start(), N) || matches!(foer, b'\\' | b'/' | b':' | b'.' | b'%' | b'$' | b'-') {
             return false;
         }
         if t.get(bruger.end())
@@ -826,9 +866,56 @@ fn noegleord(c: &mut Ctx) {
         });
     }
 
+    // Windows-hændelser (F2): brugere og maskiner efter nøgleord, sikkerhed Sandsynlig.
+    // Værdier, der ikke er navne, springes over; et navn med `$` til sidst er en maskine.
+    let win: [(&Regex, bool); 3] = [
+        (statisk!(r"(?i)(?:account name|user name|logon account):[ \t]*(\S+)"), true),
+        (
+            statisk!(r"(?i)(?:workstation name|source workstation|computername|computer)[ \t]*[:=][ \t]*(\S+)"),
+            false,
+        ),
+        (statisk!(r"(?i)user[ \t]+([A-Za-z0-9._$-]+)[ \t]+logged[ \t]+(?:in|on|out)"), true),
+    ];
+    for (r, bruger) in win {
+        hvert(r, t, |m| {
+            let Some(v) = m.get(1) else { return false };
+            if !noegle_ok(t, m) {
+                return false;
+            }
+            let linje_slut = t[v.start()..]
+                .iter()
+                .position(|b| *b == b'\n' || *b == b'\r')
+                .map_or(t.len(), |p| v.start() + p);
+            let resten = String::from_utf8_lossy(&t[v.start()..linje_slut]).trim().to_ascii_lowercase();
+            if IKKE_NAVNE.iter().any(|n| resten == *n || resten.starts_with(&format!("{n} "))) {
+                return false;
+            }
+            let (s, mut e) = (v.start(), v.end());
+            while e > s && matches!(t[e - 1], b'.' | b',' | b';' | b'"' | b'\'') {
+                e -= 1;
+            }
+            let vaerdi = &t[s..e];
+            if vaerdi.is_empty() || vaerdi.contains(&b'\\') || vaerdi.contains(&b'@') {
+                return false; // DOMÆNE\bruger og UPN tages af deres egne genkendere
+            }
+            if vaerdi.ends_with(b"$") {
+                for f in c.vaert_dele(s, e - 1, Sikkerhed::Sandsynlig, None) {
+                    nye.push((f, 45));
+                }
+            } else if bruger {
+                nye.push((fund(s, e, Art::Bruger, Sikkerhed::Sandsynlig, None), 45));
+            } else {
+                for f in c.vaert_dele(s, e, Sikkerhed::Sandsynlig, None) {
+                    nye.push((f, 45));
+                }
+            }
+            true
+        });
+    }
+
     // Databaser
     let databaser: [&Regex; 3] = [
-        statisk!(r#"(?i)(?:database|initial catalog|dbname)\s*=\s*["']?([^;"'\s]+)"#),
+        statisk!(r#"(?i)(?:database|initial catalog|dbname|db)\s*=\s*["']?([^;"'\s]+)"#),
         statisk!(r"(?i)use\s+\[([^\]\r\n]+)\]"),
         statisk!(r"(?i)use\s+([a-z_][a-z0-9_]*)\s*;"),
     ];

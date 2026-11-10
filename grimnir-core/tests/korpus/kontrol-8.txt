@@ -1,4 +1,4 @@
 8.1 bench=198.18.0.11 peer=203.0.113.5 navn h0001 gw=10.20.30.1
 8.2 a=010.020.030.001 b=10.20.30.1 c=fd00:0:0:1::5 d=fd00:0:0:1:0:0:0:5 e=FD00:0:0:1::5
 8.3 hostname=srv-068 arkiv srv-068_backup.log
-8.4 "KONTOR\\bruger022" og bruger022@eksempel.dk
+8.4 "KONTOR\\bruger022" og bruger022@kontor.test

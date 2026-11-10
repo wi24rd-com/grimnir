@@ -29,10 +29,10 @@ const STYKKER: [&str; 52] = [
     "srv-068",
     "SRV-068",
     "srv-068_backup.log",
-    "srv-068.intern.eksempel.dk",
+    "srv-068.intern.kontor.test",
     "KONTOR\\bruger022",
     "KONTOR\\\\bruger022",
-    "bruger022@eksempel.dk",
+    "bruger022@kontor.test",
     "bruger022",
     "hostname=fw01",
     "password=Hemmelig1",
@@ -50,7 +50,7 @@ const STYKKER: [&str; 52] = [
     "æøå",
     "README.md",
     "C:\\Users\\bruger022\\x",
-    "https://admin:Hemm3lig@srv-030.eksempel.dk/",
+    "https://admin:Hemm3lig@srv-030.kontor.test/",
     "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0In0.c2ln",
     "S-1-5-21-0-0-1",
     "000000-0001",
@@ -100,5 +100,41 @@ proptest! {
         prop_assert_eq!(kb.tilbage, b);
         // Den første tekst kan stadig demaskeres, selv om sagen er vokset
         prop_assert_eq!(grimnir_core::demasker(&ka.maskeret, &sag).0, a);
+    }
+}
+
+/// F1: sammensat form i tekst A, samme værdi nøgen i tekst B (kun opdigtede værdier).
+const PAR: [(&str, &[&str]); 12] = [
+    ("KONTOR\\bruger022", &["bruger022"]),
+    ("bruger023@kontor.test", &["bruger023"]),
+    ("password=Hemmelig1x", &["Hemmelig1x"]),
+    ("Database=Kunde_DB;", &["Kunde_DB"]),
+    ("hostname=fw01", &["fw01"]),
+    ("https://drift:Hemm3lig@srv-030.kontor.test/", &["drift", "Hemm3lig"]),
+    ("C:\\Users\\bruger024\\x", &["bruger024"]),
+    ("User Id=appbruger;", &["appbruger"]),
+    ("-ComputerName pc-0042", &["pc-0042"]),
+    ("serial=FGT60F1234567", &["FGT60F1234567"]),
+    ("CN=Anna Jensen,OU=Salg,DC=kontor,DC=test", &["Anna Jensen", "Salg"]),
+    (
+        "tenant_id=12345678-1234-1234-1234-123456789abc",
+        &["12345678-1234-1234-1234-123456789abc"],
+    ),
+];
+const ADSKIL: [&str; 4] = [" ", "\n", ", ", ". "];
+
+proptest! {
+    #![proptest_config(ProptestConfig { cases: 256, ..ProptestConfig::default() })]
+
+    #[test]
+    fn f1_noegne_vaerdier_i_ny_tekst(valg in prop::collection::vec((0..PAR.len(), 0..ADSKIL.len()), 1..12)) {
+        let a: String = valg.iter().map(|(p, s)| format!("{}{}", PAR[*p].0, ADSKIL[*s])).collect();
+        let b: String = valg.iter().flat_map(|(p, s)| PAR[*p].1.iter().map(move |v| format!("{v}{}", ADSKIL[*s]))).collect();
+        let mut sag = Sag::default();
+        let ka = kaede(&a, &ordbog(), &mut sag);
+        prop_assert_eq!(&ka.tilbage, &a);
+        let kb = kaede(&b, &ordbog(), &mut sag);
+        prop_assert!(kb.rester.is_empty(), "rester i B: {:?} i {:?}", kb.rester, kb.maskeret);
+        prop_assert_eq!(&kb.tilbage, &b);
     }
 }

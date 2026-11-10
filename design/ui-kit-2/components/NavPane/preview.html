@@ -1,0 +1,66 @@
+<!-- @dsCard group="Skal" height=330 -->
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:var(--space-4);background:var(--bg);color:var(--text);font-family:var(--font-sans);font-size:14px;line-height:20px}
+.row{display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:var(--space-2);height:36px;padding:0 16px;border-radius:var(--radius-md);border:1px solid var(--border-strong);background:var(--surface);color:var(--text);font:inherit;font-weight:600;cursor:pointer}
+.btn:hover{background:var(--surface-raised)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.btn.danger{border-color:var(--danger);color:var(--danger)}
+.btn.ghost{border-color:var(--surface);background:var(--surface);color:var(--info)}
+.btn[disabled]{opacity:.55;cursor:default}
+.btn:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+.chip{display:inline-flex;align-items:center;gap:var(--space-1);height:22px;padding:0 9px;border-radius:var(--radius-pill);font-size:12px;font-weight:600;white-space:nowrap}
+.chip.ok{background:var(--accent-soft);color:var(--accent)}.chip.warn{background:var(--warn-soft);color:var(--warn)}.chip.danger{background:var(--danger-soft);color:var(--danger)}.chip.info{background:var(--info-soft);color:var(--info)}.chip.none{background:var(--surface-raised);color:var(--text-muted);border:1px solid var(--border)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);box-shadow:var(--shadow-card)}
+.mono{font-family:var(--font-mono);font-size:13px}
+.muted{color:var(--text-muted)}
+.label{font-size:11px;line-height:14px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted)}
+svg.ik{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+body{padding:0}
+.nav{height:330px}
+.nav{display:flex;flex-direction:column;width:232px;background:var(--surface);border-right:1px solid var(--border)}
+.nav h3{margin:0;padding:var(--space-3) var(--space-3) var(--space-2);font-size:15px;line-height:20px;font-weight:600}
+.trae{list-style:none;margin:0;padding:0 var(--space-2) var(--space-3);display:flex;flex-direction:column;gap:1px}
+.trae ul{list-style:none;margin:0;padding:0 0 0 var(--space-4);display:flex;flex-direction:column;gap:1px}
+.tr{display:flex;align-items:center;gap:var(--space-2);width:100%;height:30px;padding:0 var(--space-2);border:0;border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font:inherit;font-size:13px;text-align:left;cursor:pointer}
+.tr:hover{background:var(--surface-raised)}
+.tr.on{background:var(--accent-soft);font-weight:600}
+.tr .ant{margin-left:auto;font-size:12px;color:var(--text-muted);font-weight:400}
+.tr svg{width:14px;height:14px;fill:none;stroke:var(--text-muted);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.skift{margin-top:auto;border-top:1px solid var(--border);background:var(--surface-raised);padding:var(--space-1);display:flex;flex-direction:column;gap:1px}
+.vs{display:flex;align-items:center;gap:var(--space-3);height:38px;padding:0 var(--space-3);border-radius:var(--radius-sm);color:var(--text);text-decoration:none;font-size:13px}
+.vs:hover{background:var(--surface)}
+.vs.on{background:var(--border);font-weight:600}
+.vs svg{width:18px;height:18px;fill:none;stroke:var(--text-muted);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.vs.on svg{stroke:var(--accent)}
+.vs kbd{margin-left:auto;font-family:var(--font-mono);font-size:11px;color:var(--text-muted)}
+</style>
+</head>
+<body>
+<nav class="nav" aria-label="Navigation">
+  <h3>Maskér</h3>
+  <ul class="trae">
+    <li><button type="button" class="tr"><svg class="" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>Denne tekst</button>
+      <ul>
+        <li><button type="button" class="tr on" aria-current="true">Alle fund<span class="ant">16</span></button></li>
+        <li><button type="button" class="tr">Skal tjekkes<span class="ant">2</span></button></li>
+        <li><button type="button" class="tr">Hemmeligheder<span class="ant">1</span></button></li>
+      </ul></li>
+    <li><button type="button" class="tr"><svg class="" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>Seneste i sagen<span class="ant">4</span></button></li>
+  </ul>
+  <div class="skift" role="group" aria-label="Visninger">
+    <a class="vs on" href="#" aria-current="page"><svg class="" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"></path><path d="M4 4l16 16"></path></svg>Maskér<kbd>⌘1</kbd></a>
+    <a class="vs" href="#"><svg class="" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"></path><circle cx="12" cy="12" r="2.5"></circle></svg>Demaskér<kbd>⌘2</kbd></a>
+    <a class="vs" href="#"><svg class="" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h6l2 2h10v10H3z"></path></svg>Sager<kbd>⌘3</kbd></a>
+    <a class="vs" href="#"><svg class="" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z"></path><path d="M9 8h6M9 12h6"></path></svg>Ordbog<kbd>⌘4</kbd></a>
+  </div>
+</nav>
+</body>
+</html>

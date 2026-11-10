@@ -1,0 +1,41 @@
+<!-- @dsCard group="Formularer" height=120 -->
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:var(--space-4);background:var(--bg);color:var(--text);font-family:var(--font-sans);font-size:14px;line-height:20px}
+.row{display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:var(--space-2);height:36px;padding:0 16px;border-radius:var(--radius-md);border:1px solid var(--border-strong);background:var(--surface);color:var(--text);font:inherit;font-weight:600;cursor:pointer}
+.btn:hover{background:var(--surface-raised)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.btn.danger{border-color:var(--danger);color:var(--danger)}
+.btn.ghost{border-color:var(--surface);background:var(--surface);color:var(--info)}
+.btn[disabled]{opacity:.55;cursor:default}
+.btn:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+.chip{display:inline-flex;align-items:center;gap:var(--space-1);height:22px;padding:0 9px;border-radius:var(--radius-pill);font-size:12px;font-weight:600;white-space:nowrap}
+.chip.ok{background:var(--accent-soft);color:var(--accent)}.chip.warn{background:var(--warn-soft);color:var(--warn)}.chip.danger{background:var(--danger-soft);color:var(--danger)}.chip.info{background:var(--info-soft);color:var(--info)}.chip.none{background:var(--surface-raised);color:var(--text-muted);border:1px solid var(--border)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);box-shadow:var(--shadow-card)}
+.mono{font-family:var(--font-mono);font-size:13px}
+.muted{color:var(--text-muted)}
+.label{font-size:11px;line-height:14px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted)}
+svg.ik{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.felter{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--space-4)}
+.felt{display:flex;flex-direction:column;gap:var(--space-1)}
+.felt input,.felt select{height:36px;padding:0 10px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-family:var(--font-sans);font-size:14px}
+.felt input.mono{font-family:var(--font-mono);font-size:13px}
+.felt input.fejl{border-color:var(--danger)}
+.hj{font-size:12px;line-height:16px}
+</style>
+</head>
+<body>
+<div class="felter">
+  <label class="felt"><span class="label">Sagens navn</span><input value="Supportsag 0042"><span class="hj muted">Vises kun på denne maskine.</span></label>
+  <label class="felt"><span class="label">Eget net</span><input class="mono fejl" value="10.20.0.0/33" aria-invalid="true"><span class="hj" style="color:var(--danger)">/33 er ikke en gyldig maske. Brug /0 til /32.</span></label>
+  <label class="felt"><span class="label">Type</span><select><option>Domæne</option><option>Navnemønster</option></select><span class="hj muted">&nbsp;</span></label>
+</div>
+</body>
+</html>

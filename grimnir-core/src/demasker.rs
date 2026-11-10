@@ -35,11 +35,14 @@ pub fn demasker(tekst: &str, sag: &Sag) -> (String, Vec<Advarsel>) {
         let kode = &t[s..e];
         let kode = std::str::from_utf8(kode).unwrap_or_default();
         let naeste = traef.get(i + 1).filter(|n| n.0 == e + 1);
-        let forrige = i.checked_sub(1).and_then(|j| traef.get(j)).filter(|f| f.1 + 1 == s);
+        let forrige = i.checked_sub(1).and_then(|j| traef.get(j));
         let alene = match klasse {
             Klasse::Vaert => !(t.get(e) == Some(&b'.') && naeste.is_some_and(|n| sag.klasse_af(n.2) == Klasse::Domaene)),
             Klasse::Domaene => !forrige.is_some_and(|f| {
-                (t[s - 1] == b'.' && sag.klasse_af(f.2) == Klasse::Vaert) || (t[s - 1] == b'@' && sag.klasse_af(f.2) == Klasse::Bruger)
+                let k = sag.klasse_af(f.2);
+                (f.1 + 1 == s && t[s - 1] == b'.' && k == Klasse::Vaert)
+                    || (f.1 + 1 == s && t[s - 1] == b'@' && k == Klasse::Bruger)
+                    || (f.1 + 3 == s && &t[s - 3..s] == b"%40" && k == Klasse::Bruger)
             }),
             _ => false,
         };
@@ -62,6 +65,31 @@ pub fn demasker(tekst: &str, sag: &Sag) -> (String, Vec<Advarsel>) {
     // Kodeformer, der ikke er sagens koder
     let mut ekstra: Vec<(usize, usize, String)> = Vec::new();
     let mut ukendte = 0usize;
+    // En kode, hvis bogstaver er ændret efter maskeringen (F4): opslag uafhængigt af store/små.
+    // Navne og adresser får originalen i samme bogstavform som koden; hemmeligheder og andre
+    // klasser uden spejling sættes tilbage bogstaveligt.
+    let mut anden_stavemaade = |s: usize, e: usize, kode: &str, advarsler: &mut Vec<Advarsel>| -> bool {
+        let Some(p) = sag.kode_smaa(kode) else { return false };
+        if ekstra.iter().any(|x| x.0 < e && s < x.1) {
+            return true;
+        }
+        let o = sag.post(p).original.som_tekst();
+        let kb = kode.as_bytes();
+        let spejl = sag.klasse_af(p).spejler() || matches!(sag.klasse_af(p), Klasse::Ipv6 | Klasse::Mac);
+        let ny = if !spejl {
+            o.to_string()
+        } else if !kb.iter().any(u8::is_ascii_lowercase) {
+            o.to_ascii_uppercase()
+        } else if !kb.iter().any(u8::is_ascii_uppercase) {
+            o.to_ascii_lowercase()
+        } else {
+            o.to_string()
+        };
+        brugt[p] = true;
+        advarsler.push(advarsel(AdvarselArt::AfledtForm(AfledtArt::AndenStavemaade), s, e, kode, None));
+        ekstra.push((s, e, ny));
+        true
+    };
     find_kodeformer(t, |s, e, form| {
         let j = traef.partition_point(|x| x.1 <= s);
         if traef.get(j).is_some_and(|x| x.0 < e) {
@@ -80,33 +108,21 @@ pub fn demasker(tekst: &str, sag: &Sag) -> (String, Vec<Advarsel>) {
                 }
             }
             Kodeform::Ipv6(v) => {
-                if sag.maal6_kendt((v >> 64) as u64) {
+                if !anden_stavemaade(s, e, &kode, &mut advarsler) && sag.maal6_kendt((v >> 64) as u64) {
                     advarsler.push(advarsel(AdvarselArt::UkendtAdresseISagensNet, s, e, &kode, None));
                     ukendte += 1;
                 }
             }
-            Kodeform::Mac(_) => {}
+            Kodeform::Mac(_) => {
+                anden_stavemaade(s, e, &kode, &mut advarsler);
+            }
             Kodeform::Navn(_) if sag.reserveret_navn(&kode) => {}
-            Kodeform::Navn(_) => match sag.kode_smaa(&kode) {
-                Some(p) => {
-                    let o = sag.post(p).original.som_tekst();
-                    let kb = kode.as_bytes();
-                    let ny = if !kb.iter().any(u8::is_ascii_lowercase) {
-                        o.to_ascii_uppercase()
-                    } else if !kb.iter().any(u8::is_ascii_uppercase) {
-                        o.to_ascii_lowercase()
-                    } else {
-                        o.to_string()
-                    };
-                    brugt[p] = true;
-                    advarsler.push(advarsel(AdvarselArt::AfledtForm(AfledtArt::AndenStavemaade), s, e, &kode, None));
-                    ekstra.push((s, e, ny));
-                }
-                None => {
+            Kodeform::Navn(_) => {
+                if !anden_stavemaade(s, e, &kode, &mut advarsler) {
                     advarsler.push(advarsel(AdvarselArt::UkendtKode, s, e, &kode, None));
                     ukendte += 1;
                 }
-            },
+            }
         }
     });
 

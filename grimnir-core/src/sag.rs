@@ -5,6 +5,7 @@ use std::fmt;
 
 use aho_corasick::{AhoCorasick, Input, MatchKind};
 
+use crate::analyse::STOPORD;
 use crate::graense::{ved_graense, Moenster};
 use crate::kodeform::{find_kodeformer, Kodeform};
 use crate::net::{formater_ipv4, formater_ipv6, formater_ipv6_kort, formater_mac, har_nuller, laes_ipv4, laes_ipv6, laes_mac, MacForm};
@@ -111,6 +112,9 @@ pub struct SagData {
     pub reserverede_mac: Vec<u64>,
     /// Puljer, hvis overløb allerede er meldt (bit pr. [`Pulje`]).
     pub overloeb_meldt: u8,
+    /// Koder, brugeren selv har skrevet med [`Sag::ret`], også tidligere rettelser (F6). Indgår i
+    /// reservationen af senere tekster; kollisionspasset finder de nuværende via sagens koder.
+    pub rettede_koder: Vec<String>,
 }
 
 #[derive(Default)]
@@ -199,6 +203,18 @@ fn med_suffiks(kode: &str, k: u64, klasse: Klasse) -> String {
         (Klasse::Domaene, Some(p)) => format!("{}{}{}", &kode[..p], suffiks, &kode[p..]),
         _ => format!("{kode}{suffiks}"),
     }
+}
+
+/// Om en kendt original må genbruges som frit ord i en ny tekst (F1).
+///
+/// Adresser er udeladt, fordi genkenderne altid finder dem. Under fire tegn, rene tal og stopord
+/// (`admin`, `root` …) er udeladt, fordi de står som almindelige ord og tal overalt; de samme
+/// stopord bruges allerede af de afledte former i analysen.
+fn genbruges_som_ord(klasse: Klasse, original: &str) -> bool {
+    !matches!(klasse, Klasse::Ipv4 | Klasse::Ipv6 | Klasse::Mac)
+        && original.chars().count() >= 4
+        && !original.bytes().all(|b| b.is_ascii_digit())
+        && !STOPORD.contains(&original.to_ascii_lowercase().as_str())
 }
 
 impl Default for Sag {
@@ -349,6 +365,9 @@ impl Sag {
         }
         let gammel = std::mem::replace(&mut self.data.poster[i].kode, ny.to_string());
         self.data.poster[i].rettet = true;
+        if !self.data.rettede_koder.iter().any(|k| k == ny) {
+            self.data.rettede_koder.push(ny.to_string());
+        }
         self.idx.kode.remove(&gammel);
         if self.idx.kode_smaa.get(&smaa(&gammel)) == Some(&i) {
             self.idx.kode_smaa.remove(&smaa(&gammel));
@@ -408,6 +427,20 @@ impl Sag {
     pub(crate) fn reserver(&mut self, t: &[u8]) {
         let mut former = Vec::new();
         find_kodeformer(t, |s, e, k| former.push((s, e, k)));
+        // Brugerens egne koder har ingen fast form; de findes uafhængigt af store/små (F6).
+        if !self.data.rettede_koder.is_empty() {
+            let ac = AhoCorasick::builder()
+                .ascii_case_insensitive(true)
+                .match_kind(MatchKind::LeftmostLongest)
+                .build(&self.data.rettede_koder);
+            if let Ok(ac) = ac {
+                for m in ac.find_iter(t) {
+                    if ved_graense(t, m.start(), m.end(), Moenster::Navn) {
+                        former.push((m.start(), m.end(), Kodeform::Navn(Klasse::Ord)));
+                    }
+                }
+            }
+        }
         for (s, e, k) in former {
             match k {
                 Kodeform::Navn(k) => {
@@ -445,6 +478,56 @@ impl Sag {
     /// Sand, hvis mål-/24 er i brug i sagen.
     pub(crate) fn maal4_i_brug(&self, net: u32) -> bool {
         self.idx.maal4.contains_key(&net)
+    }
+
+    /// Sagens kendte originaler i teksten ved grænser: (start, slut, post) (F1). Navne findes
+    /// uafhængigt af store/små, hemmeligheder kun bogstaveligt. Se [`genbruges_som_ord`].
+    pub(crate) fn find_originaler(&self, t: &[u8]) -> Vec<(usize, usize, usize)> {
+        // Mønstre: originalen med små bogstaver → de poster, der har den.
+        let mut moenstre: HashMap<Vec<u8>, Vec<usize>> = HashMap::new();
+        for (i, p) in self.data.poster.iter().enumerate() {
+            if genbruges_som_ord(self.klasse_af(i), p.original.som_tekst()) {
+                moenstre
+                    .entry(p.original.som_tekst().as_bytes().to_ascii_lowercase())
+                    .or_default()
+                    .push(i);
+            }
+        }
+        let mut ud = Vec::new();
+        if moenstre.is_empty() {
+            return ud;
+        }
+        let (noegler, poster): (Vec<Vec<u8>>, Vec<Vec<usize>>) = moenstre.into_iter().unzip();
+        let Ok(ac) = AhoCorasick::builder()
+            .ascii_case_insensitive(true)
+            .match_kind(MatchKind::LeftmostLongest)
+            .build(&noegler)
+        else {
+            return ud;
+        };
+        let mut pos = 0;
+        while pos < t.len() {
+            let Some(m) = ac.find(Input::new(t).span(pos..t.len())) else {
+                break;
+            };
+            let tekst = &t[m.start()..m.end()];
+            let kandidater = &poster[m.pattern().as_usize()];
+            // Præcis samme bytes først (alle klasser); ellers en klasse, hvor store/små er samme enhed.
+            let valgt = kandidater
+                .iter()
+                .find(|p| self.data.poster[**p].original.som_tekst().as_bytes() == tekst)
+                .or_else(|| kandidater.iter().find(|p| self.klasse_af(**p).foldes()))
+                .copied()
+                .filter(|p| ved_graense(t, m.start(), m.end(), self.klasse_af(*p).moenster()));
+            match valgt {
+                Some(p) => {
+                    ud.push((m.start(), m.end(), p));
+                    pos = m.end();
+                }
+                None => pos = m.start() + 1,
+            }
+        }
+        ud
     }
 
     /// Alle sagens koder i teksten ved grænser: (start, slut, post). Samme søgning bruges af

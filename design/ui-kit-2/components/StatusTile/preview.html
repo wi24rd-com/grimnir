@@ -1,0 +1,41 @@
+<!-- @dsCard group="Status" height=150 -->
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:var(--space-4);background:var(--bg);color:var(--text);font-family:var(--font-sans);font-size:14px;line-height:20px}
+.row{display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:var(--space-2);height:36px;padding:0 16px;border-radius:var(--radius-md);border:1px solid var(--border-strong);background:var(--surface);color:var(--text);font:inherit;font-weight:600;cursor:pointer}
+.btn:hover{background:var(--surface-raised)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.btn.danger{border-color:var(--danger);color:var(--danger)}
+.btn.ghost{border-color:var(--surface);background:var(--surface);color:var(--info)}
+.btn[disabled]{opacity:.55;cursor:default}
+.btn:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+.chip{display:inline-flex;align-items:center;gap:var(--space-1);height:22px;padding:0 9px;border-radius:var(--radius-pill);font-size:12px;font-weight:600;white-space:nowrap}
+.chip.ok{background:var(--accent-soft);color:var(--accent)}.chip.warn{background:var(--warn-soft);color:var(--warn)}.chip.danger{background:var(--danger-soft);color:var(--danger)}.chip.info{background:var(--info-soft);color:var(--info)}.chip.none{background:var(--surface-raised);color:var(--text-muted);border:1px solid var(--border)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);box-shadow:var(--shadow-card)}
+.mono{font-family:var(--font-mono);font-size:13px}
+.muted{color:var(--text-muted)}
+.label{font-size:11px;line-height:14px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted)}
+svg.ik{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:var(--space-4)}
+.tile{display:flex;flex-direction:column;align-items:flex-start;gap:var(--space-2);padding:var(--space-4);font:inherit;color:var(--text);text-align:left;cursor:pointer}
+.tile:hover{border-color:var(--border-strong)}
+.tile:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+.num{font-size:24px;line-height:30px;font-weight:600;letter-spacing:-.01em}
+</style>
+</head>
+<body>
+<div class="tiles">
+  <button class="tile card" type="button"><span class="label">Maskeres</span><span class="num">13</span><span class="chip ok"><span aria-hidden="true">✓</span>Klar</span></button>
+  <button class="tile card" type="button"><span class="label">Venter på dig</span><span class="num">2</span><span class="chip warn"><span aria-hidden="true">!</span>Tjek selv</span></button>
+  <button class="tile card" type="button"><span class="label">Hemmeligheder</span><span class="num">1</span><span class="chip info"><span aria-hidden="true">i</span>Krypteres</span></button>
+  <button class="tile card" type="button"><span class="label">Rester efter maskering</span><span class="num">0</span><span class="chip ok"><span aria-hidden="true">✓</span>Ingen</span></button>
+</div>
+</body>
+</html>

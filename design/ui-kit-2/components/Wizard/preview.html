@@ -1,0 +1,63 @@
+<!-- @dsCard group="Forløb" height=300 -->
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:var(--space-4);background:var(--bg);color:var(--text);font-family:var(--font-sans);font-size:14px;line-height:20px}
+.row{display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:var(--space-2);height:36px;padding:0 16px;border-radius:var(--radius-md);border:1px solid var(--border-strong);background:var(--surface);color:var(--text);font:inherit;font-weight:600;cursor:pointer}
+.btn:hover{background:var(--surface-raised)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.btn.danger{border-color:var(--danger);color:var(--danger)}
+.btn.ghost{border-color:var(--surface);background:var(--surface);color:var(--info)}
+.btn[disabled]{opacity:.55;cursor:default}
+.btn:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+.chip{display:inline-flex;align-items:center;gap:var(--space-1);height:22px;padding:0 9px;border-radius:var(--radius-pill);font-size:12px;font-weight:600;white-space:nowrap}
+.chip.ok{background:var(--accent-soft);color:var(--accent)}.chip.warn{background:var(--warn-soft);color:var(--warn)}.chip.danger{background:var(--danger-soft);color:var(--danger)}.chip.info{background:var(--info-soft);color:var(--info)}.chip.none{background:var(--surface-raised);color:var(--text-muted);border:1px solid var(--border)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);box-shadow:var(--shadow-card)}
+.mono{font-family:var(--font-mono);font-size:13px}
+.muted{color:var(--text-muted)}
+.label{font-size:11px;line-height:14px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted)}
+svg.ik{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.wiz{display:grid;grid-template-columns:200px 1fr;grid-template-rows:1fr auto;border-radius:var(--radius-lg);overflow:hidden;min-height:260px}
+.trin{grid-row:1 / span 2;list-style:none;margin:0;padding:var(--space-3);background:var(--surface-raised);border-right:1px solid var(--border);display:flex;flex-direction:column;gap:var(--space-1)}
+.t{display:flex;align-items:center;gap:var(--space-2);width:100%;height:36px;padding:0 var(--space-2);border:0;border-radius:var(--radius-md);background:var(--surface-raised);color:var(--text-muted);font:inherit;text-align:left}
+button.t{cursor:pointer;color:var(--text)}
+.t .n{display:grid;place-items:center;width:22px;height:22px;border-radius:var(--radius-pill);border:1px solid var(--border-strong);font-size:12px;font-weight:600}
+.t.done .n{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.t.now{background:var(--accent-soft);color:var(--text);font-weight:600}
+.t.now .n{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.indhold{padding:var(--space-6);display:flex;flex-direction:column;gap:var(--space-3)}
+.indhold h2{margin:0;font-size:18px;line-height:24px;font-weight:600}
+.indhold p{margin:0}
+.fod{display:flex;gap:var(--space-2);padding:var(--space-3) var(--space-4);border-top:1px solid var(--border);background:var(--surface-raised)}
+.fod .btn.ghost{background:var(--surface-raised);border-color:var(--surface-raised)}
+</style>
+</head>
+<body>
+<div class="wiz card">
+  <ol class="trin">
+    <li><button type="button" class="t done"><span class="n" aria-hidden="true">✓</span>Indsæt</button></li>
+    <li><button type="button" class="t done"><span class="n" aria-hidden="true">✓</span>Analysér</button></li>
+    <li><span class="t now" aria-current="step"><span class="n">3</span>Gennemgå</span></li>
+    <li><span class="t"><span class="n">4</span>Maskér</span></li>
+    <li><span class="t"><span class="n">5</span>Del</span></li>
+  </ol>
+  <div class="indhold">
+    <h2>Gennemgå fundene</h2>
+    <p class="muted">16 fund. 2 skal du selv tage stilling til, før noget forlader maskinen.</p>
+    <div class="row"><span class="chip ok"><span aria-hidden="true">✓</span>13 maskeres</span><span class="chip warn"><span aria-hidden="true">!</span>2 venter</span><span class="chip none"><span aria-hidden="true">–</span>1 røres ikke</span></div>
+  </div>
+  <div class="fod">
+    <button class="btn ghost" type="button">Annullér</button>
+    <span style="flex:1"></span>
+    <button class="btn" type="button">Tilbage</button>
+    <button class="btn primary" type="button">Næste</button>
+  </div>
+</div>
+</body>
+</html>

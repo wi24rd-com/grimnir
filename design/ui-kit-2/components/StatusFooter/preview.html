@@ -1,0 +1,35 @@
+<!-- @dsCard group="Skal" height=60 -->
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:var(--space-4);background:var(--bg);color:var(--text);font-family:var(--font-sans);font-size:14px;line-height:20px}
+.row{display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:var(--space-2);height:36px;padding:0 16px;border-radius:var(--radius-md);border:1px solid var(--border-strong);background:var(--surface);color:var(--text);font:inherit;font-weight:600;cursor:pointer}
+.btn:hover{background:var(--surface-raised)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.btn.danger{border-color:var(--danger);color:var(--danger)}
+.btn.ghost{border-color:var(--surface);background:var(--surface);color:var(--info)}
+.btn[disabled]{opacity:.55;cursor:default}
+.btn:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+.chip{display:inline-flex;align-items:center;gap:var(--space-1);height:22px;padding:0 9px;border-radius:var(--radius-pill);font-size:12px;font-weight:600;white-space:nowrap}
+.chip.ok{background:var(--accent-soft);color:var(--accent)}.chip.warn{background:var(--warn-soft);color:var(--warn)}.chip.danger{background:var(--danger-soft);color:var(--danger)}.chip.info{background:var(--info-soft);color:var(--info)}.chip.none{background:var(--surface-raised);color:var(--text-muted);border:1px solid var(--border)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);box-shadow:var(--shadow-card)}
+.mono{font-family:var(--font-mono);font-size:13px}
+.muted{color:var(--text-muted)}
+.label{font-size:11px;line-height:14px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted)}
+svg.ik{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+body{padding:0}
+.fodl{display:flex;align-items:center;gap:var(--space-4);height:26px;padding:0 var(--space-3);border-top:1px solid var(--border);background:var(--surface-raised);font-size:12px;color:var(--text-muted);white-space:nowrap;overflow:hidden}
+.fodl .h{margin-left:auto;display:flex;gap:var(--space-4);align-items:center}
+.fodl svg{width:12px;height:12px;fill:none;stroke:var(--accent);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-1px;margin-right:4px}
+</style>
+</head>
+<body>
+<div class="fodl"><span>16 fund · 13 maskeres</span><span class="h"><span>Sag: Supportsag 0042</span><span><svg class="" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>Kun på denne maskine</span><span>Version 0.1.0</span></span></div>
+</body>
+</html>

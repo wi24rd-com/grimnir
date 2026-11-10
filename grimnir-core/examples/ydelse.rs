@@ -29,7 +29,7 @@ fn linje(r: &mut Frø) -> String {
             r.tal(500)
         ),
         1 => format!("Nov 10 10:00:01 srv-{:03} sshd[123]: Accepted publickey for bruger{:03} from {ip} port 52314 ssh2\n", r.tal(999), r.tal(500)),
-        2 => format!("-- Server=srv-{:03}.intern.eksempel.dk;Database=Kunde_DB;User Id=app;Password=Sommer{}!;\n", r.tal(999), r.tal(9999)),
+        2 => format!("-- Server=srv-{:03}.intern.kontor.test;Database=Kunde_DB;User Id=app;Password=Sommer{}!;\n", r.tal(999), r.tal(9999)),
         3 => format!("<Data Name=\"Konto\">KONTOR\\bruger{:03}</Data><Data Name=\"IpAddress\">{ip}</Data>\n", r.tal(500)),
         _ => "almindelig tekst uden noget følsomt, version 10.2.3.4 og README.md\n".to_string(),
     }
@@ -37,7 +37,7 @@ fn linje(r: &mut Frø) -> String {
 
 fn main() {
     let mut ordbog = Ordbog::ny();
-    ordbog.domaener = vec!["eksempel.dk".into(), "KONTOR".into()];
+    ordbog.domaener = vec!["kontor.test".into(), "KONTOR".into()];
     ordbog.navnemoenstre = vec!["srv-###".into()];
     for mb in [1usize, 10, 100] {
         let mut r = Frø(20261110);
@@ -57,9 +57,13 @@ fn main() {
         let t4 = Instant::now();
         let (tilbage, adv) = demasker(&m, &sag);
         let t5 = Instant::now();
+        // Samme tekst igen med den fyldte sag: F1-søgningen efter sagens kendte originaler (V-KERNE.2)
+        let e2 = foreslaa(&fund, &tekst, &mut sag);
+        let t6 = Instant::now();
+        let samme = masker(&tekst, &e2) == m;
         let ms = |a: Instant, b: Instant| (b - a).as_secs_f64() * 1000.0;
         println!(
-            "{:>4} MB | fund {:>8} | poster {:>7} | analyser {:>8.1} ms | foreslaa {:>8.1} ms | masker {:>7.1} ms | laekagetjek {:>8.1} ms (rest {}) | demasker {:>8.1} ms (advarsler {}) | rundtur bytepraecis: {}",
+            "{:>4} MB | fund {:>8} | poster {:>7} | analyser {:>8.1} ms | foreslaa {:>8.1} ms | masker {:>7.1} ms | laekagetjek {:>8.1} ms (rest {}) | demasker {:>8.1} ms (advarsler {}) | rundtur bytepraecis: {} | foreslaa igen {:>8.1} ms (samme resultat: {})",
             mb,
             fund.len(),
             sag.antal_poster(),
@@ -70,7 +74,9 @@ fn main() {
             rester.len(),
             ms(t4, t5),
             adv.len(),
-            tilbage == tekst
+            tilbage == tekst,
+            ms(t5, t6),
+            samme
         );
     }
 }

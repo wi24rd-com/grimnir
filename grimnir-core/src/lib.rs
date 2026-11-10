@@ -10,8 +10,8 @@
 //! use grimnir_core::{analyser, demasker, foreslaa, laekagetjek, masker, Ordbog, Sag};
 //!
 //! let mut ordbog = Ordbog::ny();
-//! ordbog.domaener.push("eksempel.dk".into());
-//! let tekst = "ssh bruger022@srv-068.eksempel.dk fra 10.20.30.1";
+//! ordbog.domaener.push("kontor.test".into());
+//! let tekst = "ssh bruger022@srv-068.kontor.test fra 10.20.30.1";
 //! let mut sag = Sag::default();
 //! let fund = analyser(tekst, &ordbog);
 //! let erstatninger = foreslaa(&fund, tekst, &mut sag);
@@ -37,7 +37,7 @@ mod typer;
 
 pub use analyse::analyser;
 pub use demasker::demasker;
-pub use foreslaa::{foreslaa, masker};
+pub use foreslaa::{foreslaa, foreslaa_med_ordbog, masker};
 pub use graense::{graense_efter, graense_foer, ved_graense, Moenster};
 pub use laekage::laekagetjek;
 pub use ordbog::Ordbog;

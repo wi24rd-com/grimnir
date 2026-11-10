@@ -1,7 +1,9 @@
 //! Forslag til erstatninger og maskering ved spænd (K3, K4).
 
 use crate::graense::efter_procent;
+use crate::kodeform::{find_kodeformer, Kodeform};
 use crate::net::{find_ipv4, laes_ipv4, laes_ipv6, laes_mac};
+use crate::ordbog::Ordbog;
 use crate::original::Original;
 use crate::sag::{Sag, Valg, FORM_ALENE, FORM_DEL, FORM_ESC2, FORM_PROCENT};
 use crate::typer::{Art, Erstatning, Fund, Klasse, Sammensat, Sikkerhed};
@@ -56,21 +58,55 @@ fn kode(sag: &mut Sag, art: Art, original: &str, former: u8) -> String {
 
 /// Foreslår erstatninger for fundene og gemmer dem i sagen. Samme original får samme kode i samme sag.
 ///
-/// Først reserveres alt i teksten, der har en kodes form (kontrol 8.1). Bagefter maskeres enhver
-/// forekomst af en af sagens eksisterende koder, som står urørt i teksten, så demaskeringen aldrig
-/// kan sætte en forkert original ind.
+/// Som [`foreslaa_med_ordbog`] uden "maskér aldrig". Skallen bør bruge [`foreslaa_med_ordbog`], så
+/// en værdi, brugeren har sat på "maskér aldrig", heller ikke maskeres, når den er kendt fra sagen.
 pub fn foreslaa(fund: &[Fund], tekst: &str, sag: &mut Sag) -> Vec<Erstatning> {
+    foreslaa_med_ordbog(fund, tekst, sag, &Ordbog::ny())
+}
+
+/// Foreslår erstatninger for fundene og gemmer dem i sagen. Samme original får samme kode i samme sag.
+///
+/// 1. Alt i teksten, der har en kodes form, reserveres (kontrol 8.1).
+/// 2. Sagens kendte originaler, som `analyser` ikke har dækket, findes og får postens kode (F1).
+///    Et fund fra `analyser`, der maskeres, vinder over et overlappende sagsfund; "maskér aldrig" i
+///    `ordbog` vinder over begge.
+/// 3. Enhver forekomst af en af sagens koder, som står urørt i teksten, maskeres også, så
+///    demaskeringen aldrig kan sætte en forkert original ind.
+pub fn foreslaa_med_ordbog(fund: &[Fund], tekst: &str, sag: &mut Sag, ordbog: &Ordbog) -> Vec<Erstatning> {
     let t = tekst.as_bytes();
     sag.reserver(t);
     let valg = sag.valg();
     let mut ud: Vec<Erstatning> = Vec::new();
-    let mut fund: Vec<&Fund> = fund
+    let mut fund: Vec<Fund> = fund
         .iter()
         .filter(|f| f.start < f.slut && f.slut <= t.len() && skal_maskeres(f, &valg))
+        .copied()
         .collect();
     fund.sort_by_key(|f| (f.start, f.slut));
+
+    // F1: sagens kendte originaler, der ikke er dækket af et fund, der maskeres
+    let mut sagsfund = Vec::new();
+    for (s, e, p) in sag.find_originaler(t) {
+        let i = fund.partition_point(|x| x.slut <= s);
+        let daekket = fund[i..].iter().take_while(|x| x.start < e).any(|x| x.slut > s);
+        if daekket || ordbog.aldrig_tekst(&t[s..e]) || !tekst.is_char_boundary(s) || !tekst.is_char_boundary(e) {
+            continue;
+        }
+        let art = sag.klasse_af(p).art();
+        sagsfund.push(Fund {
+            start: s,
+            slut: e,
+            art,
+            sikkerhed: Sikkerhed::Sikker,
+            del_af: None,
+            afledt: true,
+        });
+    }
+    fund.extend(sagsfund);
+    fund.sort_by_key(|f| (f.start, f.slut));
+
     let mut slut = 0;
-    for f in fund {
+    for f in &fund {
         if f.start < slut || !tekst.is_char_boundary(f.start) || !tekst.is_char_boundary(f.slut) {
             continue;
         }
@@ -90,6 +126,13 @@ pub fn foreslaa(fund: &[Fund], tekst: &str, sag: &mut Sag) -> Vec<Erstatning> {
     let mut urort: Vec<(usize, usize)> = sag.find_koder(t).into_iter().map(|(s, e, _)| (s, e)).collect();
     find_ipv4(t, |s, e, ip, foer_ok| {
         if foer_ok && sag.maal4_i_brug(ip.verdi >> 8) {
+            urort.push((s, e));
+        }
+    });
+    // Kodeformer, der er en af sagens koder med andre store/små bogstaver: demaskeringen sætter dem
+    // tilbage uafhængigt af store/små (F4), så de skal også maskeres her.
+    find_kodeformer(t, |s, e, form| {
+        if !matches!(form, Kodeform::Ipv4(_)) && std::str::from_utf8(&t[s..e]).is_ok_and(|k| sag.kode_smaa(k).is_some()) {
             urort.push((s, e));
         }
     });

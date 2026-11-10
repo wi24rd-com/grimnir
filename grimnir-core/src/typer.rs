@@ -210,6 +210,29 @@ impl Klasse {
     }
 }
 
+impl Klasse {
+    /// Fundets art for en værdi af denne klasse (bruges, når en kendt original findes igen).
+    pub(crate) fn art(self) -> Art {
+        match self {
+            Klasse::Vaert => Art::Vaert,
+            Klasse::Domaene => Art::Domaene,
+            Klasse::Netbios => Art::NetbiosDomaene,
+            Klasse::Bruger => Art::Bruger,
+            Klasse::Person => Art::Person,
+            Klasse::Database => Art::Database,
+            Klasse::Ord => Art::Ord,
+            Klasse::Hemmelighed => Art::Hemmelighed,
+            Klasse::Serie => Art::Serienummer,
+            Klasse::Cpr => Art::Cpr,
+            Klasse::Guid => Art::Guid,
+            Klasse::Sid => Art::Sid,
+            Klasse::Ipv4 => Art::Ipv4Egen,
+            Klasse::Ipv6 => Art::Ipv6Egen,
+            Klasse::Mac => Art::Mac,
+        }
+    }
+}
+
 impl Art {
     /// Den kodeklasse, fundet får. `LignerKode` og `Entropi` afgøres af værdien.
     pub fn klasse(self) -> Klasse {

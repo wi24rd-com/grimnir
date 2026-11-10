@@ -1,0 +1,138 @@
+Log Name: Security
+Event ID: 4624
+Computer: srv-091.intern.kontor.test
+An account was successfully logged on.
+
+Subject:
+	Security ID:		S-1-5-18
+	Account Name:		SRV-091$
+	Account Domain:		KONTOR
+
+New Logon:
+	Account Name:		bruger004
+	Account Domain:		KONTOR
+
+Network Information:
+	Workstation Name:	PC-7710
+	Source Network Address:	100.70.1.28
+	Source Port:		52310
+
+Log Name: Security
+Event ID: 4625
+An account failed to log on.
+
+Subject:
+	Account Name:		-
+	Account Domain:		-
+
+Account For Which Logon Failed:
+	Account Name:		bruger015
+	Account Domain:		KONTOR
+
+Failure Information:
+	Failure Reason:		Unknown user name or bad password.
+
+Network Information:
+	Workstation Name:	PC-7710
+	Source Network Address:	100.70.1.28
+
+Log Name: Security
+Event ID: 4776
+The computer attempted to validate the credentials for an account.
+	Logon Account:	bruger004
+	Source Workstation:	PC-7710
+	Error Code:	0xC000006A
+User bruger015 logged on
+
+Log Name: Security
+Event ID: 4624
+Computer: srv-072.intern.kontor.test
+An account was successfully logged on.
+
+Subject:
+	Security ID:		S-1-5-18
+	Account Name:		SRV-072$
+	Account Domain:		KONTOR
+
+New Logon:
+	Account Name:		bruger010
+	Account Domain:		KONTOR
+
+Network Information:
+	Workstation Name:	PC-7890
+	Source Network Address:	10.20.31.136
+	Source Port:		52311
+
+Log Name: Security
+Event ID: 4625
+An account failed to log on.
+
+Subject:
+	Account Name:		-
+	Account Domain:		-
+
+Account For Which Logon Failed:
+	Account Name:		bruger061
+	Account Domain:		KONTOR
+
+Failure Information:
+	Failure Reason:		Unknown user name or bad password.
+
+Network Information:
+	Workstation Name:	PC-7890
+	Source Network Address:	10.20.31.136
+
+Log Name: Security
+Event ID: 4776
+The computer attempted to validate the credentials for an account.
+	Logon Account:	bruger010
+	Source Workstation:	PC-7890
+	Error Code:	0xC000006A
+User bruger061 logged on
+
+Log Name: Security
+Event ID: 4624
+Computer: srv-047.intern.kontor.test
+An account was successfully logged on.
+
+Subject:
+	Security ID:		S-1-5-18
+	Account Name:		SRV-047$
+	Account Domain:		KONTOR
+
+New Logon:
+	Account Name:		bruger050
+	Account Domain:		KONTOR
+
+Network Information:
+	Workstation Name:	PC-2182
+	Source Network Address:	10.20.30.211
+	Source Port:		52312
+
+Log Name: Security
+Event ID: 4625
+An account failed to log on.
+
+Subject:
+	Account Name:		-
+	Account Domain:		-
+
+Account For Which Logon Failed:
+	Account Name:		bruger098
+	Account Domain:		KONTOR
+
+Failure Information:
+	Failure Reason:		Unknown user name or bad password.
+
+Network Information:
+	Workstation Name:	PC-2182
+	Source Network Address:	10.20.30.211
+
+Log Name: Security
+Event ID: 4776
+The computer attempted to validate the credentials for an account.
+	Logon Account:	bruger050
+	Source Workstation:	PC-2182
+	Error Code:	0xC000006A
+User bruger098 logged on
+

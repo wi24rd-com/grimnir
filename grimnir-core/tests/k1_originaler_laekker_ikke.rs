@@ -8,8 +8,8 @@ use std::sync::{Arc, Mutex};
 use faelles::{kaede, ordbog};
 use grimnir_core::{analyser, demasker, foreslaa, masker, Erstatning, Fejl, Original, Sag, SagData};
 
-const TEKST: &str = "hostname=srv-068.intern.eksempel.dk user=bruger022 password=Sommer2026! ip=10.20.30.1 KONTOR\\bruger022";
-const FACIT: [&str; 6] = ["srv-068", "intern.eksempel.dk", "bruger022", "Sommer2026!", "10.20.30.1", "KONTOR"];
+const TEKST: &str = "hostname=srv-068.intern.kontor.test user=bruger022 password=Sommer2026! ip=10.20.30.1 KONTOR\\bruger022";
+const FACIT: [&str; 6] = ["srv-068", "intern.kontor.test", "bruger022", "Sommer2026!", "10.20.30.1", "KONTOR"];
 
 fn ingen_facit(udskrift: &str) {
     for f in FACIT {
@@ -94,7 +94,7 @@ fn panik_uden_originaler() {
     }));
     let resultat = panic::catch_unwind(|| masker(TEKST, &e));
     let mut forkert_original = foreslaa(&fund, TEKST, &mut sag);
-    forkert_original[0].original = Original::ny("srv-068.intern.eksempel.dk!");
+    forkert_original[0].original = Original::ny("srv-068.intern.kontor.test!");
     let resultat2 = panic::catch_unwind(|| masker(TEKST, &forkert_original));
     panic::set_hook(gammel);
 

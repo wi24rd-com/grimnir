@@ -3,12 +3,12 @@
 
 pub mod korpus;
 
-use grimnir_core::{analyser, demasker, foreslaa, laekagetjek, masker, Advarsel, Fund, Ordbog, Rest, Sag};
+use grimnir_core::{analyser, demasker, foreslaa_med_ordbog, laekagetjek, masker, Advarsel, Fund, Ordbog, Rest, Sag};
 
 /// Standardordbogen for korpusset.
 pub fn ordbog() -> Ordbog {
     let mut o = Ordbog::ny();
-    o.domaener = vec!["eksempel.dk".into(), "intern.eksempel.dk".into(), "KONTOR".into()];
+    o.domaener = vec!["kontor.test".into(), "intern.kontor.test".into(), "KONTOR".into()];
     o.navnemoenstre = vec!["srv-###".into(), "WS-*".into()];
     o.net = vec!["100.70.0.0/16".into()];
     o.ord = vec!["Projekt Uglebo".into()];
@@ -28,7 +28,7 @@ pub struct Kaede {
 /// analyser → foreslaa → masker → laekagetjek → demasker.
 pub fn kaede(tekst: &str, ordbog: &Ordbog, sag: &mut Sag) -> Kaede {
     let fund = analyser(tekst, ordbog);
-    let e = foreslaa(&fund, tekst, sag);
+    let e = foreslaa_med_ordbog(&fund, tekst, sag, ordbog);
     let maskeret = masker(tekst, &e);
     let rester = laekagetjek(&maskeret, sag, ordbog);
     let (tilbage, advarsler) = demasker(&maskeret, sag);

@@ -1,0 +1,152 @@
+<!-- @dsCard group="Skal" height=600 subtitle="Grimnir · Maskér" -->
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:var(--space-4);background:var(--bg);color:var(--text);font-family:var(--font-sans);font-size:14px;line-height:20px}
+.row{display:flex;gap:var(--space-2);flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:var(--space-2);height:36px;padding:0 16px;border-radius:var(--radius-md);border:1px solid var(--border-strong);background:var(--surface);color:var(--text);font:inherit;font-weight:600;cursor:pointer}
+.btn:hover{background:var(--surface-raised)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.btn.danger{border-color:var(--danger);color:var(--danger)}
+.btn.ghost{border-color:var(--surface);background:var(--surface);color:var(--info)}
+.btn[disabled]{opacity:.55;cursor:default}
+.btn:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+.chip{display:inline-flex;align-items:center;gap:var(--space-1);height:22px;padding:0 9px;border-radius:var(--radius-pill);font-size:12px;font-weight:600;white-space:nowrap}
+.chip.ok{background:var(--accent-soft);color:var(--accent)}.chip.warn{background:var(--warn-soft);color:var(--warn)}.chip.danger{background:var(--danger-soft);color:var(--danger)}.chip.info{background:var(--info-soft);color:var(--info)}.chip.none{background:var(--surface-raised);color:var(--text-muted);border:1px solid var(--border)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);box-shadow:var(--shadow-card)}
+.mono{font-family:var(--font-mono);font-size:13px}
+.muted{color:var(--text-muted)}
+.label{font-size:11px;line-height:14px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted)}
+svg.ik{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+body{padding:0}
+.cmd{background:var(--surface-raised);border-bottom:1px solid var(--border)}
+.tabs{display:flex;gap:var(--space-1);padding:0 var(--space-3);border-bottom:1px solid var(--border);background:var(--surface)}
+.tab{height:32px;padding:0 var(--space-3);border:0;border-bottom:2px solid var(--surface);background:var(--surface);color:var(--text-muted);font:inherit;cursor:pointer}
+.tab.on{border-bottom-color:var(--accent);color:var(--text);font-weight:600}
+.grupper{display:flex;align-items:stretch;gap:var(--space-3);padding:var(--space-2) var(--space-3) var(--space-1);flex-wrap:wrap}
+.grp{display:flex;flex-direction:column;gap:2px;padding-right:var(--space-3);border-right:1px solid var(--border)}
+.grp:last-child{border-right:0}
+.grp .kn{display:flex;gap:2px}
+.grp .cap{font-size:11px;line-height:14px;color:var(--text-muted);text-align:center}
+.cb{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:64px;height:54px;padding:0 var(--space-2);border:1px solid var(--surface-raised);border-radius:var(--radius-md);background:var(--surface-raised);color:var(--text);font:inherit;font-size:12px;line-height:14px;cursor:pointer}
+.cb:hover{background:var(--surface);border-color:var(--border)}
+.cb svg{width:20px;height:20px;fill:none;stroke:var(--text-muted);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.cb.pri svg{stroke:var(--accent)}.cb.pri{font-weight:600}
+.cb[disabled]{opacity:.5;cursor:default}
+.cb:focus-visible,.tab:focus-visible,.vs:focus-visible,.tr:focus-visible{outline:2px solid var(--info);outline-offset:-2px}
+.nav{display:flex;flex-direction:column;width:232px;background:var(--surface);border-right:1px solid var(--border)}
+.nav h3{margin:0;padding:var(--space-3) var(--space-3) var(--space-2);font-size:15px;line-height:20px;font-weight:600}
+.trae{list-style:none;margin:0;padding:0 var(--space-2) var(--space-3);display:flex;flex-direction:column;gap:1px}
+.trae ul{list-style:none;margin:0;padding:0 0 0 var(--space-4);display:flex;flex-direction:column;gap:1px}
+.tr{display:flex;align-items:center;gap:var(--space-2);width:100%;height:30px;padding:0 var(--space-2);border:0;border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font:inherit;font-size:13px;text-align:left;cursor:pointer}
+.tr:hover{background:var(--surface-raised)}
+.tr.on{background:var(--accent-soft);font-weight:600}
+.tr .ant{margin-left:auto;font-size:12px;color:var(--text-muted);font-weight:400}
+.tr svg{width:14px;height:14px;fill:none;stroke:var(--text-muted);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.skift{margin-top:auto;border-top:1px solid var(--border);background:var(--surface-raised);padding:var(--space-1);display:flex;flex-direction:column;gap:1px}
+.vs{display:flex;align-items:center;gap:var(--space-3);height:38px;padding:0 var(--space-3);border-radius:var(--radius-sm);color:var(--text);text-decoration:none;font-size:13px}
+.vs:hover{background:var(--surface)}
+.vs.on{background:var(--border);font-weight:600}
+.vs svg{width:18px;height:18px;fill:none;stroke:var(--text-muted);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.vs.on svg{stroke:var(--accent)}
+.vs kbd{margin-left:auto;font-family:var(--font-mono);font-size:11px;color:var(--text-muted)}
+.fodl{display:flex;align-items:center;gap:var(--space-4);height:26px;padding:0 var(--space-3);border-top:1px solid var(--border);background:var(--surface-raised);font-size:12px;color:var(--text-muted);white-space:nowrap;overflow:hidden}
+.fodl .h{margin-left:auto;display:flex;gap:var(--space-4);align-items:center}
+.fodl svg{width:12px;height:12px;fill:none;stroke:var(--accent);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-1px;margin-right:4px}
+.vindue{display:flex;flex-direction:column;height:600px;background:var(--bg)}
+.titel{display:flex;align-items:center;gap:var(--space-3);height:34px;padding:0 var(--space-3);background:var(--rail);color:var(--rail-text);font-size:13px}
+.titel b{color:var(--rail-strong);font-weight:600;letter-spacing:.02em}
+.titel .mrk{display:grid;place-items:center;width:20px;height:20px;border-radius:var(--radius-sm);background:var(--accent-on-rail);color:var(--rail);font-weight:700;font-size:12px}
+.titel .sag{margin-left:auto;display:flex;align-items:center;gap:var(--space-2)}
+.midte{display:flex;flex:1;min-height:0}
+.arb{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--surface)}
+.vl{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--border)}
+.soeg{display:flex;align-items:center;gap:var(--space-2);width:260px;height:30px;padding:0 var(--space-2);border:1px solid var(--border-strong);border-radius:var(--radius-sm);color:var(--text-muted);font-size:13px}
+.soeg svg,.fl svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.fl{display:flex;align-items:center;gap:var(--space-1);height:30px;padding:0 var(--space-2);border:0;background:var(--surface);color:var(--text);font:inherit;font-size:13px}
+.to{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);flex:1;min-height:0}
+.org{border-right:1px solid var(--border);padding:var(--space-3);font-family:var(--font-mono);font-size:12px;line-height:22px;overflow:hidden;white-space:pre-wrap;word-break:break-all}
+.org mark{color:var(--text);border-radius:3px;padding:0 2px}
+.m-n{background:var(--info-soft)}.m-a{background:var(--warn-soft)}.m-h{background:var(--danger-soft)}
+.m-v{outline:2px solid var(--info)}
+table{border-collapse:collapse;width:100%;table-layout:fixed}
+th:nth-child(2){width:64px}th:nth-child(3){width:128px}th:nth-child(4){width:36%}
+td.mono{word-break:break-all}
+th{height:30px;padding:0 var(--space-3);text-align:left;background:var(--surface-raised);border-bottom:1px solid var(--border);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);white-space:nowrap}
+td{height:36px;padding:0 var(--space-3);border-bottom:1px solid var(--border);font-size:13px}
+tr.gruppe td{height:28px;background:var(--surface-raised);font-weight:600}
+tr.gruppe td span{font-weight:400}
+tr.sel td{background:var(--accent-soft)}
+td input{width:100%;height:28px;padding:0 8px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-family:var(--font-mono);font-size:12px}
+.tbl{overflow:hidden}
+</style>
+</head>
+<body>
+<div class="vindue">
+  <div class="titel"><span class="mrk" aria-hidden="true">G</span><b>Grimnir</b><span>Wi24rd</span><span class="sag">Sag: Supportsag 0042 <svg class="ik" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></span></div>
+  <div class="cmd">
+  <div class="tabs" role="tablist"><button class="tab on" role="tab" aria-selected="true" type="button">Start</button><button class="tab" role="tab" aria-selected="false" type="button">Vis</button></div>
+  <div class="grupper">
+    <div class="grp"><div class="kn"><button type="button" class="cb "><svg class="" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6v3H9z"></path><path d="M9 5H6v15h12V5h-3"></path></svg>Indsæt</button><button type="button" class="cb "><svg class="" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"></path><path d="M14 3v4h4"></path></svg>Åbn fil</button></div><span class="cap">Tekst</span></div>
+    <div class="grp"><div class="kn"><button type="button" class="cb "><svg class="" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="M20 20l-4.2-4.2"></path></svg>Analysér</button><button type="button" class="cb pri"><svg class="" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"></path></svg>Gem og maskér</button><button type="button" class="cb "><svg class="" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="8" height="14" rx="1"></rect><rect x="13" y="5" width="8" height="14" rx="1"></rect></svg>Før og efter</button></div><span class="cap">Maskering</span></div>
+    <div class="grp"><div class="kn"><button type="button" class="cb " disabled><svg class="" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg>Kopiér</button><button type="button" class="cb " disabled><svg class="" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"></path><path d="M9 8h6M9 12h6"></path></svg>Kvittering</button></div><span class="cap">Resultat</span></div>
+  </div>
+</div>
+  <div class="midte">
+    <nav class="nav" aria-label="Navigation">
+  <h3>Maskér</h3>
+  <ul class="trae">
+    <li><button type="button" class="tr"><svg class="" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>Denne tekst</button>
+      <ul>
+        <li><button type="button" class="tr on" aria-current="true">Alle fund<span class="ant">16</span></button></li>
+        <li><button type="button" class="tr">Skal tjekkes<span class="ant">2</span></button></li>
+        <li><button type="button" class="tr">Hemmeligheder<span class="ant">1</span></button></li>
+      </ul></li>
+    <li><button type="button" class="tr"><svg class="" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>Seneste i sagen<span class="ant">4</span></button></li>
+  </ul>
+  <div class="skift" role="group" aria-label="Visninger">
+    <a class="vs on" href="#" aria-current="page"><svg class="" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"></path><path d="M4 4l16 16"></path></svg>Maskér<kbd>⌘1</kbd></a>
+    <a class="vs" href="#"><svg class="" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"></path><circle cx="12" cy="12" r="2.5"></circle></svg>Demaskér<kbd>⌘2</kbd></a>
+    <a class="vs" href="#"><svg class="" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h6l2 2h10v10H3z"></path></svg>Sager<kbd>⌘3</kbd></a>
+    <a class="vs" href="#"><svg class="" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z"></path><path d="M9 8h6M9 12h6"></path></svg>Ordbog<kbd>⌘4</kbd></a>
+  </div>
+</nav>
+    <div class="arb">
+      <div class="vl"><span class="soeg"><svg class="" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="M20 20l-4.2-4.2"></path></svg>Søg i fundene</span><button class="fl" type="button"><svg class="" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16l-6 7v6l-4 2v-8z"></path></svg>Alle fund</button><span style="margin-left:auto" class="chip warn"><span aria-hidden="true">!</span>2 venter på dig</span></div>
+      <div class="to">
+        <div class="org">devname="<mark class="m-a">FW-EKS-01</mark>"
+srcip=<mark class="m-n m-v">10.20.30.11</mark> dstip=<mark class="m-n">10.20.31.5</mark>
+user="<mark class="m-a">EKSEMPEL\bruger060</mark>"
+hostname="<mark class="m-a">srv-030.intern.eksempel.dk</mark>"
+msg="tunnel up" version 10.2.3.4
+
+$conn = "Server=<mark class="m-a">sql-prod-02</mark>;
+  User Id=<mark class="m-a">svc_rapport</mark>;Password=<mark class="m-h">••••••••</mark>;"
+[CLIENT: <mark class="m-n m-v">10.20.30.11</mark>] gw=<mark class="m-n">10.20.30.1</mark></div>
+        <div class="tbl"><table>
+          <thead><tr><th>Original</th><th>Antal</th><th>Sikkerhed</th><th>Erstatning</th></tr></thead>
+          <tbody>
+            <tr class="gruppe"><td colspan="4">Net <span class="muted">10.20.30.0/24 → 198.18.0.0/24</span></td></tr>
+            <tr class="sel"><td class="mono">10.20.30.11</td><td>2</td><td><span class="chip ok"><span aria-hidden="true">✓</span>Sikker</span></td><td><input aria-label="Erstatning for 10.20.30.11" value="198.18.0.11"></td></tr>
+            <tr class=""><td class="mono">10.20.30.1</td><td>1</td><td><span class="chip ok"><span aria-hidden="true">✓</span>Sikker</span></td><td><input aria-label="Erstatning for 10.20.30.1" value="198.18.0.1"></td></tr>
+            <tr class=""><td class="mono">10.20.31.5</td><td>1</td><td><span class="chip ok"><span aria-hidden="true">✓</span>Sikker</span></td><td><input aria-label="Erstatning for 10.20.31.5" value="198.18.1.5"></td></tr>
+            <tr class="gruppe"><td colspan="4">Maskiner</td></tr>
+            <tr class=""><td class="mono">srv-030.intern.eksempel.dk</td><td>1</td><td><span class="chip info"><span aria-hidden="true">i</span>Ordbog</span></td><td><input aria-label="Erstatning for srv-030.intern.eksempel.dk" value="h0001.d01.example"></td></tr>
+            <tr class=""><td class="mono">FW-EKS-01</td><td>1</td><td><span class="chip warn"><span aria-hidden="true">!</span>Sandsynlig</span></td><td><input aria-label="Erstatning for FW-EKS-01" value="FW-A"></td></tr>
+            <tr class=""><td class="mono">sql-prod-02</td><td>1</td><td><span class="chip warn"><span aria-hidden="true">!</span>Sandsynlig</span></td><td><input aria-label="Erstatning for sql-prod-02" value="h0003"></td></tr>
+            <tr class="gruppe"><td colspan="4">Hemmeligheder <span class="muted">gendannes ved demaskering</span></td></tr>
+            <tr class=""><td class="mono">Password=••••••••</td><td>1</td><td><span class="chip ok"><span aria-hidden="true">✓</span>Sikker</span></td><td><input aria-label="Erstatning for Password=••••••••" value="GRIMNIR_SECRET_0001"></td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+  </div>
+  <div class="fodl"><span>16 fund · 13 maskeres</span><span class="h"><span>Sag: Supportsag 0042</span><span><svg class="" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>Kun på denne maskine</span><span>Version 0.1.0</span></span></div>
+</div>
+</body>
+</html>
