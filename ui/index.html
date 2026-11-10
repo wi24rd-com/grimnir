@@ -11,6 +11,7 @@
 <script src="assets/sprog.js" defer></script>
 <script src="assets/kit.js" defer></script>
 <script src="assets/app.js" defer></script>
+<script src="assets/maskering.js" defer></script>
 </head>
 <body>
 <div class="vindue" id="vindue">
@@ -20,6 +21,7 @@
     <span data-t="wi24rd">Wi24rd</span>
     <span class="sag">
       <span id="sag" data-t="ingenSag">Ingen sag åben</span>
+      <button type="button" class="rk" id="sag-knap" hidden data-t="midlertidigSag" data-v="0" data-t-aria="ariaSagKnap"></button>
       <button type="button" class="rk" id="aabn-indst" data-t-aria="aabnIndst" data-t-title="aabnIndstTitel"></button>
     </span>
   </header>
@@ -59,6 +61,14 @@
     <li data-t="licens"></li>
   </ul>
   <div class="dlg-knapper"><button type="button" class="btn" data-luk data-t="luk">Luk</button></div>
+</dialog>
+<dialog class="dlg" id="dlg-sag" aria-labelledby="dlg-sag-h">
+  <h2 id="dlg-sag-h" data-t="sagH">Midlertidig sag</h2>
+  <p id="dlg-sag-p" data-t="sagP" data-v="0"></p>
+  <div class="dlg-knapper">
+    <button type="button" class="btn" data-luk data-t="luk">Luk</button>
+    <button type="button" class="btn danger" id="sag-nulstil" data-t="nulstilSag">Nulstil sagen</button>
+  </div>
 </dialog>
 </body>
 </html>

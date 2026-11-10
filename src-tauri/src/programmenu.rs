@@ -1,7 +1,7 @@
 //! Programmenuen: Grimnir (Om Grimnir · Indstillinger… ⌘, · Tjenester · Skjul · Afslut ⌘Q), Rediger (uden den virker
 //! ⌘C/⌘V ikke i tekstfelter på macOS) og Vindue. Et klik på Om eller Indstillinger udsender hændelsen `menu` med
-//! "om" eller "indstillinger" til webvisningen, som åbner dialogen. Teksterne er på dansk i denne cyklus: at menuen
-//! følger UI'ets sprog kræver en kommando mere (se HANDOFF-V-SKAL.1).
+//! "om" eller "indstillinger" til webvisningen, som åbner dialogen. Menuen følger UI'ets sprog: webvisningen kalder
+//! kommandoen `menu_sprog` ved start og ved hvert sprogskift, og menuen bygges igen med [`DA`] eller [`EN`].
 //! Visningsskiftet (⌘1–⌘4) ligger ikke i menuen: rammen fanger genvejene med `keydown`, så de virker ens på macOS og Windows.
 
 /// Menupunkternes id'er.
@@ -68,10 +68,40 @@ pub const DA: Tekster = Tekster {
     luk: "Luk vindue",
 };
 
-/// Bygger programmenuen.
-pub fn byg(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
+/// Teksterne på engelsk.
+pub const EN: Tekster = Tekster {
+    app: "Grimnir",
+    om: "About Grimnir",
+    indstillinger: "Settings…",
+    tjenester: "Services",
+    skjul: "Hide Grimnir",
+    skjul_andre: "Hide Others",
+    vis_alle: "Show All",
+    afslut: "Quit Grimnir",
+    rediger: "Edit",
+    fortryd: "Undo",
+    gentag: "Redo",
+    klip: "Cut",
+    kopier: "Copy",
+    saet_ind: "Paste",
+    vaelg_alt: "Select All",
+    vindue: "Window",
+    minimer: "Minimise",
+    zoom: "Zoom",
+    luk: "Close Window",
+};
+
+/// Teksterne for et sprog fra UI'et (`da` | `en`); alt andet giver dansk.
+pub fn tekster(sprog: &str) -> &'static Tekster {
+    match sprog {
+        "en" => &EN,
+        _ => &DA,
+    }
+}
+
+/// Bygger programmenuen på det givne sprog.
+pub fn byg(app: &tauri::AppHandle, t: &Tekster) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
     use tauri::menu::{Menu, MenuItem, PredefinedMenuItem as P, Submenu};
-    let t = &DA;
     let program = Submenu::with_items(
         app,
         t.app,
@@ -152,6 +182,17 @@ mod tests {
             ("Om Grimnir", "Indstillinger…", "Afslut Grimnir")
         );
         assert_eq!((DA.rediger, DA.kopier, DA.saet_ind), ("Rediger", "Kopiér", "Sæt ind"));
+    }
+
+    #[test]
+    fn menuen_findes_paa_engelsk_og_sproget_vaelges() {
+        assert_eq!(
+            (EN.om, EN.afslut, EN.saet_ind, EN.kopier),
+            ("About Grimnir", "Quit Grimnir", "Paste", "Copy")
+        );
+        assert_eq!(tekster("en").rediger, "Edit");
+        assert_eq!(tekster("da").rediger, "Rediger");
+        assert_eq!(tekster("noget-andet").rediger, "Rediger");
     }
 
     #[test]

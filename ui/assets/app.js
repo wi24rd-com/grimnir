@@ -1,7 +1,8 @@
 /* Grimnir — programskallen bygget af kittet (window.Kit). Fire visninger (Maskér, Demaskér, Sager, Ordbog), hver med sin
    CommandBar (fanerne Start og Vis), sit træ i NavPane, sin værktøjslinje og en tom tilstand. Visningen står i adressen
-   (#masker …) og skiftes med visningsskiftet eller ⌘1–⌘4 (Ctrl på Windows). Kommandoerne fra design/skaerme/ står
-   nedtonet med en forklaring, til funktionen kommer (B2b og B3); kun Vis-fanens tema og sprog virker nu.
+   (#masker …) og skiftes med visningsskiftet eller ⌘1–⌘4 (Ctrl på Windows). Maskér og Demaskér virker (maskering.js
+   styrer dem via window.Grimnir); resten af kommandoerne fra design/skaerme/ står nedtonet med en forklaring, til
+   funktionen kommer (B3).
    Rust giver: kerne_version (fodlinjen), hændelsen 'menu' ("om" | "indstillinger") og platformen (<html data-platform>). */
 (function () {
   'use strict';
@@ -12,6 +13,12 @@
   const mod = mac ? '⌘' : 'Ctrl+';
 
   const senere = (id, t, ikon, pri) => ({ id, t, ikon, pri: Boolean(pri), deaktiveret: true, hvorfor: 'hvorforSenere' });
+  /* En kommando, maskering.js styrer: starter nedtonet (indtil der er noget at gøre) og kalder den registrerede handling. */
+  const HANDLINGER = {};
+  const aktiv = (visning, id, t, ikon, pri, fra) => ({
+    id, t, ikon, pri: Boolean(pri), deaktiveret: !fra, hvorfor: fra ? null : 'hvorforIndsaetFoerst',
+    ved: e => { const h = HANDLINGER[visning + ':' + id]; if (h) h(e); },
+  });
 
   /* Visningerne: kommandoer og træ efter design/skaerme/ (Main, Demasker, Sager, Ordbog). */
   const VISNINGER = [
@@ -19,9 +26,9 @@
       id: 'masker', t: 'vMasker', ikon: 'maske', soeg: 'soegMasker', chip: 'chipIntetIndsat', fod: 'fodMasker',
       tom: ['tomMaskerH', 'tomMaskerP'],
       grupper: [
-        { t: 'gTekst', knapper: [senere('indsaet', 'kIndsaet', 'indsaet'), senere('aabn-fil', 'kAabnFil', 'fil')] },
-        { t: 'gMaskering', knapper: [senere('analyser', 'kAnalyser', 'soeg'), senere('gem-masker', 'kGemMasker', 'skjold', true), senere('foer-efter', 'kFoerEfter', 'foerefter')] },
-        { t: 'gResultat', knapper: [senere('kopier', 'kKopier', 'kopier'), senere('kvittering', 'kKvittering', 'kvittering')] },
+        { t: 'gTekst', knapper: [aktiv('masker', 'indsaet', 'kIndsaet', 'indsaet', false, true), senere('aabn-fil', 'kAabnFil', 'fil')] },
+        { t: 'gMaskering', knapper: [aktiv('masker', 'analyser', 'kAnalyser', 'soeg'), aktiv('masker', 'gem-masker', 'kGemMasker', 'skjold', true), aktiv('masker', 'foer-efter', 'kFoerEfter', 'foerefter')] },
+        { t: 'gResultat', knapper: [aktiv('masker', 'kopier', 'kKopier', 'kopier'), senere('kvittering', 'kKvittering', 'kvittering')] },
       ],
       trae: [
         { id: 'denne', t: 'tDenneTekst', boern: [{ id: 'alle', t: 'tAlleFund', antal: 0 }, { id: 'tjek', t: 'tSkalTjekkes', antal: 0 }, { id: 'hemmelig', t: 'tHemmeligheder', antal: 0 }] },
@@ -33,9 +40,9 @@
       id: 'demasker', t: 'vDemasker', ikon: 'oeje', soeg: 'soegDemasker', chip: 'chipIntetSvar', fod: 'fodDemasker',
       tom: ['tomDemaskerH', 'tomDemaskerP'],
       grupper: [
-        { t: 'gSvar', knapper: [senere('indsaet', 'kIndsaet', 'indsaet'), senere('aabn-fil', 'kAabnFil', 'fil')] },
-        { t: 'gDemaskering', knapper: [senere('demasker', 'kDemasker', 'oeje'), senere('naeste-advarsel', 'kNaesteAdvarsel', 'naeste')] },
-        { t: 'gResultat', knapper: [senere('kopier-resultat', 'kKopierResultat', 'kopier', true), senere('gem-fil', 'kGemFil', 'gem')] },
+        { t: 'gSvar', knapper: [aktiv('demasker', 'indsaet', 'kIndsaet', 'indsaet', false, true), senere('aabn-fil', 'kAabnFil', 'fil')] },
+        { t: 'gDemaskering', knapper: [aktiv('demasker', 'demasker', 'kDemasker', 'oeje', true), senere('naeste-advarsel', 'kNaesteAdvarsel', 'naeste')] },
+        { t: 'gResultat', knapper: [aktiv('demasker', 'kopier-resultat', 'kKopierResultat', 'kopier'), senere('gem-fil', 'kGemFil', 'gem')] },
       ],
       trae: [
         { id: 'dette', t: 'tDetteSvar', boern: [{ id: 'alle', t: 'tAlleKoder', antal: 0 }, { id: 'advarsler', t: 'tAdvarsler', antal: 0 }, { id: 'ikke-brugt', t: 'tIkkeBrugt', antal: 0 }] },
@@ -163,9 +170,13 @@
     };
     const trae = K.navTrae(ul, v.trae, {
       ariaT: 'traeAria', valgt: v.valgt,
-      vedValg: id => { flTekst.setAttribute('data-t', noegle(id)); if (S) S.anvend(flTekst); },
+      vedValg: id => {
+        flTekst.setAttribute('data-t', noegle(id));
+        if (S) S.anvend(flTekst);
+        document.dispatchEvent(new CustomEvent('grimnir-trae', { detail: { visning: v.id, id } }));
+      },
     });
-    dele[v.id] = { cmd, bar, nd, sek, trae, flTekst };
+    dele[v.id] = { cmd, bar, nd, sek, trae, flTekst, soeg: inp, hoejre, flade, tom, tomP: p };
   }
 
   // Visningsskiftet nederst i NavPane
@@ -174,10 +185,10 @@
   })), { ariaT: 'visninger' });
 
   const fodVenstre = $('fod-venstre');
-  let aktiv = null;
+  let aktivVisning = null;
   function vis(id) {
     if (!ID.includes(id)) id = ID[0];
-    aktiv = id;
+    aktivVisning = id;
     for (const v of VISNINGER) {
       const on = v.id === id;
       dele[v.id].cmd.hidden = !on;
@@ -187,6 +198,7 @@
     skift.markér(id);
     fodVenstre.setAttribute('data-t', VISNINGER.find(v => v.id === id).fod);
     S.anvend(fodVenstre);
+    document.dispatchEvent(new CustomEvent('grimnir-visning', { detail: id }));
   }
   const fraAdresse = () => vis(decodeURIComponent(location.hash.slice(1)));
   window.addEventListener('hashchange', fraAdresse);
@@ -221,7 +233,8 @@
   indstKnap.addEventListener('click', () => aabnDialog('dlg-indst'));
   const MENU = { indstillinger: 'dlg-indst', om: 'dlg-om' };
 
-  // Tastatur: ⌘1–⌘4 (Ctrl på Windows); Ctrl+, på Windows (på macOS fanger programmenuen ⌘,).
+  // Tastatur: ⌘1–⌘4 (Ctrl på Windows); Ctrl+, på Windows (på macOS fanger programmenuen ⌘,). Visningernes egne
+  // genveje (⌘↵, ⇧⌘C) står i maskering.js.
   document.addEventListener('keydown', e => {
     const modTast = mac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey;
     if (!modTast || e.altKey || e.shiftKey) return;
@@ -251,5 +264,7 @@
   fraAdresse();
   S.anvend(document);
   opdaterVis();
-  window.Grimnir = { vis: gaaTil, get aktiv() { return aktiv; }, VISNINGER };
+  /* maskering.js: registrér en handling for en kommando (visning:id) og nå visningernes dele. */
+  const haandter = (visning, id, fn) => { HANDLINGER[visning + ':' + id] = fn; };
+  window.Grimnir = { vis: gaaTil, get aktiv() { return aktivVisning; }, VISNINGER, dele, haandter, mac, mod, aabnDialog, tauri };
 })();

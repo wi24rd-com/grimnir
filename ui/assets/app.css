@@ -28,3 +28,57 @@
 .dlg .om-tal { list-style: none; margin: 0 0 var(--space-4); padding: 0; color: var(--text-muted); }
 .dlg .om-tal li { padding: 2px 0; }
 .dlg-knapper { display: flex; justify-content: flex-end; gap: var(--space-2); }
+
+/* ── Maskér og Demaskér (V-SKAL.2) ── */
+/* En tom tilstand, der tager imod ⌘V, kan have fokus; ringen følger kittets. */
+.tom[tabindex] { border-radius: var(--radius-md); }
+.tom-bannere { padding: var(--space-3) var(--space-3) 0; }
+.arbejde { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-3); min-height: 100%; }
+.bannere { display: flex; flex-direction: column; gap: var(--space-2); }
+.bannere:empty { display: none; }
+.besked { margin: 0; font-size: var(--small-size); line-height: var(--small-line); color: var(--text-muted); }
+.besked:empty { display: none; }
+.delt { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: var(--space-3); }
+.delt.lige { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.panel { display: flex; flex-direction: column; min-width: 0; min-height: 0; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); overflow: hidden; }
+.panel-hoved {
+  display: flex; align-items: baseline; gap: var(--space-2); flex: none;
+  padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); background: var(--surface-raised);
+}
+.panel-hoved h3 { margin: 0; font-size: var(--h3-size); line-height: var(--h3-line); font-weight: var(--h3-weight); }
+.panel-hoved .muted { margin-left: auto; font-size: var(--small-size); }
+/* Teksten vises i et felt, der ikke kan redigeres: et <pre>, aldrig et <textarea> (det gør CRLF til LF). */
+.tekst { margin: 0; padding: var(--space-3); white-space: pre; overflow: auto; height: 62vh; min-height: 240px; }
+.delt.lige .tekst { height: 40vh; }
+.tekst:focus-visible { outline-offset: -2px; }
+.afkortet { margin: 0; padding: var(--space-2) var(--space-3); border-top: 1px solid var(--border); font-size: var(--small-size); color: var(--text-muted); }
+.tabelvaert { overflow: auto; height: 62vh; min-height: 240px; }
+.advarselpanel .tabelvaert { height: auto; max-height: 40vh; min-height: 0; }
+.tabel-tom { margin: 0; padding: var(--space-4) var(--space-3); color: var(--text-muted); }
+.flere { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-top: 1px solid var(--border); font-size: var(--small-size); color: var(--text-muted); }
+.fundtabel th:nth-child(1) { width: 44px; }
+.fundtabel th:nth-child(2) { width: 15%; }
+.fundtabel th:nth-child(4) { width: 26%; }
+.fundtabel th:nth-child(5) { width: 64px; }
+.fundtabel th:nth-child(6) { width: 118px; }
+.resttabel th:nth-child(1) { width: 34%; }
+.resttabel th:nth-child(4), .resttabel th:nth-child(5) { width: 72px; }
+.tabel td input[type="checkbox"] { width: 16px; height: 16px; padding: 0; margin: 0; accent-color: var(--accent); }
+.tabel td input[readonly] { color: var(--text-muted); }
+.tabel td input[disabled] { opacity: .55; }
+.tabel td input[aria-invalid="true"] { border-color: var(--danger); }
+.fundtabel tr.fra td { color: var(--text-muted); }
+.vaerdi { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.vaerdi .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prikker { letter-spacing: .12em; color: var(--text-muted); }
+.erstatning { display: block; padding: 4px 0; }
+.raekkefejl { display: block; margin-top: 2px; color: var(--danger); font-size: var(--small-size); line-height: var(--small-line); }
+/* Lille tekstknap i en række og i fodlinjen af tabellen (Vis, Skjul, Vis flere). */
+.mini, .btn.mini {
+  display: inline-flex; align-items: center; flex: none; height: 24px; padding: 0 8px; gap: 0;
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface);
+  color: var(--info); font-size: var(--small-size); font-weight: 600; cursor: pointer;
+}
+.mini:hover, .btn.mini:hover { background: var(--surface-raised); }
+/* Titellinjens sag: knap, når der er en sag. */
+.titel #sag-knap { font-size: 13px; }

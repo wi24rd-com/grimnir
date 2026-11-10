@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-sag-nulstil"
+description = "Enables the sag_nulstil command without any pre-configured scope."
+commands.allow = ["sag_nulstil"]
+
+[[permission]]
+identifier = "deny-sag-nulstil"
+description = "Denies the sag_nulstil command without any pre-configured scope."
+commands.deny = ["sag_nulstil"]

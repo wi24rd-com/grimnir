@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Hovedvinduet: kernens standardrettigheder minus core:tray:default og core:menu:default (webvisningen kan hverken lave menulinjeikoner eller erstatte programmenuen; menuen bygges i Rust), plus core:window:allow-start-dragging (titellinjen er vinduets trækbare linje, titleBarStyle Overlay) og appens ene kommando, kerne_version. Ingen plugins.",
+  "description": "Hovedvinduet: kernens standardrettigheder minus core:tray:default og core:menu:default (webvisningen kan hverken lave menulinjeikoner eller erstatte programmenuen; menuen bygges i Rust), plus core:window:allow-start-dragging (titellinjen er vinduets trækbare linje, titleBarStyle Overlay) og appens egne kommandoer (kerne_version, analyser, gem_og_masker, demasker, sag_status, sag_nulstil, menu_sprog). Ingen plugins.",
   "windows": ["main"],
   "permissions": [
     "core:path:default",
@@ -12,6 +12,12 @@
     "core:app:default",
     "core:image:default",
     "core:resources:default",
-    "allow-kerne-version"
+    "allow-kerne-version",
+    "allow-analyser",
+    "allow-gem-og-masker",
+    "allow-demasker",
+    "allow-sag-status",
+    "allow-sag-nulstil",
+    "allow-menu-sprog"
   ]
 }

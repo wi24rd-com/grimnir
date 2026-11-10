@@ -48,6 +48,12 @@ export const PAR = [
   ['info', 'surface', TEKST, 'tekstknap og link'],
   ['danger', 'surface', TEKST, 'farlig knap og feltfejl'],
   ['info', 'info-soft', KANT, 'tekstknap i et banner (Oplysning)'],
+  // Maskér-tabellen (V-SKAL.2): fravalgt række og rækkefejl på valgt og hover-række; Vis-knappen ved hover.
+  ['text-muted', 'accent-soft', TEKST, 'fravalgt række, når den er valgt'],
+  ['danger', 'accent-soft', TEKST, 'rækkefejl i en valgt række'],
+  ['danger', 'surface-raised', TEKST, 'rækkefejl ved hover'],
+  ['info', 'surface-raised', TEKST, 'Vis/Skjul-knap ved hover'],
+  ['accent', 'surface', KANT, 'afkrydsningsboks (accent-color)'],
   // Kontrolkanter.
   ['border-strong', 'surface', KANT, 'kant på felter og sekundære knapper'],
   ['border-strong', 'surface-raised', KANT, 'kant på felter i værktøjslinjen'],
