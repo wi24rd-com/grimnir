@@ -13,6 +13,8 @@
 <script src="assets/app.js" defer></script>
 <script src="assets/maskering.js" defer></script>
 <script src="assets/sager.js" defer></script>
+<script src="assets/ordbog.js" defer></script>
+<script src="assets/indstillinger.js" defer></script>
 </head>
 <body>
 <div class="vindue" id="vindue">
@@ -47,13 +49,47 @@
   </footer>
 </div>
 
-<dialog class="dlg" id="dlg-indst" aria-labelledby="dlg-indst-h">
+<dialog class="dlg dlg-bred" id="dlg-indst" aria-labelledby="dlg-indst-h">
   <h2 id="dlg-indst-h" data-t="indstH">Indstillinger</h2>
-  <p data-t="indstP"></p>
+  <div class="indst">
+    <fieldset class="valg">
+      <legend class="label" data-t="gTema">Tema</legend>
+      <label class="afkryds"><input type="radio" name="indst-tema" value="lys" data-t-aria="kLys"> <span data-t="kLys">Lys</span></label>
+      <label class="afkryds"><input type="radio" name="indst-tema" value="moerk" data-t-aria="kMoerk"> <span data-t="kMoerk">Mørk</span></label>
+      <label class="afkryds"><input type="radio" name="indst-tema" value="system" data-t-aria="kSystem"> <span data-t="kSystem">System</span></label>
+    </fieldset>
+    <fieldset class="valg">
+      <legend class="label" data-t="gSprog">Sprog</legend>
+      <label class="afkryds"><input type="radio" name="indst-sprog" value="da" data-t-aria="kDansk"> <span data-t="kDansk">Dansk</span></label>
+      <label class="afkryds"><input type="radio" name="indst-sprog" value="en" data-t-aria="kEngelsk"> <span data-t="kEngelsk">English</span></label>
+    </fieldset>
+    <fieldset class="valg lodret">
+      <legend class="label" data-t="indstNyeSager">Nye sager</legend>
+      <label class="afkryds"><input type="checkbox" id="indst-fremmede" data-t-aria="valgFremmede" aria-describedby="indst-fremmede-hj"> <span data-t="valgFremmede">Maskér fremmede offentlige adresser</span></label>
+      <span class="hj" id="indst-fremmede-hj" data-t="hjFremmede"></span>
+      <label class="afkryds"><input type="checkbox" id="indst-oktet" data-t-aria="valgOktet" aria-describedby="indst-oktet-hj"> <span data-t="valgOktet">Bevar sidste oktet i egne net</span></label>
+      <span class="hj" id="indst-oktet-hj" data-t="hjOktet"></span>
+      <div class="felt">
+        <label class="label" for="indst-udloeb" data-t="feltStdUdloeb">Standardudløb</label>
+        <select id="indst-udloeb" data-t-aria="feltStdUdloeb">
+          <option value="" data-t="ingenUdloeb">Ingen udløb</option>
+          <option value="30" data-t="udloeb30">30 dage</option>
+          <option value="90" data-t="udloeb90">90 dage</option>
+        </select>
+      </div>
+    </fieldset>
+    <fieldset class="valg lodret">
+      <legend class="label" data-t="indstGuide">Første start</legend>
+      <span class="hj" data-t="hjGuide"></span>
+      <div><button type="button" class="btn" id="indst-guide" data-t="visGuideIgen">Vis guiden igen</button></div>
+    </fieldset>
+  </div>
+  <p class="dlg-fejl" id="indst-fejl" role="alert"></p>
   <div class="dlg-knapper"><button type="button" class="btn" data-luk data-t="luk">Luk</button></div>
 </dialog>
 
 <dialog class="dlg" id="dlg-om" aria-labelledby="dlg-om-h">
+  <div class="om-flet" id="om-flet"></div>
   <h2 id="dlg-om-h" data-t="omH">Om Grimnir</h2>
   <p data-t="omP"></p>
   <ul class="om-tal">
@@ -66,6 +102,13 @@
 <dialog class="dlg" id="dlg-sag" aria-labelledby="dlg-sag-h">
   <h2 id="dlg-sag-h" data-t="sagH">Midlertidig sag</h2>
   <p id="dlg-sag-p" data-t="sagP" data-v="0"></p>
+  <fieldset class="valg lodret sag-valg" id="sag-valg">
+    <legend class="label" data-t="sagValgH">Valg for denne sag</legend>
+    <label class="afkryds"><input type="checkbox" id="sag-fremmede" data-t-aria="valgFremmede"> <span data-t="valgFremmede">Maskér fremmede offentlige adresser</span></label>
+    <label class="afkryds"><input type="checkbox" id="sag-oktet" data-t-aria="valgOktet"> <span data-t="valgOktet">Bevar sidste oktet i egne net</span></label>
+    <span class="hj" id="sag-valg-hj" data-t="sagValgNye"></span>
+  </fieldset>
+  <p class="dlg-fejl" id="sag-valg-fejl" role="alert"></p>
   <div class="dlg-knapper">
     <button type="button" class="btn" data-luk data-t="luk">Luk</button>
     <button type="button" class="btn danger" id="sag-nulstil" data-t="nulstilSag">Nulstil sagen</button>
@@ -146,6 +189,69 @@
     <button type="button" class="btn danger" id="kasser-ok" data-t="kasser">Kassér</button>
     <button type="button" class="btn primary" id="kasser-gem" data-t="gemSomSag">Gem som sag</button>
   </div>
+</dialog>
+
+<dialog class="dlg" id="dlg-opost" aria-labelledby="dlg-opost-h">
+  <h2 id="dlg-opost-h" data-t="opostTilfoejH">Tilføj post</h2>
+  <p id="dlg-opost-p" data-t="opostP" hidden></p>
+  <div class="dlg-felter">
+    <div class="felt">
+      <label class="label" for="opost-type" data-t="feltType">Type</label>
+      <select id="opost-type" data-t-aria="feltType" aria-describedby="opost-type-hj">
+        <option value="domaene" data-t="type_domaene">Domæne</option>
+        <option value="netbios" data-t="type_netbios">NetBIOS-domæne</option>
+        <option value="navnemoenster" data-t="type_navnemoenster">Navnemønster</option>
+        <option value="eget_net" data-t="type_eget_net">Eget net</option>
+        <option value="ord" data-t="type_ord">Ord</option>
+        <option value="person" data-t="type_person">Person</option>
+        <option value="aldrig" data-t="type_aldrig">Maskér aldrig</option>
+      </select>
+      <span class="hj" id="opost-type-hj" data-t="hjt_domaene"></span>
+    </div>
+    <div class="felt">
+      <label class="label" for="opost-vaerdi" data-t="feltVaerdi">Værdi eller mønster</label>
+      <input id="opost-vaerdi" class="mono" type="text" maxlength="253" data-t-aria="feltVaerdi" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-describedby="opost-vaerdi-fejl">
+      <span class="hj fejltekst" id="opost-vaerdi-fejl"></span>
+    </div>
+    <div class="felt">
+      <label class="label" for="opost-note" data-t="feltNote">Note (valgfri)</label>
+      <input id="opost-note" type="text" maxlength="200" data-t-aria="feltNote" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-describedby="opost-note-fejl">
+      <span class="hj fejltekst" id="opost-note-fejl"></span>
+    </div>
+  </div>
+  <p class="dlg-fejl" id="opost-fejl" role="alert"></p>
+  <div class="dlg-knapper">
+    <button type="button" class="btn" data-luk data-t="annuller">Annullér</button>
+    <button type="button" class="btn primary" id="opost-ok" data-t="kTilfoejPost">Tilføj post</button>
+  </div>
+</dialog>
+
+<dialog class="dlg" id="dlg-ofjern" aria-labelledby="dlg-ofjern-h">
+  <h2 id="dlg-ofjern-h" data-t="ofjernH">Fjern posten?</h2>
+  <p id="dlg-ofjern-p" data-t="ofjernP" data-v=""></p>
+  <p class="dlg-fejl" id="ofjern-fejl" role="alert"></p>
+  <div class="dlg-knapper">
+    <button type="button" class="btn" data-luk data-t="annuller">Annullér</button>
+    <button type="button" class="btn danger" id="ofjern-ok" data-t="kFjernPost">Fjern post</button>
+  </div>
+</dialog>
+
+<dialog class="dlg dlg-bred" id="dlg-proev" aria-labelledby="dlg-proev-h">
+  <h2 id="dlg-proev-h" data-t="proevH">Prøv ordbogen på en tekst</h2>
+  <p data-t="proevP"></p>
+  <div class="felt">
+    <label class="label" for="proev-tekst" data-t="feltTekst">Tekst</label>
+    <textarea id="proev-tekst" class="mono" rows="6" data-t-aria="feltTekst" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+  </div>
+  <div class="proev-svar" id="proev-svar" role="status"></div>
+  <div class="dlg-knapper">
+    <button type="button" class="btn" data-luk data-t="luk">Luk</button>
+    <button type="button" class="btn primary" id="proev-ok" data-t="kProevKoer">Prøv</button>
+  </div>
+</dialog>
+
+<dialog class="dlg dlg-guide" id="dlg-guide" aria-labelledby="guide-h">
+  <div id="guide"></div>
 </dialog>
 </body>
 </html>

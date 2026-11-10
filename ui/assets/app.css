@@ -58,9 +58,10 @@
 .flere { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-top: 1px solid var(--border); font-size: var(--small-size); color: var(--text-muted); }
 .fundtabel th:nth-child(1) { width: 44px; }
 .fundtabel th:nth-child(2) { width: 15%; }
-.fundtabel th:nth-child(4) { width: 26%; }
+.fundtabel th:nth-child(4) { width: 24%; }
 .fundtabel th:nth-child(5) { width: 64px; }
 .fundtabel th:nth-child(6) { width: 118px; }
+.fundtabel th:nth-child(7) { width: 132px; }
 .resttabel th:nth-child(1) { width: 34%; }
 .resttabel th:nth-child(4), .resttabel th:nth-child(5) { width: 72px; }
 .tabel td input[type="checkbox"] { width: 16px; height: 16px; padding: 0; margin: 0; accent-color: var(--accent); }
@@ -98,3 +99,60 @@
 .sagnavn .muted { margin-left: var(--space-2); font-size: var(--small-size); }
 .sagtabel .tabelvaert, .sagliste .tabelvaert { height: auto; max-height: 70vh; }
 .tom .btn { margin-top: var(--space-2); }
+
+/* ── Ordbog, indstillinger og guiden (V-ORDBOG.1) ── */
+/* Maskér: rækkens vej til ordbogen og advarslen om egne koder. */
+.ordbogknapper { display: flex; gap: var(--space-1); }
+.mini[disabled] { opacity: .55; cursor: default; }
+.mini[disabled]:hover { background: var(--surface); }
+.raekkeadv { display: block; margin-top: 2px; color: var(--text-muted); font-size: var(--small-size); line-height: var(--small-line); }
+.raekkeadv::before { content: "! "; font-weight: 700; color: var(--warn); }
+/* Ordbog-visningen. */
+.ordbogflade .tabelvaert { height: auto; max-height: 62vh; min-height: 0; }
+.ordbogtabel th:nth-child(1) { width: 160px; }
+.ordbogtabel th:nth-child(3) { width: 34%; }
+.ordbogtabel td .muted { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+.ordbogtabel tr.gruppe .muted { display: inline; }
+.hjaelpelinje {
+  display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-raised); font-size: var(--small-size);
+}
+.hjaelpelinje .s {
+  display: grid; place-items: center; width: 20px; height: 20px; flex: none;
+  border-radius: var(--radius-pill); background: var(--info); color: var(--surface); font-size: 12px; font-weight: 700;
+}
+.hjaelpelinje > span:nth-child(2) { flex: 1; }
+/* Bredere dialoger: Indstillinger, Prøv på tekst og guiden. */
+.dlg.dlg-bred { width: min(620px, calc(100vw - 2 * var(--space-6))); }
+.dlg.dlg-guide { width: min(820px, calc(100vw - 2 * var(--space-6))); padding: 0; }
+.dlg .felt { margin: 0 0 var(--space-3); }
+.dlg-felter .felt { margin: 0; }
+.dlg textarea { font-family: var(--mono-family); }
+.dlg .hj { font-size: var(--small-size); line-height: var(--small-line); color: var(--text-muted); }
+.dlg .hj.fejltekst { color: var(--danger); }
+.dlg .hj:empty { display: none; }
+.dlg .felt select { padding: 0 6px; }
+.indst { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); margin: 0 0 var(--space-3); }
+.indst .lodret { grid-column: 1 / -1; }
+.valg { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); margin: 0; padding: 0; border: 0; min-width: 0; }
+.valg legend { padding: 0; margin: 0 0 var(--space-2); }
+.valg.lodret { flex-direction: column; gap: var(--space-2); }
+.valg .hj { margin: -4px 0 0 24px; }
+.valg .felt { margin: var(--space-1) 0 0; max-width: 260px; }
+.afkryds input[type="radio"] { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+.sag-valg { margin: 0 0 var(--space-3); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.proev-svar { display: flex; flex-direction: column; gap: var(--space-2); margin: 0 0 var(--space-3); max-height: 40vh; overflow: auto; }
+.proev-svar:empty { display: none; }
+.proev-svar .besked, .proev-svar .dlg-fejl { margin: 0; }
+.proevtabel th:nth-child(1) { width: 132px; }
+.proevtabel th:nth-child(4), .proevtabel th:nth-child(5) { width: 64px; }
+/* Om-dialogen bærer kittets fletbånd (ADR D16: ét sted). */
+.om-flet { margin: 0 0 var(--space-4); }
+/* Guiden: felter med Tilføj og listen over det, der allerede står i ordbogen. */
+.guide-punkter { margin: 0; padding-left: var(--space-6); display: flex; flex-direction: column; gap: var(--space-2); }
+.guide-trin { display: flex; flex-direction: column; gap: var(--space-3); }
+.guide-felt { margin: 0; }
+.guide-linje { display: flex; gap: var(--space-2); }
+.guide-linje input { flex: 1; min-width: 0; }
+.guide-trin .hj { margin: 0; }
+.guide-liste { list-style: none; margin: 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-md); display: flex; flex-direction: column; gap: 2px; max-height: 140px; overflow: auto; }

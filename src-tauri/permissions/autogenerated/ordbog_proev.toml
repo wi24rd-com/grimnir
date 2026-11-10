@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-ordbog-proev"
+description = "Enables the ordbog_proev command without any pre-configured scope."
+commands.allow = ["ordbog_proev"]
+
+[[permission]]
+identifier = "deny-ordbog-proev"
+description = "Denies the ordbog_proev command without any pre-configured scope."
+commands.deny = ["ordbog_proev"]

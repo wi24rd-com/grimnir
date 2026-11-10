@@ -8,6 +8,10 @@
    Rust-processens hukommelse; lukkes programmet, er de væk. Sagen (nøgletabellen) gemmer Rust krypteret, når den er
    navngiven (V-SAG.1); titellinjen og sagerne styres af sager.js.
 
+   Ordbogen (V-ORDBOG.1): hver række i Maskér-tabellen kan lægges i ordbogen som "maskér altid" eller "maskér aldrig"
+   (ordbog.js). Når ordbogen ændres (hændelsen 'grimnir-ordbog'), analyseres teksten igen; rækker, brugeren selv har slået
+   til eller fra, beholder valget, og nye rækker får kernens standard.
+
    Rust-kommandoer: analyser, gem_og_masker, demasker, menu_sprog. */
 (function () {
   'use strict';
@@ -177,7 +181,7 @@
 
   /* ═════════════════════════════ Maskér ═════════════════════════════ */
   const M = (function () {
-    const st = { tekst: null, bytes: 0, analyse: null, fravalgt: new Set(), rettelser: new Map(), fejl: new Map(), resultat: null, foerEfter: false, visRester: false, filter: 'alle', soeg: '', vist: new Set(), side: SIDE, nr: 0, travl: false, venter: null };
+    const st = { tekst: null, bytes: 0, analyse: null, fravalgt: new Set(), rort: new Map(), rettelser: new Map(), fejl: new Map(), resultat: null, foerEfter: false, visRester: false, filter: 'alle', soeg: '', vist: new Set(), side: SIDE, nr: 0, travl: false, venter: null };
     let tv, tabelvaert, flere, flereTekst, tekstPanel, tabelPanel, delt;
     const f = byggeFlade('masker', ark => {
       delt = el('div', 'delt');
@@ -199,7 +203,7 @@
     const d = f.d;
 
     function nulstilValg() {
-      st.analyse = null; st.fravalgt = new Set(); st.rettelser = new Map(); st.fejl = new Map(); st.resultat = null;
+      st.analyse = null; st.fravalgt = new Set(); st.rort = new Map(); st.rettelser = new Map(); st.fejl = new Map(); st.resultat = null;
       st.foerEfter = false; st.visRester = false; st.vist = new Set(); st.side = SIDE; st.nr++; st.travl = false;
       if (st.venter) { clearTimeout(st.venter); st.venter = null; }
     }
@@ -232,6 +236,44 @@
           if (nr !== st.nr) return;
           st.travl = false;
           if (foerste) st.fravalgt = new Set(a.raekker.filter(r => !r.valgt).map(r => r.id));
+          for (const r of a.raekker) if (r.laast) st.fravalgt.delete(r.id);
+          st.analyse = a;
+          st.fejl = new Map(a.fejl.map(x => [x.id, x]));
+          tegn();
+        })
+        .catch(e => { if (nr !== st.nr) return; st.travl = false; fejl(e); tegn(); });
+    }
+    /* Ordbogen eller sagens valg er ændret: analysér igen. Først med kernens standard (så nye rækker får den); rækker,
+       brugeren har slået til eller fra (st.rort), beholder valget; derefter med det samlede valg, hvis det afviger.
+       Rettelser til rækker, der ikke findes længere (fx lagt på "maskér aldrig"), droppes. Et resultat er forældet. */
+    function analyserIgen() {
+      if (!st.tekst || !st.analyse) return Promise.resolve();
+      if (st.venter) { clearTimeout(st.venter); st.venter = null; }
+      if (st.resultat) { st.resultat = null; st.foerEfter = false; st.visRester = false; st.aendretEfter = true; }
+      const nr = ++st.nr;
+      st.travl = true;
+      tegnKommandoer();
+      tegnChip();
+      const ret = rettelser();
+      return invoke('analyser', { tekst: st.tekst, fravalgt: null, rettelser: ret })
+        .then(a => {
+          if (nr !== st.nr) return null;
+          const ider = new Set(a.raekker.map(r => r.id));
+          for (const id of [...st.rettelser.keys()]) if (!ider.has(id)) st.rettelser.delete(id);
+          const fra = new Set();
+          for (const r of a.raekker) {
+            const on = st.rort.has(r.id) ? st.rort.get(r.id) : r.valgt;
+            if (!on && !r.laast) fra.add(r.id);
+          }
+          const std = a.raekker.filter(r => !r.valgt).map(r => r.id);
+          st.fravalgt = fra;
+          const ret2 = rettelser();
+          if (ret2.length === ret.length && std.length === fra.size && std.every(id => fra.has(id))) return a;
+          return invoke('analyser', { tekst: st.tekst, fravalgt: [...fra], rettelser: ret2 });
+        })
+        .then(a => {
+          if (!a || nr !== st.nr) return;
+          st.travl = false;
           for (const r of a.raekker) if (r.laast) st.fravalgt.delete(r.id);
           st.analyse = a;
           st.fejl = new Map(a.fejl.map(x => [x.id, x]));
@@ -378,6 +420,15 @@
         inp.setAttribute('aria-describedby', t.id);
         c.appendChild(t);
       }
+      // V-KERNE.2 fund 2 (V-ORDBOG.1 O7): en egen kode i en navngiven sag, der allerede har gemt maskeringer, må ikke
+      // være et ord fra en tidligere tekst; kernen kan ikke se det, så brugeren advares.
+      const GS = window.GrimnirSager;
+      if (!fe && st.rettelser.has(r.id) && GS && GS.status && GS.status.id && poster > 0) {
+        const a = el('span', 'raekkeadv', 'advEgenKode');
+        a.id = 'adv-' + r.id;
+        inp.setAttribute('aria-describedby', a.id);
+        c.appendChild(a);
+      }
       inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.metaKey && !e.ctrlKey) { e.preventDefault(); inp.blur(); } });
       inp.addEventListener('change', () => {
         const v = inp.value.trim();
@@ -393,6 +444,43 @@
         aendret();
       });
       return c;
+    }
+
+    /* Rækkens vej til ordbogen (O4): "Altid" og "Aldrig". Nedtonet med forklaring for hemmeligheder, når ordbogen ikke kan
+       åbnes, og ("Altid") for arter, ordbogen ikke har en type til. */
+    function ordbogCelle(r) {
+      const c = el('span', 'ordbogknapper');
+      const GO = window.GrimnirOrdbog;
+      for (const hvad of ['altid', 'aldrig']) {
+        const b = el('button', 'mini', hvad === 'altid' ? 'kAltid' : 'kAldrig');
+        b.type = 'button';
+        b.setAttribute('data-felt', 'ordbog-' + hvad);
+        b.setAttribute('data-t-aria', r.hemmelig ? 'ariaOrdbogHemmelig' : hvad === 'altid' ? 'ariaAltid' : 'ariaAldrig');
+        b.setAttribute('data-v', r.hemmelig ? String(r.linje) : r.vaerdier[0]);
+        const hvorfor = GO ? GO.kan(r, hvad) : 'hvorforOrdbogLaast';
+        if (hvorfor) { b.disabled = true; b.setAttribute('data-t-title', hvorfor); }
+        b.addEventListener('click', () => tilOrdbog(r, hvad));
+        c.appendChild(b);
+      }
+      return c;
+    }
+    function tilOrdbog(r, hvad) {
+      const GO = window.GrimnirOrdbog;
+      if (!GO) return;
+      // "Maskér altid": rækken skal maskeres efter den nye analyse (valget huskes, før ordbogen melder sig ændret).
+      const foer = st.rort.has(r.id) ? st.rort.get(r.id) : undefined;
+      if (hvad === 'altid') st.rort.set(r.id, true);
+      const tilbage = () => { if (foer === undefined) st.rort.delete(r.id); else st.rort.set(r.id, foer); };
+      GO.fraMasker(r, hvad).then(aendret => {
+        if (!aendret) { tilbage(); return; }
+        besked(f, hvad === 'altid' ? 'bLagtAltid' : 'bLagtAldrig');
+        f.besked.setAttribute('data-v', r.vaerdier[0]);
+        S.anvend(f.besked);
+      }).catch(e => {
+        tilbage();
+        fejlBanner = ['bOrdbogFejl', GO.fejlTekst(e)];
+        tegnBannere();
+      });
     }
 
     function tegnTabel() {
@@ -413,7 +501,7 @@
       const vis = alle.slice(0, st.side);
       const t = K.tabel({
         ariaT: 'pFund',
-        kolonner: [{ t: 'kolMasker' }, { t: 'kolType' }, { t: 'kolVaerdi' }, { t: 'kolErstatning' }, { t: 'kolAntal', tal: true }, { t: 'kolStatus' }],
+        kolonner: [{ t: 'kolMasker' }, { t: 'kolType' }, { t: 'kolVaerdi' }, { t: 'kolErstatning' }, { t: 'kolAntal', tal: true }, { t: 'kolStatus' }, { t: 'kolOrdbog' }],
         raekker: vis.map(r => {
           const on = valgt(r);
           const cb = document.createElement('input');
@@ -426,6 +514,7 @@
           if (r.laast) cb.setAttribute('data-t-title', 'hvorforLaast');
           cb.addEventListener('change', () => {
             if (cb.checked) st.fravalgt.delete(r.id); else st.fravalgt.add(r.id);
+            st.rort.set(r.id, cb.checked);
             const tr = cb.closest('tr');
             tr.classList.toggle('fra', !cb.checked);
             const k = tr.querySelector('[data-felt="kode"]');
@@ -433,7 +522,7 @@
             aendret();
           });
           const st0 = STATUS[r.status] || STATUS.tjek;
-          return { celler: [cb, el('span', null, 'art_' + r.art), vaerdiCelle(r), erstatningCelle(r, on), String(r.antal), chip(st0[0], st0[1])], data: r.id, fra: !on };
+          return { celler: [cb, el('span', null, 'art_' + r.art), vaerdiCelle(r), erstatningCelle(r, on), String(r.antal), chip(st0[0], st0[1]), ordbogCelle(r)], data: r.id, fra: !on };
         }),
       });
       t.classList.add('fundtabel');
@@ -519,8 +608,10 @@
       if (!ok) banner(f.bannere, 'danger', 'bKopiFejl');
     }
 
+    document.addEventListener('grimnir-ordbog', () => analyserIgen());
+
     return {
-      st, modtag, analyser, gem, kopierResultat, tegn, tegnFod, tegnTabel,
+      st, modtag, analyser, analyserIgen, gem, kopierResultat, tegn, tegnFod, tegnTabel,
       genvejEnter() { return st.analyse ? gem() : analyser(); },
       filter(id) { st.filter = id === 'denne' ? 'alle' : id; st.visRester = false; st.side = SIDE; tegnTabel(); tegnBannere(); },
       nulstilt() { if (st.tekst) { nulstilValg(); tegn(); } },

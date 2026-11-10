@@ -416,5 +416,95 @@
     return { markér, links };
   }
 
-  window.Kit = Object.freeze({ IKONER, ikon, chip, knap, felt, banner, tabel, commandBar, navTrae, visningsskift, SYMBOL });
+  /* ── Wizard ── En guide ét trin ad gangen (design/ui-kit-2/components/Wizard). trin: [{t, h, p, indhold}], hvor t er
+     trinnets navn i trinlisten, h overskriften (h2), p den ene sætning og indhold en valgfri Node under sætningen.
+     Trin, der er nået, har flueben og kan klikkes; det aktuelle har aria-current="step"; kommende kan ikke klikkes.
+     Fodlinjen har altid samme knapper: spring (valgfri, til venstre), Tilbage og den primære, der hedder naeste og i sidste
+     trin slut. o: { trin, naeste, tilbage, slut, spring, hId, vedSlut(), vedSpring(), vedSkift(i) }. Returnerer
+     { rod, gaaTil(i), get aktuel }. */
+  function guide(rod, o) {
+    rod.classList.add('wiz');
+    rod.textContent = '';
+    const liste = el('ol', 'trin');
+    const indhold = el('div', 'indhold');
+    const h = el('h2', null);
+    if (o.hId) h.id = o.hId;
+    h.tabIndex = -1;
+    const p = el('p', 'muted');
+    const plads = el('div', 'trin-indhold');
+    indhold.append(h, p, plads);
+    const fod = el('div', 'fod');
+    const spring = o.spring ? knap({ ...o.spring, variant: 'ghost', ved: () => o.vedSpring && o.vedSpring() }) : null;
+    const luft = el('span', 'luft');
+    const tilbage = knap({ ...o.tilbage, ved: () => gaaTil(aktuel - 1) });
+    const frem = knap({ ...o.naeste, variant: 'primary', ved: () => (aktuel === o.trin.length - 1 ? o.vedSlut && o.vedSlut() : gaaTil(aktuel + 1)) });
+    if (spring) fod.appendChild(spring);
+    fod.append(luft, tilbage, frem);
+    rod.append(liste, indhold, fod);
+    let aktuel = 0;
+    function tegnListe() {
+      liste.textContent = '';
+      o.trin.forEach((t, i) => {
+        const li = document.createElement('li');
+        const naaet = i < aktuel;
+        const e = el(naaet ? 'button' : 'span', 't' + (naaet ? ' done' : i === aktuel ? ' now' : ''));
+        const n = el('span', 'n', naaet ? '✓' : String(i + 1));
+        if (naaet) {
+          e.type = 'button';
+          n.setAttribute('aria-hidden', 'true');
+          e.addEventListener('click', () => gaaTil(i));
+        }
+        if (i === aktuel) e.setAttribute('aria-current', 'step');
+        e.append(n, el('span', null, tekstAf(t)));
+        li.appendChild(e);
+        liste.appendChild(li);
+      });
+    }
+    function gaaTil(i) {
+      aktuel = Math.max(0, Math.min(o.trin.length - 1, i));
+      const t = o.trin[aktuel];
+      h.textContent = '';
+      h.removeAttribute('data-t');
+      p.removeAttribute('data-t');
+      if (t.h) h.setAttribute('data-t', t.h);
+      if (t.p) p.setAttribute('data-t', t.p);
+      plads.textContent = '';
+      if (t.indhold) plads.appendChild(t.indhold);
+      tegnListe();
+      tilbage.disabled = aktuel === 0;
+      const sidst = aktuel === o.trin.length - 1;
+      frem.querySelector('span').setAttribute('data-t', (sidst ? o.slut : o.naeste).t);
+      if (o.vedSkift) o.vedSkift(aktuel);
+    }
+    gaaTil(0);
+    return { rod, gaaTil, get aktuel() { return aktuel; }, overskrift: h };
+  }
+
+  /* ── Fletbaand ── Kittets ene pynteelement: en tynd flettet linje i accent (design/ui-kit-2/components/Fletbaand).
+     Ét sted pr. skærm, ingen betydning: aria-hidden. Højde 10 px, mønsterbredde 28 px, streg 1 px. */
+  let fletNr = 0;
+  function fletbaand() {
+    const id = 'kit-flet-' + ++fletNr;
+    const svg = document.createElementNS(SVG, 'svg');
+    svg.setAttribute('class', 'flet');
+    svg.setAttribute('width', '100%');
+    svg.setAttribute('height', '10');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    const defs = document.createElementNS(SVG, 'defs');
+    const m = document.createElementNS(SVG, 'pattern');
+    for (const [k, v] of Object.entries({ id, width: 28, height: 10, patternUnits: 'userSpaceOnUse' })) m.setAttribute(k, String(v));
+    const sti = document.createElementNS(SVG, 'path');
+    sti.setAttribute('d', 'M0 5 L7 1.5 L14 5 L21 8.5 L28 5 M0 5 L7 8.5 L14 5 L21 1.5 L28 5');
+    m.appendChild(sti);
+    defs.appendChild(m);
+    const r = document.createElementNS(SVG, 'rect');
+    r.setAttribute('width', '100%');
+    r.setAttribute('height', '10');
+    r.setAttribute('fill', `url(#${id})`);
+    svg.append(defs, r);
+    return svg;
+  }
+
+  window.Kit = Object.freeze({ IKONER, ikon, chip, knap, felt, banner, tabel, commandBar, navTrae, visningsskift, guide, fletbaand, SYMBOL });
 })();

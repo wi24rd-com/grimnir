@@ -1,20 +1,26 @@
 //! Skallen i Wi24rd Grimnir: ét vindue med Wi24rd UI Kit 2's programskal, programmenuen og kommandoerne:
 //! `kerne_version` (fodlinjen), `analyser`, `gem_og_masker`, `demasker`, `sag_status` og `sag_nulstil` (V-SKAL.2),
 //! `menu_sprog` (programmenuen følger UI'ets sprog) og sagerne på disk (V-SAG.1): `sag_ny`, `sag_liste`, `sag_aabn`,
-//! `sag_luk`, `sag_omdoeb`, `sag_udloeb`, `sag_slet` og `program_afslut`.
+//! `sag_luk`, `sag_omdoeb`, `sag_udloeb`, `sag_slet` og `program_afslut`; ordbogen og indstillingerne (V-ORDBOG.1):
+//! `ordbog_hent`, `ordbog_tilfoej`, `ordbog_ret`, `ordbog_fjern`, `ordbog_proev`, `indstillinger_hent`,
+//! `indstillinger_gem` og `sag_valg`.
 //!
-//! Ingen plugins og ingen netværkskode. Sagerne ligger krypteret i `<app-data>/sager/` ([`sager`]); nøglerne i
-//! Keychain/Credential Manager. Ordbogen kommer i B3b.
+//! Ingen plugins og ingen netværkskode. Sagerne ligger krypteret i `<app-data>/sager/` ([`sager`]), ordbogen krypteret
+//! i `<app-data>/ordbog.grimnir` ([`ordbog`]); nøglerne i Keychain/Credential Manager. Indstillingerne står i klartekst i
+//! `<app-data>/indstillinger.json` ([`indstillinger`]; intet følsomt).
 #![forbid(unsafe_code)]
 
+pub mod indstillinger;
 pub mod maskering;
+pub mod ordbog;
 pub mod sager;
 
 // Menuen bygges kun på macOS (se `run`); på Windows bruges kun `handling` og `platform_skript`.
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 mod programmenu;
 
-use maskering::{Analyse, Demaskering, Maskering, Rettelse, SagListePost, SagStatus, Tilstand, UiFejl};
+use indstillinger::Indstillinger;
+use maskering::{Analyse, Demaskering, Maskering, OrdbogUd, Proeve, Rettelse, SagListePost, SagStatus, Tilstand, UiFejl};
 use tauri::{Emitter, Manager, State};
 
 /// Kernens versionsnummer (`grimnir_core::VERSION`).
@@ -122,6 +128,54 @@ fn sag_slet(tilstand: State<'_, Tilstand>, id: String) -> Result<SagStatus, UiFe
     maskering::sag_slet(&tilstand, &id)
 }
 
+/// Ændrer valget (D4, D5) for den åbne sag; gælder nye værdier.
+#[tauri::command(async)]
+fn sag_valg(tilstand: State<'_, Tilstand>, masker_fremmede: bool, bevar_sidste_oktet: bool) -> Result<SagStatus, UiFejl> {
+    maskering::sag_valg(&tilstand, masker_fremmede, bevar_sidste_oktet)
+}
+
+/// Ordbogen (posterne, og fejlen, hvis filen ikke kunne åbnes).
+#[tauri::command(async)]
+fn ordbog_hent(tilstand: State<'_, Tilstand>) -> OrdbogUd {
+    maskering::ordbog_hent(&tilstand)
+}
+
+/// Tilføjer en post til ordbogen (`type`: domaene | netbios | navnemoenster | eget_net | ord | person | aldrig).
+#[tauri::command(async)]
+fn ordbog_tilfoej(tilstand: State<'_, Tilstand>, r#type: String, vaerdi: String, note: Option<String>) -> Result<OrdbogUd, UiFejl> {
+    maskering::ordbog_tilfoej(&tilstand, &r#type, &vaerdi, note.as_deref())
+}
+
+/// Retter en posts værdi og note.
+#[tauri::command(async)]
+fn ordbog_ret(tilstand: State<'_, Tilstand>, id: u64, vaerdi: String, note: Option<String>) -> Result<OrdbogUd, UiFejl> {
+    maskering::ordbog_ret(&tilstand, id, &vaerdi, note.as_deref())
+}
+
+/// Fjerner en post (UI'et bekræfter med værdien først).
+#[tauri::command(async)]
+fn ordbog_fjern(tilstand: State<'_, Tilstand>, id: u64) -> Result<OrdbogUd, UiFejl> {
+    maskering::ordbog_fjern(&tilstand, id)
+}
+
+/// Kører analysen med ordbogen på en tekst uden at røre sagen; teksten gemmes ikke.
+#[tauri::command(async)]
+fn ordbog_proev(tilstand: State<'_, Tilstand>, tekst: String) -> Result<Proeve, UiFejl> {
+    maskering::ordbog_proev(&tilstand, &tekst)
+}
+
+/// Indstillingerne.
+#[tauri::command]
+fn indstillinger_hent(tilstand: State<'_, Tilstand>) -> Indstillinger {
+    maskering::indstillinger_hent(&tilstand)
+}
+
+/// Gemmer indstillingerne.
+#[tauri::command(async)]
+fn indstillinger_gem(tilstand: State<'_, Tilstand>, indstillinger: Indstillinger) -> Result<Indstillinger, UiFejl> {
+    maskering::indstillinger_gem(&tilstand, indstillinger)
+}
+
 /// Afslutter programmet, efter brugeren har svaret på spørgsmålet om den midlertidige sag (Gem som sag eller Kassér).
 #[tauri::command]
 fn program_afslut(app: tauri::AppHandle, tilstand: State<'_, Tilstand>) {
@@ -143,10 +197,11 @@ fn anmod_afslut(app: &tauri::AppHandle) -> bool {
     spoerg
 }
 
-/// Sagernes mappe: `<app-data>/sager` (macOS: `~/Library/Application Support/com.wi24rd.grimnir/sager`).
+/// Programmets mappe `<app-data>` (macOS: `~/Library/Application Support/com.wi24rd.grimnir`) med `sager/`,
+/// `ordbog.grimnir` og `indstillinger.json`.
 fn tilstand_for(app: &tauri::AppHandle) -> Tilstand {
     match app.path().app_data_dir() {
-        Ok(d) => Tilstand::med_arkiv(sager::Arkiv::ny(d.join("sager"), Box::new(sager::Noeglering))),
+        Ok(d) => Tilstand::paa_disk(d, std::sync::Arc::new(sager::Noeglering)),
         Err(_) => Tilstand::ny(),
     }
 }
@@ -187,7 +242,15 @@ pub fn run() {
             sag_omdoeb,
             sag_udloeb,
             sag_slet,
-            program_afslut
+            program_afslut,
+            sag_valg,
+            ordbog_hent,
+            ordbog_tilfoej,
+            ordbog_ret,
+            ordbog_fjern,
+            ordbog_proev,
+            indstillinger_hent,
+            indstillinger_gem
         ])
         .on_window_event(|vindue, ev| match ev {
             tauri::WindowEvent::CloseRequested { api, .. } => {

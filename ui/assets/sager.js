@@ -7,7 +7,8 @@
    fordi brugeren selv har skrevet det. Intet her skriver til konsollen eller til localStorage.
 
    Rust-kommandoer: sag_status, sag_liste, sag_ny, sag_aabn, sag_luk, sag_nulstil, sag_omdoeb, sag_udloeb, sag_slet,
-   program_afslut. Hændelsen 'menu' med "afslut" kommer, når programmet lukkes med en midlertidig sag med poster. */
+   program_afslut og (V-ORDBOG.1) sag_valg: sagens valg for fremmede adresser (D4) og sidste oktet (D5) i titellinjens
+   dialog. Ny sag foreslår standardudløbet fra indstillingerne (indstillinger.js). Hændelsen 'menu' med "afslut" kommer, når programmet lukkes med en midlertidig sag med poster. */
 (function () {
   'use strict';
   const G = window.Grimnir, K = window.Kit, S = window.Sprog, GM = window.GrimnirMaskering;
@@ -31,6 +32,7 @@
     return new Date(a, m - 1, d).toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' });
   }
   function iDag() { const n = new Date(); return n.getFullYear() + '-' + to(n.getMonth() + 1) + '-' + to(n.getDate()); }
+  function datoOmDage(n) { const t = new Date(); t.setDate(t.getDate() + n); return t.getFullYear() + '-' + to(t.getMonth() + 1) + '-' + to(t.getDate()); }
 
   /* Sagens status i listen: åben (kan åbnes), udløber snart (inden 7 dage), udløbet, kan ikke åbnes. */
   const STATUS = { aaben: ['ok', 'stAaben'], snart: ['warn', 'stUdloeberSnart'], udloebet: ['danger', 'stUdloebet'], kan_ikke: ['danger', 'stKanIkke'] };
@@ -43,7 +45,7 @@
   const fejlTekst = e => GM.sagFejlTekst(e);
 
   /* ═════════════════════════════ Den aktuelle sag og titellinjen ═════════════════════════════ */
-  let status = { poster: 0, id: null, navn: null, udloeb: null };
+  let status = { poster: 0, id: null, navn: null, udloeb: null, valg: null };
   const sagSpan = $('sag'), sagKnap = $('sag-knap');
 
   function tegnTitel() {
@@ -66,7 +68,7 @@
 
   /* Ny status fra Rust. nulstil: sagens indhold er skiftet, så Maskér og Demaskér glemmer analyse og resultat. */
   function anvend(s, nulstil) {
-    status = { poster: s.poster, id: s.id || null, navn: s.navn || null, udloeb: s.udloeb || null };
+    status = { poster: s.poster, id: s.id || null, navn: s.navn || null, udloeb: s.udloeb || null, valg: s.valg || null };
     if (nulstil) { GM.M.nulstilt(); GM.D.nulstilt(); }
     GM.saetSag(status.poster);
     tegnTitel();
@@ -92,9 +94,30 @@
     $('sag-gem-som').hidden = navngiven;
     $('sag-skift').hidden = !navngiven;
     $('sag-luk').hidden = !navngiven;
+    tegnValg();
     S.anvend($('dlg-sag'));
     G.aabnDialog('dlg-sag');
   });
+
+  /* Sagens valg (D4, D5). En ændring i en sag med værdier gælder kun nye værdier; det står i dialogen. */
+  const vFremmede = $('sag-fremmede'), vOktet = $('sag-oktet');
+  function tegnValg() {
+    $('sag-valg').hidden = !status.valg;
+    $('sag-valg-fejl').textContent = '';
+    if (!status.valg) return;
+    vFremmede.checked = status.valg.masker_fremmede;
+    vOktet.checked = status.valg.bevar_sidste_oktet;
+    const hj = $('sag-valg-hj');
+    hj.setAttribute('data-t', status.poster > 0 ? 'sagValgNye' : 'sagValgTom');
+    S.anvend(hj);
+  }
+  function gemValg() {
+    invoke('sag_valg', { maskerFremmede: vFremmede.checked, bevarSidsteOktet: vOktet.checked })
+      .then(s => { anvend(s, false); tegnValg(); GM.M.analyserIgen(); })
+      .catch(e => { tegnValg(); $('sag-valg-fejl').textContent = S.t('bSagFejl', fejlTekst(e)); });
+  }
+  vFremmede.addEventListener('change', gemValg);
+  vOktet.addEventListener('change', gemValg);
   $('sag-nulstil').addEventListener('click', () => {
     invoke('sag_nulstil').then(s => { $('dlg-sag').close(); anvend(s, true); }).catch(() => { /* sagen er uændret */ });
   });
@@ -259,7 +282,9 @@
   function aabnNySag(til) {
     nyTil = til;
     nyNavn.value = '';
-    nyUdloeb.value = '';
+    // Standardudløbet fra indstillingerne (ingen, 30 eller 90 dage).
+    const dage = window.GrimnirIndst && window.GrimnirIndst.st.indst ? window.GrimnirIndst.st.indst.udloeb_dage : null;
+    nyUdloeb.value = dage ? datoOmDage(dage) : '';
     nyUdloeb.min = iDag();
     visFejl('ny-sag-fejl', '');
     const p = $('dlg-ny-sag-p');

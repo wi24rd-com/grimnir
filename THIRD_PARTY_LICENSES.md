@@ -28,7 +28,7 @@ Hele træet på macOS er 216 crates (`cargo tree -p grimnir -e normal --format '
 - MPL-2.0: `cssparser`, `cssparser-macros`, `dtoa-short`, `option-ext`, `selectors`.
 - Unicode-3.0: `icu_*` (7 crates), `litemap`, `potential_utf`, `tinystr`, `writeable`, `yoke`, `yoke-derive`, `zerofrom`, `zerofrom-derive`, `zerotrie`, `zerovec`, `zerovec-derive`; `unicode-ident` er (MIT OR Apache-2.0) AND Unicode-3.0.
 - BSD-3-Clause: `alloc-no-stdlib`, `alloc-stdlib`; `brotli` (BSD-3-Clause AND MIT), `brotli-decompressor` (BSD-3-Clause/MIT).
-- Zlib: `foldhash`. `dpi`: Apache-2.0 AND MIT.
+- Zlib: `foldhash` 0.2.0 (via `dom_query` 0.28.0 → `tauri-utils` 2.10.2 → `tauri`, ifølge `cargo tree -i foldhash`). `dpi`: Apache-2.0 AND MIT.
 
 Licensteksterne for crates er endnu ikke samlet i programmet; det skal ske før første udgivelse.
 

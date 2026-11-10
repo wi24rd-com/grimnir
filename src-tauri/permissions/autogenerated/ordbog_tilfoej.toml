@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-ordbog-tilfoej"
+description = "Enables the ordbog_tilfoej command without any pre-configured scope."
+commands.allow = ["ordbog_tilfoej"]
+
+[[permission]]
+identifier = "deny-ordbog-tilfoej"
+description = "Denies the ordbog_tilfoej command without any pre-configured scope."
+commands.deny = ["ordbog_tilfoej"]

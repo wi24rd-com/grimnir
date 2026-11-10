@@ -1,7 +1,8 @@
 // Kontrast for Wi24rd UI Kit 2's par i begge temaer, regnet ud fra design/wi24rd-ui-kit-2.tokens.json (WCAG 2.x
 // relativ luminans). Tekst mod flade skal være mindst 4,5:1; kontrolkanter, fokusring og ikoner, der bærer betydning,
 // mindst 3:1. Fejler (exit 1), hvis et par er under grænsen. Brug: node tests/ui/kontrast.mjs
-// Listen er kittets par, som kit.css og app.css bruger dem; et nyt par i CSS'en skal også stå her.
+// Listen er kittets par, som kit.css og app.css bruger dem; et nyt par i CSS'en skal også stå her (V-ORDBOG.1: Wizard,
+// Ordbog-visningen og Maskér → ordbogen).
 import { laesTokens, temaVaerdier } from '../../design/build-tokens.mjs';
 
 const TEKST = 4.5, KANT = 3;
@@ -65,6 +66,32 @@ export const PAR = [
   ['info', 'bg', KANT, 'fokusring på baggrund'],
   ['info', 'accent-soft', KANT, 'fokusring på valgt punkt'],
   ['info', 'border', KANT, 'fokusring på aktiv visning'],
+  // V-ORDBOG.1: kittets Wizard (guiden ved første start).
+  ['text-muted', 'surface-raised', TEKST, 'Wizard: kommende trin i trinlisten'],
+  ['text', 'surface-raised', TEKST, 'Wizard: nået trin (kan klikkes)'],
+  ['text', 'surface', TEKST, 'Wizard: nået trin ved hover'],
+  ['text', 'accent-soft', TEKST, 'Wizard: aktuelt trin'],
+  ['on-accent', 'accent', TEKST, 'Wizard: tallet i det aktuelle trin'],
+  ['accent', 'accent-soft', TEKST, 'Wizard: fluebenet i et nået trin'],
+  ['accent', 'accent-soft', KANT, 'Wizard: ringen om et nået trins tal'],
+  ['border-strong', 'surface-raised', KANT, 'Wizard: ringen om et kommende trins tal'],
+  ['info', 'surface-raised', TEKST, 'Wizard: Spring over (tekstknap) i fodlinjen'],
+  ['info', 'surface-raised', KANT, 'Wizard: fokusring i trinlisten og fodlinjen'],
+  ['text', 'surface', TEKST, 'Wizard: overskrift, sætning og felter'],
+  // V-ORDBOG.1: Ordbog-visningen, Maskér → ordbogen, indstillinger.
+  ['text', 'surface-raised', TEKST, 'Ordbog: gruppeoverskriften Maskér altid / Maskér aldrig'],
+  ['text-muted', 'surface-raised', TEKST, 'Ordbog: gruppens note'],
+  ['text', 'surface-raised', TEKST, 'Ordbog: hjælpelinjen om navnemønstre'],
+  ['surface', 'info', TEKST, 'Ordbog: hjælpelinjens symbol'],
+  ['info', 'surface', TEKST, 'Maskér: knapperne Altid og Aldrig i en række'],
+  ['info', 'accent-soft', TEKST, 'Maskér: Altid og Aldrig i en valgt række'],
+  ['text-muted', 'surface', TEKST, 'Maskér: advarslen under en egen kode'],
+  ['text-muted', 'surface-raised', TEKST, 'Maskér: advarslen under en egen kode ved hover'],
+  ['warn', 'surface', TEKST, 'Maskér: advarselstegnet ved en egen kode'],
+  ['warn', 'surface-raised', TEKST, 'Maskér: advarselstegnet ved hover'],
+  ['warn', 'accent-soft', TEKST, 'Maskér: advarselstegnet i en valgt række'],
+  ['accent', 'surface', KANT, 'Fletbåndet i Om-dialogen'],
+  ['accent', 'surface', KANT, 'radioknapper og afkrydsning i Indstillinger (accent-color)'],
   // Den primære knaps fokusring står 2 px uden for knappen (outline-offset i kit.css) og ligger derfor på fladen omkring
   // den (info på surface/bg), ikke på accent. info på accent er 1,1:1 og må aldrig bruges.
 ];

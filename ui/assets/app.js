@@ -1,8 +1,8 @@
 /* Grimnir — programskallen bygget af kittet (window.Kit). Fire visninger (Maskér, Demaskér, Sager, Ordbog), hver med sin
    CommandBar (fanerne Start og Vis), sit træ i NavPane, sin værktøjslinje og en tom tilstand. Visningen står i adressen
-   (#masker …) og skiftes med visningsskiftet eller ⌘1–⌘4 (Ctrl på Windows). Maskér og Demaskér (maskering.js) og Sager
-   (sager.js) virker via window.Grimnir; resten af kommandoerne fra design/skaerme/ står nedtonet med en forklaring, til
-   funktionen kommer (B3b, v2).
+   (#masker …) og skiftes med visningsskiftet eller ⌘1–⌘4 (Ctrl på Windows). Maskér og Demaskér (maskering.js), Sager
+   (sager.js), Ordbog (ordbog.js) og Indstillinger (indstillinger.js) virker via window.Grimnir; resten af kommandoerne
+   fra design/skaerme/ står nedtonet med en forklaring, til funktionen kommer (v2).
    Rust giver: kerne_version (fodlinjen), hændelsen 'menu' ("om" | "indstillinger" | "afslut"), hændelsen 'fuldskaerm'
    (true | false) og platformen (<html data-platform>). */
 (function () {
@@ -67,15 +67,16 @@
       id: 'ordbog', t: 'vOrdbog', ikon: 'bog', soeg: 'soegOrdbog', chip: 'chipTomOrdbog', fod: 'fodOrdbog',
       tom: ['tomOrdbogH', 'tomOrdbogP'],
       grupper: [
-        { t: 'gOrdbog', knapper: [senere('tilfoej-post', 'kTilfoejPost', 'plus', true), senere('proev', 'kProev', 'afspil')] },
+        { t: 'gOrdbog', knapper: [aktiv('ordbog', 'tilfoej-post', 'kTilfoejPost', 'plus', true, true), aktiv('ordbog', 'ret', 'kRet', 'rediger'), aktiv('ordbog', 'proev', 'kProev', 'afspil', false, true)] },
         { t: 'gDeling', knapper: [senere('importer', 'kImporter', 'import'), senere('eksporter', 'kEksporter', 'eksport')] },
-        { t: 'gOprydning', knapper: [senere('fjern-post', 'kFjernPost', 'slet')] },
+        { t: 'gOprydning', knapper: [aktiv('ordbog', 'fjern-post', 'kFjernPost', 'slet')] },
       ],
+      // V-ORDBOG.1: listerne og alle seks typer under "maskér altid" (ordbog.js filtrerer og tæller).
       trae: [
         { id: 'lister', t: 'tLister', boern: [{ id: 'altid', t: 'tMaskerAltid', antal: 0 }, { id: 'aldrig', t: 'tMaskerAldrig', antal: 0 }] },
-        { id: 'typer', t: 'tTyper', boern: [{ id: 'domaener', t: 'tDomaener', antal: 0 }, { id: 'moenstre', t: 'tNavnemoenstre', antal: 0 }, { id: 'egne-net', t: 'tEgneNet', antal: 0 }] },
+        { id: 'typer', t: 'tTyper', boern: ['domaene', 'netbios', 'navnemoenster', 'eget_net', 'ord', 'person'].map(x => ({ id: 't-' + x, t: 'tt_' + x, antal: 0 })) },
       ],
-      valgt: 'altid',
+      valgt: 'lister',
     },
   ];
   const ID = VISNINGER.map(v => v.id);
@@ -224,7 +225,8 @@
   indstKnap.appendChild(K.ikon('tandhjul', 'ik'));
   indstKnap.setAttribute('data-v', mod + ',');
 
-  // Dialoger: Indstillinger (tom indtil videre) og Om.
+  // Dialoger: Indstillinger (indholdet styres af indstillinger.js) og Om (med kittets fletbånd, ADR D16: ét sted).
+  $('om-flet').appendChild(K.fletbaand());
   function aabnDialog(id) {
     const d = $(id);
     for (const andet of document.querySelectorAll('dialog[open]')) if (andet !== d) andet.close();

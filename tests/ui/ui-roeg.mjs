@@ -8,6 +8,9 @@
 // kun tema og sprog.
 // V-SAG.1: Sager med en efterlignet Rust (falskSagRust): ny sag, liste med status og træ, åbn, omdøb, udløb, slet med
 // bekræftelse, konfliktbesked, "Kan ikke åbnes", luk med midlertidig sag, titellinjen, fuldskærm og Demaskér → Sager.
+// V-ORDBOG.1: Ordbog med en efterlignet Rust (falskOrdbogRust): tilføj, ret, fjern, søg, træ, Prøv på tekst, fra Maskér til
+// ordbogen, guiden (frem, tilbage, spring over, vises ikke igen), indstillinger (gemmes, gælder en ny sag), advarslen ved
+// egen kode, kittets Wizard og Fletbånd.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -31,7 +34,8 @@ function side({ hash = '', lager = {}, platform = 'macos', rust = null, foer = n
   Object.defineProperty(w, '__GRIMNIR_PLATFORM__', { value: platform });
   w.document.documentElement.setAttribute('data-platform', platform);
   w.HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
-  w.HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
+  // Som i browseren: close() melder 'close', når dialogen var åben (V-ORDBOG.1: Prøv på tekst rydder op ved 'close').
+  w.HTMLDialogElement.prototype.close = function () { const var_aaben = this.hasAttribute('open'); this.removeAttribute('open'); if (var_aaben) this.dispatchEvent(new w.Event('close')); };
   const kald = [], lyttere = {};
   w.__TAURI__ = {
     core: {
@@ -104,14 +108,15 @@ const VIS = ['masker', 'demasker', 'sager', 'ordbog'];
     const bar = d.querySelector(`#baand > [data-visning="${id}"]`);
     tjek(`${id}: kun visningens CommandBar vises`, !bar.hidden && [...d.querySelectorAll('#baand > [data-visning]')].filter(b => !b.hidden).length === 1);
     tjek(`${id}: én primær kommando på Start`, bar.querySelectorAll('.grupper[data-fane="start"] .cb.pri').length === 1);
-    // Uden tekst er alt nedtonet med en forklaring, undtagen Indsæt i Maskér og Demaskér og Ny sag i Sager (V-SAG.1).
-    tjek(`${id}: kommandoerne er nedtonede med forklaring`, [...bar.querySelectorAll('.grupper[data-fane="start"] .cb')].every(b => (b.getAttribute('aria-disabled') === 'true' && b.title.length > 10) || (b.dataset.kommando === 'indsaet' && ['masker', 'demasker'].includes(id)) || (b.dataset.kommando === 'ny-sag' && id === 'sager')));
+    // Uden tekst er alt nedtonet med en forklaring, undtagen Indsæt i Maskér og Demaskér, Ny sag i Sager (V-SAG.1) og
+    // Tilføj post og Prøv på tekst i Ordbog (V-ORDBOG.1).
+    tjek(`${id}: kommandoerne er nedtonede med forklaring`, [...bar.querySelectorAll('.grupper[data-fane="start"] .cb')].every(b => (b.getAttribute('aria-disabled') === 'true' && b.title.length > 10) || (b.dataset.kommando === 'indsaet' && ['masker', 'demasker'].includes(id)) || (b.dataset.kommando === 'ny-sag' && id === 'sager') || (['tilfoej-post', 'proev'].includes(b.dataset.kommando) && id === 'ordbog')));
     tjek(`${id}: tom tilstand med overskrift og én sætning`, (() => { const t = d.querySelector(`section[data-visning="${id}"] .tom`); const p = t && t.querySelector('p').textContent; return t && t.querySelector('h2').textContent.length > 3 && p.length > 20 && (p.match(/[.]\s/g) || []).length === 0 && p.endsWith('.'); })());
     tjek(`${id}: fodlinjen siger, hvad fladen viser`, /^0 /.test(d.getElementById('fod-venstre').textContent));
     tjek(`${id}: træets valgte punkt har aria-current`, d.querySelectorAll(`.navdel[data-visning="${id}"] .tr[aria-current="true"]`).length === 1);
     tjek(`${id}: ${i + 1}. visning`, links[i].classList.contains('on'));
   }
-  const kommandoer = { masker: ['Indsæt', 'Åbn fil', 'Analysér', 'Gem og maskér', 'Før og efter', 'Kopiér', 'Kvittering'], demasker: ['Indsæt', 'Åbn fil', 'Demaskér', 'Næste advarsel', 'Kopiér resultat', 'Gem som fil'], sager: ['Ny sag', 'Åbn i Maskér', 'Omdøb', 'Udløb', 'Eksportér', 'Importér', 'Slet sag'], ordbog: ['Tilføj post', 'Prøv på tekst', 'Importér', 'Eksportér', 'Fjern post'] };
+  const kommandoer = { masker: ['Indsæt', 'Åbn fil', 'Analysér', 'Gem og maskér', 'Før og efter', 'Kopiér', 'Kvittering'], demasker: ['Indsæt', 'Åbn fil', 'Demaskér', 'Næste advarsel', 'Kopiér resultat', 'Gem som fil'], sager: ['Ny sag', 'Åbn i Maskér', 'Omdøb', 'Udløb', 'Eksportér', 'Importér', 'Slet sag'], ordbog: ['Tilføj post', 'Ret', 'Prøv på tekst', 'Importér', 'Eksportér', 'Fjern post'] };
   for (const [id, liste] of Object.entries(kommandoer)) {
     const ord = [...d.querySelectorAll(`#baand > [data-visning="${id}"] .grupper[data-fane="start"] .cb`)].map(b => b.textContent.trim());
     tjek(`${id}: kommandoerne fra design/skaerme/`, JSON.stringify(ord) === JSON.stringify(liste), JSON.stringify(ord));
@@ -427,7 +432,7 @@ const raekkeMed = (d, id) => d.querySelector(`section[data-visning="masker"] .fu
   tjek('⌘↵ første gang: analyser med teksten og kernens standard', ak.length === 1 && ak[0][1].tekst === TEKST && ak[0][1].fravalgt === null && ak[0][1].rettelser === null);
   let r = fundRaekker(d);
   tjek('tabellen: én række pr. enhed (5)', r.length === 5, String(r.length));
-  tjek('tabellen: kolonnerne Type, Fundet værdi, Erstatning, Antal, Status', [...sek.querySelectorAll('.fundtabel th')].map(t => t.textContent).join('|') === '✓|Type|Fundet værdi|Erstatning|Antal|Status');
+  tjek('tabellen: kolonnerne Type, Fundet værdi, Erstatning, Antal, Status, Ordbog', [...sek.querySelectorAll('.fundtabel th')].map(t => t.textContent).join('|') === '✓|Type|Fundet værdi|Erstatning|Antal|Status|Ordbog');
   tjek('Tjek selv og Version er slået fra; resten til', r.map(x => x.querySelector('input[type="checkbox"]').checked).join() === 'true,true,true,false,false');
   tjek('StatusChips: Sikker, Sandsynlig, Tjek selv, Version med symbol', r.map(x => x.querySelector('.chip').textContent).join('|') === '✓Sikker|!Sandsynlig|✓Sikker|?Tjek selv|–Version');
   tjek('hemmeligheder vises som prikker som standard', !sek.querySelector('.fundtabel').textContent.includes(HEMMELIG) && !sek.querySelector('.fundtabel').textContent.includes('Zq8Xv2Lm9Pw4') && raekkeMed(d, 45).querySelector('.prikker'));
@@ -882,6 +887,470 @@ const aaben = (d, id) => d.getElementById(id).hasAttribute('open');
   await vent(5);
   const knap = [...tom.d.querySelectorAll('section[data-visning="demasker"] .tom button')].find(b => b.textContent === 'Åbn Sager');
   tjek('Demaskér: uden gemte sager er knappen skjult og teksten som før', knap && knap.hidden && tom.d.querySelector('section[data-visning="demasker"] .tom p').textContent.startsWith('Der er intet at demaskere endnu'));
+}
+
+// ══════════════════════════ V-ORDBOG.1: Ordbog, guiden og indstillingerne ══════════════════════════
+
+/* Efterlignet Rust for ordbogen og indstillingerne (samme felter som OrdbogUd, OrdbogPost, FeltFejl, Proeve og
+   Indstillinger i src-tauri/src/). Valideringen er et udsnit af Rusts (ordbog.rs), nok til at vise fejlene pr. felt.
+   Analysen følger ordbogen: "maskér aldrig" fjerner rækken, "maskér altid" giver status ordbog. Kun opdigtede værdier. */
+function falskOrdbogRust({ poster = [], indst = {}, laast = null, sager = [], gemFejl = false } = {}) {
+  const r = falskSagRust({ sager });
+  let db = poster.map((p, i) => ({ id: i + 1, note: null, oprettet: 1, ...p }));
+  let i0 = { masker_fremmede: false, bevar_sidste_oktet: true, udloeb_dage: null, guide_vist: false, ...indst };
+  let valg = { masker_fremmede: false, bevar_sidste_oktet: true };
+  const ud = () => ({ poster: db.map(p => ({ ...p })), fejl: laast });
+  const felt = (f, fejl) => ({ art: 'ordbog', fejl: [{ felt: f, fejl }] });
+  function valider(type, vaerdi, undtagen) {
+    const v = vaerdi.trim();
+    if (!v) throw felt('vaerdi', 'tom');
+    if (type === 'domaene' && !/^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(v)) throw felt('vaerdi', 'ugyldigt_domaene');
+    if (type === 'netbios' && (v.includes('.') || v.length > 15)) throw felt('vaerdi', 'ugyldigt_netbios');
+    if (type === 'navnemoenster' && (!/^[a-z0-9#*-]+$/i.test(v) || !/[a-z]/i.test(v))) throw felt('vaerdi', 'ugyldigt_moenster');
+    if (type === 'eget_net' && !/^(\d{1,3}\.){3}\d{1,3}(\/\d{1,2})?$/.test(v)) throw felt('vaerdi', 'ugyldigt_net');
+    const andre = db.filter(p => p.id !== undtagen && p.vaerdi.toLowerCase() === v.toLowerCase());
+    if (andre.some(p => (p.type === 'aldrig') === (type === 'aldrig'))) throw felt('vaerdi', 'dublet');
+    if (andre.length) throw felt('vaerdi', 'modstrid');
+    return v;
+  }
+  const status = s => ({ ...s, valg: { ...valg } });
+  const nyValg = () => { valg = { masker_fremmede: i0.masker_fremmede, bevar_sidste_oktet: i0.bevar_sidste_oktet }; };
+  return {
+    ...r,
+    ob: { get db() { return db; }, get indst() { return i0; }, set laast(v) { laast = v; } },
+    analyser: a => {
+      const svar = r.analyser(a);
+      const aldrig = db.filter(p => p.type === 'aldrig').map(p => p.vaerdi.toLowerCase());
+      const altid = db.filter(p => p.type !== 'aldrig').map(p => p.vaerdi.toLowerCase());
+      svar.raekker = svar.raekker.filter(x => !aldrig.includes(x.vaerdier[0].toLowerCase()))
+        .map(x => (altid.includes(x.vaerdier[0].toLowerCase()) ? { ...x, status: 'ordbog', standard: true, valgt: a.fravalgt == null ? true : x.valgt } : x));
+      return svar;
+    },
+    ordbog_hent: () => ud(),
+    ordbog_tilfoej: ({ type, vaerdi, note }) => {
+      if (laast) throw { art: 'ordbog_laast', fejl: laast };
+      if (gemFejl) throw { art: 'ordbog_fil', fejl: { art: 'konflikt' } };
+      const v = valider(type, vaerdi, null);
+      db.push({ id: Math.max(0, ...db.map(p => p.id)) + 1, type, vaerdi: v, note: note || null, oprettet: 2 });
+      return ud();
+    },
+    ordbog_ret: ({ id, vaerdi, note }) => {
+      const p = db.find(x => x.id === id);
+      if (!p) throw felt('id', 'ukendt_post');
+      p.vaerdi = valider(p.type, vaerdi, id);
+      p.note = note || null;
+      return ud();
+    },
+    ordbog_fjern: ({ id }) => { db = db.filter(x => x.id !== id); return ud(); },
+    ordbog_proev: ({ tekst }) => {
+      const t = tekst.toLowerCase();
+      const fund = db.filter(p => p.type !== 'aldrig' && t.includes(p.vaerdi.toLowerCase())).map(p => ({ status: 'fanget', art: p.type === 'person' ? 'person' : 'ord', tekst: p.vaerdi, antal: 1, linje: 1 }));
+      for (const p of db.filter(p => p.type === 'aldrig' && t.includes(p.vaerdi.toLowerCase()))) fund.push({ status: 'aldrig', art: 'ipv4_egen', tekst: p.vaerdi, antal: 1, linje: 2 });
+      return { fund, i_alt: fund.length + 2 };
+    },
+    indstillinger_hent: () => ({ ...i0 }),
+    indstillinger_gem: ({ indstillinger }) => {
+      if (gemFejl) throw { art: 'indstillinger', fejl: { art: 'disk', hvad: 'PermissionDenied' } };
+      i0 = { ...indstillinger };
+      return { ...i0 };
+    },
+    sag_status: () => status(r.sag_status()),
+    sag_nulstil: () => { const s = r.sag_nulstil(); nyValg(); return status(s); },
+    sag_luk: () => { const s = r.sag_luk(); nyValg(); return status(s); },
+    sag_ny: a => status(r.sag_ny(a)),
+    sag_valg: ({ maskerFremmede, bevarSidsteOktet }) => { valg = { masker_fremmede: maskerFremmede, bevar_sidste_oktet: bevarSidsteOktet }; return status(r.sag_status()); },
+  };
+}
+const ORDBOG = () => [
+  { type: 'domaene', vaerdi: 'kontor.test', note: 'hoveddomænet' },
+  { type: 'navnemoenster', vaerdi: 'srv-###' },
+  { type: 'eget_net', vaerdi: '10.20.0.0/16' },
+  { type: 'ord', vaerdi: 'Uglebo', note: 'projekt' },
+  { type: 'aldrig', vaerdi: '10.20.30.40', note: 'printeren' },
+  { type: 'aldrig', vaerdi: 'localhost' },
+];
+const oRaekker = d => [...d.querySelectorAll('section[data-visning="ordbog"] .ordbogtabel tbody tr[data-id]')];
+const oRaekke = (d, v) => oRaekker(d).find(tr => tr.children[1].textContent === v);
+const vaelgType = (w, sel, v) => { sel.value = v; sel.dispatchEvent(new w.Event('change', { bubbles: true })); };
+const enter = (w, el) => el.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+
+// ── Statisk: tekster til Rusts navne, kittets Wizard og Fletbånd ──
+{
+  const rs = fs.readFileSync(path.join(repo, 'src-tauri', 'src', 'ordbog.rs'), 'utf8');
+  const { w, d } = side();
+  await vent();
+  const T = w.Sprog.TEKST;
+  const fejlNavne = [...new Set([...rs.matchAll(/felt\("[a-z]+", "([a-z_]+)"\)|Some\("([a-z_]+)"\)/g)].map(x => x[1] || x[2]))];
+  const mangler = fejlNavne.filter(x => !('ofejl_' + x in T.da && 'ofejl_' + x in T.en));
+  tjek(`sprog: hver feltfejl i ordbog.rs har en tekst (${fejlNavne.length})`, fejlNavne.length >= 12 && mangler.length === 0, mangler.join(', '));
+  const mrs = fs.readFileSync(path.join(repo, 'src-tauri', 'src', 'maskering.rs'), 'utf8');
+  const fra_m = [...mrs.matchAll(/ob::felt\("[a-z]+", "([a-z_]+)"\)/g)].map(x => x[1]);
+  tjek('sprog: feltfejlene fra maskering.rs har en tekst', fra_m.length === 2 && fra_m.every(x => 'ofejl_' + x in T.da && 'ofejl_' + x in T.en), fra_m.join());
+  const typer = [...rs.matchAll(/PostType::\w+ => "([a-z_]+)"/g)].map(x => x[1]);
+  tjek(`sprog: hver posttype i ordbog.rs har navn og hjælp (${typer.length})`, typer.length === 7 && typer.every(x => ['type_', 'hjt_'].every(p => p + x in T.da && p + x in T.en)));
+  tjek('sprog: hver posttype findes i Tilføj-dialogen', JSON.stringify([...d.querySelectorAll('#opost-type option')].map(o => o.value)) === JSON.stringify(typer));
+  const K = w.Kit;
+  // Wizard
+  const rod = d.createElement('div');
+  d.body.appendChild(rod);
+  let slut = 0, spring = 0;
+  const g = K.guide(rod, { trin: [{ tekst: 'Et' }, { tekst: 'To' }, { tekst: 'Tre' }], naeste: { tekst: 'Næste' }, tilbage: { tekst: 'Tilbage' }, slut: { t: 'faerdig' }, spring: { tekst: 'Spring over' }, vedSlut: () => slut++, vedSpring: () => spring++ });
+  const trin = () => [...rod.querySelectorAll('.trin .t')];
+  const knapper = () => [...rod.querySelectorAll('.fod button')];
+  tjek('Kit: Wizard har trinliste, indhold og fodlinje med Spring over, Tilbage og Næste', rod.classList.contains('wiz') && trin().length === 3 && rod.querySelector('.indhold h2') && knapper().map(b => b.textContent).join('|') === 'Spring over|Tilbage|Næste');
+  tjek('Kit: Wizard: første trin er aktuelt (aria-current="step"), Tilbage er nedtonet', trin()[0].getAttribute('aria-current') === 'step' && trin()[0].classList.contains('now') && knapper()[1].disabled && trin().every(t => t.tagName === 'SPAN'));
+  knapper()[2].click();
+  tjek('Kit: Wizard: Næste går frem; nået trin har flueben og er en knap', g.aktuel === 1 && trin()[0].tagName === 'BUTTON' && trin()[0].querySelector('.n').textContent === '✓' && trin()[1].getAttribute('aria-current') === 'step' && trin()[2].tagName === 'SPAN');
+  knapper()[2].click();
+  tjek('Kit: Wizard: den primære knap hedder det, den gør, i sidste trin', g.aktuel === 2 && knapper()[2].querySelector('span').getAttribute('data-t') === 'faerdig');
+  trin()[0].click();
+  tjek('Kit: Wizard: et nået trin kan klikkes', g.aktuel === 0);
+  knapper()[1].click();
+  tjek('Kit: Wizard: Tilbage på første trin gør intet', g.aktuel === 0);
+  g.gaaTil(2); knapper()[2].click(); knapper()[0].click();
+  tjek('Kit: Wizard: Færdig og Spring over kalder forbrugeren', slut === 1 && spring === 1);
+  // Fletbånd
+  const f1 = K.fletbaand(), f2 = K.fletbaand();
+  const id1 = f1.querySelector('pattern').id;
+  tjek('Kit: Fletbånd er aria-hidden, 10 px højt, med eget mønster-id', f1.getAttribute('aria-hidden') === 'true' && f1.getAttribute('height') === '10' && id1 !== f2.querySelector('pattern').id && f1.querySelector('rect').getAttribute('fill') === `url(#${id1})` && f1.querySelector('pattern').getAttribute('width') === '28');
+  tjek('Fletbåndet står ét sted: i Om-dialogen (ADR D16)', d.querySelectorAll('svg.flet').length === 1 && d.querySelector('#dlg-om svg.flet'));
+  tjek('kit.css har Wizard og Fletbånd', /\.wiz \.t\.now \{/.test(ui('assets/kit.css')) && /\.flet path \{ fill: none; stroke: var\(--accent\)/.test(ui('assets/kit.css')));
+}
+
+// ── Ordbog: liste, grupper, træ, søgning, tilføj, ret, fjern, Prøv på tekst ──
+{
+  const rust = falskOrdbogRust({ poster: ORDBOG(), indst: { guide_vist: true } });
+  const s = side({ hash: '#ordbog', rust });
+  const { d, w } = s;
+  await vent(10);
+  const sek = d.querySelector('section[data-visning="ordbog"]');
+  tjek('Ordbog: guiden vises ikke (allerede vist)', !aaben(d, 'dlg-guide'));
+  tjek('Ordbog: seks poster, tom tilstand skjult', oRaekker(d).length === 6 && sek.querySelector('.tom').hidden);
+  tjek('Ordbog: kolonnerne Type, Værdi eller mønster, Note', [...sek.querySelectorAll('.ordbogtabel thead th')].map(t => t.textContent).join('|') === 'Type|Værdi eller mønster|Note');
+  const grupper = [...sek.querySelectorAll('.ordbogtabel tr.gruppe')].map(t => t.textContent);
+  tjek('Ordbog: grupperne Maskér altid og Maskér aldrig med note', JSON.stringify(grupper) === JSON.stringify(['Maskér altid fanges i alle sager', 'Maskér aldrig røres ikke, selv om det ligner noget følsomt']), JSON.stringify(grupper));
+  tjek('Ordbog: typerne står i Type-kolonnen (maskér aldrig efter, hvad værdien ligner)', oRaekke(d, 'kontor.test').children[0].textContent === 'Domæne' && oRaekke(d, 'srv-###').children[0].textContent === 'Navnemønster' && oRaekke(d, '10.20.30.40').children[0].textContent === 'Adresse' && oRaekke(d, 'localhost').children[0].textContent === 'Ord');
+  tjek('Ordbog: værdien i mono, noten ved siden af', oRaekke(d, 'kontor.test').children[1].querySelector('.mono') && oRaekke(d, '10.20.30.40').children[2].textContent === 'printeren');
+  tjek('Ordbog: banneret "Ordbogen ligger krypteret"', sek.querySelector('.ban.info').textContent.includes('Ordbogen ligger krypteret på denne maskine'));
+  tjek('Ordbog: hjælpen om navnemønstre med Prøv på tekst', sek.querySelector('.hjaelpelinje').textContent.includes('srv-### fanger srv-068, også uden domæne') && sek.querySelector('.hjaelpelinje button').textContent === 'Prøv på tekst');
+  const ant = id => d.querySelector(`.navdel[data-visning="ordbog"] [data-punkt="${id}"] .ant`).textContent;
+  tjek('Ordbog: træet tæller listerne og typerne', [ant('altid'), ant('aldrig'), ant('t-domaene'), ant('t-netbios'), ant('t-navnemoenster'), ant('t-eget_net'), ant('t-ord'), ant('t-person')].join() === '4,2,1,0,1,1,1,0');
+  tjek('Ordbog: chip og fodlinje siger 6 poster', sek.querySelector('.vl .chip').textContent === 'i6 poster' && d.getElementById('fod-venstre').textContent === '6 poster');
+  const T = w.Grimnir.dele.ordbog.trae;
+  T.vaelg('aldrig'); await vent();
+  tjek('træ: Maskér aldrig viser to', oRaekker(d).length === 2 && sek.querySelectorAll('.ordbogtabel tr.gruppe').length === 1);
+  T.vaelg('t-navnemoenster'); await vent();
+  tjek('træ: Navnemønstre viser én', oRaekker(d).length === 1 && oRaekker(d)[0].children[1].textContent === 'srv-###');
+  T.vaelg('lister'); await vent();
+  const soeg = sek.querySelector('.vl input[type="search"]');
+  skriv(w, soeg, 'PRINTER');
+  tjek('søgning på noten (uafhængigt af store/små)', oRaekker(d).length === 1 && oRaekker(d)[0].children[1].textContent === '10.20.30.40');
+  skriv(w, soeg, 'srv');
+  tjek('søgning på værdien', oRaekker(d).length === 1);
+  skriv(w, soeg, '');
+  tjek('Ordbog: uden valg er Ret og Fjern post nedtonet med forklaring; Tilføj post og Prøv aktive; Importér og Eksportér stadig nedtonet', ['ret', 'fjern-post'].every(id => !kommandoAktiv(d, 'ordbog', id) && knapI(d, 'ordbog', id).title === 'Vælg en post i listen først') && kommandoAktiv(d, 'ordbog', 'tilfoej-post') && kommandoAktiv(d, 'ordbog', 'proev') && !kommandoAktiv(d, 'ordbog', 'importer') && !kommandoAktiv(d, 'ordbog', 'eksporter'));
+
+  // Tilføj post
+  klik(w, knapI(d, 'ordbog', 'tilfoej-post'));
+  const typ = d.getElementById('opost-type'), vaerdi = d.getElementById('opost-vaerdi'), note = d.getElementById('opost-note');
+  tjek('Tilføj: dialogen med type, værdi, note og en linje hjælp pr. type', aaben(d, 'dlg-opost') && d.getElementById('dlg-opost-h').textContent === 'Tilføj post' && typ.value === 'domaene' && d.getElementById('opost-type-hj').textContent.startsWith('Et DNS-domæne med punktum') && d.activeElement === vaerdi);
+  vaelgType(w, typ, 'navnemoenster');
+  tjek('Tilføj: hjælpen følger typen', d.getElementById('opost-type-hj').textContent.startsWith('# er ét ciffer, * er vilkårlige'));
+  klik(w, d.getElementById('opost-ok')); await vent(5);
+  tjek('Tilføj: tom værdi afvises i dialogen, intet kald', d.getElementById('opost-vaerdi-fejl').textContent === 'Skriv en værdi.' && !s.kald.some(k => k[0] === 'ordbog_tilfoej'));
+  skriv(w, vaerdi, 'srv-[0-9]');
+  klik(w, d.getElementById('opost-ok')); await vent(10);
+  tjek('Tilføj: Rusts feltfejl står under feltet (aria-invalid), intet gemt', d.getElementById('opost-vaerdi-fejl').textContent === 'Et navnemønster må kun have bogstaver, cifre, -, # og *, og mindst ét bogstav.' && vaerdi.getAttribute('aria-invalid') === 'true' && aaben(d, 'dlg-opost') && rust.ob.db.length === 6);
+  skriv(w, vaerdi, 'WS-*');
+  skriv(w, note, 'arbejdsstationer');
+  enter(w, note); await vent(10);
+  const tk = s.kald.filter(k => k[0] === 'ordbog_tilfoej').pop();
+  tjek('Tilføj: Enter gemmer med type, værdi og note', tk[1].type === 'navnemoenster' && tk[1].vaerdi === 'WS-*' && tk[1].note === 'arbejdsstationer' && !aaben(d, 'dlg-opost'));
+  tjek('Tilføj: den nye post står i listen og er valgt', oRaekker(d).length === 7 && oRaekke(d, 'WS-*').classList.contains('sel') && kommandoAktiv(d, 'ordbog', 'ret'));
+  klik(w, knapI(d, 'ordbog', 'tilfoej-post'));
+  tjek('Tilføj: dialogen er tom igen', vaerdi.value === '' && note.value === '' && !vaerdi.hasAttribute('aria-invalid') && d.getElementById('opost-vaerdi-fejl').textContent === '');
+  skriv(w, vaerdi, 'KONTOR.test');
+  klik(w, d.getElementById('opost-ok')); await vent(10);
+  tjek('Tilføj: dublet uafhængigt af store/små', d.getElementById('opost-vaerdi-fejl').textContent === 'Værdien står allerede i ordbogen.');
+  vaelgType(w, typ, 'aldrig');
+  skriv(w, vaerdi, 'uglebo');
+  klik(w, d.getElementById('opost-ok')); await vent(10);
+  tjek('Tilføj: maskér altid mod maskér aldrig afvises', d.getElementById('opost-vaerdi-fejl').textContent.startsWith('Værdien står allerede på den anden liste'));
+  klik(w, d.querySelector('#dlg-opost [data-luk]'));
+
+  // Ret (kommando og dobbeltklik)
+  klik(w, oRaekke(d, 'Uglebo').children[0]);
+  klik(w, knapI(d, 'ordbog', 'ret'));
+  tjek('Ret: dialogen har posten; typen kan ikke ændres', aaben(d, 'dlg-opost') && d.getElementById('dlg-opost-h').textContent === 'Ret posten' && vaerdi.value === 'Uglebo' && note.value === 'projekt' && typ.value === 'ord' && typ.disabled && d.getElementById('opost-ok').textContent === 'Gem');
+  skriv(w, vaerdi, 'Uglebo2');
+  skriv(w, note, '');
+  klik(w, d.getElementById('opost-ok')); await vent(10);
+  const rk = s.kald.find(k => k[0] === 'ordbog_ret');
+  tjek('Ret: ordbog_ret med id, værdi og ingen note', rk && rk[1].id === 4 && rk[1].vaerdi === 'Uglebo2' && rk[1].note === null && oRaekke(d, 'Uglebo2') && !aaben(d, 'dlg-opost'));
+  oRaekke(d, 'kontor.test').dispatchEvent(new w.MouseEvent('dblclick', { bubbles: true }));
+  tjek('Ret: dobbeltklik åbner posten', aaben(d, 'dlg-opost') && vaerdi.value === 'kontor.test');
+  klik(w, d.querySelector('#dlg-opost [data-luk]'));
+
+  // Fjern post med bekræftelse
+  klik(w, oRaekke(d, 'localhost').children[0]);
+  klik(w, knapI(d, 'ordbog', 'fjern-post'));
+  tjek('Fjern: bekræftelsen nævner værdien', aaben(d, 'dlg-ofjern') && d.getElementById('dlg-ofjern-p').textContent.startsWith('«localhost» fjernes fra ordbogen'));
+  klik(w, d.querySelector('#dlg-ofjern [data-luk]'));
+  tjek('Fjern: Annullér fjerner intet', !s.kald.some(k => k[0] === 'ordbog_fjern') && oRaekker(d).length === 7);
+  klik(w, knapI(d, 'ordbog', 'fjern-post'));
+  klik(w, d.getElementById('ofjern-ok')); await vent(10);
+  tjek('Fjern: ordbog_fjern med id; posten er væk, intet valgt', s.kald.some(k => k[0] === 'ordbog_fjern' && k[1].id === 6) && !oRaekke(d, 'localhost') && !kommandoAktiv(d, 'ordbog', 'fjern-post'));
+
+  // Prøv på tekst
+  klik(w, knapI(d, 'ordbog', 'proev'));
+  const pt = d.getElementById('proev-tekst');
+  tjek('Prøv: dialogen åbner med tomt felt i fokus', aaben(d, 'dlg-proev') && pt.value === '' && d.activeElement === pt);
+  klik(w, d.getElementById('proev-ok')); await vent(5);
+  tjek('Prøv: uden tekst kaldes intet', d.getElementById('proev-svar').textContent === 'Sæt en tekst ind først.' && !s.kald.some(k => k[0] === 'ordbog_proev'));
+  pt.value = 'Projekt Uglebo2 kører på kontor.test\r\nprinteren 10.20.30.40\r\n';
+  pt.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Enter', metaKey: true, bubbles: true }));
+  await vent(10);
+  const pr = [...d.querySelectorAll('#proev-svar tbody tr')];
+  tjek('Prøv: ⌘↵ kører ordbog_proev; fundene vises (fanges og maskér aldrig)', s.kald.some(k => k[0] === 'ordbog_proev' && k[1].tekst.includes('Uglebo2')) && pr.length === 3 && d.getElementById('proev-svar').textContent.includes('Ordbogen fanger 2 værdier i teksten.') && pr[0].querySelector('.chip').textContent === 'iFanges' && pr[2].querySelector('.chip').textContent === '–Maskér aldrig');
+  tjek('Prøv: teksten står ikke i localStorage', !JSON.stringify(Object.entries(w.localStorage)).includes('Uglebo2'));
+  klik(w, d.querySelector('#dlg-proev [data-luk]'));
+  tjek('Prøv: teksten og svaret slettes, når dialogen lukkes', pt.value === '' && d.getElementById('proev-svar').textContent === '');
+  // Hjælpelinjens knap åbner også Prøv.
+  klik(w, sek.querySelector('.hjaelpelinje button'));
+  tjek('Prøv: hjælpelinjens knap åbner dialogen', aaben(d, 'dlg-proev'));
+  klik(w, d.querySelector('#dlg-proev [data-luk]'));
+
+  // English
+  w.Sprog.saet('en'); await vent(5);
+  tjek('English: grupper, kolonner og typer', sek.querySelector('.ordbogtabel tr.gruppe').textContent === 'Always mask caught in every case' && sek.querySelector('.ordbogtabel thead th:nth-child(2)').textContent === 'Value or pattern' && oRaekke(d, 'kontor.test').children[0].textContent === 'Domain');
+  w.Sprog.saet('da');
+}
+
+// ── Ordbog, der ikke kan åbnes: tydelig besked, intet kan ændres ──
+{
+  const rust = falskOrdbogRust({ indst: { guide_vist: false }, laast: { art: 'beskadiget' } });
+  const s = side({ hash: '#ordbog', rust });
+  const { d } = s;
+  await vent(10);
+  const sek = d.querySelector('section[data-visning="ordbog"]');
+  tjek('kan ikke åbnes: fejlbanner med årsag', sek.querySelector('.ban.danger') && sek.querySelector('.ban.danger').textContent.includes('Ordbogen kunne ikke åbnes: filen er beskadiget eller ændret. Grimnir bruger en tom ordbog og ændrer ikke filen.'));
+  tjek('kan ikke åbnes: chip "Kan ikke åbnes"', sek.querySelector('.vl .chip').textContent === '?Kan ikke åbnes');
+  tjek('kan ikke åbnes: Tilføj post nedtonet med forklaring', !kommandoAktiv(d, 'ordbog', 'tilfoej-post') && knapI(d, 'ordbog', 'tilfoej-post').title === 'Ordbogen kunne ikke åbnes, så den kan ikke ændres');
+  tjek('kan ikke åbnes: guiden vises ikke', !aaben(d, 'dlg-guide'));
+}
+
+// ── Fra Maskér til ordbogen (O4) ──
+{
+  const rust = falskOrdbogRust({ indst: { guide_vist: true } });
+  const s = side({ hash: '#masker', rust });
+  const { d, w } = s;
+  await vent(10);
+  const sek = d.querySelector('section[data-visning="masker"]');
+  indsaet(w, sek.querySelector('.tom'), TEKST);
+  s.tast('Enter', { metaKey: true }); await vent(10);
+  const knap = (id, hvad) => raekkeMed(d, id).querySelector(`[data-felt="ordbog-${hvad}"]`);
+  tjek('Maskér: hver række har Altid og Aldrig som knapper med navn', fundRaekker(d).every(tr => tr.querySelectorAll('.ordbogknapper button').length === 2) && knap(24, 'altid').getAttribute('aria-label') === 'Maskér bruger060 altid: læg værdien i ordbogen' && knap(24, 'aldrig').textContent === 'Aldrig');
+  tjek('Maskér: hemmeligheder kan ikke lægges i ordbogen (nedtonet, forklaring, ingen værdi i navnet)', [45, 67].every(id => knap(id, 'altid').disabled && knap(id, 'aldrig').disabled && knap(id, 'altid').title === 'Hemmeligheder kan ikke lægges i ordbogen' && !knap(id, 'aldrig').getAttribute('aria-label').includes(HEMMELIG) && !knap(id, 'aldrig').getAttribute('aria-label').includes('Zq8Xv2Lm9Pw4')));
+  // Entydig art: en egen adresse bliver et eget net, og rækken maskeres efter den nye analyse.
+  tjek('Maskér: Version-rækken er slået fra før', !raekkeMed(d, 70).querySelector('input[type="checkbox"]').checked);
+  const foer = s.kald.filter(k => k[0] === 'analyser').length;
+  klik(w, knap(70, 'altid')); await vent(20);
+  const k1 = s.kald.filter(k => k[0] === 'ordbog_tilfoej').pop();
+  tjek('Altid (entydig): ordbog_tilfoej som eget net uden at spørge', k1 && k1[1].type === 'eget_net' && k1[1].vaerdi === '10.2.3.4' && !aaben(d, 'dlg-opost'));
+  tjek('Altid: teksten analyseres igen, og rækken maskeres nu', s.kald.filter(k => k[0] === 'analyser').length > foer && raekkeMed(d, 70).querySelector('input[type="checkbox"]').checked && raekkeMed(d, 70).querySelector('.chip').textContent === 'iFra ordbog');
+  tjek('Altid: besked i statuslinjen', sek.querySelector('.besked').textContent === '10.2.3.4 står nu i ordbogen og maskeres altid.');
+  tjek('Altid: brugerens øvrige valg er bevaret (Tjek selv stadig fra)', !raekkeMed(d, 67).querySelector('input[type="checkbox"]').checked && raekkeMed(d, 6).querySelector('input[type="checkbox"]').checked);
+  // Tvetydig art: der spørges om typen.
+  klik(w, knap(24, 'altid')); await vent(5);
+  const typ = d.getElementById('opost-type');
+  const synligeTyper = [...typ.options].filter(o => !o.disabled).map(o => o.value);
+  tjek('Altid (tvetydig): der spørges om typen, med forslag og værdien udfyldt', aaben(d, 'dlg-opost') && d.getElementById('dlg-opost-h').textContent === 'Maskér altid' && !d.getElementById('dlg-opost-p').hidden && typ.value === 'ord' && d.getElementById('opost-vaerdi').value === 'bruger060' && JSON.stringify(synligeTyper) === JSON.stringify(['netbios', 'ord', 'person']), JSON.stringify(synligeTyper));
+  vaelgType(w, typ, 'person');
+  klik(w, d.getElementById('opost-ok')); await vent(20);
+  const k2 = s.kald.filter(k => k[0] === 'ordbog_tilfoej').pop();
+  tjek('Altid (tvetydig): gemt som den valgte type', k2[1].type === 'person' && k2[1].vaerdi === 'bruger060' && !aaben(d, 'dlg-opost') && raekkeMed(d, 24).querySelector('.chip').textContent === 'iFra ordbog');
+  // Maskér aldrig: rækken forsvinder efter den nye analyse.
+  klik(w, knap(6, 'aldrig')); await vent(20);
+  const k3 = s.kald.filter(k => k[0] === 'ordbog_tilfoej').pop();
+  tjek('Aldrig: ordbog_tilfoej som maskér aldrig, og rækken er væk', k3[1].type === 'aldrig' && k3[1].vaerdi === '10.20.30.11' && !raekkeMed(d, 6) && sek.querySelector('.besked').textContent === '10.20.30.11 står nu i ordbogen og maskeres aldrig.');
+  // Modstrid: en værdi, der står under maskér altid, kan ikke også lægges på maskér aldrig.
+  klik(w, knap(24, 'aldrig')); await vent(20);
+  tjek('Aldrig: modstrid giver et fejlbanner, intet ændret', sek.querySelector('.ban.danger') && sek.querySelector('.ban.danger .ord').textContent.startsWith('Ordbogen blev ikke ændret: Værdien står allerede på den anden liste') && rust.ob.db.length === 3);
+  // Annullér i typedialogen ændrer intet.
+  const n = rust.ob.db.length;
+  klik(w, knap(70, 'aldrig')); await vent(20);
+  tjek('Aldrig: en værdi under maskér altid giver også modstrid her', rust.ob.db.length === n);
+  // Ordbogen ændret i Ordbog-visningen: Maskér analyserer igen.
+  const a0 = s.kald.filter(k => k[0] === 'analyser').length;
+  await w.GrimnirOrdbog.tilfoej('ord', 'Projekt7', null); await vent(20);
+  tjek('ændret ordbog: Maskér analyserer igen', s.kald.filter(k => k[0] === 'analyser').length > a0);
+  tjek('Ordbog-visningen har de nye poster', oRaekker(d).length === 4);
+}
+
+// ── Advarslen ved egen kode i en navngiven sag (O7) ──
+{
+  const rust = falskOrdbogRust({ indst: { guide_vist: true } });
+  const s = side({ hash: '#masker', rust });
+  const { d, w } = s;
+  await vent(10);
+  const sek = d.querySelector('section[data-visning="masker"]');
+  indsaet(w, sek.querySelector('.tom'), TEKST);
+  s.tast('Enter', { metaKey: true }); await vent(10);
+  const kode = () => raekkeMed(d, 24).querySelector('input[data-felt="kode"]');
+  kode().value = 'kunde01';
+  kode().dispatchEvent(new w.Event('change', { bubbles: true }));
+  tjek('egen kode i en midlertidig sag uden gemte tekster: ingen advarsel', !raekkeMed(d, 24).querySelector('.raekkeadv'));
+  s.tast('Enter', { metaKey: true }); await vent(400);
+  s.tast('Enter', { metaKey: true }); await vent(10);
+  klik(w, d.getElementById('sag-knap'));
+  klik(w, d.getElementById('sag-gem-som'));
+  skriv(w, d.getElementById('ny-sag-navn'), 'Prøvesag');
+  klik(w, d.getElementById('ny-sag-opret')); await vent(10);
+  tjek('sagen er nu navngiven med poster', d.getElementById('sag-knap').textContent.startsWith('Sag: Prøvesag'));
+  indsaet(w, sek.querySelector('pre.tekst'), TEKST);
+  s.tast('Enter', { metaKey: true }); await vent(10);
+  kode().value = 'kunde02';
+  kode().dispatchEvent(new w.Event('change', { bubbles: true }));
+  await vent(400); // advarslen tegnes med tabellen efter den nye analyse (350 ms)
+  const adv = raekkeMed(d, 24).querySelector('.raekkeadv');
+  tjek('egen kode i en navngiven sag med gemte tekster: advarsel under feltet', adv && adv.textContent.startsWith('Sagen har gemt tidligere tekster: koden må ikke være et ord') && kode().getAttribute('aria-describedby') === adv.id);
+  tjek('advarslen er ikke en fejl (intet aria-invalid, intet rødt banner)', !kode().hasAttribute('aria-invalid') && !sek.querySelector('.ban.danger'));
+  tjek('rækker uden egen kode har ingen advarsel', !raekkeMed(d, 6).querySelector('.raekkeadv'));
+}
+
+// ── Guiden ved første start (O5) ──
+{
+  const rust = falskOrdbogRust();
+  const s = side({ hash: '#masker', rust });
+  const { d, w } = s;
+  await vent(20);
+  const dlg = d.getElementById('dlg-guide');
+  const h = () => dlg.querySelector('.indhold h2').textContent;
+  const fod = () => [...dlg.querySelectorAll('.fod button')];
+  const trin = () => [...dlg.querySelectorAll('.trin .t')];
+  tjek('guide: vises ved første start med tom ordbog', aaben(d, 'dlg-guide') && h() === 'Sådan arbejder Grimnir' && d.activeElement === dlg.querySelector('.indhold h2'));
+  tjek('guide: dialogen har navn fra overskriften', dlg.getAttribute('aria-labelledby') === 'guide-h' && d.getElementById('guide-h') === dlg.querySelector('.indhold h2'));
+  tjek('guide: tre trin; første siger tre sætninger, og at alt bliver på maskinen', trin().length === 3 && dlg.querySelectorAll('.guide-punkter li').length === 3 && dlg.querySelector('.guide-punkter').textContent.includes('Alt bliver på denne maskine'));
+  tjek('guide: Spring over, Tilbage (nedtonet) og Næste', fod().map(b => b.textContent).join('|') === 'Spring over|Tilbage|Næste' && fod()[1].disabled);
+  klik(w, fod()[2]); await vent(5);
+  tjek('guide: Næste → trin 2 (domæner og NetBIOS)', h() === 'Dine domæner og NetBIOS-navne' && trin()[0].tagName === 'BUTTON' && dlg.querySelector('#guide-domaene'));
+  const fd = d.getElementById('guide-domaene');
+  skriv(w, fd, 'kontor.test');
+  enter(w, fd); await vent(10);
+  skriv(w, fd, 'KONTOR');
+  klik(w, fd.parentElement.querySelector('button')); await vent(10);
+  const tk = s.kald.filter(k => k[0] === 'ordbog_tilfoej').map(k => k[1].type + ':' + k[1].vaerdi);
+  tjek('guide: domæne og NetBIOS-navn lægges i ordbogen (punktum afgør typen)', JSON.stringify(tk) === JSON.stringify(['domaene:kontor.test', 'netbios:KONTOR']) && fd.value === '');
+  tjek('guide: listen viser det, der står i ordbogen', dlg.querySelector('.guide-liste').textContent.includes('kontor.test') && dlg.querySelector('.guide-liste').textContent.includes('KONTOR'));
+  skriv(w, fd, 'kontor.test');
+  enter(w, fd); await vent(10);
+  tjek('guide: fejlen står under feltet', d.getElementById('guide-domaene-fejl').textContent === 'Værdien står allerede i ordbogen.' && fd.getAttribute('aria-invalid') === 'true');
+  klik(w, fod()[1]); await vent(5);
+  tjek('guide: Tilbage → trin 1', h() === 'Sådan arbejder Grimnir');
+  klik(w, fod()[2]); klik(w, fod()[2]); await vent(5);
+  tjek('guide: trin 3 (net og navnemønstre) med Færdig', h() === 'Dine net og maskinnavne' && fod()[2].textContent === 'Færdig' && d.getElementById('guide-net') && d.getElementById('guide-moenster'));
+  skriv(w, d.getElementById('guide-net'), '10.20.0.0/16'); enter(w, d.getElementById('guide-net')); await vent(10);
+  skriv(w, d.getElementById('guide-moenster'), 'srv-###'); enter(w, d.getElementById('guide-moenster')); await vent(10);
+  tjek('guide: eget net og navnemønster lægges i ordbogen', rust.ob.db.map(p => p.type).join() === 'domaene,netbios,eget_net,navnemoenster');
+  trin()[1].click(); await vent(5);
+  tjek('guide: et nået trin kan klikkes', h() === 'Dine domæner og NetBIOS-navne');
+  klik(w, fod()[2]); await vent(5); // Næste: trin 3 (et kommende trin kan ikke klikkes)
+  klik(w, fod()[2]); await vent(10); // Færdig
+  const gk = s.kald.filter(k => k[0] === 'indstillinger_gem').pop();
+  tjek('guide: Færdig lukker og husker det i indstillingerne', !aaben(d, 'dlg-guide') && gk && gk[1].indstillinger.guide_vist === true && rust.ob.indst.guide_vist === true);
+  // Næste start: vises ikke igen (heller ikke med tom ordbog).
+  const s2 = side({ hash: '#masker', rust: falskOrdbogRust({ indst: { guide_vist: true } }) });
+  await vent(20);
+  tjek('guide: vises ikke igen, når den er afsluttet', !aaben(s2.d, 'dlg-guide'));
+  // Spring over på første trin.
+  const r3 = falskOrdbogRust();
+  const s3 = side({ hash: '#masker', rust: r3 });
+  await vent(20);
+  klik(s3.w, s3.d.querySelector('#dlg-guide .fod button'));
+  await vent(10);
+  tjek('guide: Spring over lukker og husker det', !aaben(s3.d, 'dlg-guide') && r3.ob.indst.guide_vist === true && !s3.kald.some(k => k[0] === 'ordbog_tilfoej'));
+  // Escape er det samme som Spring over.
+  const r4 = falskOrdbogRust();
+  const s4 = side({ hash: '#masker', rust: r4 });
+  await vent(20);
+  const ev = new s4.w.Event('cancel', { cancelable: true });
+  s4.d.getElementById('dlg-guide').dispatchEvent(ev);
+  await vent(10);
+  tjek('guide: Escape springer over', !aaben(s4.d, 'dlg-guide') && r4.ob.indst.guide_vist === true && ev.defaultPrevented);
+  // Ordbogen er ikke tom: guiden vises ikke.
+  const s5 = side({ hash: '#masker', rust: falskOrdbogRust({ poster: ORDBOG() }) });
+  await vent(20);
+  tjek('guide: vises ikke, når ordbogen har poster', !aaben(s5.d, 'dlg-guide'));
+  // Kan åbnes igen fra Indstillinger.
+  s5.emit('menu', 'indstillinger');
+  klik(s5.w, s5.d.getElementById('indst-guide')); await vent(5);
+  tjek('guide: Vis guiden igen fra Indstillinger', aaben(s5.d, 'dlg-guide') && !aaben(s5.d, 'dlg-indst') && s5.d.querySelector('#dlg-guide .indhold h2').textContent === 'Sådan arbejder Grimnir');
+  tjek('guide: listen i trin 2 viser ordbogens domæne', (() => { klik(s5.w, s5.d.querySelectorAll('#dlg-guide .fod button')[2]); return s5.d.querySelector('#dlg-guide .guide-liste').textContent.includes('kontor.test'); })());
+}
+
+// ── Indstillinger (O6) ──
+{
+  const rust = falskOrdbogRust({ indst: { guide_vist: true } });
+  const s = side({ hash: '#masker', rust });
+  const { d, w } = s;
+  await vent(20);
+  s.emit('menu', 'indstillinger');
+  const radio = (navn, v) => d.querySelector(`input[name="${navn}"][value="${v}"]`);
+  const fr = d.getElementById('indst-fremmede'), ok = d.getElementById('indst-oktet'), ud = d.getElementById('indst-udloeb');
+  tjek('Indstillinger: tema og sprog som Vis-fanen', aaben(d, 'dlg-indst') && radio('indst-tema', 'system').checked && radio('indst-sprog', 'da').checked);
+  tjek('Indstillinger: standard for nye sager (D4 fra, D5 til, intet udløb)', !fr.checked && ok.checked && ud.value === '' && !fr.disabled);
+  tjek('Indstillinger: hver valgmulighed har et navn og en hjælpetekst', fr.getAttribute('aria-label') === 'Maskér fremmede offentlige adresser' && d.getElementById('indst-fremmede-hj').textContent.startsWith('Fra som standard') && d.getElementById('indst-oktet-hj').textContent.startsWith('Til som standard'));
+  radio('indst-tema', 'moerk').checked = true;
+  radio('indst-tema', 'moerk').dispatchEvent(new w.Event('change', { bubbles: true }));
+  tjek('Indstillinger: tema skifter og huskes i localStorage', d.documentElement.getAttribute('data-tema') === 'moerk' && w.localStorage.getItem('grimnir-tema') === 'moerk' && d.querySelector('#baand [data-kommando="tema-moerk"]').getAttribute('aria-pressed') === 'true');
+  radio('indst-sprog', 'en').checked = true;
+  radio('indst-sprog', 'en').dispatchEvent(new w.Event('change', { bubbles: true }));
+  tjek('Indstillinger: sprog skifter', d.documentElement.lang === 'en' && d.getElementById('dlg-indst-h').textContent === 'Settings' && radio('indst-sprog', 'en').checked);
+  w.Sprog.saet('da');
+  w.Tema.saet('system');
+  tjek('Indstillinger: følger Vis-fanen', radio('indst-tema', 'system').checked && radio('indst-sprog', 'da').checked);
+  fr.checked = true;
+  fr.dispatchEvent(new w.Event('change', { bubbles: true })); await vent(5);
+  ud.value = '30';
+  ud.dispatchEvent(new w.Event('change', { bubbles: true })); await vent(5);
+  const g = s.kald.filter(k => k[0] === 'indstillinger_gem');
+  tjek('Indstillinger: hvert valg gemmes straks i Rust', g.length === 2 && g[0][1].indstillinger.masker_fremmede === true && g[1][1].indstillinger.udloeb_dage === 30 && g[1][1].indstillinger.masker_fremmede === true && rust.ob.indst.udloeb_dage === 30);
+  tjek('Indstillinger: tema og sprog gemmes ikke i Rust', g.every(k => !('tema' in k[1].indstillinger) && !('sprog' in k[1].indstillinger)));
+  klik(w, d.querySelector('#dlg-indst [data-luk]'));
+  // Gælder en ny sag: den åbne sag beholder sine valg; efter Nulstil har den nye sag indstillingernes.
+  const sek = d.querySelector('section[data-visning="masker"]');
+  indsaet(w, sek.querySelector('.tom'), TEKST);
+  s.tast('Enter', { metaKey: true }); await vent(10);
+  s.tast('Enter', { metaKey: true }); await vent(10);
+  klik(w, d.getElementById('sag-knap'));
+  tjek('sagens dialog: valgene for den åbne sag (som før indstillingen)', aaben(d, 'dlg-sag') && !d.getElementById('sag-valg').hidden && !d.getElementById('sag-fremmede').checked && d.getElementById('sag-oktet').checked);
+  tjek('sagens dialog: en ændring gælder kun nye værdier, og det står der', d.getElementById('sag-valg-hj').textContent === 'Sagen har allerede værdier: en ændring gælder kun nye værdier.');
+  klik(w, d.getElementById('sag-nulstil')); await vent(10);
+  indsaet(w, sek.querySelector('pre.tekst'), TEKST);
+  s.tast('Enter', { metaKey: true }); await vent(10);
+  s.tast('Enter', { metaKey: true }); await vent(10);
+  klik(w, d.getElementById('sag-knap'));
+  tjek('ny sag: får indstillingerne (fremmede adresser maskeres)', d.getElementById('sag-fremmede').checked && d.getElementById('sag-oktet').checked);
+  const sv = d.getElementById('sag-oktet');
+  sv.checked = false;
+  sv.dispatchEvent(new w.Event('change', { bubbles: true })); await vent(10);
+  const vk = s.kald.find(k => k[0] === 'sag_valg');
+  tjek('sagens dialog: en ændring kalder sag_valg med begge valg', vk && vk[1].maskerFremmede === true && vk[1].bevarSidsteOktet === false && !d.getElementById('sag-oktet').checked);
+  klik(w, d.querySelector('#dlg-sag [data-luk]'));
+  // Standardudløbet foreslås i Ny sag.
+  w.Grimnir.vis('sager'); await vent(5);
+  klik(w, knapI(d, 'sager', 'ny-sag'));
+  tjek('Ny sag: standardudløbet (30 dage) er foreslået', d.getElementById('ny-sag-udloeb').value === datoOm(30));
+  klik(w, d.querySelector('#dlg-ny-sag [data-luk]'));
+  // En fejl ved gemning står i dialogen, og valget springer tilbage.
+  const r2 = falskOrdbogRust({ indst: { guide_vist: true }, gemFejl: true });
+  const s2 = side({ hash: '#masker', rust: r2 });
+  await vent(20);
+  s2.emit('menu', 'indstillinger');
+  const fr2 = s2.d.getElementById('indst-fremmede');
+  fr2.checked = true;
+  fr2.dispatchEvent(new s2.w.Event('change', { bubbles: true })); await vent(10);
+  tjek('Indstillinger: en fejl står i dialogen, og valget springer tilbage', s2.d.getElementById('indst-fejl').textContent === 'Indstillingen blev ikke gemt: disken kunne ikke bruges (PermissionDenied).' && !fr2.checked);
 }
 
 console.log(`\n${ok + fejl} tjek: ${ok} ok, ${fejl} fejl`);

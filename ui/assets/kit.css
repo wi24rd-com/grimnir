@@ -2,8 +2,8 @@
    ét program (det enkelte programs eget ligger i dets app.css). Farver, luft, radier og skrift kommer fra tokens.css;
    ingen farvekoder her. Klassenavnene følger forhåndsvisningerne i design/ui-kit-2/components/<navn>/preview.html.
    Komponenter: AppShell (.vindue, .titel, .midte, .arb, .vl), CommandBar (.cmd), NavPane (.nav), StatusFooter (.fodl),
-   DataTable (.tabel), StatusChip (.chip), Button (.btn), TextField (.felt), Banner (.ban). Wizard, StatusTile og Fletbaand
-   kommer senere. */
+   DataTable (.tabel), StatusChip (.chip), Button (.btn), TextField (.felt), Banner (.ban), Wizard (.wiz) og Fletbaand
+   (.flet). StatusTile kommer senere. */
 
 /* ── Skrifter (pakket med, OFL; intet hentes) ── */
 @font-face { font-family: "Inter"; font-style: normal; font-display: swap; font-weight: 100 900; src: url(fonts/inter-latin-wght-normal.woff2) format("woff2-variations"); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
@@ -240,3 +240,41 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 .fodl .h { margin-left: auto; display: flex; gap: var(--space-4); align-items: center; }
 .fodl svg { width: 12px; height: 12px; fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -1px; margin-right: 4px; }
+
+/* ── Wizard ── Trinlisten til venstre, det aktuelle trin til højre, fodlinjen med samme knapper hele vejen. */
+.wiz {
+  display: grid; grid-template-columns: 200px minmax(0, 1fr); grid-template-rows: 1fr auto;
+  min-height: 300px; border-radius: var(--radius-lg); overflow: hidden; background: var(--surface);
+}
+.wiz .trin {
+  grid-row: 1 / span 2; list-style: none; margin: 0; padding: var(--space-3);
+  display: flex; flex-direction: column; gap: var(--space-1);
+  background: var(--surface-raised); border-right: 1px solid var(--border);
+}
+.wiz .t {
+  display: flex; align-items: center; gap: var(--space-2); width: 100%; height: 36px; padding: 0 var(--space-2);
+  border: 0; border-radius: var(--radius-md); background: var(--surface-raised); color: var(--text-muted); text-align: left;
+}
+.wiz button.t { cursor: pointer; color: var(--text); }
+.wiz button.t:hover { background: var(--surface); }
+.wiz .t .n {
+  display: grid; place-items: center; width: 22px; height: 22px; flex: none;
+  border-radius: var(--radius-pill); border: 1px solid var(--border-strong); font-size: var(--small-size); font-weight: 600;
+}
+.wiz .t.done .n { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.wiz .t.now { background: var(--accent-soft); color: var(--text); font-weight: 600; }
+.wiz .t.now .n { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.wiz .indhold { padding: var(--space-6); display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.wiz .indhold h2 { margin: 0; font-size: var(--h2-size); line-height: var(--h2-line); font-weight: var(--h2-weight); }
+.wiz .indhold h2:focus { outline: none; }
+.wiz .indhold > p { margin: 0; }
+.wiz .fod {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-3) var(--space-4); border-top: 1px solid var(--border); background: var(--surface-raised);
+}
+.wiz .fod .luft { flex: 1; }
+.wiz .fod .btn.ghost { background: var(--surface-raised); border-color: var(--surface-raised); }
+
+/* ── Fletbaand ── Ét sted pr. skærm; ingen betydning. */
+.flet { display: block; width: 100%; height: 10px; }
+.flet path { fill: none; stroke: var(--accent); stroke-width: 1; }

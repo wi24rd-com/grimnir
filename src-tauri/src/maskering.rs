@@ -19,18 +19,29 @@
 //! navngiven sag på disk ([`crate::sager`]); i en navngiven sag gemmer [`gem_og_masker`] sagen krypteret, før svaret
 //! sendes. Fejler skrivningen, får brugeren fejlen og ingen maskeret tekst, så der aldrig findes en maskeret tekst,
 //! som ingen sag kan demaskere.
+//!
+//! **Ordbogen (V-ORDBOG.1).** `analyser`, `gem_og_masker` og lækagetjekket bruger den aktuelle ordbog: kernens
+//! `analyser` finder ordbogens værdier, og "maskér aldrig" gives videre til forslagene (F1) og lækagetjekket. Ordbogen
+//! læses fra disk første gang, den bruges ([`crate::ordbog::Ordbogsfil`]). Kan den ikke åbnes, arbejder programmet
+//! videre med en tom ordbog og afviser ændringer, så filen ikke overskrives.
+//!
+//! **Indstillinger (V-ORDBOG.1 O6).** En ny sag (ved start, Luk sag, Nulstil, Slet og en ny navngiven sag oven på en
+//! navngiven) får valget fra indstillingerne ([`Tilstand::ny_sag`]). [`sag_valg`] ændrer valget for den åbne sag.
 
 use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use grimnir_core::{
     analyser as kerne_analyser, demasker as kerne_demasker, foreslaa_med_ordbog, laekagetjek, masker, Advarsel, AdvarselArt, AfledtArt,
-    Art, Erstatning, Fejl, Fund, Klasse, Ordbog, Pulje, RestArt, Sag, Sikkerhed,
+    Art, Erstatning, Fejl, Fund, Klasse, Ordbog, Pulje, RestArt, Sag, Sikkerhed, Valg,
 };
 use serde::{Deserialize, Serialize};
 
-use crate::sager::{nulstil, rens_navn, tjek_dato, AabenSag, Arkiv, SagFejl, SagsId};
+use crate::indstillinger::{self, Indstillinger};
+use crate::ordbog::{self as ob, FeltFejl, OrdbogPost, Ordbogsfil, PostType};
+use crate::sager::{nulstil, opret_mappe, rens_navn, ryd_midlertidige, tjek_dato, AabenSag, Arkiv, Noeglelager, SagFejl, SagsId};
 
 /// Største tekst, Maskér tager imod: 5 MiB (5 242 880 bytes). Større tekster kræver "Åbn fil" (B3b).
 pub const MAKS_BYTES: usize = 5 * 1024 * 1024;
@@ -45,25 +56,80 @@ struct Aktuel {
     aaben: Option<AabenSag>,
 }
 
-/// Programmets tilstand: den aktuelle sag og arkivet med sagerne på disk.
+/// Ordbogen i hukommelsen: posterne, skrivetælleren, de blev læst med, kernens ordbog og fejlen, hvis filen ikke kunne
+/// åbnes (så er ordbogen tom, og ændringer afvises).
+#[derive(Default)]
+struct OrdbogTilstand {
+    poster: Vec<OrdbogPost>,
+    taeller: u64,
+    kerne: Ordbog,
+    fejl: Option<SagFejl>,
+}
+
+impl OrdbogTilstand {
+    fn med(poster: Vec<OrdbogPost>, taeller: u64) -> Self {
+        OrdbogTilstand {
+            kerne: ob::kerne_ordbog(&poster),
+            poster,
+            taeller,
+            fejl: None,
+        }
+    }
+
+    /// Erstatter posterne (nulstiller de gamle og kernens gamle kopi).
+    fn erstat(&mut self, poster: Vec<OrdbogPost>) {
+        let kerne = ob::kerne_ordbog(&poster);
+        ob::nulstil(std::mem::replace(&mut self.poster, poster));
+        ob::nulstil_kerne(std::mem::replace(&mut self.kerne, kerne));
+    }
+}
+
+/// Programmets tilstand: den aktuelle sag, arkivet med sagerne på disk, ordbogen og indstillingerne.
 #[derive(Default)]
 pub struct Tilstand {
     sag: Mutex<Aktuel>,
     arkiv: Option<Arkiv>,
+    ordbogsfil: Option<Ordbogsfil>,
+    ordbog: Mutex<Option<OrdbogTilstand>>,
+    indst_fil: Option<PathBuf>,
+    indst: Mutex<Indstillinger>,
     afslut: AtomicBool,
 }
 
 impl Tilstand {
-    /// En tom tilstand uden sager på disk (kun hukommelsen).
+    /// En tom tilstand uden sager på disk (kun hukommelsen). Ordbogen lever kun i hukommelsen.
     pub fn ny() -> Self {
         Tilstand::default()
     }
 
-    /// En tom tilstand med sager på disk.
+    /// En tom tilstand med sager på disk. Ordbog og indstillinger lever kun i hukommelsen (V-SAG.1's tests).
     pub fn med_arkiv(arkiv: Arkiv) -> Self {
         Tilstand {
             arkiv: Some(arkiv),
             ..Tilstand::default()
+        }
+    }
+
+    /// Programmet på disk: sagerne i `<mappe>/sager`, ordbogen i `<mappe>/ordbog.grimnir` og indstillingerne i
+    /// `<mappe>/indstillinger.json`; nøglerne i `lager`. Efterladte midlertidige filer ældre end en time slettes, og den
+    /// første midlertidige sag får valget fra indstillingerne. Ordbogen læses først, når den bruges.
+    pub fn paa_disk(mappe: PathBuf, lager: Arc<dyn Noeglelager>) -> Self {
+        let nu = std::time::SystemTime::now();
+        ryd_midlertidige(&mappe, nu);
+        ryd_midlertidige(&mappe.join("sager"), nu);
+        let indst_fil = indstillinger::sti(&mappe);
+        let indst = indstillinger::laes(&indst_fil);
+        Tilstand {
+            sag: Mutex::new(Aktuel {
+                sag: Sag::ny(indst.valg()),
+                aaben: None,
+            }),
+            arkiv: Some(Arkiv::ny(mappe.join("sager"), Box::new(lager.clone()))),
+            ordbogsfil: Some(Ordbogsfil::ny(mappe, Box::new(lager))),
+            ordbog: Mutex::new(None),
+            indst_fil: Some(indst_fil),
+            indst: Mutex::new(indst),
+            afslut: AtomicBool::new(false),
         }
     }
 
@@ -75,6 +141,39 @@ impl Tilstand {
 
     fn arkiv(&self) -> Result<&Arkiv, UiFejl> {
         self.arkiv.as_ref().ok_or(UiFejl::IngenArkiv)
+    }
+
+    /// Indstillingerne nu.
+    pub fn indstillinger(&self) -> Indstillinger {
+        *self.indst.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// En ny, tom sag med valget fra indstillingerne. Kaldes før sagens lås tages (låsene tages aldrig i omvendt orden).
+    pub fn ny_sag(&self) -> Sag {
+        Sag::ny(self.indstillinger().valg())
+    }
+
+    /// Ordbogen, læst fra disk første gang. Ordbogens lås holdes aldrig samtidig med sagens.
+    fn ordbog(&self) -> MutexGuard<'_, Option<OrdbogTilstand>> {
+        let mut g = self.ordbog.lock().unwrap_or_else(|e| e.into_inner());
+        if g.is_none() {
+            *g = Some(match &self.ordbogsfil {
+                None => OrdbogTilstand::default(),
+                Some(fil) => match fil.laes() {
+                    Ok((taeller, poster)) => OrdbogTilstand::med(poster, taeller),
+                    Err(fejl) => OrdbogTilstand {
+                        fejl: Some(fejl),
+                        ..OrdbogTilstand::default()
+                    },
+                },
+            });
+        }
+        g
+    }
+
+    /// En kopi af kernens ordbog til én analyse.
+    fn kerne_ordbog(&self) -> Ordbog {
+        self.ordbog().as_ref().map(|o| o.kerne.clone()).unwrap_or_default()
     }
 
     /// Sand, hvis programmet skal spørge, før det lukkes: en midlertidig sag med poster, og brugeren har ikke allerede
@@ -159,6 +258,26 @@ pub enum UiFejl {
     },
     /// Programmet har ingen mappe til sager (kun i tests uden arkiv).
     IngenArkiv,
+    /// En ordbogspost blev afvist; intet er gemt. Fejlene pr. felt uden værdien.
+    Ordbog {
+        /// Fejlene.
+        fejl: Vec<FeltFejl>,
+    },
+    /// Ordbogens fil kunne ikke åbnes ved start. Grimnir bruger en tom ordbog og ændrer ikke filen.
+    OrdbogLaast {
+        /// Årsagen.
+        fejl: SagFejl,
+    },
+    /// Ordbogen kunne ikke gemmes; intet er ændret. Ved [`SagFejl::Konflikt`] er ordbogen læst igen fra disken.
+    OrdbogFil {
+        /// Årsagen.
+        fejl: SagFejl,
+    },
+    /// Indstillingerne kunne ikke gemmes, eller et valg er ugyldigt (`fejl` er `None`).
+    Indstillinger {
+        /// Årsagen fra disken.
+        fejl: Option<SagFejl>,
+    },
 }
 
 impl From<Fejl> for UiFejl {
@@ -285,6 +404,26 @@ pub struct SagStatus {
     pub navn: Option<String>,
     /// Udløbsdato `ÅÅÅÅ-MM-DD`.
     pub udloeb: Option<String>,
+    /// Sagens valg (D4, D5).
+    pub valg: ValgUd,
+}
+
+/// En sags valg til UI'et.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub struct ValgUd {
+    /// Maskér fremmede offentlige adresser (D4).
+    pub masker_fremmede: bool,
+    /// Bevar sidste oktet i egne net (D5).
+    pub bevar_sidste_oktet: bool,
+}
+
+impl From<Valg> for ValgUd {
+    fn from(v: Valg) -> Self {
+        ValgUd {
+            masker_fremmede: v.masker_fremmede,
+            bevar_sidste_oktet: v.bevar_sidste_oktet,
+        }
+    }
 }
 
 /// Én sag i listen.
@@ -482,7 +621,8 @@ struct Beregning {
     raekker: Vec<Raekke>,
     fejl: Vec<RaekkeFejl>,
     advarsler: Vec<Advarsel>,
-    /// Kernens "maskér aldrig" for dette valg: kun fravalgte værdier, sagen allerede kender (dér virker F1).
+    /// Ordbogen for dette valg: brugerens ordbog, hvor "maskér aldrig" også har de fravalgte værdier, sagen allerede
+    /// kender (dér virker F1). Bruges af lækagetjekket.
     aldrig: Ordbog,
     /// Alle fravalgte værdier med små bogstaver: lækagetjekkets rester sorteres mod dem.
     fravalgte: HashSet<String>,
@@ -492,17 +632,17 @@ struct Beregning {
 /// Regner forslag, valg og rettelser ud på en kopi af sagen. Sagen selv røres ikke.
 ///
 /// `fravalgt`: rækker, der ikke maskeres (`None`: kernens standard). `rettelser`: koder, brugeren har skrevet.
-fn beregn(sag: &Sag, tekst: &str, fravalgt: Option<&[usize]>, rettelser: &[Rettelse]) -> Result<Beregning, UiFejl> {
-    let tom = Ordbog::ny();
+/// `ordbog`: brugerens ordbog (V-ORDBOG.1); den finder værdier, og "maskér aldrig" vinder over alt.
+fn beregn(sag: &Sag, tekst: &str, fravalgt: Option<&[usize]>, rettelser: &[Rettelse], ordbog: &Ordbog) -> Result<Beregning, UiFejl> {
     let linjer = Linjer::ny(tekst);
-    let fund = kerne_analyser(tekst, &tom);
+    let fund = kerne_analyser(tekst, ordbog);
     let fund_ved: HashMap<(usize, usize), &Fund> = fund.iter().map(|f| ((f.start, f.slut), f)).collect();
     let fremmede = sag.valg().masker_fremmede;
 
     // 1. Fuldt gennemløb: alt får en kode, så alle rækker og deres grupper kendes.
     let mut alle = kopi(sag, true)?;
     let fund_alle: Vec<Fund> = fund.iter().map(slaaet_til).collect();
-    let ers_alle = foreslaa_med_ordbog(&fund_alle, tekst, &mut alle, &tom);
+    let ers_alle = foreslaa_med_ordbog(&fund_alle, tekst, &mut alle, ordbog);
     let post_af: HashMap<&str, usize> = alle.data().poster.iter().enumerate().map(|(i, p)| (p.kode.as_str(), i)).collect();
     let mut grupper: Vec<Gruppe> = Vec::new();
     let mut gruppe_af_enhed: HashMap<usize, usize> = HashMap::new();
@@ -548,15 +688,15 @@ fn beregn(sag: &Sag, tekst: &str, fravalgt: Option<&[usize]>, rettelser: &[Rette
         })
         .collect();
 
-    // 2. Gennemløbet, der gemmes: kun de valgte rækker. Kernen gennemløber "maskér aldrig" lineært for hvert fund,
-    // så listen holdes kort: kun fravalgte værdier, som sagen kender i forvejen (F1 kan kun finde dem).
+    // 2. Gennemløbet, der gemmes: kun de valgte rækker. "Maskér aldrig" er ordbogens liste plus de fravalgte værdier,
+    // som sagen kender i forvejen (F1 kan kun finde dem).
     let mut fravalgte: HashSet<String> = HashSet::new();
     for (g, v) in grupper.iter().zip(&valgt) {
         if !v {
             fravalgte.extend(g.vaerdier.iter().map(|x| x.to_ascii_lowercase()));
         }
     }
-    let mut aldrig = Ordbog::ny();
+    let mut aldrig = ordbog.clone();
     if !fravalgte.is_empty() {
         let mut set = HashSet::new();
         for p in &sag.data().poster {
@@ -736,27 +876,36 @@ fn beregn(sag: &Sag, tekst: &str, fravalgt: Option<&[usize]>, rettelser: &[Rette
 /// Finder fundene og regner koderne ud på en kladde af sagen. Sagen ændres ikke.
 pub fn analyser(t: &Tilstand, tekst: &str, fravalgt: Option<&[usize]>, rettelser: &[Rettelse]) -> Result<Analyse, UiFejl> {
     tjek_tekst(tekst)?;
+    let ordbog = t.kerne_ordbog();
     // Sagen kopieres under låsen; selve beregningen sker uden lås.
     let sag = {
         let laast = t.sag();
         kopi(&laast.sag, laast.sag.valg().masker_fremmede)?
     };
-    let b = beregn(&sag, tekst, fravalgt, rettelser)?;
-    Ok(Analyse {
+    let b = beregn(&sag, tekst, fravalgt, rettelser, &ordbog);
+    ob::nulstil_kerne(ordbog);
+    let b = b?;
+    let ud = Analyse {
         advarsler: samlede_advarsler(&b.advarsler, &b.linjer),
         linjer: b.linjer.antal(tekst),
         raekker: b.raekker,
         fejl: b.fejl,
         bytes: tekst.len(),
-    })
+    };
+    ob::nulstil_kerne(b.aldrig);
+    nulstil(b.kladde.til_data());
+    Ok(ud)
 }
 
 /// Maskerer med brugerens valg og rettelser og gemmer sagen. Afvises en rettelse, gemmes intet. I en navngiven sag
 /// skrives sagen krypteret til disk, før svaret sendes; fejler det, er intet ændret, og der er ingen maskeret tekst.
 pub fn gem_og_masker(t: &Tilstand, tekst: &str, fravalgt: &[usize], rettelser: &[Rettelse]) -> Result<Maskering, UiFejl> {
     tjek_tekst(tekst)?;
+    let ordbog = t.kerne_ordbog();
     let mut a = t.sag();
-    let b = beregn(&a.sag, tekst, Some(fravalgt), rettelser)?;
+    let b = beregn(&a.sag, tekst, Some(fravalgt), rettelser, &ordbog);
+    ob::nulstil_kerne(ordbog);
+    let b = b?;
     if !b.fejl.is_empty() {
         return Err(UiFejl::Raekker { fejl: b.fejl });
     }
@@ -806,6 +955,7 @@ pub fn gem_og_masker(t: &Tilstand, tekst: &str, fravalgt: &[usize], rettelser: &
     }
     let poster = b.kladde.antal_poster();
     let aaben = aktuel.aaben.take();
+    ob::nulstil_kerne(b.aldrig);
     erstat(aktuel, b.kladde, aaben);
     Ok(Maskering {
         maskeret,
@@ -848,6 +998,7 @@ fn status(a: &Aktuel) -> SagStatus {
         id: a.aaben.as_ref().map(|x| x.id.hex()),
         navn: a.aaben.as_ref().map(|x| x.hoved.navn.clone()),
         udloeb: a.aaben.as_ref().and_then(|x| x.hoved.udloeb.clone()),
+        valg: a.sag.valg().into(),
     }
 }
 
@@ -871,17 +1022,12 @@ fn id_af(id: &str) -> Result<SagsId, UiFejl> {
 /// navngiven sag åben, lukkes den (dens fil bliver), og den nye sag starter tom.
 pub fn sag_ny(t: &Tilstand, navn: &str, udloeb: Option<&str>) -> Result<SagStatus, UiFejl> {
     let arkiv = t.arkiv()?;
+    let ny = t.ny_sag();
     let mut a = t.sag();
-    let tom;
-    let data = if a.aaben.is_none() {
-        a.sag.data()
-    } else {
-        tom = Sag::default();
-        tom.data()
-    };
+    let data = if a.aaben.is_none() { a.sag.data() } else { ny.data() };
     let aaben = arkiv.opret(navn, udloeb.map(str::to_string), data, nu_ms())?;
     if a.aaben.is_some() {
-        erstat(&mut a, Sag::default(), Some(aaben));
+        erstat(&mut a, ny, Some(aaben));
     } else {
         a.aaben = Some(aaben);
     }
@@ -938,8 +1084,9 @@ pub fn sag_aabn(t: &Tilstand, id: &str) -> Result<SagStatus, UiFejl> {
 
 /// Lukker sagen: den nulstilles i hukommelsen, og en ny, tom midlertidig sag starter. En navngiven sags fil bliver.
 pub fn sag_luk(t: &Tilstand) -> SagStatus {
+    let ny = t.ny_sag();
     let mut a = t.sag();
-    erstat(&mut a, Sag::default(), None);
+    erstat(&mut a, ny, None);
     status(&a)
 }
 
@@ -983,11 +1130,243 @@ pub fn sag_udloeb(t: &Tilstand, id: &str, dato: Option<&str>) -> Result<(), UiFe
 pub fn sag_slet(t: &Tilstand, id: &str) -> Result<SagStatus, UiFejl> {
     let id = id_af(id)?;
     t.arkiv()?.slet(&id)?;
+    let ny = t.ny_sag();
     let mut a = t.sag();
     if a.aaben.as_ref().is_some_and(|x| x.id == id) {
-        erstat(&mut a, Sag::default(), None);
+        erstat(&mut a, ny, None);
     }
     Ok(status(&a))
+}
+
+/// Ændrer valget (D4, D5) for den åbne sag. Koderne for værdier, sagen allerede har, ændres ikke; valget gælder nye
+/// værdier. En navngiven sag gemmes (med kontrol af skrivetælleren).
+pub fn sag_valg(t: &Tilstand, masker_fremmede: bool, bevar_sidste_oktet: bool) -> Result<SagStatus, UiFejl> {
+    let mut a = t.sag();
+    let mut d = a.sag.data().clone();
+    d.valg = Valg {
+        masker_fremmede,
+        bevar_sidste_oktet,
+    };
+    let ny = Sag::fra_data(d)?;
+    let aktuel = &mut *a;
+    if let Some(aaben) = aktuel.aaben.as_mut() {
+        let h = aaben.hoved.clone();
+        if let Err(f) = t.arkiv().and_then(|ark| ark.gem(aaben, h, ny.data()).map_err(UiFejl::from)) {
+            nulstil(ny.til_data());
+            return Err(f);
+        }
+    }
+    let aaben = aktuel.aaben.take();
+    erstat(aktuel, ny, aaben);
+    Ok(status(aktuel))
+}
+
+// ------------------------------------------------------------------------------------------------------- ordbogen
+
+/// Ordbogen til UI'et: posterne og fejlen, hvis filen ikke kunne åbnes (så er listen tom, og ændringer afvises).
+#[derive(Clone, Serialize)]
+pub struct OrdbogUd {
+    /// Posterne i den rækkefølge, de er tilføjet.
+    pub poster: Vec<OrdbogPost>,
+    /// Årsagen, hvis filen ikke kunne åbnes.
+    pub fejl: Option<SagFejl>,
+}
+
+fn ordbog_ud(o: &OrdbogTilstand) -> OrdbogUd {
+    OrdbogUd {
+        poster: o.poster.clone(),
+        fejl: o.fejl.clone(),
+    }
+}
+
+/// Ordbogen.
+pub fn ordbog_hent(t: &Tilstand) -> OrdbogUd {
+    let g = t.ordbog();
+    g.as_ref().map(ordbog_ud).unwrap_or(OrdbogUd {
+        poster: Vec::new(),
+        fejl: None,
+    })
+}
+
+/// Ændrer ordbogen: `aendr` får en kopi af posterne. Gemmes kopien, bliver den ordbogen; fejler noget, er intet ændret.
+fn aendr_ordbog(t: &Tilstand, aendr: impl FnOnce(&mut Vec<OrdbogPost>) -> Result<(), UiFejl>) -> Result<OrdbogUd, UiFejl> {
+    let mut g = t.ordbog();
+    let o = g.get_or_insert_with(OrdbogTilstand::default);
+    if let Some(f) = &o.fejl {
+        return Err(UiFejl::OrdbogLaast { fejl: f.clone() });
+    }
+    let mut nye = o.poster.clone();
+    if let Err(f) = aendr(&mut nye) {
+        ob::nulstil(nye);
+        return Err(f);
+    }
+    if let Some(fil) = &t.ordbogsfil {
+        match fil.gem(o.taeller, &nye) {
+            Ok(n) => o.taeller = n,
+            Err(fejl) => {
+                ob::nulstil(nye);
+                if fejl == SagFejl::Konflikt {
+                    // Ændret et andet sted: læs den igen, så brugeren ser den gældende ordbog og kan prøve igen.
+                    match fil.laes() {
+                        Ok((n, poster)) => {
+                            o.erstat(poster);
+                            o.taeller = n;
+                        }
+                        Err(f) => {
+                            o.erstat(Vec::new());
+                            o.fejl = Some(f);
+                        }
+                    }
+                }
+                return Err(UiFejl::OrdbogFil { fejl });
+            }
+        }
+    }
+    o.erstat(nye);
+    Ok(ordbog_ud(o))
+}
+
+fn post_type(type_: &str) -> Result<PostType, UiFejl> {
+    PostType::fra_navn(type_).ok_or(UiFejl::Ordbog {
+        fejl: vec![ob::felt("type", "ukendt_type")],
+    })
+}
+
+/// Tilføjer en post. Afvises den, er intet gemt, og fejlene står pr. felt.
+pub fn ordbog_tilfoej(t: &Tilstand, type_: &str, vaerdi: &str, note: Option<&str>) -> Result<OrdbogUd, UiFejl> {
+    let type_ = post_type(type_)?;
+    aendr_ordbog(t, |poster| {
+        let (vaerdi, note) = ob::valider(poster, type_, vaerdi, note, None).map_err(|fejl| UiFejl::Ordbog { fejl })?;
+        let id = poster.iter().map(|p| p.id).max().unwrap_or(0) + 1;
+        poster.push(OrdbogPost {
+            id,
+            type_,
+            vaerdi,
+            note,
+            oprettet: nu_ms(),
+        });
+        Ok(())
+    })
+}
+
+fn ukendt_post() -> UiFejl {
+    UiFejl::Ordbog {
+        fejl: vec![ob::felt("id", "ukendt_post")],
+    }
+}
+
+/// Retter en posts værdi og note (typen bliver).
+pub fn ordbog_ret(t: &Tilstand, id: u64, vaerdi: &str, note: Option<&str>) -> Result<OrdbogUd, UiFejl> {
+    aendr_ordbog(t, |poster| {
+        let i = poster.iter().position(|p| p.id == id).ok_or_else(ukendt_post)?;
+        let (v, n) = ob::valider(poster, poster[i].type_, vaerdi, note, Some(id)).map_err(|fejl| UiFejl::Ordbog { fejl })?;
+        let p = &mut poster[i];
+        zeroize::Zeroize::zeroize(&mut p.vaerdi);
+        p.vaerdi = v;
+        if let Some(gammel) = p.note.as_mut() {
+            zeroize::Zeroize::zeroize(gammel);
+        }
+        p.note = n;
+        Ok(())
+    })
+}
+
+/// Fjerner en post.
+pub fn ordbog_fjern(t: &Tilstand, id: u64) -> Result<OrdbogUd, UiFejl> {
+    aendr_ordbog(t, |poster| {
+        let i = poster.iter().position(|p| p.id == id).ok_or_else(ukendt_post)?;
+        ob::nulstil(vec![poster.remove(i)]);
+        Ok(())
+    })
+}
+
+/// Et fund i "Prøv på tekst", samlet pr. tekst.
+#[derive(Clone, Debug, Serialize)]
+pub struct ProevFund {
+    /// `fanget` (ordbogen finder værdien) | `aldrig` (genkenderne fandt den, men den står på "maskér aldrig").
+    pub status: &'static str,
+    /// Fundets art (som i Maskér).
+    pub art: &'static str,
+    /// Teksten i den indsatte tekst.
+    pub tekst: String,
+    /// Antal gange.
+    pub antal: usize,
+    /// Linjen for første gang.
+    pub linje: usize,
+}
+
+/// Svaret fra "Prøv på tekst".
+#[derive(Clone, Debug, Serialize)]
+pub struct Proeve {
+    /// Fundene.
+    pub fund: Vec<ProevFund>,
+    /// Antal fund i alt fra genkenderne og ordbogen (også dem, der ikke kommer fra ordbogen).
+    pub i_alt: usize,
+}
+
+/// Kører analysen med ordbogen på en tekst og svarer med det, ordbogen fanger, og det, "maskér aldrig" beskytter.
+/// Sagen røres ikke, og teksten gemmes ingen steder.
+pub fn ordbog_proev(t: &Tilstand, tekst: &str) -> Result<Proeve, UiFejl> {
+    tjek_tekst(tekst)?;
+    let ordbog = t.kerne_ordbog();
+    let med = kerne_analyser(tekst, &ordbog);
+    let uden = kerne_analyser(tekst, &Ordbog::ny());
+    ob::nulstil_kerne(ordbog);
+    let linjer = Linjer::ny(tekst);
+    let mut ud: Vec<ProevFund> = Vec::new();
+    let mut plads: HashMap<(&'static str, String), usize> = HashMap::new();
+    let mut laeg = |status: &'static str, f: &Fund| {
+        let tekst_f = tekst[f.start..f.slut].to_string();
+        match plads.get(&(status, tekst_f.to_lowercase())) {
+            Some(&i) => ud[i].antal += 1,
+            None => {
+                plads.insert((status, tekst_f.to_lowercase()), ud.len());
+                ud.push(ProevFund {
+                    status,
+                    art: art_navn(f.art),
+                    tekst: tekst_f,
+                    antal: 1,
+                    linje: linjer.af(f.start),
+                });
+            }
+        }
+    };
+    for f in med.iter().filter(|f| f.sikkerhed == Sikkerhed::Ordbog) {
+        laeg("fanget", f);
+    }
+    // Et fund uden ordbog, som ordbogen har fjernet uden at sætte noget andet på samme sted: "maskér aldrig".
+    for f in &uden {
+        if !med.iter().any(|m| m.start < f.slut && f.start < m.slut) {
+            laeg("aldrig", f);
+        }
+    }
+    Ok(Proeve {
+        fund: ud,
+        i_alt: med.len(),
+    })
+}
+
+// ------------------------------------------------------------------------------------------------------- indstillinger
+
+/// Indstillingerne.
+pub fn indstillinger_hent(t: &Tilstand) -> Indstillinger {
+    t.indstillinger()
+}
+
+/// Gemmer indstillingerne. Uden mappe (tests) gælder de kun i hukommelsen.
+pub fn indstillinger_gem(t: &Tilstand, ny: Indstillinger) -> Result<Indstillinger, UiFejl> {
+    if !ny.gyldig() {
+        return Err(UiFejl::Indstillinger { fejl: None });
+    }
+    let mut g = t.indst.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some(fil) = &t.indst_fil {
+        if let Some(m) = fil.parent() {
+            opret_mappe(m).map_err(|f| UiFejl::Indstillinger { fejl: Some(f) })?;
+        }
+        indstillinger::gem(fil, &ny).map_err(|f| UiFejl::Indstillinger { fejl: Some(f) })?;
+    }
+    *g = ny;
+    Ok(ny)
 }
 
 #[cfg(test)]

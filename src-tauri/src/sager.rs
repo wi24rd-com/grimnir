@@ -14,8 +14,11 @@
 //! | 62+`L1` | 8 | kroppens længde `L2`, `u64` |
 //! | 70+`L1` | `L2` | kroppen: chiffertekst med mærke |
 //!
-//! Filen slutter præcis dér. Tilknyttede data (AAD) for hver del: magisk streng ‖ version ‖ sags-id (16 bytes) ‖
-//! `hoved` eller `krop`. En del kan derfor hverken flyttes til en anden sags fil eller bytte plads med den anden del.
+//! Filen slutter præcis dér. Tilknyttede data (AAD) for hver del: magisk streng ‖ version ‖ identitet ‖ `hoved` eller
+//! `krop`. Identiteten er sags-id'et (16 bytes) for en sag og de 6 bytes `ordbog` for ordbogen ([`Ident`], V-ORDBOG.1).
+//! En del kan derfor hverken flyttes til en anden sags fil, bytte plads med den anden del eller lægges ind som ordbog
+//! (og omvendt). Samme kode læser og skriver begge slags filer ([`byg_krypteret`], [`laes_krypteret`],
+//! [`skriv_atomart`]).
 //! **Hovedet** (navn, oprettet, sidst brugt, udløb, antal poster, skrivetæller) kan læses uden kroppen, så listen kan
 //! vises. **Kroppen** er hele sagen: hovedet igen og sagens data. Skrivetælleren står i begge og skal være ens, så et
 //! hoved og en krop fra to forskellige skrivninger ikke kan sættes sammen.
@@ -26,7 +29,15 @@
 //!
 //! **Skrivning** er atomar: en ny fil i samme mappe (kun chiffertekst) skrives, synkroniseres og omdøbes til sagens
 //! fil. Før hver skrivning sammenlignes skrivetælleren i filens hoved med den, sagen blev læst med (D8): er filen
-//! ændret et andet sted, afvises skrivningen, og intet overskrives.
+//! ændret et andet sted, afvises skrivningen, og intet overskrives. Sammenligning og omdøbning sker under en låsefil
+//! (`.<navn>.lock`, oprettet med `create_new` og fjernet igen; V-ORDBOG.1 O7), så to skrivninger ikke kan krydse
+//! hinanden. En efterladt lås, der er ældre end 30 sekunder, må overtages.
+//!
+//! **Klarteksten** (JSON) skrives til en buffer med anslået kapacitet ([`NulstilBuffer`]); bliver den for lille, flyttes
+//! indholdet til en større buffer, og den gamle nulstilles, før den slippes.
+//!
+//! **Oprydning:** efterladte midlertidige filer (`.<navn>.<8 hextegn>.tmp`, kun chiffertekst eller indstillinger), der
+//! er ældre end en time, slettes ved start ([`ryd_midlertidige`]).
 //!
 //! **Fejl** ([`SagFejl`]) indeholder hverken originaler, koder, navne eller stier.
 
@@ -35,6 +46,7 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+use std::time::{Duration, Instant, SystemTime};
 
 use chacha20poly1305::aead::{Aead, Generate, Payload};
 use chacha20poly1305::{KeyInit, XChaCha20Poly1305, XNonce};
@@ -52,6 +64,15 @@ pub const TJENESTE: &str = "com.wi24rd.grimnir";
 pub const ENDELSE: &str = "grimnir";
 /// Længste sagsnavn i tegn.
 pub const MAKS_NAVN: usize = 120;
+
+/// Ordbogens faste identitet i AAD (V-ORDBOG.1 O1). Seks bytes, så den aldrig kan forveksles med et sags-id (16 bytes).
+pub const ORDBOG_IDENT: &[u8; 6] = b"ordbog";
+/// En lås ældre end dette er efterladt (programmet gik ned under en skrivning) og må overtages.
+pub const LAAS_FORAELDET: Duration = Duration::from_secs(30);
+/// Så længe venter en skrivning på en lås, en anden holder, før den giver op med [`SagFejl::Optaget`].
+pub const LAAS_VENT: Duration = Duration::from_secs(2);
+/// Midlertidige filer ældre end dette slettes ved start.
+pub const MIDLERTIDIG_FORAELDET: Duration = Duration::from_secs(60 * 60);
 
 const NONCE: usize = 24;
 const FAST: usize = 8 + 2; // magi + version
@@ -78,6 +99,8 @@ pub enum SagFejl {
     ManglerFil,
     /// Sagen er ændret et andet sted (skrivetælleren passer ikke). Intet er overskrevet.
     Konflikt,
+    /// Filen gemmes lige nu et andet sted (låsefilen er i brug). Intet er overskrevet; prøv igen.
+    Optaget,
     /// Nøgleringen kunne ikke bruges.
     Noeglering {
         /// `ingen_adgang` | `platform` | `andet`
@@ -186,13 +209,29 @@ impl Noegle {
 // ------------------------------------------------------------------------------------------------------- nøglelager
 
 /// Hvor nøglerne ligger. Den rigtige udgave er [`Noeglering`]; tests bruger [`HukommelsesLager`].
+///
+/// Nøglerne står under en konto i tjenesten [`TJENESTE`]: `sag:<sags-id>` for en sag og `ordbog` for ordbogen
+/// (V-ORDBOG.1). `hent`, `gem` og `slet` er genveje for en sag.
 pub trait Noeglelager: Send + Sync {
-    /// Henter nøglen. [`SagFejl::ManglerNoegle`], hvis den ikke findes.
-    fn hent(&self, id: &SagsId) -> Result<Noegle, SagFejl>;
-    /// Gemmer nøglen (en ny sag).
-    fn gem(&self, id: &SagsId, noegle: &Noegle) -> Result<(), SagFejl>;
-    /// Sletter nøglen. En nøgle, der ikke findes, er ikke en fejl.
-    fn slet(&self, id: &SagsId) -> Result<(), SagFejl>;
+    /// Henter nøglen for kontoen. [`SagFejl::ManglerNoegle`], hvis den ikke findes.
+    fn hent_konto(&self, konto: &str) -> Result<Noegle, SagFejl>;
+    /// Gemmer nøglen under kontoen (overskriver en, der findes).
+    fn gem_konto(&self, konto: &str, noegle: &Noegle) -> Result<(), SagFejl>;
+    /// Sletter kontoens nøgle. En nøgle, der ikke findes, er ikke en fejl.
+    fn slet_konto(&self, konto: &str) -> Result<(), SagFejl>;
+
+    /// Henter sagens nøgle.
+    fn hent(&self, id: &SagsId) -> Result<Noegle, SagFejl> {
+        self.hent_konto(&id.konto())
+    }
+    /// Gemmer sagens nøgle (en ny sag).
+    fn gem(&self, id: &SagsId, noegle: &Noegle) -> Result<(), SagFejl> {
+        self.gem_konto(&id.konto(), noegle)
+    }
+    /// Sletter sagens nøgle.
+    fn slet(&self, id: &SagsId) -> Result<(), SagFejl> {
+        self.slet_konto(&id.konto())
+    }
 }
 
 /// Keychain (macOS) og Credential Manager (Windows) via `keyring` 3.6.3.
@@ -208,21 +247,21 @@ fn noeglering_fejl(e: keyring::Error) -> SagFejl {
 }
 
 impl Noeglelager for Noeglering {
-    fn hent(&self, id: &SagsId) -> Result<Noegle, SagFejl> {
-        let post = keyring::Entry::new(TJENESTE, &id.konto()).map_err(noeglering_fejl)?;
+    fn hent_konto(&self, konto: &str) -> Result<Noegle, SagFejl> {
+        let post = keyring::Entry::new(TJENESTE, konto).map_err(noeglering_fejl)?;
         let mut b = Zeroizing::new(post.get_secret().map_err(noeglering_fejl)?);
         let n = Noegle::fra_bytes(&b);
         b.zeroize();
         n
     }
 
-    fn gem(&self, id: &SagsId, noegle: &Noegle) -> Result<(), SagFejl> {
-        let post = keyring::Entry::new(TJENESTE, &id.konto()).map_err(noeglering_fejl)?;
+    fn gem_konto(&self, konto: &str, noegle: &Noegle) -> Result<(), SagFejl> {
+        let post = keyring::Entry::new(TJENESTE, konto).map_err(noeglering_fejl)?;
         post.set_secret(noegle.bytes()).map_err(noeglering_fejl)
     }
 
-    fn slet(&self, id: &SagsId) -> Result<(), SagFejl> {
-        let post = keyring::Entry::new(TJENESTE, &id.konto()).map_err(noeglering_fejl)?;
+    fn slet_konto(&self, konto: &str) -> Result<(), SagFejl> {
+        let post = keyring::Entry::new(TJENESTE, konto).map_err(noeglering_fejl)?;
         match post.delete_credential() {
             Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
             Err(e) => Err(noeglering_fejl(e)),
@@ -232,7 +271,7 @@ impl Noeglelager for Noeglering {
 
 /// Et nøglelager i hukommelsen til tests. Rører aldrig den rigtige Keychain.
 #[derive(Default)]
-pub struct HukommelsesLager(Mutex<HashMap<SagsId, Zeroizing<[u8; 32]>>>);
+pub struct HukommelsesLager(Mutex<HashMap<String, Zeroizing<[u8; 32]>>>);
 
 impl HukommelsesLager {
     /// Et tomt lager.
@@ -240,7 +279,7 @@ impl HukommelsesLager {
         HukommelsesLager::default()
     }
 
-    fn laas(&self) -> std::sync::MutexGuard<'_, HashMap<SagsId, Zeroizing<[u8; 32]>>> {
+    fn laas(&self) -> std::sync::MutexGuard<'_, HashMap<String, Zeroizing<[u8; 32]>>> {
         self.0.lock().unwrap_or_else(|e| e.into_inner())
     }
 
@@ -251,7 +290,12 @@ impl HukommelsesLager {
 
     /// Sand, hvis der er en nøgle for sagen (til tests).
     pub fn har(&self, id: &SagsId) -> bool {
-        self.laas().contains_key(id)
+        self.har_konto(&id.konto())
+    }
+
+    /// Sand, hvis der er en nøgle under kontoen (til tests).
+    pub fn har_konto(&self, konto: &str) -> bool {
+        self.laas().contains_key(konto)
     }
 
     /// Lægger en anden, tilfældig nøgle ind for sagen (test: forkert nøgle).
@@ -262,34 +306,34 @@ impl HukommelsesLager {
 }
 
 impl Noeglelager for HukommelsesLager {
-    fn hent(&self, id: &SagsId) -> Result<Noegle, SagFejl> {
+    fn hent_konto(&self, konto: &str) -> Result<Noegle, SagFejl> {
         let l = self.laas();
-        let n = l.get(id).ok_or(SagFejl::ManglerNoegle)?;
+        let n = l.get(konto).ok_or(SagFejl::ManglerNoegle)?;
         Noegle::fra_bytes(&n[..])
     }
 
-    fn gem(&self, id: &SagsId, noegle: &Noegle) -> Result<(), SagFejl> {
+    fn gem_konto(&self, konto: &str, noegle: &Noegle) -> Result<(), SagFejl> {
         let mut n = Zeroizing::new([0u8; 32]);
         n.copy_from_slice(noegle.bytes());
-        self.laas().insert(*id, n);
+        self.laas().insert(konto.to_string(), n);
         Ok(())
     }
 
-    fn slet(&self, id: &SagsId) -> Result<(), SagFejl> {
-        self.laas().remove(id);
+    fn slet_konto(&self, konto: &str) -> Result<(), SagFejl> {
+        self.laas().remove(konto);
         Ok(())
     }
 }
 
 impl<T: Noeglelager + ?Sized> Noeglelager for std::sync::Arc<T> {
-    fn hent(&self, id: &SagsId) -> Result<Noegle, SagFejl> {
-        (**self).hent(id)
+    fn hent_konto(&self, konto: &str) -> Result<Noegle, SagFejl> {
+        (**self).hent_konto(konto)
     }
-    fn gem(&self, id: &SagsId, noegle: &Noegle) -> Result<(), SagFejl> {
-        (**self).gem(id, noegle)
+    fn gem_konto(&self, konto: &str, noegle: &Noegle) -> Result<(), SagFejl> {
+        (**self).gem_konto(konto, noegle)
     }
-    fn slet(&self, id: &SagsId) -> Result<(), SagFejl> {
-        (**self).slet(id)
+    fn slet_konto(&self, konto: &str) -> Result<(), SagFejl> {
+        (**self).slet_konto(konto)
     }
 }
 
@@ -536,18 +580,39 @@ pub fn sti(mappe: &Path, id: &SagsId) -> PathBuf {
     mappe.join(format!("{}.{ENDELSE}", id.hex()))
 }
 
-fn aad(id: &SagsId, del: &[u8]) -> Vec<u8> {
-    let mut a = Vec::with_capacity(FAST + 16 + del.len());
+/// Hvem en krypteret fil tilhører. Indgår i AAD, så en sagsfil ikke kan læses som ordbog og omvendt.
+#[derive(Clone, Copy)]
+pub enum Ident<'a> {
+    /// En sag (sags-id'et, 16 bytes).
+    Sag(&'a SagsId),
+    /// Ordbogen ([`ORDBOG_IDENT`]).
+    Ordbog,
+}
+
+impl Ident<'_> {
+    fn bytes(&self) -> &[u8] {
+        match self {
+            Ident::Sag(id) => id.bytes(),
+            Ident::Ordbog => ORDBOG_IDENT,
+        }
+    }
+}
+
+fn aad(ident: Ident<'_>, del: &[u8]) -> Vec<u8> {
+    let i = ident.bytes();
+    let mut a = Vec::with_capacity(FAST + i.len() + del.len());
     a.extend_from_slice(MAGI);
     a.extend_from_slice(&FORMATVERSION.to_le_bytes());
-    a.extend_from_slice(id.bytes());
+    a.extend_from_slice(i);
     a.extend_from_slice(del);
     a
 }
 
-fn krypter(noegle: &Noegle, id: &SagsId, del: &[u8], klar: &[u8]) -> Result<(XNonce, Vec<u8>), SagFejl> {
+fn krypter(noegle: &Noegle, ident: Ident<'_>, del: &[u8], klar: &[u8]) -> Result<(XNonce, Vec<u8>), SagFejl> {
     let nonce = XNonce::try_generate().map_err(|_| SagFejl::Tilfaeldighed)?;
-    let aad = aad(id, del);
+    let aad = aad(ident, del);
+    // `encrypt` kopierer klarteksten til en buffer med plads til mærket og krypterer den på stedet (aead 0.6.1,
+    // `Aead::encrypt`), så der ikke står en ekstra kopi af klarteksten tilbage.
     let c = noegle
         .chiffer()
         .encrypt(&nonce, Payload { msg: klar, aad: &aad })
@@ -555,9 +620,9 @@ fn krypter(noegle: &Noegle, id: &SagsId, del: &[u8], klar: &[u8]) -> Result<(XNo
     Ok((nonce, c))
 }
 
-fn dekrypter(noegle: &Noegle, id: &SagsId, del: &[u8], nonce: &[u8], c: &[u8]) -> Result<Zeroizing<Vec<u8>>, SagFejl> {
+fn dekrypter(noegle: &Noegle, ident: Ident<'_>, del: &[u8], nonce: &[u8], c: &[u8]) -> Result<Zeroizing<Vec<u8>>, SagFejl> {
     let nonce = XNonce::try_from(nonce).map_err(|_| SagFejl::Beskadiget)?;
-    let aad = aad(id, del);
+    let aad = aad(ident, del);
     noegle
         .chiffer()
         .decrypt(&nonce, Payload { msg: c, aad: &aad })
@@ -565,18 +630,71 @@ fn dekrypter(noegle: &Noegle, id: &SagsId, del: &[u8], nonce: &[u8], c: &[u8]) -
         .map_err(|_| SagFejl::Beskadiget)
 }
 
-/// Hele filens bytes for et hoved og en sag. Klarteksten (JSON) nulstilles efter krypteringen.
-fn byg_fil(noegle: &Noegle, id: &SagsId, hoved: &Hoved, data: &SagData) -> Result<Vec<u8>, SagFejl> {
-    let hoved_klar = Zeroizing::new(serde_json::to_vec(hoved).map_err(|_| SagFejl::Beskadiget)?);
-    let krop_klar = Zeroizing::new(
-        serde_json::to_vec(&KropUd {
-            hoved,
-            data: data_ud(data),
-        })
-        .map_err(|_| SagFejl::Beskadiget)?,
-    );
-    let (n1, c1) = krypter(noegle, id, b"hoved", &hoved_klar)?;
-    let (n2, c2) = krypter(noegle, id, b"krop", &krop_klar)?;
+/// En skrivebuffer til klartekst. Den starter med en anslået kapacitet; bliver den for lille, kopieres indholdet til
+/// en ny buffer med dobbelt kapacitet, og den gamle nulstilles (hele kapaciteten), før den slippes. Nulstilles også, når
+/// den selv slippes. `serde_json::to_writer` skriver direkte hertil uden egne mellemliggende buffere på heapen.
+pub struct NulstilBuffer {
+    buf: Vec<u8>,
+    vaekst: usize,
+}
+
+impl NulstilBuffer {
+    /// En buffer med kapaciteten `anslaaet`.
+    pub fn med_kapacitet(anslaaet: usize) -> Self {
+        NulstilBuffer {
+            buf: Vec::with_capacity(anslaaet.max(64)),
+            vaekst: 0,
+        }
+    }
+
+    /// Indholdet.
+    pub fn bytes(&self) -> &[u8] {
+        &self.buf
+    }
+
+    /// Antal gange, bufferen var for lille (til tests og målinger).
+    pub fn vaekst(&self) -> usize {
+        self.vaekst
+    }
+}
+
+impl Write for NulstilBuffer {
+    fn write(&mut self, b: &[u8]) -> io::Result<usize> {
+        let behov = self.buf.len() + b.len();
+        if behov > self.buf.capacity() {
+            let mut ny = Vec::with_capacity(behov.max(self.buf.capacity() * 2));
+            ny.extend_from_slice(&self.buf);
+            // `Vec::zeroize` nulstiller hele kapaciteten, også den ubrugte del (zeroize 1.9.1).
+            self.buf.zeroize();
+            self.buf = ny;
+            self.vaekst += 1;
+        }
+        self.buf.extend_from_slice(b);
+        Ok(b.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+impl Drop for NulstilBuffer {
+    fn drop(&mut self) {
+        self.buf.zeroize();
+    }
+}
+
+/// Et JSON-dokument i en [`NulstilBuffer`] med den anslåede kapacitet.
+pub fn json_klar<T: Serialize + ?Sized>(v: &T, anslaaet: usize) -> Result<NulstilBuffer, SagFejl> {
+    let mut b = NulstilBuffer::med_kapacitet(anslaaet);
+    serde_json::to_writer(&mut b, v).map_err(|_| SagFejl::Beskadiget)?;
+    Ok(b)
+}
+
+/// Hele filens bytes for et hoved og en krop i klartekst (JSON). Fælles for sager og ordbogen.
+pub fn byg_krypteret(noegle: &Noegle, ident: Ident<'_>, hoved_klar: &[u8], krop_klar: &[u8]) -> Result<Vec<u8>, SagFejl> {
+    let (n1, c1) = krypter(noegle, ident, b"hoved", hoved_klar)?;
+    let (n2, c2) = krypter(noegle, ident, b"krop", krop_klar)?;
     let l1 = u32::try_from(c1.len()).map_err(|_| SagFejl::Beskadiget)?;
     let mut ud = Vec::with_capacity(FAST + 2 * NONCE + 12 + c1.len() + c2.len());
     ud.extend_from_slice(MAGI);
@@ -590,6 +708,40 @@ fn byg_fil(noegle: &Noegle, id: &SagsId, hoved: &Hoved, data: &SagData) -> Resul
     Ok(ud)
 }
 
+/// Anslået længde af sagens krop som JSON: strengene to gange (plads til escapes) og en fast mængde pr. post. Er
+/// anslaget for lavt, vokser [`NulstilBuffer`] og nulstiller den gamle buffer.
+pub fn anslaa_krop(hoved: &Hoved, d: &SagData) -> usize {
+    let s = |x: &str| 2 * x.len() + 8;
+    let mut n = 1024 + s(&hoved.navn) + hoved.udloeb.as_deref().map_or(0, s);
+    n += d.poster.iter().map(|p| s(p.original.som_tekst()) + s(&p.kode) + 24).sum::<usize>();
+    n += d
+        .enheder
+        .iter()
+        .map(|e| s(e.noegle.som_tekst()) + s(&e.grundform) + 16)
+        .sum::<usize>();
+    n += d.net4.iter().map(|(x, _)| s(x.som_tekst()) + 16).sum::<usize>();
+    n += d.net6.iter().map(|(x, _)| s(x.som_tekst()) + 26).sum::<usize>();
+    n += d.vaerter4.len() * 26 + d.iid6.len() * 46 + d.reserverede_ip4.len() * 12 + d.reserverede_ip6.len() * 36;
+    n += d.reserverede_mac.len() * 22 + KLASSER * 21;
+    n += d.sid_domaener.iter().map(|x| s(x.som_tekst())).sum::<usize>();
+    n += d.reserverede_navne.iter().chain(&d.rettede_koder).map(|x| s(x)).sum::<usize>();
+    n += d.aliaser.iter().map(|(x, _)| s(x) + 24).sum::<usize>();
+    n
+}
+
+/// Hele filens bytes for et hoved og en sag. Klarteksten (JSON) nulstilles efter krypteringen.
+fn byg_fil(noegle: &Noegle, id: &SagsId, hoved: &Hoved, data: &SagData) -> Result<Vec<u8>, SagFejl> {
+    let hoved_klar = json_klar(hoved, 2 * hoved.navn.len() + 256)?;
+    let krop_klar = json_klar(
+        &KropUd {
+            hoved,
+            data: data_ud(data),
+        },
+        anslaa_krop(hoved, data),
+    )?;
+    byg_krypteret(noegle, Ident::Sag(id), hoved_klar.bytes(), krop_klar.bytes())
+}
+
 fn tjek_start(start: &[u8]) -> Result<(), SagFejl> {
     if start.len() < FAST || &start[..8] != MAGI {
         return Err(SagFejl::Beskadiget);
@@ -601,9 +753,9 @@ fn tjek_start(start: &[u8]) -> Result<(), SagFejl> {
     Ok(())
 }
 
-/// Læser kun hovedet (starten af filen).
-pub fn laes_hoved(mappe: &Path, id: &SagsId, noegle: &Noegle) -> Result<Hoved, SagFejl> {
-    let mut f = File::open(sti(mappe, id))?;
+/// Læser og dekrypterer kun hovedet (starten af filen). Fælles for sager og ordbogen.
+pub fn laes_krypteret_hoved(fil: &Path, ident: Ident<'_>, noegle: &Noegle) -> Result<Zeroizing<Vec<u8>>, SagFejl> {
+    let mut f = File::open(fil)?;
     let mut start = [0u8; FAST + NONCE + 4];
     if f.read_exact(&mut start[..FAST]).is_err() {
         return Err(SagFejl::Beskadiget);
@@ -616,13 +768,15 @@ pub fn laes_hoved(mappe: &Path, id: &SagsId, noegle: &Noegle) -> Result<Hoved, S
     }
     let mut c1 = vec![0u8; l1 as usize];
     f.read_exact(&mut c1).map_err(|_| SagFejl::Beskadiget)?;
-    let klar = dekrypter(noegle, id, b"hoved", &start[FAST..FAST + NONCE], &c1)?;
-    serde_json::from_slice(&klar).map_err(|_| SagFejl::Beskadiget)
+    dekrypter(noegle, ident, b"hoved", &start[FAST..FAST + NONCE], &c1)
 }
 
-/// Læser hele sagen. Hoved og krop skal have samme skrivetæller.
-pub fn laes(mappe: &Path, id: &SagsId, noegle: &Noegle) -> Result<(Hoved, SagData), SagFejl> {
-    let b = fs::read(sti(mappe, id))?;
+/// Hoved og krop i klartekst; nulstilles, når de slippes.
+pub type Klartekst = (Zeroizing<Vec<u8>>, Zeroizing<Vec<u8>>);
+
+/// Læser og dekrypterer hele filen: (hoved, krop) i klartekst. Filen skal slutte præcis efter kroppen.
+pub fn laes_krypteret(fil: &Path, ident: Ident<'_>, noegle: &Noegle) -> Result<Klartekst, SagFejl> {
+    let b = fs::read(fil)?;
     tjek_start(&b)?;
     let del = |fra: usize, til: usize| b.get(fra..til).ok_or(SagFejl::Beskadiget);
     let mut pos = FAST;
@@ -641,9 +795,21 @@ pub fn laes(mappe: &Path, id: &SagsId, noegle: &Noegle) -> Result<(Hoved, SagDat
     if pos + l2 != b.len() {
         return Err(SagFejl::Beskadiget);
     }
-    let hoved_klar = dekrypter(noegle, id, b"hoved", n1, c1)?;
+    let hoved = dekrypter(noegle, ident, b"hoved", n1, c1)?;
+    let krop = dekrypter(noegle, ident, b"krop", n2, c2)?;
+    Ok((hoved, krop))
+}
+
+/// Læser kun hovedet (starten af filen).
+pub fn laes_hoved(mappe: &Path, id: &SagsId, noegle: &Noegle) -> Result<Hoved, SagFejl> {
+    let klar = laes_krypteret_hoved(&sti(mappe, id), Ident::Sag(id), noegle)?;
+    serde_json::from_slice(&klar).map_err(|_| SagFejl::Beskadiget)
+}
+
+/// Læser hele sagen. Hoved og krop skal have samme skrivetæller.
+pub fn laes(mappe: &Path, id: &SagsId, noegle: &Noegle) -> Result<(Hoved, SagData), SagFejl> {
+    let (hoved_klar, krop_klar) = laes_krypteret(&sti(mappe, id), Ident::Sag(id), noegle)?;
     let hoved: Hoved = serde_json::from_slice(&hoved_klar).map_err(|_| SagFejl::Beskadiget)?;
-    let krop_klar = dekrypter(noegle, id, b"krop", n2, c2)?;
     let krop: KropInd = serde_json::from_slice(&krop_klar).map_err(|_| SagFejl::Beskadiget)?;
     drop(krop_klar);
     if krop.hoved != hoved {
@@ -653,18 +819,24 @@ pub fn laes(mappe: &Path, id: &SagsId, noegle: &Noegle) -> Result<(Hoved, SagDat
     Ok((hoved, data))
 }
 
-/// Skriver filen atomart: en ny fil i samme mappe med kun chiffertekst, synkroniseret, omdøbt til sagens fil.
-/// `foer_omdoeb` kaldes lige før omdøbningen (tests afbryder dér).
-fn skriv_atomart(mappe: &Path, id: &SagsId, bytes: &[u8], foer_omdoeb: &mut dyn FnMut() -> io::Result<()>) -> Result<(), SagFejl> {
+/// Filnavnet uden endelse (`<sags-id>`, `ordbog`, `indstillinger`): stammen i navnene på midlertidige filer og låse.
+fn stamme(fil: &Path) -> String {
+    fil.file_stem().and_then(|s| s.to_str()).unwrap_or("fil").to_string()
+}
+
+/// Skriver filen atomart: en ny fil i samme mappe (`.<stamme>.<8 hextegn>.tmp`), synkroniseret og omdøbt til filen.
+/// `foer_omdoeb` kaldes lige før omdøbningen (tests afbryder dér). Fælles for sager, ordbogen og indstillingerne.
+pub fn skriv_atomart(fil: &Path, bytes: &[u8], foer_omdoeb: &mut dyn FnMut() -> io::Result<()>) -> Result<(), SagFejl> {
+    let mappe = fil.parent().ok_or(SagFejl::Disk { hvad: "NotFound".into() })?;
     let tilfaeldig = SagsId::ny()?;
-    let midl = mappe.join(format!(".{}.{}.tmp", id.hex(), &tilfaeldig.hex()[..8]));
+    let midl = mappe.join(format!(".{}.{}.tmp", stamme(fil), &tilfaeldig.hex()[..8]));
     let resultat = (|| -> io::Result<()> {
         let mut f = OpenOptions::new().write(true).create_new(true).open(&midl)?;
         f.write_all(bytes)?;
         f.sync_all()?;
         drop(f);
         foer_omdoeb()?;
-        fs::rename(&midl, sti(mappe, id))?;
+        fs::rename(&midl, fil)?;
         // Omdøbningen er først sikker på disken, når mappen er synkroniseret (kun muligt på Unix).
         #[cfg(unix)]
         File::open(mappe)?.sync_all()?;
@@ -674,6 +846,84 @@ fn skriv_atomart(mappe: &Path, id: &SagsId, bytes: &[u8], foer_omdoeb: &mut dyn 
         let _ = fs::remove_file(&midl);
     }
     resultat.map_err(SagFejl::from)
+}
+
+/// Låsefilens sti for en fil: `.<stamme>.lock` i samme mappe.
+pub fn laas_sti(fil: &Path) -> PathBuf {
+    fil.with_file_name(format!(".{}.lock", stamme(fil)))
+}
+
+/// En taget lås. Låsefilen fjernes, når låsen slippes.
+pub struct Laas(PathBuf);
+
+impl Drop for Laas {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.0);
+    }
+}
+
+fn foraeldet(fil: &Path, graense: Duration, nu: SystemTime) -> bool {
+    fs::metadata(fil)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| nu.duration_since(t).ok())
+        .is_some_and(|alder| alder >= graense)
+}
+
+/// Tager låsen for en fil: opretter `.<stamme>.lock` med `create_new` (atomart: kun én kan oprette den). Holder en
+/// anden låsen, ventes der op til [`LAAS_VENT`]; derefter [`SagFejl::Optaget`]. En lås ældre end [`LAAS_FORAELDET`]
+/// er efterladt og overtages (én gang pr. forsøg).
+pub fn tag_laas(fil: &Path) -> Result<Laas, SagFejl> {
+    let sti = laas_sti(fil);
+    let start = Instant::now();
+    let mut overtaget = false;
+    loop {
+        match OpenOptions::new().write(true).create_new(true).open(&sti) {
+            Ok(_) => return Ok(Laas(sti)),
+            Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {
+                if !overtaget && foraeldet(&sti, LAAS_FORAELDET, SystemTime::now()) {
+                    overtaget = true;
+                    let _ = fs::remove_file(&sti);
+                    continue;
+                }
+                if start.elapsed() >= LAAS_VENT {
+                    return Err(SagFejl::Optaget);
+                }
+                std::thread::sleep(Duration::from_millis(20));
+            }
+            Err(e) => return Err(e.into()),
+        }
+    }
+}
+
+/// Et navn på en midlertidig fil fra [`skriv_atomart`]: `.<stamme>.<8 små hextegn>.tmp`, hvor stammen er et sags-id
+/// (32 små hextegn), `ordbog` eller `indstillinger`.
+fn er_midlertidig(navn: &str) -> bool {
+    let Some(midt) = navn.strip_prefix('.').and_then(|n| n.strip_suffix(".tmp")) else {
+        return false;
+    };
+    let Some((stamme, hex)) = midt.rsplit_once('.') else {
+        return false;
+    };
+    let lille_hex = |s: &str| s.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b));
+    let stamme_ok = (stamme.len() == 32 && lille_hex(stamme)) || stamme == "ordbog" || stamme == "indstillinger";
+    hex.len() == 8 && lille_hex(hex) && stamme_ok
+}
+
+/// Sletter efterladte midlertidige filer i mappen, der er ældre end [`MIDLERTIDIG_FORAELDET`] (målt mod `nu`). Andre
+/// filer røres ikke. Svarer med antallet, der er slettet.
+pub fn ryd_midlertidige(mappe: &Path, nu: SystemTime) -> usize {
+    let Ok(laeser) = fs::read_dir(mappe) else { return 0 };
+    let mut slettet = 0;
+    for e in laeser.flatten() {
+        let navn = e.file_name();
+        let Some(navn) = navn.to_str() else { continue };
+        let p = e.path();
+        if er_midlertidig(navn) && p.is_file() && foraeldet(&p, MIDLERTIDIG_FORAELDET, nu) && fs::remove_file(&p).is_ok() {
+            slettet += 1;
+        }
+    }
+    slettet
 }
 
 /// Skriver sagen (ny fil eller overskrivning), uden kontrol af skrivetælleren.
@@ -692,7 +942,7 @@ pub fn skriv_med(
     foer_omdoeb: &mut dyn FnMut() -> io::Result<()>,
 ) -> Result<(), SagFejl> {
     let bytes = byg_fil(noegle, id, hoved, data)?;
-    skriv_atomart(mappe, id, &bytes, foer_omdoeb)
+    skriv_atomart(&sti(mappe, id), &bytes, foer_omdoeb)
 }
 
 /// Opretter mappen (kun ejeren har adgang på Unix).
@@ -808,7 +1058,8 @@ impl Arkiv {
         Ok(())
     }
 
-    /// Som [`Arkiv::gem`] med et kald før omdøbningen (tests).
+    /// Som [`Arkiv::gem`] med et kald før omdøbningen (tests). Kontrollen af skrivetælleren og omdøbningen sker under
+    /// sagens låsefil, så en anden skrivning ikke kan komme imellem (V-ORDBOG.1 O7).
     #[doc(hidden)]
     pub fn gem_med(
         &self,
@@ -817,6 +1068,7 @@ impl Arkiv {
         data: &SagData,
         foer_omdoeb: &mut dyn FnMut() -> io::Result<()>,
     ) -> Result<(), SagFejl> {
+        let _laas = tag_laas(&sti(&self.mappe, &aaben.id))?;
         let paa_disk = laes_hoved(&self.mappe, &aaben.id, &aaben.noegle)?;
         if paa_disk.skrivetaeller != aaben.hoved.skrivetaeller {
             return Err(SagFejl::Konflikt);

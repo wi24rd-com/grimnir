@@ -16,6 +16,14 @@ const KOMMANDOER: &[&str] = &[
     "sag_udloeb",
     "sag_slet",
     "program_afslut",
+    "sag_valg",
+    "ordbog_hent",
+    "ordbog_tilfoej",
+    "ordbog_ret",
+    "ordbog_fjern",
+    "ordbog_proev",
+    "indstillinger_hent",
+    "indstillinger_gem",
 ];
 
 fn main() {

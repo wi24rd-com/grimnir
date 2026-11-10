@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-ordbog-fjern"
+description = "Enables the ordbog_fjern command without any pre-configured scope."
+commands.allow = ["ordbog_fjern"]
+
+[[permission]]
+identifier = "deny-ordbog-fjern"
+description = "Denies the ordbog_fjern command without any pre-configured scope."
+commands.deny = ["ordbog_fjern"]

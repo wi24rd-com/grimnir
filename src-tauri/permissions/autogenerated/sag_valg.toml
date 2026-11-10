@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-sag-valg"
+description = "Enables the sag_valg command without any pre-configured scope."
+commands.allow = ["sag_valg"]
+
+[[permission]]
+identifier = "deny-sag-valg"
+description = "Denies the sag_valg command without any pre-configured scope."
+commands.deny = ["sag_valg"]
