@@ -15,10 +15,12 @@
 //!
 //! Ingen plugins og ingen netværkskode. Sagerne ligger krypteret i `<app-data>/sager/` ([`sager`]), ordbogen krypteret
 //! i `<app-data>/ordbog.grimnir` ([`ordbog`]); nøglerne i Keychain/Credential Manager. Indstillingerne står i klartekst i
-//! `<app-data>/indstillinger.json` ([`indstillinger`]; intet følsomt).
+//! `<app-data>/indstillinger.json` ([`indstillinger`]; intet følsomt). Mens en fil gemmes i brugerens mappe, står den
+//! midlertidige fils sti i `<app-data>/igang.json` ([`igang`]; kun stier, kun de igangværende).
 #![forbid(unsafe_code)]
 
 pub mod fil;
+pub mod igang;
 pub mod indstillinger;
 pub mod maskering;
 pub mod ordbog;

@@ -837,9 +837,24 @@ pub fn skriv_atomart_med(
     skriv: &mut dyn FnMut(&mut File) -> io::Result<()>,
     foer_omdoeb: &mut dyn FnMut() -> io::Result<()>,
 ) -> Result<(), SagFejl> {
+    skriv_atomart_noteret(fil, skriv, foer_omdoeb, None)
+}
+
+/// Som [`skriv_atomart_med`]; med `igang` noteres den midlertidige fils sti, før den oprettes, og fjernes igen efter
+/// omdøbningen eller oprydningen (V-RET.1 R5: filer i brugerens mappe, se [`crate::igang`]). Går programmet ned
+/// undervejs, står stien tilbage i listen, og den midlertidige fil slettes ved næste start.
+pub fn skriv_atomart_noteret(
+    fil: &Path,
+    skriv: &mut dyn FnMut(&mut File) -> io::Result<()>,
+    foer_omdoeb: &mut dyn FnMut() -> io::Result<()>,
+    igang: Option<&crate::igang::Igang>,
+) -> Result<(), SagFejl> {
     let mappe = fil.parent().ok_or(SagFejl::Disk { hvad: "NotFound".into() })?;
     let tilfaeldig = SagsId::ny()?;
     let midl = mappe.join(format!(".{}.{}.tmp", stamme(fil), &tilfaeldig.hex()[..8]));
+    if let Some(i) = igang {
+        i.noter(&midl)?;
+    }
     let resultat = (|| -> io::Result<()> {
         let mut f = OpenOptions::new().write(true).create_new(true).open(&midl)?;
         skriv(&mut f)?;
@@ -854,6 +869,9 @@ pub fn skriv_atomart_med(
     })();
     if resultat.is_err() {
         let _ = fs::remove_file(&midl);
+    }
+    if let Some(i) = igang {
+        i.fjern(&midl);
     }
     resultat.map_err(SagFejl::from)
 }
@@ -907,7 +925,7 @@ pub fn tag_laas(fil: &Path) -> Result<Laas, SagFejl> {
 }
 
 /// Et navn på en midlertidig fil fra [`skriv_atomart`]: `.<stamme>.<8 små hextegn>.tmp`, hvor stammen er et sags-id
-/// (32 små hextegn), `ordbog` eller `indstillinger`.
+/// (32 små hextegn), `ordbog`, `indstillinger` eller `igang` (V-RET.1 R5).
 fn er_midlertidig(navn: &str) -> bool {
     let Some(midt) = navn.strip_prefix('.').and_then(|n| n.strip_suffix(".tmp")) else {
         return false;
@@ -916,7 +934,7 @@ fn er_midlertidig(navn: &str) -> bool {
         return false;
     };
     let lille_hex = |s: &str| s.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b));
-    let stamme_ok = (stamme.len() == 32 && lille_hex(stamme)) || stamme == "ordbog" || stamme == "indstillinger";
+    let stamme_ok = (stamme.len() == 32 && lille_hex(stamme)) || ["ordbog", "indstillinger", "igang"].contains(&stamme);
     hex.len() == 8 && lille_hex(hex) && stamme_ok
 }
 

@@ -40,6 +40,7 @@ use grimnir_core::{
 use serde::{Deserialize, Serialize};
 
 use crate::fil::{self, Fil, FilFejl, Linjeskift, Tegnsaet};
+use crate::igang::Igang;
 use crate::indstillinger::{self, Indstillinger};
 use crate::ordbog::{self as ob, FeltFejl, OrdbogPost, Ordbogsfil, PostType};
 use crate::sager::{nulstil, opret_mappe, rens_navn, ryd_midlertidige, tjek_dato, AabenSag, Arkiv, Noeglelager, SagFejl, SagsId};
@@ -99,6 +100,8 @@ pub struct Tilstand {
     afslut: AtomicBool,
     /// V-FIL.1: den åbne fil i Maskér (0) og i Demaskér (1). Låsen til en fil tages altid før sagens.
     filer: [Mutex<Option<HoldtFil>>; 2],
+    /// V-RET.1 R5: igangværende skrivninger i brugerens mapper (`<app-data>/igang.json`); kun på disk.
+    igang: Option<Igang>,
 }
 
 impl Tilstand {
@@ -118,8 +121,13 @@ impl Tilstand {
     /// Programmet på disk: sagerne i `<mappe>/sager`, ordbogen i `<mappe>/ordbog.grimnir` og indstillingerne i
     /// `<mappe>/indstillinger.json`; nøglerne i `lager`. Efterladte midlertidige filer ældre end en time slettes, og den
     /// første midlertidige sag får valget fra indstillingerne. Ordbogen læses først, når den bruges.
+    ///
+    /// V-RET.1 R5: midlertidige filer i brugerens mapper, som en afbrudt skrivning efterlod (noteret i
+    /// `<mappe>/igang.json`), slettes, og listen tømmes ([`Igang::ryd`]).
     pub fn paa_disk(mappe: PathBuf, lager: Arc<dyn Noeglelager>) -> Self {
         let nu = std::time::SystemTime::now();
+        let igang = Igang::ny(&mappe);
+        igang.ryd();
         ryd_midlertidige(&mappe, nu);
         ryd_midlertidige(&mappe.join("sager"), nu);
         let indst_fil = indstillinger::sti(&mappe);
@@ -137,6 +145,7 @@ impl Tilstand {
             indst: Mutex::new(indst),
             afslut: AtomicBool::new(false),
             filer: Default::default(),
+            igang: Some(igang),
         }
     }
 
@@ -439,6 +448,8 @@ pub struct Demaskering {
     pub advarsler: Vec<AdvarselUd>,
     /// Sagens koder, der forekommer i teksten (koderne, ikke originalerne).
     pub koder: Vec<String>,
+    /// Antal linjer i den indsatte tekst ([`fil::antal_linjer`]; V-RET.1 R3).
+    pub linjer: usize,
 }
 
 /// Svaret fra `sag_status` og kommandoerne, der skifter sag.
@@ -572,22 +583,16 @@ fn advarsel_navn(a: AdvarselArt) -> &'static str {
 
 // ------------------------------------------------------------------------------------------------------- hjælpere
 
-/// Linjenumre ud fra byte-positioner (1-baseret). Bygges én gang pr. tekst.
+/// Linjenumre ud fra byte-positioner (1-baseret). Bygges én gang pr. tekst med de samme linjeskift som
+/// [`fil::antal_linjer`] (LF, CRLF og et enligt CR).
 struct Linjer(Vec<usize>);
 
 impl Linjer {
     fn ny(t: &str) -> Self {
-        Linjer(t.bytes().enumerate().filter(|(_, b)| *b == b'\n').map(|(i, _)| i).collect())
+        Linjer(fil::linjeskift_ved(t).collect())
     }
     fn af(&self, pos: usize) -> usize {
         self.0.partition_point(|&i| i < pos) + 1
-    }
-    fn antal(&self, t: &str) -> usize {
-        if t.is_empty() {
-            0
-        } else {
-            self.0.len() + usize::from(!t.ends_with('\n'))
-        }
     }
 }
 
@@ -957,7 +962,7 @@ fn analyser_i(t: &Tilstand, tekst: &str, udvalg: Udvalg<'_>, rettelser: &[Rettel
     let b = b?;
     let ud = Analyse {
         advarsler: samlede_advarsler(&b.advarsler, &b.linjer),
-        linjer: b.linjer.antal(tekst),
+        linjer: fil::antal_linjer(tekst),
         raekker: b.raekker,
         fejl: b.fejl,
         bytes: tekst.len(),
@@ -1072,6 +1077,7 @@ fn demasker_i(t: &Tilstand, tekst: &str) -> Result<Demaskering, UiFejl> {
         advarsler: samlede_advarsler(&adv, &Linjer::ny(tekst)),
         tekst: ud,
         koder,
+        linjer: fil::antal_linjer(tekst),
     })
 }
 
@@ -1866,13 +1872,25 @@ pub fn fil_gem_forslag(t: &Tilstand, v: Visning, ok: bool) -> Result<Forslag, Ui
 /// Skriver resultatet til `sti` med filens tegnsæt (og BOM) atomart, efter samme tjek som [`fil_gem_forslag`]. De åbne
 /// filer overskrives aldrig. Svarer med filnavnet.
 pub fn fil_gem_til(t: &Tilstand, v: Visning, sti: &std::path::Path, ok: bool) -> Result<String, UiFejl> {
+    fil_gem_til_med(t, v, sti, ok, &mut || Ok(()))
+}
+
+/// Som [`fil_gem_til`] med et kald lige før omdøbningen (tests: en afbrudt skrivning, V-RET.1 R5).
+#[doc(hidden)]
+pub fn fil_gem_til_med(
+    t: &Tilstand,
+    v: Visning,
+    sti: &std::path::Path,
+    ok: bool,
+    foer_omdoeb: &mut dyn FnMut() -> std::io::Result<()>,
+) -> Result<String, UiFejl> {
     let aabne = t.aabne_stier();
     let g = t.fil(v);
     let h = g.as_ref().ok_or(UiFejl::IngenFil)?;
     tjek_gem(t, v, h, ok)?;
     let r = h.resultat.as_ref().ok_or(UiFejl::IntetResultat)?;
     let ikke_til: Vec<&std::path::Path> = aabne.iter().map(PathBuf::as_path).collect();
-    fil::skriv(sti, &r.tekst, h.fil.tegnsaet, &ikke_til)?;
+    fil::skriv_noteret(sti, &r.tekst, h.fil.tegnsaet, &ikke_til, t.igang.as_ref(), foer_omdoeb)?;
     Ok(sti.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default())
 }
 
@@ -1918,9 +1936,10 @@ mod tests {
     fn linjenumre() {
         let l = Linjer::ny("a\r\nb\nc");
         assert_eq!((l.af(0), l.af(3), l.af(5)), (1, 2, 3));
-        assert_eq!(l.antal("a\r\nb\nc"), 3);
-        assert_eq!(Linjer::ny("a\n").antal("a\n"), 1);
-        assert_eq!(Linjer::ny("").antal(""), 0);
+        // Et enligt CR er også et linjeskift (V-RET.1 R3): linjenumrene følger antal_linjer.
+        let l = Linjer::ny("a\rb\r\nc");
+        assert_eq!((l.af(0), l.af(2), l.af(5)), (1, 2, 3));
+        assert_eq!(fil::antal_linjer("a\rb\r\nc"), 3);
     }
 
     #[test]

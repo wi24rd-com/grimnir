@@ -173,7 +173,9 @@
         const navn = document.createElement('span');
         navn.className = 'sagnavn';
         const n = document.createElement('span');
+        n.className = 'kort';
         n.textContent = navnFor(p);
+        n.title = n.textContent; // forkortes med … i en smal kolonne (V-RET.1 R1)
         navn.appendChild(n);
         if (p.aaben) {
           const m = document.createElement('span');
@@ -227,7 +229,7 @@
   function tegnChip() {
     d.hoejre.textContent = '';
     const n = st.liste.length;
-    const c = K.chip(n ? 'info' : 'none', { t: n === 1 ? 'chipSag1' : n ? 'chipSager' : 'chipIngenSager' });
+    const c = K.chip(n ? 'info' : 'none', { t: n ? 'chipSager' : 'chipIngenSager' });
     c.querySelector('.ord').setAttribute('data-v', String(n));
     d.hoejre.appendChild(c);
     S.anvend(d.hoejre);
@@ -235,7 +237,7 @@
   function tegnFod() {
     if (G.aktiv !== 'sager') return;
     const fod = $('fod-venstre'), n = st.liste.length;
-    fod.setAttribute('data-t', n === 1 ? 'fodSag1' : 'fodSagerTal');
+    fod.setAttribute('data-t', 'fodSagerTal');
     fod.setAttribute('data-v', String(n));
     S.anvend(fod);
   }

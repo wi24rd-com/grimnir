@@ -202,21 +202,38 @@
     hoved.append(h, info);
     p.append(hoved);
     p.setAttribute('data-t-aria', t);
-    return { p, h, info };
+    return { p, h, info, hoved };
+  }
+
+  /* V-RET.1 R2: "Ombryd" i panelhovedet skifter tekstfeltet mellem én linje pr. linje (standard, med vandret rulning) og
+     ombrydning. Valget huskes ikke: det står kun på elementet og er væk, når programmet lukkes. */
+  function ombrydKnap(hoved, pre) {
+    const b = el('button', 'mini ombryd-knap', 'kOmbryd');
+    b.type = 'button';
+    b.setAttribute('aria-pressed', 'false');
+    b.setAttribute('data-t-aria', 'ariaOmbryd');
+    b.setAttribute('data-t-title', 'titelOmbryd');
+    b.addEventListener('click', () => {
+      const on = !pre.classList.contains('ombryd');
+      pre.classList.toggle('ombryd', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+    hoved.appendChild(b);
+    return b;
   }
 
   function tekstVisning(aria) {
     const pre = el('pre', 'tekst mono');
     pre.tabIndex = 0;
     pre.setAttribute('data-t-aria', aria);
-    const afk = el('p', 'afkortet', 'tekstAfkortet', '200.000');
+    const afk = el('p', 'afkortet', 'tekstAfkortet');
     afk.hidden = true;
     /* ikkeVist: for en fil er s Rusts uddrag, og ikkeVist er antallet af tegn efter det (null: indsat tekst). */
     function vis(s, ikkeVist) {
       if (ikkeVist == null) {
         pre.textContent = s.length > MAKS_VIST ? s.slice(0, MAKS_VIST) : s;
         afk.setAttribute('data-t', 'tekstAfkortet');
-        afk.setAttribute('data-v', '200.000');
+        afk.removeAttribute('data-v');
         afk.hidden = s.length <= MAKS_VIST;
       } else {
         pre.textContent = s;
@@ -266,6 +283,7 @@
       tekstPanel = panel('pTekst');
       tv = tekstVisning('ariaTekst');
       tekstPanel.p.append(tv.pre, tv.afk);
+      ombrydKnap(tekstPanel.hoved, tv.pre);
       tabelPanel = panel('pFund');
       tabelvaert = el('div', 'tabelvaert');
       flere = el('div', 'flere');
@@ -547,7 +565,9 @@
         const p = el('span', 'prikker', 'skjultVaerdi');
         c.appendChild(p);
       } else {
-        c.appendChild(el('span', 'mono')).textContent = r.vaerdier.join(', ');
+        const v = c.appendChild(el('span', 'mono'));
+        v.textContent = r.vaerdier.join(', ');
+        v.title = v.textContent; // forkortes med … i en smal kolonne (V-RET.1 R1)
       }
       if (r.hemmelig) {
         const b = el('button', 'mini', skjult ? 'vis' : 'skjul');
@@ -582,6 +602,7 @@
       // Flere stavemåder: feltet viser alle koder; en ny kode omdøber hele enheden, og Rust spejler store/små (V-SAG.1).
       const vist = r.koder.join(', ');
       inp.value = st.rettelser.has(r.id) ? st.rettelser.get(r.id) : vist;
+      inp.title = inp.value;
       if (!on) inp.disabled = true;
       const fe = st.fejl.get(r.id);
       c.appendChild(inp);
@@ -624,8 +645,11 @@
       const c = el('span', 'ordbogknapper');
       const GO = window.GrimnirOrdbog;
       for (const hvad of ['altid', 'aldrig']) {
-        const b = el('button', 'mini', hvad === 'altid' ? 'kAltid' : 'kAldrig');
+        // V-RET.1 R1: små ikonknapper (maske: maskér altid, øje: maskér aldrig); ordet står skjult i knappen og i title.
+        const b = el('button', 'mini ikonknap');
         b.type = 'button';
+        b.append(K.ikon(hvad === 'altid' ? 'maske' : 'oeje', 'ik'), el('span', 'skjult-tekst', hvad === 'altid' ? 'kAltid' : 'kAldrig'));
+        b.setAttribute('data-t-title', hvad === 'altid' ? 'kAltidTitel' : 'kAldrigTitel');
         b.setAttribute('data-felt', 'ordbog-' + hvad);
         b.setAttribute('data-t-aria', r.hemmelig ? 'ariaOrdbogHemmelig' : hvad === 'altid' ? 'ariaAltid' : 'ariaAldrig');
         b.setAttribute('data-v', r.hemmelig ? String(r.linje) : r.vaerdier[0]);
@@ -721,8 +745,9 @@
         ariaT: 'pRester',
         kolonner: [{ t: 'kolHvad' }, { t: 'kolType' }, { t: 'kolTekst' }, { t: 'kolAntal', tal: true }, { t: 'kolLinje', tal: true }],
         raekker: st.resultat.rester.map(r => {
-          const tekst = el('span', 'mono');
+          const tekst = el('span', 'mono kort');
           tekst.textContent = r.tekst;
+          tekst.title = r.tekst;
           return { celler: [chip('warn', 'rest_' + r.art), el('span', null, 'art_' + r.type_), tekst, String(r.antal), String(r.linje)], data: r.linje };
         }),
       });
@@ -821,9 +846,11 @@
       svarPanel = panel('pSvar');
       svar = tekstVisning('ariaSvar');
       svarPanel.p.append(svar.pre, svar.afk);
+      ombrydKnap(svarPanel.hoved, svar.pre);
       udPanel = panel('pRigtige');
       ud = tekstVisning('ariaRigtige');
       udPanel.p.append(ud.pre, ud.afk);
+      ombrydKnap(udPanel.hoved, ud.pre);
       delt.append(svarPanel.p, udPanel.p);
       tabelPanel = panel('pAdvarsler', 'advarselpanel');
       tabelvaert = el('div', 'tabelvaert');
@@ -950,7 +977,9 @@
       udPanel.info.setAttribute('data-t', st.resultat ? 'blivPaaMaskinen' : 'tryk');
       udPanel.info.setAttribute('data-v', G.mod + '↵');
       svarPanel.info.setAttribute('data-t', 'tekstInfo');
-      svarPanel.info.setAttribute('data-v', String(st.fil ? st.fil.linjer : st.tekst ? st.tekst.split('\n').length : 0));
+      // V-RET.1 R3: linjetallet kommer altid fra Rust (fil::antal_linjer), som i Maskér: for en fil med det samme, for en
+      // indsat tekst med demaskeringen (indtil da "…").
+      svarPanel.info.setAttribute('data-v', st.fil ? String(st.fil.linjer) : st.resultat && st.resultat.linjer != null ? String(st.resultat.linjer) : '…');
       svarPanel.info.setAttribute('data-w', mb(st.bytes));
       S.anvend(svarPanel.p);
       S.anvend(udPanel.p);
@@ -975,12 +1004,14 @@
         ariaT: 'pAdvarsler',
         kolonner: [{ t: 'kolHvad' }, { t: 'kolKode' }, { t: 'kolAntal', tal: true }, { t: 'kolLinje', tal: true }],
         raekker: vis.map(a => {
-          const kode = el('span', 'mono');
+          const kode = el('span', 'mono kort');
           kode.textContent = a.kode;
+          kode.title = a.kode;
           const c = a.art === 'sat_tilbage' ? chip('ok', 'adv_sat_tilbage') : chip(ADV[a.art] || 'warn', 'adv_' + a.art);
           return { celler: [c, kode, a.antal == null ? '' : String(a.antal), a.linje ? String(a.linje) : ''], data: a.kode };
         }),
       });
+      t.classList.add('advtabel');
       tabelvaert.appendChild(t);
       if (!vis.length) tabelvaert.appendChild(el('p', 'tabel-tom', 'ingenIFilter'));
       tabelPanel.h.setAttribute('data-t', st.filter === 'alle' ? 'pAlleKoder' : st.filter === 'advarsler' ? 'pAdvarsler' : 'pIkkeBrugt');

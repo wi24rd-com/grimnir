@@ -14,7 +14,8 @@
 //! `masker`), så det værste tidspunkt i alt er: original + maskeret + kernens fund og erstatninger (målt i HANDOFF).
 //!
 //! **Originalen ændres aldrig.** Filen åbnes kun til læsning, og [`skriv`] afviser at skrive til den fil, teksten kom
-//! fra ([`FilFejl::SammeFil`]). Skrivningen er atomar med samme hjælper som sagerne ([`crate::sager::skriv_atomart_med`]).
+//! fra ([`FilFejl::SammeFil`]). Skrivningen er atomar med samme hjælper som sagerne ([`crate::sager::skriv_atomart_noteret`]),
+//! og den midlertidige fil noteres i `<app-data>/igang.json`, mens der skrives (V-RET.1 R5, [`crate::igang`]).
 
 use std::fs::{self, File};
 use std::io::{self, Read, Write};
@@ -23,7 +24,8 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 use zeroize::Zeroize;
 
-use crate::sager::{skriv_atomart_med, SagFejl};
+use crate::igang::Igang;
+use crate::sager::{skriv_atomart_noteret, SagFejl};
 
 /// Største fil: 100 MiB (104 857 600 bytes).
 pub const MAKS_FIL: u64 = 100 * 1024 * 1024;
@@ -141,19 +143,30 @@ impl Drop for Fil {
 }
 
 impl Fil {
-    /// Antal linjer (som `Linjer::antal` i maskering.rs).
+    /// Antal linjer ([`antal_linjer`]).
     pub fn linjer(&self) -> usize {
         antal_linjer(&self.tekst)
     }
 }
 
-/// Antal linjer: `\n` tæller, og en sidste linje uden `\n` tæller med.
+/// Hvor hvert linjeskift i teksten slutter: byte-positionen for `\n` eller for et enligt `\r`. CRLF er ét linjeskift
+/// (positionen for `\n`). Linjenumrene i maskering.rs bygger på de samme linjeskift.
+pub fn linjeskift_ved(t: &str) -> impl Iterator<Item = usize> + '_ {
+    let b = t.as_bytes();
+    b.iter().enumerate().filter_map(move |(i, &c)| match c {
+        b'\n' => Some(i),
+        b'\r' if b.get(i + 1) != Some(&b'\n') => Some(i),
+        _ => None,
+    })
+}
+
+/// V-RET.1 R3: antal linjer, ens for indsat tekst i Maskér og Demaskér og for filer: antal linjeskift (LF, CRLF og et
+/// enligt CR tæller hver som ét), plus én, hvis teksten ikke slutter med et linjeskift. En tom tekst har 0 linjer.
 pub fn antal_linjer(t: &str) -> usize {
     if t.is_empty() {
         return 0;
     }
-    let n = t.bytes().filter(|&b| b == b'\n').count();
-    n + usize::from(!t.ends_with('\n'))
+    linjeskift_ved(t).count() + usize::from(!(t.ends_with('\n') || t.ends_with('\r')))
 }
 
 /// Linjeskiftene i teksten.
@@ -354,6 +367,18 @@ pub fn skriv_med(
     ikke_til: &[&Path],
     foer_omdoeb: &mut dyn FnMut() -> io::Result<()>,
 ) -> Result<(), FilFejl> {
+    skriv_noteret(sti, tekst, tegnsaet, ikke_til, None, foer_omdoeb)
+}
+
+/// Som [`skriv_med`]; med `igang` noteres den midlertidige fil i `<app-data>/igang.json`, mens der skrives (V-RET.1 R5).
+pub fn skriv_noteret(
+    sti: &Path,
+    tekst: &str,
+    tegnsaet: Tegnsaet,
+    ikke_til: &[&Path],
+    igang: Option<&Igang>,
+    foer_omdoeb: &mut dyn FnMut() -> io::Result<()>,
+) -> Result<(), FilFejl> {
     if ikke_til.iter().any(|o| samme_fil(sti, o)) {
         return Err(FilFejl::SammeFil);
     }
@@ -391,7 +416,7 @@ pub fn skriv_med(
             }
         }
     };
-    skriv_atomart_med(sti, &mut skriv, foer_omdoeb).map_err(FilFejl::from)
+    skriv_atomart_noteret(sti, &mut skriv, foer_omdoeb, igang).map_err(FilFejl::from)
 }
 
 /// Peger to stier på samme fil? Findes `a` ikke, er svaret nej. Unix: enhed og inode (fanger også store/små bogstaver
@@ -447,8 +472,33 @@ mod tests {
         assert_eq!(linjeskift("a\r\nb\n"), Linjeskift::Blandet);
         assert_eq!(linjeskift("a\rb"), Linjeskift::Cr);
         assert_eq!(linjeskift("ab"), Linjeskift::Ingen);
-        assert_eq!(antal_linjer("a\r\nb"), 2);
-        assert_eq!(antal_linjer("a\n"), 1);
+    }
+
+    /// V-RET.1 R3: samme regel for LF, CRLF, enligt CR og blandet, med og uden afsluttende linjeskift.
+    #[test]
+    fn antal_linjer_efter_reglen() {
+        let tilfaelde: &[(&str, usize)] = &[
+            ("", 0),
+            ("a", 1),
+            ("a\nb\nc\nd\n", 4),
+            ("a\nb\nc\nd", 4),
+            ("a\r\nb\r\nc\r\nd\r\n", 4),
+            ("a\r\nb\r\nc\r\nd", 4),
+            ("a\rb\rc\rd\r", 4),
+            ("a\rb\rc\rd", 4),
+            ("a\r\nb\nc\rd\r\n", 4),
+            ("a\r\nb\nc\rd", 4),
+            ("\n", 1),
+            ("\r\n", 1),
+            ("\r", 1),
+            ("\n\n", 2),
+            ("\r\r\n", 2),
+            ("æ\r\nø\rå", 3),
+        ];
+        for &(t, n) in tilfaelde {
+            assert_eq!(antal_linjer(t), n, "{t:?}");
+        }
+        assert_eq!(linjeskift_ved("a\r\nb\rc\n").collect::<Vec<_>>(), vec![2, 4, 6]);
     }
 
     #[test]

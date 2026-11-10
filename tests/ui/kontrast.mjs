@@ -102,6 +102,9 @@ export const PAR = [
   ['info', 'surface-raised', KANT, 'Fil: fladens kant under et træk over et panelhoved'],
   ['text-muted', 'surface', TEKST, 'Ordbog: advarslen om en adgangskode i Tilføj post'],
   ['warn', 'surface', TEKST, 'Ordbog: advarselstegnet i Tilføj post'],
+  // V-RET.1: rullebjælken i tekstpanelerne (altid synlig) og Altid/Aldrig som ikonknapper.
+  ['text-muted', 'surface-raised', KANT, 'Tekstpanel: rullebjælkens greb på sporet'],
+  ['info', 'surface', KANT, 'Maskér: ikonet i Altid og Aldrig'],
 ];
 
 function lin(c) {

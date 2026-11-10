@@ -347,7 +347,9 @@ function falskRust({ rester = [], afvis = null } = {}) {
     demasker: a => {
       let t = a.tekst;
       for (const [k, o] of Object.entries(koder)) t = t.split(k).join(o);
-      return { tekst: t, koder: Object.keys(koder).slice(1), advarsler: [{ art: 'ukendt_kode', kode: 'h0099', antal: 1, linje: 1 }, { art: 'ikke_brugt', kode: Object.keys(koder)[0], antal: 1, linje: 0 }] };
+      // linjer: som fil::antal_linjer i Rust (V-RET.1 R3): linjeskift (LF, CRLF, enligt CR) + 1 uden afsluttende linjeskift.
+      const linjer = a.tekst === '' ? 0 : (a.tekst.match(/\r\n|\r|\n/g) || []).length + (/[\r\n]$/.test(a.tekst) ? 0 : 1);
+      return { tekst: t, linjer, koder: Object.keys(koder).slice(1), advarsler: [{ art: 'ukendt_kode', kode: 'h0099', antal: 1, linje: 1 }, { art: 'ikke_brugt', kode: Object.keys(koder)[0], antal: 1, linje: 0 }] };
     },
     sag_status: () => ({ poster }),
     sag_nulstil: () => { poster = 0; koder = {}; return { poster: 0 }; },
@@ -526,7 +528,7 @@ const raekkeMed = (d, id) => d.querySelector(`section[data-visning="masker"] .fu
   await vent(5);
   tjek('⌘↵ i Demaskér: demasker med svaret', s.kald.some(k => k[0] === 'demasker' && k[1].tekst === svarTekst));
   tjek('Demaskér: resultatet med de rigtige værdier og CRLF', dsek.querySelectorAll('pre.tekst')[1].textContent === 'Prøv bruger060 på Sommer2026!\r\nog h0099\r\n');
-  tjek('Demaskér: advarsel som banner og ikke-brugt som oplysning', dsek.querySelector('.ban.warn') && dsek.querySelector('.ban.warn').textContent.includes('1 steder i svaret') && dsek.querySelector('.ban.info'));
+  tjek('Demaskér: advarsel som banner og ikke-brugt som oplysning', dsek.querySelector('.ban.warn') && dsek.querySelector('.ban.warn').textContent.includes('1 sted i svaret') && !dsek.querySelector('.ban.warn').textContent.includes('1 steder') && dsek.querySelector('.ban.info'));
   const dtrae = n => d.querySelector(`.navdel[data-visning="demasker"] [data-punkt="${n}"]`);
   dtrae('advarsler').click();
   const dr = [...dsek.querySelectorAll('.advarselpanel tbody tr')];
@@ -586,7 +588,7 @@ const raekkeMed = (d, id) => d.querySelector(`section[data-visning="masker"] .fu
   kode.dispatchEvent(new w.Event('change', { bubbles: true }));
   knapI(d, 'masker', 'gem-masker').click();
   await vent(5);
-  tjek('afvist rettelse: fejlbanner, intet resultat, ingen sag', sek.querySelector('.ban.danger') && sek.textContent.includes('1 rettelser kan ikke bruges') && !s.w.GrimnirMaskering.M.st.resultat && d.getElementById('sag-knap').hidden);
+  tjek('afvist rettelse: fejlbanner, intet resultat, ingen sag', sek.querySelector('.ban.danger') && sek.textContent.includes('1 rettelse kan ikke bruges, så intet er gemt. Se rækken med rødt.') && !s.w.GrimnirMaskering.M.st.resultat && d.getElementById('sag-knap').hidden);
   const k2 = raekkeMed(d, 24).querySelector('input[data-felt="kode"]');
   const k2fejl = d.getElementById(k2.getAttribute('aria-describedby') || 'mangler');
   tjek('afvist rettelse: fejlen står på rækken (aria-invalid + tekst)', k2.getAttribute('aria-invalid') === 'true' && k2fejl && k2fejl.textContent === 'kollision01 findes allerede i sagen eller i teksten.', String(k2.outerHTML) + ' | ' + (k2fejl ? k2fejl.outerHTML : 'intet'));
@@ -1521,7 +1523,7 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   await vent(10);
   s.tast('Enter', { metaKey: true }); await vent(10);
   s.tast('Enter', { metaKey: true }); await vent(10);
-  tjek('rester: banneret om rester står', sek.textContent.includes('Lækagetjekket fandt 1 steder i resultatet'));
+  tjek('rester: banneret om rester står', sek.textContent.includes('Lækagetjekket fandt 1 sted i resultatet, der stadig ligner en følsom værdi'));
   tjek('over 5 MB: Kopiér er nedtonet med forklaring', !kommandoAktiv(d, 'masker', 'kopier') && knapI(d, 'masker', 'kopier').title === 'Over 5 MB kan ikke kopieres; gem resultatet som fil');
   knapI(d, 'masker', 'gem-fil').click();
   await vent(5);
@@ -1688,6 +1690,186 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   d.getElementById('opost-ok').click();
   await vent(10);
   tjek('Tilføj post: advarslen blokerer ikke (posten tilføjes)', rust.ob.db.some(p => p.vaerdi === 'Vinter2027#') && !d.getElementById('dlg-opost').open);
+}
+
+// ── V-RET.1 R1: tabellerne — Altid/Aldrig som ikonknapper, lange værdier forkortes og står hele i title ──
+{
+  const rust = falskOrdbogRust({ poster: ORDBOG(), sager: SAGER(), indst: { guide_vist: true } });
+  const s = side({ rust });
+  const { d, w } = s;
+  await vent(20);
+  const sek = d.querySelector('section[data-visning="masker"]');
+  indsaet(w, sek.querySelector('.tom'), TEKST);
+  s.tast('Enter', { metaKey: true });
+  await vent(10);
+  const tr = raekkeMed(d, 24);
+  const [altid, aldrig] = [...tr.querySelectorAll('.ordbogknapper button')];
+  tjek('R1: Altid og Aldrig er ikonknapper med ikon, navn, title og skjult ord', [altid, aldrig].every(b => b.classList.contains('ikonknap') && b.querySelector('svg.ik') && b.getAttribute('aria-label').length > 10 && b.title.length > 10 && b.querySelector('.skjult-tekst')) && altid.title === 'Maskér altid: læg værdien i ordbogen' && aldrig.title === 'Maskér aldrig: læg værdien i ordbogen');
+  tjek('R1: Fundet værdi har hele værdien i title, i mono', tr.querySelector('.vaerdi .mono').title === 'bruger060' && tr.querySelector('.vaerdi .mono').textContent === 'bruger060');
+  tjek('R1: erstatningsfeltet har koden i title, i mono', tr.querySelector('input[data-felt="kode"]').title === 'user0001' && tr.querySelector('input[data-felt="kode"]').classList.contains('mono'));
+  const skjult = raekkeMed(d, 45);
+  tjek('R1: en skjult hemmelighed har ingen title med værdien', !skjult.querySelector('.vaerdi [title]') && !skjult.innerHTML.includes(HEMMELIG));
+  const hemmeligAldrig = skjult.querySelectorAll('.ordbogknapper button')[1];
+  tjek('R1: nedtonet ikonknap forklarer hvorfor i title', hemmeligAldrig.disabled && hemmeligAldrig.title.length > 10 && hemmeligAldrig.title !== 'Maskér aldrig: læg værdien i ordbogen');
+  tjek('R1: Maskér-tabellen har klassen fundtabel (kolonnerne i app.css)', sek.querySelector('table.tabel.fundtabel'));
+  // Rester: teksten forkortes og står i title.
+  s.tast('Enter', { metaKey: true });
+  await vent(10);
+  w.GrimnirMaskering.M.st.visRester = true;
+  w.GrimnirMaskering.M.tegn();
+  // Demaskér: tabellen har klassen advtabel, og koden står i title.
+  w.location.hash = 'demasker';
+  await vent(5);
+  const dsek = d.querySelector('section[data-visning="demasker"]');
+  indsaet(w, dsek.querySelector('.tom'), 'svar med h0099\n');
+  s.tast('Enter', { metaKey: true });
+  await vent(10);
+  const at = dsek.querySelector('table.advtabel');
+  tjek('R1: Demaskér-tabellen har klassen advtabel og koden forkortet med title', at && [...at.querySelectorAll('tbody td:nth-child(2) .mono')].every(k => k.classList.contains('kort') && k.title === k.textContent && k.title.length > 0));
+  // Sager og Ordbog: navnet og værdien forkortes og står i title.
+  w.location.hash = 'sager';
+  await vent(10);
+  const navn = d.querySelector('section[data-visning="sager"] .sagtabel tbody tr .sagnavn .kort');
+  tjek('R1: Sager: navnet forkortes og står i title', navn && navn.title === navn.textContent && navn.textContent.length > 0);
+  w.location.hash = 'ordbog';
+  await vent(10);
+  const ov = d.querySelector('section[data-visning="ordbog"] .ordbogtabel tbody tr[data-id] .mono');
+  tjek('R1: Ordbog: værdien forkortes (mono) og står i title', ov && ov.classList.contains('kort') && ov.title === ov.textContent);
+  const note = [...d.querySelectorAll('section[data-visning="ordbog"] .ordbogtabel tbody tr[data-id] .muted')].find(n => n.textContent);
+  tjek('R1: Ordbog: noten står i title', note && note.title === note.textContent);
+  const css = ui('assets/app.css');
+  tjek('R1: ingen tabel har faste bredder uden for variablerne (th:nth-child med width i px eller %)', !/th:nth-child\(\d\)[^{]*\{\s*width:\s*\d/.test(css));
+}
+{
+  const s = side({ hash: '#masker', rust: falskRust() });
+  const { d, w } = s;
+  await vent(5);
+  w.GrimnirMaskering.M.st.resultat = { maskeret: 'x', rester: [{ art: 'nyt_fund', type_: 'hemmelighed', tekst: 'Hemmelig42', antal: 1, linje: 1 }], advarsler: [] };
+  w.GrimnirMaskering.M.st.analyse = { raekker: [], fejl: [], advarsler: [], linjer: 1 };
+  w.GrimnirMaskering.M.st.tekst = 'x';
+  w.GrimnirMaskering.M.st.visRester = true;
+  w.GrimnirMaskering.M.tegn();
+  const rt = d.querySelector('.resttabel tbody td:nth-child(3) .mono');
+  tjek('R1: rester: teksten forkortes (mono) og står i title', rt && rt.classList.contains('kort') && rt.title === 'Hemmelig42');
+}
+
+// ── V-RET.1 R2: tekstpanelerne bryder ikke linjer; "Ombryd" skifter, og valget huskes ikke ──
+{
+  const s = side({ rust: falskRust() });
+  const { d, w } = s;
+  await vent(5);
+  const sek = d.querySelector('section[data-visning="masker"]');
+  indsaet(w, sek.querySelector('.tom'), TEKST);
+  await vent(5);
+  const pre = sek.querySelector('pre.tekst');
+  const knap = sek.querySelector('.panel-hoved .ombryd-knap');
+  tjek('R2: Maskér: tekstpanelet har "Ombryd" i panelhovedet, ikke trykket, med navn og title', knap && knap.textContent === 'Ombryd' && knap.getAttribute('aria-pressed') === 'false' && knap.getAttribute('aria-label') === 'Ombryd lange linjer' && knap.title.includes('huskes ikke') && !pre.classList.contains('ombryd'));
+  knap.click();
+  tjek('R2: et klik ombryder (klassen ombryd, aria-pressed true)', pre.classList.contains('ombryd') && knap.getAttribute('aria-pressed') === 'true');
+  knap.click();
+  tjek('R2: endnu et klik slår ombrydning fra igen', !pre.classList.contains('ombryd') && knap.getAttribute('aria-pressed') === 'false');
+  knap.click();
+  tjek('R2: valget står ikke i localStorage', !JSON.stringify(Object.entries(w.localStorage)).toLowerCase().includes('ombryd'));
+  const s2 = side({ rust: falskRust() });
+  await vent(5);
+  tjek('R2: ved næste start er tekstfeltet uden ombrydning', !s2.d.querySelector('section[data-visning="masker"] pre.tekst').classList.contains('ombryd') && s2.d.querySelector('section[data-visning="masker"] .ombryd-knap').getAttribute('aria-pressed') === 'false');
+  const dk = [...d.querySelectorAll('section[data-visning="demasker"] .panel-hoved .ombryd-knap')];
+  tjek('R2: Demaskér: begge tekstpaneler har hver sin "Ombryd"', dk.length === 2 && dk.every(b => b.closest('.panel').querySelector('pre.tekst')));
+  dk[0].click();
+  const dp = [...d.querySelectorAll('section[data-visning="demasker"] pre.tekst')];
+  tjek('R2: Demaskér: knappen ombryder kun sit eget panel', dp[0].classList.contains('ombryd') && !dp[1].classList.contains('ombryd'));
+  const css = ui('assets/app.css');
+  tjek('R2: CSS: white-space: pre som standard, pre-wrap ved ombryd, og rullebjælken er altid synlig (::-webkit-scrollbar)', /\.tekst \{[^}]*white-space: pre;/.test(css) && /\.tekst\.ombryd \{[^}]*white-space: pre-wrap/.test(css) && /\.tekst::-webkit-scrollbar \{[^}]*height: 12px/.test(css));
+}
+
+// ── V-RET.1 R3: Demaskér viser Rusts linjetal (samme regel som Maskér og filer) ──
+{
+  const s = side({ rust: falskRust() });
+  const { d, w } = s;
+  await vent(5);
+  indsaet(w, d.querySelector('section[data-visning="masker"] .tom'), TEKST);
+  s.tast('Enter', { metaKey: true }); await vent(5);
+  s.tast('Enter', { metaKey: true }); await vent(5);
+  w.location.hash = 'demasker';
+  await vent(5);
+  const dsek = d.querySelector('section[data-visning="demasker"]');
+  const info = () => dsek.querySelector('.panel .panel-hoved .muted').textContent;
+  indsaet(w, dsek.querySelector('.tom'), 'a\r\nb\r\nc\r\nd\r\n');
+  tjek('R3: Demaskér før demaskering: linjetallet venter på Rust ("…")', info().startsWith('… linjer'), info());
+  s.tast('Enter', { metaKey: true }); await vent(5);
+  tjek('R3: Demaskér efter demaskering: 4 linjer fra Rust (tekst med afsluttende CRLF)', info().startsWith('4 linjer'), info());
+  const m = ui('assets/maskering.js');
+  tjek('R3: ingen linjetælling i webvisningen (split på linjeskift)', !/split\(['"]\\n['"]\)/.test(m) && !/split\(\/\\r\?\\n\//.test(m));
+}
+
+// ── V-RET.1 R4: ental og flertal i begge sprog ──
+{
+  const { w } = side();
+  const S = w.Sprog, T = S.TEKST;
+  const FORM = /\{([vw]):((?:[^{}|]|\{[vw]\})*)\|((?:[^{}|]|\{[vw]\})*)\}/g;
+  const former = s => [...s.matchAll(FORM)].map(m => m[1]);
+  const talnoegler = Object.keys(T.da).filter(k => former(T.da[k]).length || former(T.en[k]).length);
+  tjek(`R4: der er talnøgler med ental og flertal (${talnoegler.length})`, talnoegler.length >= 28);
+  const skaev = talnoegler.filter(k => JSON.stringify([...new Set(former(T.da[k]))].sort()) !== JSON.stringify([...new Set(former(T.en[k]))].sort()));
+  tjek('R4: hver talnøgle har ental og flertal for de samme tal i begge sprog', skaev.length === 0, skaev.join(', '));
+  // Værn: et tal foran et navneord uden mønsteret (fx "{v} linjer") er en fejl.
+  const NAVNEORD = /\{[vw]\} (værdier|værdi|linjer|linje|steder|sted|rækker|række|rettelser|kodepuljer|koder|kode|rester|rest|fund|sager|sag|poster|post|advarsler|advarsel|tegn|ukendte|values|value|lines|line|places|place|rows|row|changes|code|codes|leftovers|findings|cases|case|entries|entry|warnings|warning|characters|more characters|unknown)\b/;
+  const umarkerede = [];
+  for (const sprog of ['da', 'en']) for (const [k, v] of Object.entries(T[sprog])) if (NAVNEORD.test(v.replace(FORM, ''))) umarkerede.push(`${sprog}.${k}`);
+  tjek('R4: intet tal står foran et navneord uden {v:ental|flertal}', umarkerede.length === 0, umarkerede.join(', '));
+  const restDele = sprog => Object.values(T[sprog]).filter(v => /\{[vw]:/.test(v.replace(FORM, '')));
+  tjek('R4: mønsteret er skrevet rigtigt overalt (ingen halve {v:…})', restDele('da').length === 0 && restDele('en').length === 0, [...restDele('da'), ...restDele('en')].join(' | '));
+  tjek('R4: de gamle særnøgler til ental er væk (chipSag1, fodSag1, chipPost1, fodPost1)', ['chipSag1', 'fodSag1', 'chipPost1', 'fodPost1'].every(k => !(k in T.da) && !(k in T.en)));
+  // 0, 1 og 2 giver de rigtige former: for hver talnøgle og hvert sprog står ental-formen ved 1 og flertal-formen ved 0 og 2.
+  const forkerte = [];
+  for (const sprog of ['da', 'en']) {
+    S.saet(sprog);
+    for (const k of talnoegler) {
+      for (const n of [0, 1, 2]) {
+        const ud = S.t(k, n, n);
+        if (/\{[vw]/.test(ud)) forkerte.push(`${sprog}.${k}(${n}): ${ud}`);
+        for (const m of T[sprog][k].matchAll(FORM)) {
+          const form = (n === 1 ? m[2] : m[3]).replace(/\{[vw]\}/g, String(n));
+          if (!ud.includes(form)) forkerte.push(`${sprog}.${k}(${n}) mangler «${form}»: ${ud}`);
+        }
+      }
+    }
+  }
+  tjek('R4: 0, 1 og 2 giver den rigtige form for hver talnøgle i begge sprog', forkerte.length === 0, forkerte.slice(0, 5).join(' | '));
+  const FORVENTET = [
+    ['da', 'bAdvarsler', [0, '0 steder i svaret'], [1, '1 sted i svaret'], [2, '2 steder i svaret']],
+    ['en', 'bAdvarsler', [0, '0 places in the reply'], [1, '1 place in the reply'], [2, '2 places in the reply']],
+    ['da', 'restInfo', [0, '0 steder'], [1, '1 sted'], [2, '2 steder']],
+    ['da', 'tekstInfo', [0, '0 linjer · 0.1 MB'], [1, '1 linje · 0.1 MB'], [2, '2 linjer · 0.1 MB']],
+    ['en', 'tekstInfo', [0, '0 lines · 0.1 MB'], [1, '1 line · 0.1 MB'], [2, '2 lines · 0.1 MB']],
+    ['da', 'chipSager', [0, '0 sager'], [1, '1 sag'], [2, '2 sager']],
+    ['en', 'chipPoster', [0, '0 entries'], [1, '1 entry'], [2, '2 entries']],
+    ['da', 'fodDemaskerTal', [0, '0 koder sat tilbage · 0 advarsler'], [1, '1 kode sat tilbage · 1 advarsel'], [2, '2 koder sat tilbage · 2 advarsler']],
+    ['da', 'bAltTilbage', [0, 'Alle 0 koder i svaret er sat tilbage.'], [1, 'Den ene kode i svaret er sat tilbage.'], [2, 'Alle 2 koder i svaret er sat tilbage.']],
+    ['en', 'bAltTilbage', [1, 'The one code in the reply has been put back.'], [2, 'All 2 codes in the reply have been put back.']],
+    ['da', 'bGemRester', [1, 'fandt 1 rest, som står i klartekst i filen. Se den først'], [2, 'fandt 2 rester, som står i klartekst i filen. Se dem først']],
+    ['en', 'bLaekRester', [1, 'found 1 place in the result that still looks sensitive'], [2, 'found 2 places in the result that still look sensitive']],
+    ['da', 'midlertidigSag', [1, 'Midlertidig sag · 1 værdi'], [2, 'Midlertidig sag · 2 værdier']],
+    ['da', 'chipUkendte', [1, '1 ukendt'], [2, '2 ukendte']],
+  ];
+  const forskel = [];
+  for (const [sprog, k, ...par] of FORVENTET) {
+    S.saet(sprog);
+    for (const [n, f] of par) { const ud = S.t(k, n, k === 'tekstInfo' ? '0.1' : n); if (!ud.includes(f)) forskel.push(`${sprog}.${k}(${n}): «${ud}» ≠ «${f}»`); }
+  }
+  tjek('R4: udvalgte tekster ved 0, 1 og 2 (bl.a. "1 sted" / "2 steder")', forskel.length === 0, forskel.join(' | '));
+  S.saet('da');
+}
+{
+  // Sager og Ordbog i vinduet: chip og fodlinje med 1.
+  const rust = falskOrdbogRust({ poster: [{ type: 'ord', vaerdi: 'Uglebo' }], sager: [{ id: hexId(1), navn: 'Supportsag 0042', poster: 1 }], indst: { guide_vist: true } });
+  const s = side({ hash: '#sager', rust });
+  const { d, w } = s;
+  await vent(20);
+  tjek('R4: Sager: chip og fodlinje siger "1 sag"', d.querySelector('section[data-visning="sager"] .vl .chip').textContent === 'i1 sag' && d.getElementById('fod-venstre').textContent === '1 sag');
+  w.location.hash = 'ordbog';
+  await vent(10);
+  tjek('R4: Ordbog: chip og fodlinje siger "1 post"', d.querySelector('section[data-visning="ordbog"] .vl .chip').textContent === 'i1 post' && d.getElementById('fod-venstre').textContent === '1 post');
 }
 
 console.log(`\n${ok + fejl} tjek: ${ok} ok, ${fejl} fejl`);

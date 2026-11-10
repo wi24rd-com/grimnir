@@ -105,11 +105,13 @@
       const type = document.createElement('span');
       type.setAttribute('data-t', typeNoegle(p));
       const v = document.createElement('span');
-      v.className = 'mono';
+      v.className = 'mono kort';
       v.textContent = p.vaerdi;
+      v.title = p.vaerdi; // forkortes med … i en smal kolonne (V-RET.1 R1)
       const n = document.createElement('span');
       n.className = 'muted';
       n.textContent = p.note || '';
+      if (p.note) n.title = p.note;
       return { celler: [type, v, n], data: p.id };
     };
     const altid = r.filter(p => p.type !== 'aldrig'), aldrig = r.filter(p => p.type === 'aldrig');
@@ -159,7 +161,7 @@
   function tegnChip() {
     d.hoejre.textContent = '';
     const n = st.poster.length;
-    const c = st.fejl ? K.chip('danger', { t: 'chipOrdbogLaast' }) : K.chip(n ? 'info' : 'none', { t: n === 1 ? 'chipPost1' : n ? 'chipPoster' : 'chipTomOrdbog' });
+    const c = st.fejl ? K.chip('danger', { t: 'chipOrdbogLaast' }) : K.chip(n ? 'info' : 'none', { t: n ? 'chipPoster' : 'chipTomOrdbog' });
     c.querySelector('.ord').setAttribute('data-v', String(n));
     d.hoejre.appendChild(c);
     S.anvend(d.hoejre);
@@ -167,7 +169,7 @@
   function tegnFod() {
     if (G.aktiv !== 'ordbog') return;
     const fod = $('fod-venstre'), n = st.poster.length;
-    fod.setAttribute('data-t', n === 1 ? 'fodPost1' : 'fodPosterTal');
+    fod.setAttribute('data-t', 'fodPosterTal');
     fod.setAttribute('data-v', String(n));
     S.anvend(fod);
   }

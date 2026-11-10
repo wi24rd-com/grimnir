@@ -18,3 +18,8 @@ opt-level = 3
 
 [profile.dev.package.memchr]
 opt-level = 3
+
+# V-RET.1 R6 (fund 4 i V-FIL.1): skallens egen kode (fil.rs læser og afkoder filerne) optimeres også i debug. Målt i
+# V-RET.1: læsning af 100 MB og byggetiden for cargo test, før og efter (HANDOFF-V-RET.1.md, R6).
+[profile.dev.package.grimnir]
+opt-level = 2

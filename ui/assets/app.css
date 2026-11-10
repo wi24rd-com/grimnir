@@ -47,8 +47,15 @@
 }
 .panel-hoved h3 { margin: 0; font-size: var(--h3-size); line-height: var(--h3-line); font-weight: var(--h3-weight); }
 .panel-hoved .muted { margin-left: auto; font-size: var(--small-size); }
-/* Teksten vises i et felt, der ikke kan redigeres: et <pre>, aldrig et <textarea> (det gør CRLF til LF). */
+.panel-hoved .ombryd-knap { flex: none; align-self: center; }
+/* Teksten vises i et felt, der ikke kan redigeres: et <pre>, aldrig et <textarea> (det gør CRLF til LF). V-RET.1 R2: lange
+   linjer brydes ikke (en log skal kunne læses linje for linje), og rullebjælkerne er altid synlige, så det ses, at der er
+   mere til højre. Knappen "Ombryd" i panelhovedet skifter til ombrydning; valget huskes ikke. */
 .tekst { margin: 0; padding: var(--space-3); white-space: pre; overflow: auto; height: 62vh; min-height: 240px; }
+.tekst.ombryd { white-space: pre-wrap; overflow-wrap: anywhere; }
+.tekst::-webkit-scrollbar { width: 12px; height: 12px; }
+.tekst::-webkit-scrollbar-track, .tekst::-webkit-scrollbar-corner { background: var(--surface-raised); }
+.tekst::-webkit-scrollbar-thumb { background: var(--text-muted); border: 3px solid var(--surface-raised); border-radius: var(--radius-pill); }
 .delt.lige .tekst { height: 40vh; }
 .tekst:focus-visible { outline-offset: -2px; }
 .afkortet { margin: 0; padding: var(--space-2) var(--space-3); border-top: 1px solid var(--border); font-size: var(--small-size); color: var(--text-muted); }
@@ -56,14 +63,43 @@
 .advarselpanel .tabelvaert { height: auto; max-height: 40vh; min-height: 0; }
 .tabel-tom { margin: 0; padding: var(--space-4) var(--space-3); color: var(--text-muted); }
 .flere { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-top: 1px solid var(--border); font-size: var(--small-size); color: var(--text-muted); }
-.fundtabel th:nth-child(1) { width: 44px; }
-.fundtabel th:nth-child(2) { width: 15%; }
-.fundtabel th:nth-child(4) { width: 24%; }
-.fundtabel th:nth-child(5) { width: 64px; }
-.fundtabel th:nth-child(6) { width: 118px; }
-.fundtabel th:nth-child(7) { width: 132px; }
-.resttabel th:nth-child(1) { width: 34%; }
-.resttabel th:nth-child(4), .resttabel th:nth-child(5) { width: 72px; }
+/* ── Tabellernes kolonner (V-RET.1 R1) ──
+   Hver tabel sætter sine kolonnebredder som variabler: --k1 … --k7 er hele kolonnens bredde med polstring (WebKit giver en
+   tabelcelle præcis sin bredde; målt i V-RET.1), en kolonne uden variabel får resten (auto), og --tabel-min er tabellens
+   mindste bredde (de faste kolonner + 140 px til værdien). Bliver vinduet så smalt, at tabellen ikke kan være der, ruller
+   tabellen vandret i stedet for at klemme værdien. --celle er cellernes polstring i hver side. Engelsk har egne bredder,
+   hvor teksterne er bredere (html[lang="en"]). tests/ui/kolonner.mjs læser alt dette og regner bredderne ud ved 900, 1200
+   og 1600 px. Bredderne bygger på teksternes målte bredde i WebKit (chips, overskrifter, det længste ord i en type). */
+.tabel { min-width: var(--tabel-min, 0); }
+.tabel th, .tabel td { padding-left: var(--celle, var(--space-3)); padding-right: var(--celle, var(--space-3)); }
+.tabel th { overflow: hidden; text-overflow: ellipsis; }
+.tabel th:nth-child(1) { width: var(--k1, auto); }
+.tabel th:nth-child(2) { width: var(--k2, auto); }
+.tabel th:nth-child(3) { width: var(--k3, auto); }
+.tabel th:nth-child(4) { width: var(--k4, auto); }
+.tabel th:nth-child(5) { width: var(--k5, auto); }
+.tabel th:nth-child(6) { width: var(--k6, auto); }
+.tabel th:nth-child(7) { width: var(--k7, auto); }
+/* Værn: en chip eller en lang værdi går aldrig ud over sin celle; den forkortes med … (hele teksten står i title). */
+.tabel td .chip { max-width: 100%; }
+.tabel td .chip .ord { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.tabel td .kort { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Maskér: ✓, Type, Fundet værdi (resten), Erstatning, Antal, Status, Ordbog. Tæt polstring; Altid/Aldrig er ikonknapper. */
+.fundtabel { --celle: var(--space-2); --k1: 28px; --k2: 108px; --k4: 106px; --k5: 60px; --k6: 108px; --k7: 68px; --tabel-min: 618px; }
+html[lang="en"] .fundtabel { --k2: 80px; --k6: 134px; --k7: 92px; --tabel-min: 640px; }
+.fundtabel th:first-child, .fundtabel td:first-child { padding-right: var(--space-1); }
+/* Lækagetjekkets rester: Hvad, Type, Tekst (resten), Antal, Linje. */
+.resttabel { --celle: var(--space-2); --k1: 162px; --k2: 108px; --k4: 60px; --k5: 56px; --tabel-min: 526px; }
+html[lang="en"] .resttabel { --k2: 80px; --tabel-min: 498px; }
+/* Demaskér: Hvad, Kode (resten), Antal, Linje. */
+.advtabel { --k1: 280px; --k3: 72px; --k4: 64px; --tabel-min: 556px; }
+/* Maskér: tekst og fund står side om side fra 1400 px. I smallere vinduer kommer fundene under teksten, så tabellen får
+   hele bredden (ved 1200 px ville den ellers kun få 3/5 af fladen, ca. 557 px, og værdien ingen plads). */
+@media (max-width: 1399px) {
+  .delt:not(.lige) { grid-template-columns: minmax(0, 1fr); }
+  .delt:not(.lige) .tekst { height: 24vh; min-height: 140px; }
+  .delt:not(.lige) .tabelvaert { height: 44vh; min-height: 220px; }
+}
 .tabel td input[type="checkbox"] { width: 16px; height: 16px; padding: 0; margin: 0; accent-color: var(--accent); }
 .tabel td input[readonly] { color: var(--text-muted); }
 .tabel td input[disabled] { opacity: .55; }
@@ -71,7 +107,7 @@
 .fundtabel tr.fra td { color: var(--text-muted); }
 .vaerdi { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
 .vaerdi .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.prikker { letter-spacing: .12em; color: var(--text-muted); }
+.prikker { letter-spacing: .12em; color: var(--text-muted); overflow: hidden; white-space: nowrap; min-width: 0; }
 .erstatning { display: block; padding: 4px 0; }
 .raekkefejl { display: block; margin-top: 2px; color: var(--danger); font-size: var(--small-size); line-height: var(--small-line); }
 /* Lille tekstknap i en række og i fodlinjen af tabellen (Vis, Skjul, Vis flere). */
@@ -93,24 +129,35 @@
 .afkryds { display: flex; align-items: center; gap: var(--space-2); cursor: pointer; }
 .afkryds input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
 .sagtabel tbody tr { cursor: pointer; }
-.sagtabel th:nth-child(2) { width: 80px; }
-.sagtabel th:nth-child(3), .sagtabel th:nth-child(4), .sagtabel th:nth-child(5) { width: 128px; }
-.sagtabel th:nth-child(6) { width: 140px; }
-.sagnavn .muted { margin-left: var(--space-2); font-size: var(--small-size); }
+/* Navn (resten), Værdier, Oprettet, Sidst brugt, Udløber, Status (V-RET.1 R1). Under 1100 px er datokolonnerne smallere:
+   datoen og overskriften må gå over to linjer ("30. nov." / "2026"). */
+.sagtabel { --k2: 80px; --k3: 116px; --k4: 116px; --k5: 116px; --k6: 142px; --tabel-min: 710px; }
+html[lang="en"] .sagtabel { --k6: 160px; --tabel-min: 728px; }
+@media (max-width: 1099px) {
+  .sagtabel { --celle: var(--space-2); --k2: 72px; --k3: 80px; --k4: 80px; --k5: 80px; --k6: 134px; --tabel-min: 586px; }
+  html[lang="en"] .sagtabel { --k6: 152px; --tabel-min: 604px; }
+  .sagtabel th { white-space: normal; }
+}
+.sagnavn { display: flex; align-items: baseline; min-width: 0; }
+.sagnavn .kort { flex: 0 1 auto; min-width: 0; }
+.sagnavn .muted { flex: none; margin-left: var(--space-2); font-size: var(--small-size); }
 .sagtabel .tabelvaert, .sagliste .tabelvaert { height: auto; max-height: 70vh; }
 .tom .btn { margin-top: var(--space-2); }
 
 /* ── Ordbog, indstillinger og guiden (V-ORDBOG.1) ── */
 /* Maskér: rækkens vej til ordbogen og advarslen om egne koder. */
 .ordbogknapper { display: flex; gap: var(--space-1); }
+/* V-RET.1 R1: Altid og Aldrig er små ikonknapper (navnet står i aria-label og title). */
+.mini.ikonknap { width: 24px; padding: 0; justify-content: center; }
+.mini.ikonknap svg { width: 14px; height: 14px; }
 .mini[disabled] { opacity: .55; cursor: default; }
 .mini[disabled]:hover { background: var(--surface); }
 .raekkeadv { display: block; margin-top: 2px; color: var(--text-muted); font-size: var(--small-size); line-height: var(--small-line); }
 .raekkeadv::before { content: "! "; font-weight: 700; color: var(--warn); }
 /* Ordbog-visningen. */
 .ordbogflade .tabelvaert { height: auto; max-height: 62vh; min-height: 0; }
-.ordbogtabel th:nth-child(1) { width: 160px; }
-.ordbogtabel th:nth-child(3) { width: 34%; }
+/* Type, Værdi eller mønster (resten), Note (V-RET.1 R1). */
+.ordbogtabel { --k1: 160px; --k3: 34%; }
 .ordbogtabel td .muted { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
 .ordbogtabel tr.gruppe .muted { display: inline; }
 .hjaelpelinje {
@@ -144,8 +191,7 @@
 .proev-svar { display: flex; flex-direction: column; gap: var(--space-2); margin: 0 0 var(--space-3); max-height: 40vh; overflow: auto; }
 .proev-svar:empty { display: none; }
 .proev-svar .besked, .proev-svar .dlg-fejl { margin: 0; }
-.proevtabel th:nth-child(1) { width: 132px; }
-.proevtabel th:nth-child(4), .proevtabel th:nth-child(5) { width: 64px; }
+.proevtabel { --k1: 132px; --k4: 64px; --k5: 64px; }
 /* Om-dialogen bærer kittets fletbånd (ADR D16: ét sted). */
 .om-flet { margin: 0 0 var(--space-4); }
 /* Guiden: felter med Tilføj og listen over det, der allerede står i ordbogen. */
