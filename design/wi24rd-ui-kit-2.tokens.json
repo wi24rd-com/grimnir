@@ -1,0 +1,358 @@
+{
+ "name": "Wi24rd UI Kit 2",
+ "version": 1,
+ "color": {
+  "themes": [
+   {
+    "id": "light",
+    "name": "Lys"
+   },
+   {
+    "id": "dark",
+    "name": "Mørk"
+   }
+  ],
+  "tokens": [
+   {
+    "name": "bg",
+    "value": {
+     "light": "#F3F5F8",
+     "dark": "#0B131E"
+    },
+    "usage": "Programmets baggrund bag kort og tabeller."
+   },
+   {
+    "name": "surface",
+    "value": {
+     "light": "#FFFFFF",
+     "dark": "#121C29"
+    },
+    "usage": "Kort, tabeller, dialoger. Standardflade for indhold."
+   },
+   {
+    "name": "surface-raised",
+    "value": {
+     "light": "#F8FAFB",
+     "dark": "#192433"
+    },
+    "usage": "Tabelhoveder, værktøjslinjer og fodlinjer i kort."
+   },
+   {
+    "name": "rail",
+    "value": {
+     "light": "#0B1F33",
+     "dark": "#070E17"
+    },
+    "usage": "Titellinjen øverst i vinduet. Altid mørk, i begge temaer."
+   },
+   {
+    "name": "rail-text",
+    "value": {
+     "light": "#C9D5E2",
+     "dark": "#B9C6D6"
+    },
+    "usage": "Tekst og ikoner på rail."
+   },
+   {
+    "name": "rail-strong",
+    "value": {
+     "light": "#FFFFFF",
+     "dark": "#FFFFFF"
+    },
+    "usage": "Programmets navn på rail."
+   },
+   {
+    "name": "rail-active",
+    "value": {
+     "light": "#16364F",
+     "dark": "#13293D"
+    },
+    "usage": "Hover og valgt på rail, fx sagsvælgeren i titellinjen."
+   },
+   {
+    "name": "accent-on-rail",
+    "value": {
+     "light": "#35D6B3",
+     "dark": "#35D6B3"
+    },
+    "usage": "Accent på den mørke rail: programmets mærke i titellinjen."
+   },
+   {
+    "name": "border",
+    "value": {
+     "light": "#D8DEE6",
+     "dark": "#263345"
+    },
+    "usage": "Hårfine skillelinjer og kortkanter. Ikke til kontroller."
+   },
+   {
+    "name": "border-strong",
+    "value": {
+     "light": "#7C8A99",
+     "dark": "#6B7C90"
+    },
+    "usage": "Kant på felter, afkrydsninger og sekundære knapper (3:1 mod surface)."
+   },
+   {
+    "name": "text",
+    "value": {
+     "light": "#17212B",
+     "dark": "#E8EEF4"
+    },
+    "usage": "Brødtekst og overskrifter på bg, surface og surface-raised."
+   },
+   {
+    "name": "text-muted",
+    "value": {
+     "light": "#4F5E6D",
+     "dark": "#A6B4C3"
+    },
+    "usage": "Sekundær tekst, etiketter og hjælpetekst på bg og surface."
+   },
+   {
+    "name": "accent",
+    "value": {
+     "light": "#007864",
+     "dark": "#35D6B3"
+    },
+    "usage": "Primær handling, valgt tilstand og OK. Nordlysgrøn: brug den sparsomt."
+   },
+   {
+    "name": "accent-hover",
+    "value": {
+     "light": "#006050",
+     "dark": "#6BE5CA"
+    },
+    "usage": "Hover og tryk på accent."
+   },
+   {
+    "name": "on-accent",
+    "value": {
+     "light": "#FFFFFF",
+     "dark": "#04231D"
+    },
+    "usage": "Tekst og ikoner på accent."
+   },
+   {
+    "name": "accent-soft",
+    "value": {
+     "light": "#E2F4F0",
+     "dark": "#0F322D"
+    },
+    "usage": "Baggrund for OK-chips, valgte rækker og trin, der er nået. text og accent ovenpå."
+   },
+   {
+    "name": "info",
+    "value": {
+     "light": "#1B5CC8",
+     "dark": "#86B4FF"
+    },
+    "usage": "Oplysning, links og fokusring."
+   },
+   {
+    "name": "info-soft",
+    "value": {
+     "light": "#E7EFFD",
+     "dark": "#13284A"
+    },
+    "usage": "Baggrund for oplysende chips og bannere. text og info ovenpå."
+   },
+   {
+    "name": "warn",
+    "value": {
+     "light": "#8A5300",
+     "dark": "#FFC66E"
+    },
+    "usage": "Advarsel: noget kræver et blik. Altid med symbolet ! og tekst."
+   },
+   {
+    "name": "warn-soft",
+    "value": {
+     "light": "#FFF2DA",
+     "dark": "#39290C"
+    },
+    "usage": "Baggrund for advarsler. text og warn ovenpå."
+   },
+   {
+    "name": "danger",
+    "value": {
+     "light": "#B3261E",
+     "dark": "#FF9E96"
+    },
+    "usage": "Fejl og handlinger, der ikke kan fortrydes. Altid med symbol og tekst."
+   },
+   {
+    "name": "danger-soft",
+    "value": {
+     "light": "#FDEBE9",
+     "dark": "#3E1613"
+    },
+    "usage": "Baggrund for fejl. text og danger ovenpå."
+   }
+  ]
+ },
+ "type": {
+  "fonts": [],
+  "families": {
+   "sans": "Inter, \"Segoe UI\", system-ui, sans-serif",
+   "mono": "\"JetBrains Mono\", \"Cascadia Mono\", Menlo, monospace"
+  },
+  "groups": [
+   {
+    "name": "Overskrifter",
+    "family": "sans",
+    "styles": [
+     {
+      "name": "display",
+      "fontSize": "32px",
+      "lineHeight": "38px",
+      "fontWeight": 600,
+      "letterSpacing": "-0.01em",
+      "usage": "Én gang pr. skærm, højst: velkomst og tomme tilstande."
+     },
+     {
+      "name": "h1",
+      "fontSize": "24px",
+      "lineHeight": "30px",
+      "fontWeight": 600,
+      "letterSpacing": "-0.01em",
+      "usage": "Sidens titel."
+     },
+     {
+      "name": "h2",
+      "fontSize": "18px",
+      "lineHeight": "24px",
+      "fontWeight": 600,
+      "usage": "Kort- og sektionstitler."
+     },
+     {
+      "name": "h3",
+      "fontSize": "15px",
+      "lineHeight": "20px",
+      "fontWeight": 600,
+      "usage": "Grupper i tabeller og formularer."
+     }
+    ]
+   },
+   {
+    "name": "Tekst",
+    "family": "sans",
+    "styles": [
+     {
+      "name": "body",
+      "fontSize": "14px",
+      "lineHeight": "20px",
+      "fontWeight": 400,
+      "usage": "Al brødtekst og kontroltekst."
+     },
+     {
+      "name": "small",
+      "fontSize": "12px",
+      "lineHeight": "16px",
+      "fontWeight": 400,
+      "usage": "Hjælpetekst og metadata. Altid text-muted eller text."
+     },
+     {
+      "name": "label",
+      "fontSize": "11px",
+      "lineHeight": "14px",
+      "fontWeight": 600,
+      "letterSpacing": "0.06em",
+      "usage": "Kolonneoverskrifter og feltetiketter, med store bogstaver."
+     }
+    ]
+   },
+   {
+    "name": "Værdier",
+    "family": "mono",
+    "styles": [
+     {
+      "name": "mono",
+      "fontSize": "13px",
+      "lineHeight": "20px",
+      "fontWeight": 400,
+      "usage": "Adresser, navne, koder, stier og alt andet, brugeren skal kunne læse tegn for tegn."
+     }
+    ]
+   }
+  ]
+ },
+ "spacing": {
+  "tokens": [
+   {
+    "name": "space-1",
+    "value": "4px",
+    "usage": "Mellem ikon og tekst i en chip."
+   },
+   {
+    "name": "space-2",
+    "value": "8px",
+    "usage": "Mellem knapper og mellem felter i en række."
+   },
+   {
+    "name": "space-3",
+    "value": "12px",
+    "usage": "Indre luft i rækker og små kort."
+   },
+   {
+    "name": "space-4",
+    "value": "16px",
+    "usage": "Indre luft i kort; afstand mellem kort."
+   },
+   {
+    "name": "space-6",
+    "value": "24px",
+    "usage": "Sidens kant; afstand mellem sektioner."
+   },
+   {
+    "name": "space-8",
+    "value": "32px",
+    "usage": "Luft omkring tomme tilstande og dialoger."
+   }
+  ]
+ },
+ "radius": {
+  "tokens": [
+   {
+    "name": "radius-sm",
+    "value": "4px",
+    "usage": "Felter, afkrydsninger, mærker i teksten."
+   },
+   {
+    "name": "radius-md",
+    "value": "6px",
+    "usage": "Knapper, kort, tabeller, bannere."
+   },
+   {
+    "name": "radius-lg",
+    "value": "10px",
+    "usage": "Dialoger og guider."
+   },
+   {
+    "name": "radius-pill",
+    "value": "999px",
+    "usage": "Statuschips og trinmarkører."
+   }
+  ]
+ },
+ "shadow": {
+  "tokens": [
+   {
+    "name": "shadow-card",
+    "value": {
+     "light": "0 1px 2px rgba(11,31,51,0.08)",
+     "dark": "0 1px 2px rgba(0,0,0,0.4)"
+    },
+    "usage": "Kort på bg. Kanten bærer formen; skyggen er kun en antydning."
+   },
+   {
+    "name": "shadow-pop",
+    "value": {
+     "light": "0 16px 40px -16px rgba(11,31,51,0.35)",
+     "dark": "0 16px 40px -16px rgba(0,0,0,0.7)"
+    },
+    "usage": "Dialoger, menuer og guider, der ligger over siden."
+   }
+  ]
+ }
+}
