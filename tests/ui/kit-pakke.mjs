@@ -48,7 +48,7 @@ const VERSION = pakkeVersion();
   const mangler = skal.filter(f => !fs.existsSync(path.join(PAKKE, f)));
   tjek('pakken har alle sine filer', mangler.length === 0, mangler.join(', '));
   // V-KVIT.1 N4: pakken er 2.0.1 (kun dokumenter: licensteksten, beslutningen om Huginn and Muninn, noten om Sandbox).
-  tjek('VERSION er 2.0.1', VERSION === '2.0.1' && pk('VERSION') === '2.0.1\n', JSON.stringify(pk('VERSION')));
+  tjek('VERSION er 2.1.0', VERSION === '2.1.0' && pk('VERSION') === '2.1.0\n', JSON.stringify(pk('VERSION')));
   const log = pk('CHANGELOG.md');
   const foerste = /^## (\d+\.\d+\.\d+) — (\d{4}-\d{2}-\d{2})$/m.exec(log);
   tjek('CHANGELOG: første post er pakkens version med en dato', Boolean(foerste) && foerste[1] === VERSION, foerste ? foerste[0] : 'ingen post');
@@ -192,7 +192,7 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
   tjek('demo: i sidste trin hedder den primære knap Done', frem.querySelector('span').textContent === 'Done');
   w.location.hash = '#tokens';
   w.dispatchEvent(new w.HashChangeEvent('hashchange'));
-  tjek('demo: visningsskiftet viser Tokens (22 farver, 8 skriftstile) og markerer den', !d.getElementById('v-tokens').hidden && d.getElementById('v-komponenter').hidden && d.querySelectorAll('#demo-farver .demo-farve').length === 22 && d.querySelectorAll('#demo-skrift > div').length === 8 && d.querySelector('#skift .vs.on').dataset.visning === 'tokens' && d.querySelector('#skift .vs.on').getAttribute('aria-current') === 'page');
+  tjek('demo: visningsskiftet viser Tokens (48 farver, 8 skriftstile) og markerer den', !d.getElementById('v-tokens').hidden && d.getElementById('v-komponenter').hidden && d.querySelectorAll('#demo-farver .demo-farve').length === 48 && d.querySelectorAll('#demo-skrift > div').length === 8 && d.querySelector('#skift .vs.on').dataset.visning === 'tokens' && d.querySelector('#skift .vs.on').getAttribute('aria-current') === 'page');
   tjek('demo: stadig ingen fejl efter brug', fejlListe.length === 0, fejlListe.join(' | ').slice(0, 300));
   w.close();
 }
@@ -223,7 +223,7 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
   };
   const lys = laes(ordboeger[0]), moerk = laes(ordboeger[1]);
   tjek('Tokens.xaml: ingen nøgle står to gange i samme ordbog', lys.dobbelt === 0 && moerk.dobbelt === 0);
-  tjek('Tokens.xaml: de to ordbøger har præcis de samme nøgler (99 hver)', lys.m.size === 99 && JSON.stringify([...lys.m.keys()]) === JSON.stringify([...moerk.m.keys()]), `${lys.m.size} / ${moerk.m.size}`);
+  tjek('Tokens.xaml: de to ordbøger har præcis de samme nøgler (151 hver)', lys.m.size === 151 && JSON.stringify([...lys.m.keys()]) === JSON.stringify([...moerk.m.keys()]), `${lys.m.size} / ${moerk.m.size}`);
   tjek('Tokens.xaml: alle nøgler følger navnereglen (Wi24rd + PascalCase)', [...lys.m.keys()].every(k => /^Wi24rd[A-Z][A-Za-z0-9]*$/.test(k)));
   tjek('kontrol: navnereglen (surface-raised → Wi24rdSurfaceRaised, space-1 → Wi24rdSpace1, accent → Wi24rdAccent)', pascal('surface-raised') === 'Wi24rdSurfaceRaised' && pascal('space-1') === 'Wi24rdSpace1' && pascal('accent') + 'Brush' === 'Wi24rdAccentBrush');
 
@@ -247,7 +247,7 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
   const css = pk('tokens/tokens.css');
   const blok = (start) => { const i = css.indexOf(start); return Object.fromEntries([...css.slice(i, css.indexOf('}', i)).matchAll(/--([a-z0-9-]+): ([^;]+);/g)].map(m => [m[1], m[2]])); };
   const faelles = blok(':root {\n  --font-sans'), cssLys = blok(':root {\n  color-scheme: light;'), cssMoerk = blok(':root[data-tema="moerk"] {');
-  tjek('tokens.css: 47 fælles variabler og 24 pr. tema (kontrol af læsningen)', Object.keys(faelles).length === 47 && Object.keys(cssLys).length === 24 && Object.keys(cssMoerk).length === 24, [faelles, cssLys, cssMoerk].map(b => Object.keys(b).length).join('/'));
+  tjek('tokens.css: 47 fælles variabler og 50 pr. tema (kontrol af læsningen)', Object.keys(faelles).length === 47 && Object.keys(cssLys).length === 50 && Object.keys(cssMoerk).length === 50, [faelles, cssLys, cssMoerk].map(b => Object.keys(b).length).join('/'));
   const farveNavne = tokens.color.tokens.map(t => t.name);
   for (const [navn, o, c, tema] of [['Wi24rdLys', lys, cssLys, 'light'], ['Wi24rdMoerk', moerk, cssMoerk, 'dark']]) {
     const uens = farveNavne.filter(n => {
@@ -255,7 +255,7 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
       const v = argb(c[n], n);
       return !brush || !color || brush.getAttribute('Color') !== v || color.textContent !== v;
     });
-    tjek(`Tokens.xaml (${navn}): de 22 farver er de samme som i tokens.css (pensel og farve)`, farveNavne.length === 22 && uens.length === 0, uens.join(', '));
+    tjek(`Tokens.xaml (${navn}): de 48 farver er de samme som i tokens.css (pensel og farve)`, farveNavne.length === 48 && uens.length === 0, uens.join(', '));
     tjek(`Tokens.xaml (${navn}): farverne er også dem i tokens.json (${tema})`, temaVaerdier(tokens, tema).filter(([n]) => farveNavne.includes(n)).every(([n, v]) => o.m.get(pascal(n) + 'Brush').getAttribute('Color') === '#FF' + v.slice(1).toUpperCase()));
     const tal = Object.entries(faelles).filter(([, v]) => /^-?[\d.]+px$/.test(v));
     const talUens = tal.filter(([n, v]) => { const e = o.m.get(pascal(n)); return !e || e.textContent !== v.replace('px', ''); }).map(([n]) => n);
@@ -268,7 +268,7 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
     tjek(`Tokens.xaml (${navn}): de to skygger har samme afstand, sløring, farve og styrke som i tokens.css`, skygger.length === 2 && skygger.every(Boolean));
     const alleCss = [...Object.keys(faelles), ...Object.keys(c)];
     const udenNoegle = alleCss.filter(n => !(o.m.has(pascal(n)) || o.m.has(pascal(n) + 'Brush')));
-    tjek(`Tokens.xaml (${navn}): hver CSS-variabel har en nøgle efter navnereglen (${alleCss.length} variabler)`, alleCss.length === 71 && udenNoegle.length === 0, udenNoegle.join(', '));
+    tjek(`Tokens.xaml (${navn}): hver CSS-variabel har en nøgle efter navnereglen (${alleCss.length} variabler)`, alleCss.length === 97 && udenNoegle.length === 0, udenNoegle.join(', '));
   }
   tjek('Tokens.xaml: skriftvægte og familier (Normal/SemiBold; Inter, Segoe UI; ingen CSS-ord som system-ui)', lys.m.get('Wi24rdBodyWeight').textContent === 'Normal' && lys.m.get('Wi24rdH1Weight').textContent === 'SemiBold' && lys.m.get('Wi24rdFontSans').textContent === 'Inter, Segoe UI' && lys.m.get('Wi24rdFontMono').textContent === 'JetBrains Mono, Cascadia Mono, Menlo' && lys.m.get('Wi24rdMonoFamily').textContent === lys.m.get('Wi24rdFontMono').textContent && !/system-ui|sans-serif|monospace|&quot;/.test(xaml));
   tjek('Tokens.xaml: lyst og mørkt tema har forskellige farver, men samme tal', lys.m.get('Wi24rdSurfaceBrush').getAttribute('Color') === '#FFFFFFFF' && moerk.m.get('Wi24rdSurfaceBrush').getAttribute('Color') === '#FF121C29' && lys.m.get('Wi24rdSpace4').textContent === moerk.m.get('Wi24rdSpace4').textContent);
@@ -347,6 +347,51 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
     S.saet('tysk');
     return foer && efter && S.lang === 'da' && b.textContent === 'Gem';
   })());
+  w.close();
+}
+
+// ── Pakke 2.1.0 (K1–K4): ok, mærker, dataserier, skala og kort ──
+{
+  const farve = Object.fromEntries(tokens.color.tokens.map(t => [t.name, t.value]));
+  // Intet er omdøbt eller fjernet i forhold til 2.0.0: de 22 farver findes stadig med samme værdier.
+  const V200 = {"bg": {"light": "#F3F5F8", "dark": "#0B131E"}, "surface": {"light": "#FFFFFF", "dark": "#121C29"}, "surface-raised": {"light": "#F8FAFB", "dark": "#192433"}, "rail": {"light": "#0B1F33", "dark": "#070E17"}, "rail-text": {"light": "#C9D5E2", "dark": "#B9C6D6"}, "rail-strong": {"light": "#FFFFFF", "dark": "#FFFFFF"}, "rail-active": {"light": "#16364F", "dark": "#13293D"}, "accent-on-rail": {"light": "#35D6B3", "dark": "#35D6B3"}, "border": {"light": "#D8DEE6", "dark": "#263345"}, "border-strong": {"light": "#7C8A99", "dark": "#6B7C90"}, "text": {"light": "#17212B", "dark": "#E8EEF4"}, "text-muted": {"light": "#4F5E6D", "dark": "#A6B4C3"}, "accent": {"light": "#007864", "dark": "#35D6B3"}, "accent-hover": {"light": "#006050", "dark": "#6BE5CA"}, "on-accent": {"light": "#FFFFFF", "dark": "#04231D"}, "accent-soft": {"light": "#E2F4F0", "dark": "#0F322D"}, "info": {"light": "#1B5CC8", "dark": "#86B4FF"}, "info-soft": {"light": "#E7EFFD", "dark": "#13284A"}, "warn": {"light": "#8A5300", "dark": "#FFC66E"}, "warn-soft": {"light": "#FFF2DA", "dark": "#39290C"}, "danger": {"light": "#B3261E", "dark": "#FF9E96"}, "danger-soft": {"light": "#FDEBE9", "dark": "#3E1613"}};
+  const aendret = Object.keys(V200).filter(n => !farve[n] || farve[n].light !== V200[n].light || farve[n].dark !== V200[n].dark);
+  tjek('2.1.0: de 22 farver fra 2.0.0 findes stadig med samme værdier (intet omdøbt eller fjernet)', Object.keys(V200).length === 22 && aendret.length === 0, aendret.join(', '));
+  const NYE = ['ok', 'ok-soft', 'ok-mark', 'warn-mark', 'danger-mark', 'info-mark', 'none-mark', 'data-1', 'data-2', 'data-3', 'data-4', 'data-5', 'data-6', 'data-axis', 'data-grid', 'data-label',
+    'seq-1', 'seq-2', 'seq-3', 'seq-4', 'seq-5', 'map-sea', 'map-land', 'map-border', 'map-ring', 'map-arc'];
+  const mangler = NYE.filter(n => !farve[n] || !/^#[0-9A-F]{6}$/.test(farve[n].light) || !/^#[0-9A-F]{6}$/.test(farve[n].dark));
+  tjek('2.1.0: de 26 nye farver findes i lyst og mørkt tema', mangler.length === 0 && tokens.color.tokens.length === 48, mangler.join(', '));
+  tjek('2.1.0 (K1): ok og ok-soft har samme værdier som accent og accent-soft, men er egne tokens', ['light', 'dark'].every(t => farve.ok[t] === farve.accent[t] && farve['ok-soft'][t] === farve['accent-soft'][t]));
+  const css = pk('web/kit.css');
+  tjek('2.1.0 (K1): OK-chip og OK-banner bruger ok, ikke accent', /\.chip\.ok \{ background: var\(--ok-soft\); color: var\(--ok\); \}/.test(css) && /\.ban\.ok \{ background: var\(--ok-soft\); \} \.ban\.ok \.s \{ background: var\(--ok\);/.test(css));
+  tjek('2.1.0: primær knap, valgt række og aktiv fane bruger stadig accent', /\.btn\.primary \{ background: var\(--accent\)/.test(css) && /\.tabel tr\.sel td[^{]*\{ background: var\(--accent-soft\)/.test(css) && /\.tab\.on \{ border-bottom-color: var\(--accent\)/.test(css));
+  tjek('2.1.0 (K2): mærkefarverne er ikke tekstfarverne (egne værdier i lyst tema)', ['warn', 'danger', 'info'].every(n => farve[n + '-mark'].light !== farve[n].light) && farve['ok-mark'].light !== farve.ok.light);
+  tjek('2.1.0 (K3): seks dataserier med forskellige farver i begge temaer; besøg/oplysning er samme blå som data-1', ['light', 'dark'].every(t => new Set([1, 2, 3, 4, 5, 6].map(n => farve['data-' + n][t])).size === 6 && farve['data-1'][t] === farve['info-mark'][t]));
+  tjek('2.1.0 (K3): akse, gitter og etiket følger kittets kanter og sekundære tekst', ['light', 'dark'].every(t => farve['data-axis'][t] === farve['border-strong'][t] && farve['data-grid'][t] === farve.border[t] && farve['data-label'][t] === farve['text-muted'][t]));
+  tjek('2.1.0 (K4): angrebets ring er fejlens mærke, buen oplysningens', ['light', 'dark'].every(t => farve['map-ring'][t] === farve['danger-mark'][t] && farve['map-arc'][t] === farve['info-mark'][t]));
+  const tcss = pk('tokens/tokens.css'), xaml = pk('tokens/Tokens.xaml');
+  tjek('2.1.0: hver ny farve står i tokens.css (tre blokke) og i Tokens.xaml (pensel og farve i begge ordbøger)', NYE.every(n => (tcss.match(new RegExp('--' + n + ': #', 'g')) || []).length === 3 && (xaml.match(new RegExp('x:Key="' + pascal(n) + 'Brush"', 'g')) || []).length === 2 && (xaml.match(new RegExp('x:Key="' + pascal(n) + 'Color"', 'g')) || []).length === 2));
+  tjek('kontrol: navnereglen for de nye (ok-mark → Wi24rdOkMark, data-1 → Wi24rdData1, map-sea → Wi24rdMapSea)', pascal('ok-mark') === 'Wi24rdOkMark' && pascal('data-1') === 'Wi24rdData1' && pascal('map-sea') === 'Wi24rdMapSea');
+  const log = pk('CHANGELOG.md');
+  const post = log.slice(log.indexOf('## 2.1.0'), log.indexOf('\n## ', log.indexOf('## 2.1.0') + 1));
+  tjek('CHANGELOG 2.1.0: nævner K1–K4, de nye tokens, og at intet er omdøbt eller fjernet', ['(K1)', '(K2)', '(K3)', '(K4)', '--ok-soft', '--none-mark', '--data-6', '--seq-5', '--map-arc', 'Intet er omdøbt eller fjernet'].every(o => post.includes(o)));
+  const md = pk('KOMPONENTER.md');
+  const grundlag = md.slice(md.indexOf('\n## Grundlag'), md.indexOf('\n## AppShell'));
+  tjek('KOMPONENTER.md (Grundlag): hver ny farve er nævnt eller dækket af en række, og reglerne står der', ['--ok-soft', '--ok-mark', '--none-mark', '--data-1', '--data-6', '--data-axis', '--data-grid', '--data-label', '--seq-1', '--seq-5', '--map-sea', '--map-arc', 'Aldrig farve alene', 'Faste betydninger', 'Accent og ok'].every(o => grundlag.includes(o)));
+  const hm = pk('flytning/HUGINN-MUNINN.md');
+  tjek('flytning/HUGINN-MUNINN.md: K1–K4 står som opfyldt i 2.1.0, og tavlens farver står ikke længere som umulige at flytte', ['K1', 'K2', 'K3', 'K4'].every(k => new RegExp('\\| ' + k + ' [^|]*\\| 2\\.1\\.0 \\|').test(hm)) && !/Kit 2 har ingen farver til diagrammer og kort/.test(hm));
+  // Demoen viser de nye tokens med pakkens rigtige filer.
+  const dom = await JSDOM.fromFile(demoFil, { runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true, virtualConsole: new VirtualConsole() });
+  const w = dom.window, d = w.document;
+  await new Promise(r => (d.readyState === 'complete' ? r() : w.addEventListener('load', r)));
+  await vent(20);
+  const baggrund = v => [...d.querySelectorAll(v + ' i')].map(i => i.style.background);
+  tjek('demo 2.1.0: fem mærker, seks søjler, fem trin og fem kortfarver, hver med sit token og sit navn', JSON.stringify(baggrund('#demo-maerker')) === JSON.stringify(['ok', 'warn', 'danger', 'info', 'none'].map(n => `var(--${n}-mark)`))
+    && JSON.stringify(baggrund('#demo-data')) === JSON.stringify([1, 2, 3, 4, 5, 6].map(n => `var(--data-${n})`)) && JSON.stringify(baggrund('#demo-seq')) === JSON.stringify([1, 2, 3, 4, 5].map(n => `var(--seq-${n})`))
+    && d.querySelectorAll('#demo-kortfarver i').length === 5 && [...d.querySelectorAll('#demo-maerker-sektion .mono')].length === 21);
+  const kort = d.querySelector('#demo-kort svg');
+  tjek('demo 2.1.0: kortet er tegnet med kortets tokens (hav, land, grænse, trin, ring og bue)', Boolean(kort) && ['--map-sea', '--map-land', '--map-border', '--seq-3', '--seq-5', '--map-ring', '--map-arc'].every(t => kort.outerHTML.includes(`var(${t})`)));
+  tjek('demo 2.1.0: sektionen har overskrift og tekst i begge sprog', d.querySelector('#demo-maerker-sektion h2').textContent === 'Mærker, data, skala og kort' && d.querySelector('#demo-maerker-sektion p').textContent.startsWith('Fra 2.1.0') && w.Sprog.TEKST.en.hMaerker === 'Marks, data, scale and map');
   w.close();
 }
 

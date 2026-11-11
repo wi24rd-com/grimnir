@@ -2,6 +2,26 @@
 
 Første tal stiger, når et program skal ændre noget for at følge med. Andet tal ved nyt. Tredje tal ved rettelser.
 
+## 2.1.0 — 2026-11-11
+
+Nye tokens. Intet er omdøbt eller fjernet; et program, der bruger 2.0.1, kan skifte filerne ud uden at ændre noget.
+
+### Nyt
+
+- **Egen farve til "ok"** (K1): `--ok` og `--ok-soft`. De har samme værdier som `--accent` og `--accent-soft`, men er deres egne tokens, så betydningen "alt er godt" og den primære handling kan skilles ad i koden. `.chip.ok` og `.ban.ok` bruger dem nu; udseendet er uændret.
+- **Mærkefarver** (K2): `--ok-mark`, `--warn-mark`, `--danger-mark`, `--info-mark` og `--none-mark` til statusprikker, søjler og markører. Mindst 3:1 mod `--surface`, `--surface-raised` og `--bg` i begge temaer. De er ikke tekstfarver.
+- **Diagramfarver** (K3): seks dataserier `--data-1` til `--data-6`, og `--data-axis`, `--data-grid` og `--data-label`. Serierne er mindst 3:1 mod `--surface` og `--bg`.
+- **Skala i fem trin** (K4): `--seq-1` til `--seq-5`, fra lidt til meget, til kort, varmekort og lignende.
+- **Kortfarver** (K4): `--map-sea`, `--map-land`, `--map-border`, `--map-ring` og `--map-arc`.
+- De samme tokens findes i `Tokens.xaml` efter navnereglen (fx `Wi24rdOkMarkBrush`, `Wi24rdData1Brush`).
+- Demoen viser dem under Tokens, og reglerne står i `KOMPONENTER.md` under Grundlag.
+
+### Regler, der følger med
+
+- Farve bærer aldrig betydning alene: en prik har et ord, en serie en etiket, et trin en forklaring.
+- Faste betydninger: fejl og angreb er `--danger-mark`; oplysning og besøg er `--info-mark` (samme blå som `--data-1`).
+- Mærkefarver og dataserier bruges ikke til tekst. Tekst bruger `--ok`, `--warn`, `--danger`, `--info` og `--data-label`.
+
 ## 2.0.1 — 2026-11-11
 
 Kun dokumenter. Ingen kode, tokens eller komponenter er ændret, og et program på 2.0.0 skal ikke ændre noget.

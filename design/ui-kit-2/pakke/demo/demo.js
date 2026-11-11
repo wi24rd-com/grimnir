@@ -53,7 +53,7 @@
         hGrundlag: 'Grundlag', pGrundlag: 'Hjælpeklasser: .label, .muted, .mono, .ik og .skjult-tekst. Fokusringen ses, når du bruger Tab.',
         gLabel: 'Etiket med store bogstaver', gMuted: 'Sekundær tekst', gIk: 'Ikon på 16 px ved siden af tekst',
         gSkjult: 'Her står en tekst, som kun skærmlæsere får.', gSkjultTekst: 'Denne tekst ses ikke, men læses op.',
-        hFarver: 'Farver', pFarver: 'Alle farver i det valgte tema. Skift tema i titellinjen eller på fanen Vis.',
+        hMaerker: 'Mærker, data, skala og kort', pMaerker: 'Fra 2.1.0. Statusprikker, seks dataserier med akse og gitter, en skala i fem trin og kortets farver. Farven står aldrig alene: hvert mærke har et navn ved siden af.', hFarver: 'Farver', pFarver: 'Alle farver i det valgte tema. Skift tema i titellinjen eller på fanen Vis.',
         hSkrift: 'Skrift', pSkrift: 'Inter til alt, JetBrains Mono til værdier. Begge ligger i pakken.',
         hLuft: 'Luft, radier og skygger', pLuft: 'Luft i trin på 4 px; små radier; kanter frem for skygger.',
         pSkygge: 'shadow-pop: til dialoger og menuer over siden.', eksempelTekst: 'Ro, klarhed og ét tydeligt næste skridt',
@@ -102,7 +102,7 @@
         hGrundlag: 'Basics', pGrundlag: 'Helper classes: .label, .muted, .mono, .ik and .skjult-tekst. The focus ring shows when you use Tab.',
         gLabel: 'Label in capitals', gMuted: 'Secondary text', gIk: '16 px icon next to text',
         gSkjult: 'Here is a text that only screen readers get.', gSkjultTekst: 'This text is not seen, but it is read aloud.',
-        hFarver: 'Colours', pFarver: 'All colours in the chosen theme. Switch theme in the title bar or on the View tab.',
+        hMaerker: 'Marks, data, scale and map', pMaerker: 'From 2.1.0. Status dots, six data series with axis and grid, a five-step scale and the map colours. Colour never stands alone: every mark has a name next to it.', hFarver: 'Colours', pFarver: 'All colours in the chosen theme. Switch theme in the title bar or on the View tab.',
         hSkrift: 'Type', pSkrift: 'Inter for everything, JetBrains Mono for values. Both are in the package.',
         hLuft: 'Spacing, radii and shadows', pLuft: 'Spacing in steps of 4 px; small radii; borders rather than shadows.',
         pSkygge: 'shadow-pop: for dialogs and menus above the page.', eksempelTekst: 'Calm, clarity and one clear next step',
@@ -309,7 +309,7 @@
   }
 
   /* ── Tokens-visningen. Navnene er dem i tokens.json (testen holder dem ens). ── */
-  const FARVER = ['bg', 'surface', 'surface-raised', 'rail', 'rail-text', 'rail-strong', 'rail-active', 'accent-on-rail', 'border', 'border-strong', 'text', 'text-muted', 'accent', 'accent-hover', 'on-accent', 'accent-soft', 'info', 'info-soft', 'warn', 'warn-soft', 'danger', 'danger-soft'];
+  const FARVER = ['bg', 'surface', 'surface-raised', 'rail', 'rail-text', 'rail-strong', 'rail-active', 'accent-on-rail', 'border', 'border-strong', 'text', 'text-muted', 'accent', 'accent-hover', 'on-accent', 'accent-soft', 'ok', 'ok-soft', 'info', 'info-soft', 'warn', 'warn-soft', 'danger', 'danger-soft', 'ok-mark', 'warn-mark', 'danger-mark', 'info-mark', 'none-mark', 'data-1', 'data-2', 'data-3', 'data-4', 'data-5', 'data-6', 'data-axis', 'data-grid', 'data-label', 'seq-1', 'seq-2', 'seq-3', 'seq-4', 'seq-5', 'map-sea', 'map-land', 'map-border', 'map-ring', 'map-arc'];
   const STILE = ['display', 'h1', 'h2', 'h3', 'body', 'small', 'label', 'mono'];
   const LUFT = ['space-1', 'space-2', 'space-3', 'space-4', 'space-6', 'space-8'];
   const RADIER = ['radius-sm', 'radius-md', 'radius-lg', 'radius-pill'];
@@ -342,6 +342,52 @@
     i.style.borderRadius = `var(--${r})`;
     d.append(i, mono(r));
     $('demo-radius').appendChild(d);
+  }
+
+  /* ── Mærker, data, skala og kort (2.1.0). Kun tokens; programmet tegner selv prikken, søjlen og kortet. ── */
+  for (const m of ['ok-mark', 'warn-mark', 'danger-mark', 'info-mark', 'none-mark']) {
+    const d = document.createElement('span'), i = document.createElement('i');
+    d.className = 'demo-prik';
+    i.style.background = `var(--${m})`;
+    d.append(i, mono(m));
+    $('demo-maerker').appendChild(d);
+  }
+  [72, 48, 88, 36, 60, 24].forEach((h, n) => {
+    const d = document.createElement('span'), i = document.createElement('i');
+    d.className = 'demo-soejle';
+    i.style.height = h + 'px';
+    i.style.background = `var(--data-${n + 1})`;
+    d.append(i, mono('data-' + (n + 1)));
+    $('demo-data').appendChild(d);
+  });
+  for (let n = 1; n <= 5; n++) {
+    const d = document.createElement('span'), i = document.createElement('i');
+    d.className = 'demo-trin';
+    i.style.background = `var(--seq-${n})`;
+    d.append(i, mono('seq-' + n));
+    $('demo-seq').appendChild(d);
+  }
+  {
+    const NS = window.Kit.ikon('sol').namespaceURI;
+    const el = (navn, attr, stil) => { const e = document.createElementNS(NS, navn); for (const k of Object.keys(attr)) e.setAttribute(k, attr[k]); e.setAttribute('style', stil); return e; };
+    const svg = el('svg', { viewBox: '0 0 320 140', role: 'img', 'aria-hidden': 'true' }, '');
+    svg.append(
+      el('rect', { x: 0, y: 0, width: 320, height: 140 }, 'fill: var(--map-sea)'),
+      el('path', { d: 'M20 40 L90 22 L130 48 L112 96 L48 108 Z' }, 'fill: var(--map-land); stroke: var(--map-border)'),
+      el('path', { d: 'M170 30 L250 24 L296 62 L270 112 L196 104 Z' }, 'fill: var(--seq-3); stroke: var(--map-border)'),
+      el('path', { d: 'M196 104 L270 112 L250 132 L204 128 Z' }, 'fill: var(--seq-5); stroke: var(--map-border)'),
+      el('path', { d: 'M76 66 Q150 -10 232 66' }, 'fill: none; stroke: var(--map-arc); stroke-width: 2'),
+      el('circle', { cx: 232, cy: 66, r: 9 }, 'fill: none; stroke: var(--map-ring); stroke-width: 2'),
+      el('circle', { cx: 232, cy: 66, r: 3 }, 'fill: var(--map-ring)'),
+    );
+    $('demo-kort').appendChild(svg);
+    for (const k of ['map-sea', 'map-land', 'map-border', 'map-ring', 'map-arc']) {
+      const d = document.createElement('span'), i = document.createElement('i');
+      d.className = 'demo-trin';
+      i.style.background = `var(--${k})`;
+      d.append(i, mono(k));
+      $('demo-kortfarver').appendChild(d);
+    }
   }
 
   /* ── Start: udfyld teksterne, vis den rigtige visning ── */

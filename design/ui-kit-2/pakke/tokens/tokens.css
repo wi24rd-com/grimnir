@@ -1,4 +1,4 @@
-/* GENERERET fra wi24rd-ui-kit-2.tokens.json (Wi24rd UI Kit 2, pakke 2.0.1). Ret ikke i hånden: ret JSON-filen i
+/* GENERERET fra wi24rd-ui-kit-2.tokens.json (Wi24rd UI Kit 2, pakke 2.1.0). Ret ikke i hånden: ret JSON-filen i
    kittets kilde og byg igen (node design/build-tokens.mjs). Lyst tema er standard; <html data-tema="moerk"> vælger
    mørkt, og <html data-tema="system"> følger macOS/Windows (prefers-color-scheme). */
 :root {
@@ -68,12 +68,38 @@
   --accent-hover: #006050;
   --on-accent: #FFFFFF;
   --accent-soft: #E2F4F0;
+  --ok: #007864;
+  --ok-soft: #E2F4F0;
   --info: #1B5CC8;
   --info-soft: #E7EFFD;
   --warn: #8A5300;
   --warn-soft: #FFF2DA;
   --danger: #B3261E;
   --danger-soft: #FDEBE9;
+  --ok-mark: #0E9F85;
+  --warn-mark: #C27500;
+  --danger-mark: #D93A30;
+  --info-mark: #2F74E0;
+  --none-mark: #7C8A99;
+  --data-1: #2F74E0;
+  --data-2: #B85C00;
+  --data-3: #7A4FD1;
+  --data-4: #0B8F8A;
+  --data-5: #C23A86;
+  --data-6: #667317;
+  --data-axis: #7C8A99;
+  --data-grid: #D8DEE6;
+  --data-label: #4F5E6D;
+  --seq-1: #F6D9A8;
+  --seq-2: #F0B45E;
+  --seq-3: #E58A2B;
+  --seq-4: #CF5A1E;
+  --seq-5: #A62B14;
+  --map-sea: #DDE7F2;
+  --map-land: #FBFCFD;
+  --map-border: #9AA8B8;
+  --map-ring: #D93A30;
+  --map-arc: #2F74E0;
   --shadow-card: 0 1px 2px rgba(11,31,51,0.08);
   --shadow-pop: 0 16px 40px -16px rgba(11,31,51,0.35);
 }
@@ -95,12 +121,38 @@
   --accent-hover: #6BE5CA;
   --on-accent: #04231D;
   --accent-soft: #0F322D;
+  --ok: #35D6B3;
+  --ok-soft: #0F322D;
   --info: #86B4FF;
   --info-soft: #13284A;
   --warn: #FFC66E;
   --warn-soft: #39290C;
   --danger: #FF9E96;
   --danger-soft: #3E1613;
+  --ok-mark: #35D6B3;
+  --warn-mark: #FFB74A;
+  --danger-mark: #FF7A70;
+  --info-mark: #6FA5FF;
+  --none-mark: #7A8BA0;
+  --data-1: #6FA5FF;
+  --data-2: #FFB066;
+  --data-3: #B9A1FF;
+  --data-4: #4FD1CA;
+  --data-5: #FF8FC4;
+  --data-6: #C9D56A;
+  --data-axis: #6B7C90;
+  --data-grid: #263345;
+  --data-label: #A6B4C3;
+  --seq-1: #5A3F1C;
+  --seq-2: #7A5216;
+  --seq-3: #B8741A;
+  --seq-4: #E8952F;
+  --seq-5: #FFC66E;
+  --map-sea: #0B131E;
+  --map-land: #1E2B3C;
+  --map-border: #4A5C73;
+  --map-ring: #FF7A70;
+  --map-arc: #6FA5FF;
   --shadow-card: 0 1px 2px rgba(0,0,0,0.4);
   --shadow-pop: 0 16px 40px -16px rgba(0,0,0,0.7);
 }
@@ -123,12 +175,38 @@
     --accent-hover: #6BE5CA;
     --on-accent: #04231D;
     --accent-soft: #0F322D;
+    --ok: #35D6B3;
+    --ok-soft: #0F322D;
     --info: #86B4FF;
     --info-soft: #13284A;
     --warn: #FFC66E;
     --warn-soft: #39290C;
     --danger: #FF9E96;
     --danger-soft: #3E1613;
+    --ok-mark: #35D6B3;
+    --warn-mark: #FFB74A;
+    --danger-mark: #FF7A70;
+    --info-mark: #6FA5FF;
+    --none-mark: #7A8BA0;
+    --data-1: #6FA5FF;
+    --data-2: #FFB066;
+    --data-3: #B9A1FF;
+    --data-4: #4FD1CA;
+    --data-5: #FF8FC4;
+    --data-6: #C9D56A;
+    --data-axis: #6B7C90;
+    --data-grid: #263345;
+    --data-label: #A6B4C3;
+    --seq-1: #5A3F1C;
+    --seq-2: #7A5216;
+    --seq-3: #B8741A;
+    --seq-4: #E8952F;
+    --seq-5: #FFC66E;
+    --map-sea: #0B131E;
+    --map-land: #1E2B3C;
+    --map-border: #4A5C73;
+    --map-ring: #FF7A70;
+    --map-arc: #6FA5FF;
     --shadow-card: 0 1px 2px rgba(0,0,0,0.4);
     --shadow-pop: 0 16px 40px -16px rgba(0,0,0,0.7);
   }

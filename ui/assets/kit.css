@@ -66,7 +66,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   height: 22px; padding: 0 9px; border-radius: var(--radius-pill);
   font-size: var(--small-size); font-weight: 600; white-space: nowrap;
 }
-.chip.ok { background: var(--accent-soft); color: var(--accent); }
+.chip.ok { background: var(--ok-soft); color: var(--ok); }
 .chip.warn { background: var(--warn-soft); color: var(--warn); }
 .chip.danger { background: var(--danger-soft); color: var(--danger); }
 .chip.info { background: var(--info-soft); color: var(--info); }
@@ -98,7 +98,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 .ban .ord { flex: 1; }
 .ban.info { background: var(--info-soft); } .ban.info .s { background: var(--info); color: var(--surface); }
-.ban.ok { background: var(--accent-soft); } .ban.ok .s { background: var(--accent); color: var(--surface); }
+.ban.ok { background: var(--ok-soft); } .ban.ok .s { background: var(--ok); color: var(--surface); }
 .ban.warn { background: var(--warn-soft); } .ban.warn .s { background: var(--warn); color: var(--surface); }
 .ban.danger { background: var(--danger-soft); } .ban.danger .s { background: var(--danger); color: var(--surface); }
 .ban .btn.ghost { height: 30px; background: var(--surface); }

@@ -11,7 +11,7 @@ Tankerne bag kittet (principper, farvernes betydning, sprogtone) står i `../REA
 | Sti | Hvad |
 |---|---|
 | `VERSION`, `CHANGELOG.md` | Pakkens version og hvad der er ændret |
-| `tokens/wi24rd-ui-kit-2.tokens.json` | Kilden til alle tokens: farver i lyst og mørkt tema, skrift, luft, radier, skygger |
+| `tokens/wi24rd-ui-kit-2.tokens.json` | Kilden til alle tokens: farver i lyst og mørkt tema (også ok, mærker, dataserier, skala og kort fra 2.1.0), skrift, luft, radier, skygger |
 | `tokens/tokens.css` | Samme tokens som CSS-variabler (genereret) |
 | `tokens/Tokens.xaml` | Samme tokens som WPF-ressourcer (genereret) |
 | `web/kit.css` | Komponenternes udseende |

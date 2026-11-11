@@ -33,6 +33,27 @@ Fælles for alle funktioner i `Kit`:
 
 **Kræver af programmet:** `tokens.css` før `kit.css`. Værdier, brugeren skal kunne læse tegn for tegn, står i `.mono`.
 
+### Farver til status, data og kort (fra 2.1.0)
+
+Ud over fladerne, teksten, accenten og signalerne har kittet fire grupper af farver. De er tokens, ikke komponenter: programmet tegner selv prikken, søjlen eller kortet.
+
+| Gruppe | Tokens | Bruges til | Krav |
+|---|---|---|---|
+| Ok | `--ok`, `--ok-soft` | Tekst, symbol og flade for "alt er godt" (OK-chip, OK-banner) | Som `--accent`: 4,5:1 som tekst |
+| Mærker | `--ok-mark`, `--warn-mark`, `--danger-mark`, `--info-mark`, `--none-mark` | Statusprikker, søjler, markører | 3:1 mod `--surface`, `--surface-raised` og `--bg` |
+| Data | `--data-1` … `--data-6`, `--data-axis`, `--data-grid`, `--data-label` | Diagrammer | Serier og akse 3:1; etiketter 4,5:1 |
+| Skala | `--seq-1` … `--seq-5` | Fra lidt til meget: kort, varmekort | Nabotrin skilles ad i lyshed (mindst 1,3:1) |
+| Kort | `--map-sea`, `--map-land`, `--map-border`, `--map-ring`, `--map-arc` | Verdenskort og lignende | Ring og bue 3:1 mod land og hav |
+
+Regler:
+
+- **Accent og ok.** `--accent` er handlingen (primær knap, valg, aktiv fane). `--ok` er betydningen "alt er godt". De har samme grønne i dag. Brug altid `--ok`, når noget melder en tilstand, og `--accent`, når noget kan trykkes eller er valgt. En primær knap må stå ved siden af en OK-chip: chippen har blød flade, symbol og ord; knappen er fyldt.
+- **Aldrig farve alene.** En prik står sammen med et ord. En serie har en etiket eller en forklaring. Et trin på skalaen har en forklaring med tal.
+- **Faste betydninger.** Fejl og angreb er `--danger-mark`. Oplysning og besøg er `--info-mark` (samme blå som `--data-1`). Advarsel er `--warn-mark`. En betydning skifter aldrig farve fra visning til visning.
+- **Dataserier bruges i rækkefølge** (`--data-1` først) og højst seks ad gangen. Har et diagram flere serier, samles de mindste i "Andre" (`--none-mark`).
+- **Mærker og serier er ikke tekst.** Tekst i statusfarve bruger `--ok`, `--warn`, `--danger` og `--info`; tal og etiketter i et diagram bruger `--data-label`.
+- **Skalaen** går fra `--seq-1` (lidt) til `--seq-5` (meget). I lyst tema bliver trinene mørkere, i mørkt tema lysere; land uden data er `--map-land`.
+
 ## AppShell
 
 **Klasser:** `.vindue`, `.titel`, `.mrk`, `.rk`, `.hoejre`, `.midte`, `.arb`, `.vl`, `.soeg`, `.fl`, `.flade`

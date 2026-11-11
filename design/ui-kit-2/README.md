@@ -33,7 +33,9 @@ Det er bevidst **ikke** en kopi: zonerne er almindelige mønstre for skrivebords
 
 - **Flader:** `bg` bag alt, `surface` til arbejdsflade, kort og tabeller, `surface-raised` til handlingsbånd, hoveder og fodlinjer. `rail` er titellinjen og er mørk i begge temaer.
 - **Tekst:** `text` og `text-muted`. Intet tredje gråt.
-- **Accent:** `accent` med `on-accent` ovenpå; `accent-soft` til valgte rækker og OK-chips. Højst én primær knap pr. skærm.
+- **Accent:** `accent` med `on-accent` ovenpå; `accent-soft` til valgte rækker. Højst én primær knap pr. skærm.
+- **Ok (fra 2.1.0):** `ok` og `ok-soft` er betydningen "alt er godt" (OK-chips og OK-bannere). Samme grønne som accent, men egne tokens.
+- **Mærker, data, skala og kort (fra 2.1.0):** `*-mark` til prikker, søjler og markører; `data-1` til `data-6` med akse, gitter og etiket; `seq-1` til `seq-5`; `map-*`. Reglerne står i pakkens `KOMPONENTER.md` under Grundlag.
 - **Signaler:** `info`, `warn`, `danger`, hver med en `-soft` flade. De betyder altid det samme.
 - **Kanter:** `border` til skillelinjer, `border-strong` til kontroller.
 

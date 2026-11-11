@@ -142,6 +142,22 @@
     "usage": "Baggrund for OK-chips, valgte rækker og trin, der er nået. text og accent ovenpå."
    },
    {
+    "name": "ok",
+    "value": {
+     "light": "#007864",
+     "dark": "#35D6B3"
+    },
+    "usage": "Betydningen \"alt er godt\": tekst og symbol i OK-chips og OK-bannere. Samme grønne som accent i 2.1.0, men sit eget token, så betydning og handling kan skilles ad."
+   },
+   {
+    "name": "ok-soft",
+    "value": {
+     "light": "#E2F4F0",
+     "dark": "#0F322D"
+    },
+    "usage": "Baggrund for OK-chips og OK-bannere. text og ok ovenpå."
+   },
+   {
     "name": "info",
     "value": {
      "light": "#1B5CC8",
@@ -188,6 +204,198 @@
      "dark": "#3E1613"
     },
     "usage": "Baggrund for fejl. text og danger ovenpå."
+   },
+   {
+    "name": "ok-mark",
+    "value": {
+     "light": "#0E9F85",
+     "dark": "#35D6B3"
+    },
+    "usage": "Mærke for OK: statusprik, søjle, markør. Mindst 3:1 mod surface, surface-raised og bg. Aldrig som tekst."
+   },
+   {
+    "name": "warn-mark",
+    "value": {
+     "light": "#C27500",
+     "dark": "#FFB74A"
+    },
+    "usage": "Mærke for advarsel: statusprik, søjle, markør. Aldrig som tekst (brug warn)."
+   },
+   {
+    "name": "danger-mark",
+    "value": {
+     "light": "#D93A30",
+     "dark": "#FF7A70"
+    },
+    "usage": "Mærke for fejl og angreb: statusprik, søjle, markør. Aldrig som tekst (brug danger)."
+   },
+   {
+    "name": "info-mark",
+    "value": {
+     "light": "#2F74E0",
+     "dark": "#6FA5FF"
+    },
+    "usage": "Mærke for oplysning: statusprik, søjle, markør. Aldrig som tekst (brug info)."
+   },
+   {
+    "name": "none-mark",
+    "value": {
+     "light": "#7C8A99",
+     "dark": "#7A8BA0"
+    },
+    "usage": "Mærke for ingen status eller ukendt: statusprik, søjle, markør."
+   },
+   {
+    "name": "data-1",
+    "value": {
+     "light": "#2F74E0",
+     "dark": "#6FA5FF"
+    },
+    "usage": "Dataserie 1 (blå). Serierne bruges i rækkefølge og får altid en etiket eller forklaring."
+   },
+   {
+    "name": "data-2",
+    "value": {
+     "light": "#B85C00",
+     "dark": "#FFB066"
+    },
+    "usage": "Dataserie 2 (orange)."
+   },
+   {
+    "name": "data-3",
+    "value": {
+     "light": "#7A4FD1",
+     "dark": "#B9A1FF"
+    },
+    "usage": "Dataserie 3 (violet)."
+   },
+   {
+    "name": "data-4",
+    "value": {
+     "light": "#0B8F8A",
+     "dark": "#4FD1CA"
+    },
+    "usage": "Dataserie 4 (blågrøn)."
+   },
+   {
+    "name": "data-5",
+    "value": {
+     "light": "#C23A86",
+     "dark": "#FF8FC4"
+    },
+    "usage": "Dataserie 5 (pink)."
+   },
+   {
+    "name": "data-6",
+    "value": {
+     "light": "#667317",
+     "dark": "#C9D56A"
+    },
+    "usage": "Dataserie 6 (oliven)."
+   },
+   {
+    "name": "data-axis",
+    "value": {
+     "light": "#7C8A99",
+     "dark": "#6B7C90"
+    },
+    "usage": "Akser og aksemærker i diagrammer. Mindst 3:1 mod fladen."
+   },
+   {
+    "name": "data-grid",
+    "value": {
+     "light": "#D8DEE6",
+     "dark": "#263345"
+    },
+    "usage": "Gitterlinjer i diagrammer. Pynt: bærer ingen betydning."
+   },
+   {
+    "name": "data-label",
+    "value": {
+     "light": "#4F5E6D",
+     "dark": "#A6B4C3"
+    },
+    "usage": "Tal og etiketter på akser og serier. Tekst: mindst 4,5:1 mod fladen."
+   },
+   {
+    "name": "seq-1",
+    "value": {
+     "light": "#F6D9A8",
+     "dark": "#5A3F1C"
+    },
+    "usage": "Skala i fem trin, laveste trin. Trinene går fra lidt (1) til meget (5) og skilles ad i lyshed."
+   },
+   {
+    "name": "seq-2",
+    "value": {
+     "light": "#F0B45E",
+     "dark": "#7A5216"
+    },
+    "usage": "Skala i fem trin, trin 2."
+   },
+   {
+    "name": "seq-3",
+    "value": {
+     "light": "#E58A2B",
+     "dark": "#B8741A"
+    },
+    "usage": "Skala i fem trin, trin 3."
+   },
+   {
+    "name": "seq-4",
+    "value": {
+     "light": "#CF5A1E",
+     "dark": "#E8952F"
+    },
+    "usage": "Skala i fem trin, trin 4."
+   },
+   {
+    "name": "seq-5",
+    "value": {
+     "light": "#A62B14",
+     "dark": "#FFC66E"
+    },
+    "usage": "Skala i fem trin, højeste trin."
+   },
+   {
+    "name": "map-sea",
+    "value": {
+     "light": "#DDE7F2",
+     "dark": "#0B131E"
+    },
+    "usage": "Kort: hav."
+   },
+   {
+    "name": "map-land",
+    "value": {
+     "light": "#FBFCFD",
+     "dark": "#1E2B3C"
+    },
+    "usage": "Kort: land uden data. Skalaens trin (seq-1 til seq-5) lægges ovenpå."
+   },
+   {
+    "name": "map-border",
+    "value": {
+     "light": "#9AA8B8",
+     "dark": "#4A5C73"
+    },
+    "usage": "Kort: grænser og kystlinje."
+   },
+   {
+    "name": "map-ring",
+    "value": {
+     "light": "#D93A30",
+     "dark": "#FF7A70"
+    },
+    "usage": "Kort: ring om et sted, der skal ses (fx et mål)."
+   },
+   {
+    "name": "map-arc",
+    "value": {
+     "light": "#2F74E0",
+     "dark": "#6FA5FF"
+    },
+    "usage": "Kort: bue mellem to steder."
    }
   ]
  },

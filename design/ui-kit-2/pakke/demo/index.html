@@ -28,6 +28,16 @@
   .demo-farver { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--space-2); }
   .demo-farve { display: flex; align-items: center; gap: var(--space-2); }
   .demo-farve i { width: 36px; height: 36px; flex: none; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); }
+  .demo-prik, .demo-trin { display: inline-flex; align-items: center; gap: var(--space-2); margin-right: var(--space-3); }
+  .demo-prik i { width: 12px; height: 12px; flex: none; border-radius: var(--radius-pill); }
+  .demo-trin i { width: 36px; height: 20px; flex: none; border-radius: var(--radius-sm); border: 1px solid var(--data-grid); }
+  .demo-diagram { display: flex; align-items: flex-end; gap: var(--space-3); height: 120px; max-width: 640px; padding: 0 var(--space-2); margin-bottom: var(--space-3);
+    border-left: 1px solid var(--data-axis); border-bottom: 1px solid var(--data-axis);
+    background: repeating-linear-gradient(to top, transparent 0, transparent 23px, var(--data-grid) 23px, var(--data-grid) 24px); }
+  .demo-soejle { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: var(--space-1); color: var(--data-label); font-size: var(--small-size); }
+  .demo-soejle i { display: block; width: 36px; border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+  .demo-kort { max-width: 320px; margin: var(--space-3) 0 var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+  .demo-kort svg { display: block; width: 100%; height: auto; }
   .demo-skrift > div { margin-bottom: var(--space-2); }
   .demo-luft i { display: inline-block; height: 16px; background: var(--accent); border-radius: var(--radius-sm); vertical-align: middle; margin-right: var(--space-2); }
   .demo-radius i { display: inline-block; width: 64px; height: 36px; border: 1px solid var(--border-strong); background: var(--surface-raised); margin-right: var(--space-2); vertical-align: middle; }
@@ -40,7 +50,7 @@
   <header class="titel">
     <span class="mrk" aria-hidden="true">W</span>
     <b data-t="appNavn">Wi24rd UI Kit 2</b>
-    <span data-t="undertitel" data-v="2.0.1" id="pakkeversion">Demo · pakke 2.0.1</span>
+    <span data-t="undertitel" data-v="2.1.0" id="pakkeversion">Demo · pakke 2.0.1</span>
     <span class="hoejre">
       <button type="button" class="rk" id="skift-tema" data-t-aria="ariaSkiftTema" data-t-title="ariaSkiftTema"></button>
       <button type="button" class="rk" id="skift-sprog" data-t-aria="ariaSkiftSprog" data-t="skiftSprog"></button>
@@ -101,7 +111,7 @@
             <h2>StatusFooter</h2>
             <p data-t="pStatusFooter"></p>
             <div class="demo-ramme">
-              <div class="fodl"><span data-t="fodVenstre" data-v="16" data-w="13"></span><span class="h"><span id="demo-fod-laas"></span><span data-t="fodVersion" data-v="2.0.1"></span></span></div>
+              <div class="fodl"><span data-t="fodVenstre" data-v="16" data-w="13"></span><span class="h"><span id="demo-fod-laas"></span><span data-t="fodVersion" data-v="2.1.0"></span></span></div>
             </div>
           </section>
 
@@ -175,6 +185,15 @@
             <p data-t="pFarver"></p>
             <div class="demo-farver" id="demo-farver"></div>
           </section>
+          <section class="demo-sektion" id="demo-maerker-sektion">
+            <h2 data-t="hMaerker">Mærker, data, skala og kort</h2>
+            <p data-t="pMaerker"></p>
+            <div class="demo-raekke" id="demo-maerker"></div>
+            <div class="demo-diagram" id="demo-data"></div>
+            <div class="demo-raekke" id="demo-seq"></div>
+            <div class="demo-kort" id="demo-kort"></div>
+            <div class="demo-raekke" id="demo-kortfarver"></div>
+          </section>
           <section class="demo-sektion demo-skrift">
             <h2 data-t="hSkrift">Skrift</h2>
             <p data-t="pSkrift"></p>
@@ -192,7 +211,7 @@
 
       <footer class="fodl">
         <span id="fod-antal" data-t="fodAntal" data-v="0"></span>
-        <span class="h"><span id="fod-laas"></span><span data-t="fodVersion" data-v="2.0.1"></span></span>
+        <span class="h"><span id="fod-laas"></span><span data-t="fodVersion" data-v="2.1.0"></span></span>
       </footer>
     </main>
   </div>

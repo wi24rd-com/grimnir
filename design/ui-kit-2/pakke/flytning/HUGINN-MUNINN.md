@@ -43,11 +43,23 @@ Programmet får hele Kit 2's skal (se beslutningen øverst). Trin 1–6 lægger 
 7. **Skallen.** Byg siden om til AppShell: titellinje, `Kit.commandBar`, `Kit.navTrae` og `Kit.visningsskift`, værktøjslinje og fodlinje. Kittets visningsskift er til højst seks visninger; programmet har ti, så nogle skal blive til punkter i træet eller til faner. Båndets vælgere (domæne, land) skal have en ny plads. Det blå bånd med bølger og sidebjælken udgår. Pladsen til macOS' vinduesknapper står i dag som `[data-platform="macos"] .band`; den flyttes til `.titel` i programmets egen CSS.
 8. **Ryd op.** Fjern det gamle `tokens.json`-lag, der ikke længere bruges, den gamle `tema.js`, Outfit og de regler i `app.css`, kittet har overtaget.
 
+## Opfyldte ønsker
+
+Ønskerne står i `../Huginn-Muninn/claude_cowork/from-cowork/KIT-OENSKER-HAM.md` (K1–K17). Kittet udvides i kilden, så næste program får det med.
+
+| Ønske | Pakke | Hvad kittet har nu |
+|---|---|---|
+| K1 Egen farve til "ok" | 2.1.0 | `--ok`, `--ok-soft` (samme grønne som accent; reglen står i `KOMPONENTER.md`, Grundlag) |
+| K2 Mærkefarver | 2.1.0 | `--ok-mark`, `--warn-mark`, `--danger-mark`, `--info-mark`, `--none-mark`. Afløser `--status-*-dot` |
+| K3 Diagramfarver | 2.1.0 | `--data-1` … `--data-6`, `--data-axis`, `--data-grid`, `--data-label`. Angreb er `--danger-mark`, besøg `--info-mark`. Afløser `--chart-http-*` og tavlens seriefarver |
+| K4 Kortfarver | 2.1.0 | `--seq-1` … `--seq-5` og `--map-sea`, `--map-land`, `--map-border`, `--map-ring`, `--map-arc`. Afløser `--kort-*` |
+
+Det af `--board-*`, der ikke har en modpart i kittet, bliver programmets eget og peger på kittets flader og tekstfarver.
+
 ## Det, der ikke kan flyttes endnu
 
 | Hvad | Hvorfor |
 |---|---|
-| Tavlen med kort og søjler (`vagt.css`, `--board-*`, `--kort-*`, `--chart-http-*`) | Kit 2 har ingen farver til diagrammer og kort. De bliver programmets egne tokens |
 | Tekststørrelse i tre trin (`data-density`) | Kit 2 har én størrelse |
 | Hjælpeskuffen, dialoger, afkrydsning, kontakt (til/fra), valglister, fliser, spinner | Findes ikke i kittet som kode (se `KOMPONENTER.md`, "Findes ikke endnu") |
 | Båndets bølger, logo og vælgere | Kit 2's titellinje er en rolig linje på 34 px uden plads til dem. Med hele skallen udgår bølgerne; logoet og vælgerne (domæne, land) skal have en ny plads, og har kittet ingen, udvides kittet |

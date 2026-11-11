@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- GENERERET fra wi24rd-ui-kit-2.tokens.json (Wi24rd UI Kit 2, pakke 2.0.1). Ret ikke i hånden.
+<!-- GENERERET fra wi24rd-ui-kit-2.tokens.json (Wi24rd UI Kit 2, pakke 2.1.0). Ret ikke i hånden.
      To ordbøger med de samme nøgler: Wi24rdLys og Wi24rdMoerk. Flet præcis én ind i programmets ressourcer og brug
      DynamicResource, så temaet kan skiftes (se pakkens README.md). Tal er WPF-enheder (1 = 1 px ved 96 dpi);
      …Tracking er i em, og WPF har ingen egenskab til det på TextBlock. -->
@@ -39,6 +39,10 @@
     <SolidColorBrush x:Key="Wi24rdOnAccentBrush" Color="#FFFFFFFF"/>
     <Color x:Key="Wi24rdAccentSoftColor">#FFE2F4F0</Color>
     <SolidColorBrush x:Key="Wi24rdAccentSoftBrush" Color="#FFE2F4F0"/>
+    <Color x:Key="Wi24rdOkColor">#FF007864</Color>
+    <SolidColorBrush x:Key="Wi24rdOkBrush" Color="#FF007864"/>
+    <Color x:Key="Wi24rdOkSoftColor">#FFE2F4F0</Color>
+    <SolidColorBrush x:Key="Wi24rdOkSoftBrush" Color="#FFE2F4F0"/>
     <Color x:Key="Wi24rdInfoColor">#FF1B5CC8</Color>
     <SolidColorBrush x:Key="Wi24rdInfoBrush" Color="#FF1B5CC8"/>
     <Color x:Key="Wi24rdInfoSoftColor">#FFE7EFFD</Color>
@@ -51,6 +55,54 @@
     <SolidColorBrush x:Key="Wi24rdDangerBrush" Color="#FFB3261E"/>
     <Color x:Key="Wi24rdDangerSoftColor">#FFFDEBE9</Color>
     <SolidColorBrush x:Key="Wi24rdDangerSoftBrush" Color="#FFFDEBE9"/>
+    <Color x:Key="Wi24rdOkMarkColor">#FF0E9F85</Color>
+    <SolidColorBrush x:Key="Wi24rdOkMarkBrush" Color="#FF0E9F85"/>
+    <Color x:Key="Wi24rdWarnMarkColor">#FFC27500</Color>
+    <SolidColorBrush x:Key="Wi24rdWarnMarkBrush" Color="#FFC27500"/>
+    <Color x:Key="Wi24rdDangerMarkColor">#FFD93A30</Color>
+    <SolidColorBrush x:Key="Wi24rdDangerMarkBrush" Color="#FFD93A30"/>
+    <Color x:Key="Wi24rdInfoMarkColor">#FF2F74E0</Color>
+    <SolidColorBrush x:Key="Wi24rdInfoMarkBrush" Color="#FF2F74E0"/>
+    <Color x:Key="Wi24rdNoneMarkColor">#FF7C8A99</Color>
+    <SolidColorBrush x:Key="Wi24rdNoneMarkBrush" Color="#FF7C8A99"/>
+    <Color x:Key="Wi24rdData1Color">#FF2F74E0</Color>
+    <SolidColorBrush x:Key="Wi24rdData1Brush" Color="#FF2F74E0"/>
+    <Color x:Key="Wi24rdData2Color">#FFB85C00</Color>
+    <SolidColorBrush x:Key="Wi24rdData2Brush" Color="#FFB85C00"/>
+    <Color x:Key="Wi24rdData3Color">#FF7A4FD1</Color>
+    <SolidColorBrush x:Key="Wi24rdData3Brush" Color="#FF7A4FD1"/>
+    <Color x:Key="Wi24rdData4Color">#FF0B8F8A</Color>
+    <SolidColorBrush x:Key="Wi24rdData4Brush" Color="#FF0B8F8A"/>
+    <Color x:Key="Wi24rdData5Color">#FFC23A86</Color>
+    <SolidColorBrush x:Key="Wi24rdData5Brush" Color="#FFC23A86"/>
+    <Color x:Key="Wi24rdData6Color">#FF667317</Color>
+    <SolidColorBrush x:Key="Wi24rdData6Brush" Color="#FF667317"/>
+    <Color x:Key="Wi24rdDataAxisColor">#FF7C8A99</Color>
+    <SolidColorBrush x:Key="Wi24rdDataAxisBrush" Color="#FF7C8A99"/>
+    <Color x:Key="Wi24rdDataGridColor">#FFD8DEE6</Color>
+    <SolidColorBrush x:Key="Wi24rdDataGridBrush" Color="#FFD8DEE6"/>
+    <Color x:Key="Wi24rdDataLabelColor">#FF4F5E6D</Color>
+    <SolidColorBrush x:Key="Wi24rdDataLabelBrush" Color="#FF4F5E6D"/>
+    <Color x:Key="Wi24rdSeq1Color">#FFF6D9A8</Color>
+    <SolidColorBrush x:Key="Wi24rdSeq1Brush" Color="#FFF6D9A8"/>
+    <Color x:Key="Wi24rdSeq2Color">#FFF0B45E</Color>
+    <SolidColorBrush x:Key="Wi24rdSeq2Brush" Color="#FFF0B45E"/>
+    <Color x:Key="Wi24rdSeq3Color">#FFE58A2B</Color>
+    <SolidColorBrush x:Key="Wi24rdSeq3Brush" Color="#FFE58A2B"/>
+    <Color x:Key="Wi24rdSeq4Color">#FFCF5A1E</Color>
+    <SolidColorBrush x:Key="Wi24rdSeq4Brush" Color="#FFCF5A1E"/>
+    <Color x:Key="Wi24rdSeq5Color">#FFA62B14</Color>
+    <SolidColorBrush x:Key="Wi24rdSeq5Brush" Color="#FFA62B14"/>
+    <Color x:Key="Wi24rdMapSeaColor">#FFDDE7F2</Color>
+    <SolidColorBrush x:Key="Wi24rdMapSeaBrush" Color="#FFDDE7F2"/>
+    <Color x:Key="Wi24rdMapLandColor">#FFFBFCFD</Color>
+    <SolidColorBrush x:Key="Wi24rdMapLandBrush" Color="#FFFBFCFD"/>
+    <Color x:Key="Wi24rdMapBorderColor">#FF9AA8B8</Color>
+    <SolidColorBrush x:Key="Wi24rdMapBorderBrush" Color="#FF9AA8B8"/>
+    <Color x:Key="Wi24rdMapRingColor">#FFD93A30</Color>
+    <SolidColorBrush x:Key="Wi24rdMapRingBrush" Color="#FFD93A30"/>
+    <Color x:Key="Wi24rdMapArcColor">#FF2F74E0</Color>
+    <SolidColorBrush x:Key="Wi24rdMapArcBrush" Color="#FF2F74E0"/>
     <DropShadowEffect x:Key="Wi24rdShadowCard" Direction="270" ShadowDepth="1" BlurRadius="2" Color="#0B1F33" Opacity="0.08"/>
     <DropShadowEffect x:Key="Wi24rdShadowPop" Direction="270" ShadowDepth="16" BlurRadius="40" Color="#0B1F33" Opacity="0.35"/>
     <FontFamily x:Key="Wi24rdFontSans">Inter, Segoe UI</FontFamily>
@@ -140,6 +192,10 @@
     <SolidColorBrush x:Key="Wi24rdOnAccentBrush" Color="#FF04231D"/>
     <Color x:Key="Wi24rdAccentSoftColor">#FF0F322D</Color>
     <SolidColorBrush x:Key="Wi24rdAccentSoftBrush" Color="#FF0F322D"/>
+    <Color x:Key="Wi24rdOkColor">#FF35D6B3</Color>
+    <SolidColorBrush x:Key="Wi24rdOkBrush" Color="#FF35D6B3"/>
+    <Color x:Key="Wi24rdOkSoftColor">#FF0F322D</Color>
+    <SolidColorBrush x:Key="Wi24rdOkSoftBrush" Color="#FF0F322D"/>
     <Color x:Key="Wi24rdInfoColor">#FF86B4FF</Color>
     <SolidColorBrush x:Key="Wi24rdInfoBrush" Color="#FF86B4FF"/>
     <Color x:Key="Wi24rdInfoSoftColor">#FF13284A</Color>
@@ -152,6 +208,54 @@
     <SolidColorBrush x:Key="Wi24rdDangerBrush" Color="#FFFF9E96"/>
     <Color x:Key="Wi24rdDangerSoftColor">#FF3E1613</Color>
     <SolidColorBrush x:Key="Wi24rdDangerSoftBrush" Color="#FF3E1613"/>
+    <Color x:Key="Wi24rdOkMarkColor">#FF35D6B3</Color>
+    <SolidColorBrush x:Key="Wi24rdOkMarkBrush" Color="#FF35D6B3"/>
+    <Color x:Key="Wi24rdWarnMarkColor">#FFFFB74A</Color>
+    <SolidColorBrush x:Key="Wi24rdWarnMarkBrush" Color="#FFFFB74A"/>
+    <Color x:Key="Wi24rdDangerMarkColor">#FFFF7A70</Color>
+    <SolidColorBrush x:Key="Wi24rdDangerMarkBrush" Color="#FFFF7A70"/>
+    <Color x:Key="Wi24rdInfoMarkColor">#FF6FA5FF</Color>
+    <SolidColorBrush x:Key="Wi24rdInfoMarkBrush" Color="#FF6FA5FF"/>
+    <Color x:Key="Wi24rdNoneMarkColor">#FF7A8BA0</Color>
+    <SolidColorBrush x:Key="Wi24rdNoneMarkBrush" Color="#FF7A8BA0"/>
+    <Color x:Key="Wi24rdData1Color">#FF6FA5FF</Color>
+    <SolidColorBrush x:Key="Wi24rdData1Brush" Color="#FF6FA5FF"/>
+    <Color x:Key="Wi24rdData2Color">#FFFFB066</Color>
+    <SolidColorBrush x:Key="Wi24rdData2Brush" Color="#FFFFB066"/>
+    <Color x:Key="Wi24rdData3Color">#FFB9A1FF</Color>
+    <SolidColorBrush x:Key="Wi24rdData3Brush" Color="#FFB9A1FF"/>
+    <Color x:Key="Wi24rdData4Color">#FF4FD1CA</Color>
+    <SolidColorBrush x:Key="Wi24rdData4Brush" Color="#FF4FD1CA"/>
+    <Color x:Key="Wi24rdData5Color">#FFFF8FC4</Color>
+    <SolidColorBrush x:Key="Wi24rdData5Brush" Color="#FFFF8FC4"/>
+    <Color x:Key="Wi24rdData6Color">#FFC9D56A</Color>
+    <SolidColorBrush x:Key="Wi24rdData6Brush" Color="#FFC9D56A"/>
+    <Color x:Key="Wi24rdDataAxisColor">#FF6B7C90</Color>
+    <SolidColorBrush x:Key="Wi24rdDataAxisBrush" Color="#FF6B7C90"/>
+    <Color x:Key="Wi24rdDataGridColor">#FF263345</Color>
+    <SolidColorBrush x:Key="Wi24rdDataGridBrush" Color="#FF263345"/>
+    <Color x:Key="Wi24rdDataLabelColor">#FFA6B4C3</Color>
+    <SolidColorBrush x:Key="Wi24rdDataLabelBrush" Color="#FFA6B4C3"/>
+    <Color x:Key="Wi24rdSeq1Color">#FF5A3F1C</Color>
+    <SolidColorBrush x:Key="Wi24rdSeq1Brush" Color="#FF5A3F1C"/>
+    <Color x:Key="Wi24rdSeq2Color">#FF7A5216</Color>
+    <SolidColorBrush x:Key="Wi24rdSeq2Brush" Color="#FF7A5216"/>
+    <Color x:Key="Wi24rdSeq3Color">#FFB8741A</Color>
+    <SolidColorBrush x:Key="Wi24rdSeq3Brush" Color="#FFB8741A"/>
+    <Color x:Key="Wi24rdSeq4Color">#FFE8952F</Color>
+    <SolidColorBrush x:Key="Wi24rdSeq4Brush" Color="#FFE8952F"/>
+    <Color x:Key="Wi24rdSeq5Color">#FFFFC66E</Color>
+    <SolidColorBrush x:Key="Wi24rdSeq5Brush" Color="#FFFFC66E"/>
+    <Color x:Key="Wi24rdMapSeaColor">#FF0B131E</Color>
+    <SolidColorBrush x:Key="Wi24rdMapSeaBrush" Color="#FF0B131E"/>
+    <Color x:Key="Wi24rdMapLandColor">#FF1E2B3C</Color>
+    <SolidColorBrush x:Key="Wi24rdMapLandBrush" Color="#FF1E2B3C"/>
+    <Color x:Key="Wi24rdMapBorderColor">#FF4A5C73</Color>
+    <SolidColorBrush x:Key="Wi24rdMapBorderBrush" Color="#FF4A5C73"/>
+    <Color x:Key="Wi24rdMapRingColor">#FFFF7A70</Color>
+    <SolidColorBrush x:Key="Wi24rdMapRingBrush" Color="#FFFF7A70"/>
+    <Color x:Key="Wi24rdMapArcColor">#FF6FA5FF</Color>
+    <SolidColorBrush x:Key="Wi24rdMapArcBrush" Color="#FF6FA5FF"/>
     <DropShadowEffect x:Key="Wi24rdShadowCard" Direction="270" ShadowDepth="1" BlurRadius="2" Color="#000000" Opacity="0.4"/>
     <DropShadowEffect x:Key="Wi24rdShadowPop" Direction="270" ShadowDepth="16" BlurRadius="40" Color="#000000" Opacity="0.7"/>
     <FontFamily x:Key="Wi24rdFontSans">Inter, Segoe UI</FontFamily>
