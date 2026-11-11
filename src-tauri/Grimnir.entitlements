@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Grimnir: entitlements under hardened runtime (V-SIGN.1). Listen er bevidst tom.
+
+  Hardened runtime slår JIT, usigneret eksekverbar hukommelse, DYLD-miljøvariabler, indlæsning af biblioteker fra
+  andre teams og fejlsøgning fra. Grimnir har ikke brug for nogen af dem:
+  - Ingen JIT i Grimnirs egen proces. WebKits WebContent-tjeneste (WebKit.framework/XPCServices/
+    com.apple.WebKit.WebContent.xpc) er signeret af Apple med sin egen com.apple.security.cs.allow-jit (målt med
+    codesign -d og visning af entitlements, V-SIGN.1); grimnir selv har ingen JIT.
+  - Kun systembiblioteker: `otool -L` på binæren viser kun /System/Library/Frameworks og /usr/lib, så
+    biblioteksvalideringen er opfyldt uden com.apple.security.cs.disable-library-validation.
+  - Ingen kamera, mikrofon, placering, kontakter, kalender, billeder eller Apple Events.
+  - Ingen app-sandkasse. Åbn og Gem (rfd: NSOpenPanel/NSSavePanel), udklipsholderen (NSPasteboard), døren
+    (LocalAuthentication) og den filbaserede Nøglering (keyring) kræver derfor ingen sandkasse-entitlements.
+  - Ingen keychain-access-groups endnu. Nøglen bundet til fingeraftryk kræver en provisioning profile og er udskudt
+    (HANDOFF-V-SIGN.1, N4).
+  - Ingen com.apple.security.get-task-allow, heller ikke i prøvebygningen. Notariseringen afviser den.
+  Begrundelse og kilder: claude_cowork/from-ag/HANDOFF-V-SIGN.1.md, N1.
+-->
+<plist version="1.0">
+<dict/>
+</plist>

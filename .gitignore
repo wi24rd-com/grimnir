@@ -44,6 +44,9 @@ Thumbs.db
 /tools/fast-tid.sh
 /tools/fast-push.sh
 
+# Lokalt valg af signeringsidentitet, notariseringsprofil og udgivelsesmappe (tools/signer.sh)
+/tools/signer.lokal
+
 # Grimnirs egne nøglefiler og alt, der kan indeholde rigtige data
 *.grimnir
 /prøvedata/

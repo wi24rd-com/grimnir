@@ -12,7 +12,8 @@
     "test:ui": "node tests/ui/ui-roeg.mjs",
     "test:kontrast": "node tests/ui/kontrast.mjs",
     "test:kolonner": "node tests/ui/kolonner.mjs",
-    "test:kit": "node tests/ui/kit-pakke.mjs"
+    "test:kit": "node tests/ui/kit-pakke.mjs",
+    "test:signer": "sh -n tools/signer.sh && node tests/signer/signer.mjs"
   },
   "devDependencies": {
     "@tauri-apps/cli": "2.12.4",
