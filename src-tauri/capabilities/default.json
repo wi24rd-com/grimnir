@@ -47,6 +47,7 @@
     "allow-ordbog-start-forfra",
     "allow-laas-status",
     "allow-laas-op",
-    "allow-aktivitet"
+    "allow-aktivitet",
+    "allow-udklip-kopieret"
   ]
 }

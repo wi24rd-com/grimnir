@@ -18,7 +18,8 @@
    rester kræver "Gem alligevel", og den demaskerede fil kræver en bekræftelse. Stien ser webvisningen aldrig.
 
    Rust-kommandoer: analyser, gem_og_masker, demasker, menu_sprog; fil_aabn, fil_aabn_sluppet, fil_luk, fil_analyser,
-   fil_raekker, fil_gem_og_masker, fil_demasker, fil_kopi, fil_gem. Hændelser fra Rust: menu ("aabn" | "gem"), fil-traek,
+   fil_raekker, fil_gem_og_masker, fil_demasker, fil_kopi, fil_gem; udklip_kopieret (V-LAAS.4, efter Kopiér i Demaskér).
+   Hændelser fra Rust: menu ("aabn" | "gem"), fil-traek,
    fil-sluppet (kun filnavnet). */
 (function () {
   'use strict';
@@ -1064,9 +1065,13 @@
     async function kopierResultat() {
       if (!st.resultat || st.travl) return;
       if (st.resultat.fil && !st.resultat.kopierbar) { fejlBanner = ['bKopiForStor', null]; tegnBannere(); return; }
-      const ok = st.resultat.fil ? await kopierFraRust('demasker', e => { fejl(e); tegnBannere(); }) : await kopier(st.resultat.tekst);
+      const fil = Boolean(st.resultat.fil);
+      const ok = fil ? await kopierFraRust('demasker', e => { fejl(e); tegnBannere(); }) : await kopier(st.resultat.tekst);
       besked(f, ok ? 'bKopieret' : null);
       if (ok === false) banner(f.bannere, 'danger', 'bKopiFejl');
+      /* V-LAAS.4: Rust får at vide, at udklipsholderen nu har det demaskerede resultat, så låsen kan rydde den (kun hvis
+         ingen har skrevet til den siden). Kun her, ikke efter Kopiér i Maskér: maskeret tekst er lavet til at blive delt. */
+      if (ok === true) invoke('udklip_kopieret', { fil }).catch(() => { /* låst eller uden Rust: intet at huske */ });
     }
     return {
       st, modtag, demasker, kopierResultat, tegn, tegnFod, aabnFil, gemFil, modtagFil,

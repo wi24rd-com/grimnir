@@ -524,6 +524,7 @@ const raekkeMed = (d, id) => d.querySelector(`section[data-visning="masker"] .fu
   s.tast('C', { metaKey: true, shiftKey: true, code: 'KeyC' });
   await vent(5);
   tjek('⇧⌘C kopierer også', skrevet.length === 2 && skrevet[1] === forventet);
+  tjek('V-LAAS.4: Kopiér i Maskér melder intet til Rust (udklip_kopieret)', !s.kald.some(k => k[0] === 'udklip_kopieret'));
   // Ændres et valg efter maskeringen, forsvinder resultatet.
   const cb2 = raekkeMed(d, 45).querySelector('input[type="checkbox"]');
   cb2.checked = false;
@@ -556,6 +557,8 @@ const raekkeMed = (d, id) => d.querySelector(`section[data-visning="masker"] .fu
   knapI(d, 'demasker', 'kopier-resultat').click();
   await vent(5);
   tjek('Demaskér: Kopiér resultat bytepræcist', skrevet[skrevet.length - 1] === 'Prøv bruger060 på Sommer2026!\r\nog h0099\r\n');
+  const meldt = s.kald.filter(k => k[0] === 'udklip_kopieret');
+  tjek('V-LAAS.4: efter Kopiér i Demaskér melder webvisningen det til Rust én gang (indsat tekst: fil false), uden teksten', meldt.length === 1 && JSON.stringify(meldt[0][1]) === '{"fil":false}' && s.kald.findIndex(k => k[0] === 'udklip_kopieret') > s.kald.findIndex(k => k[0] === 'demasker'), JSON.stringify(meldt));
 
   // Nulstil sagen fra titellinjen (med bekræftelse)
   d.getElementById('sag-knap').click();
@@ -1517,6 +1520,7 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   knapI(d, 'masker', 'kopier').click();
   await vent(10);
   tjek('Kopiér: hele resultatet hentes fra Rust (fil_kopi) og kopieres', s.kald.some(k => k[0] === 'fil_kopi' && k[1].visning === 'masker') && skrevet.pop() === 'MASKERET-HELE-FILEN');
+  tjek('V-LAAS.4: Kopiér af en maskeret fil melder intet til Rust', !s.kald.some(k => k[0] === 'udklip_kopieret'));
   s.emit('menu', 'gem');
   await vent(10);
   tjek('Arkiv → Gem… (⌘S): fil_gem for Maskér uden "alligevel"', rust.fil.gemt.length === 1 && rust.fil.gemt[0].join() === 'masker,false' && sek.querySelector('.besked').textContent === 'Gemt som app.maskeret.log.');
@@ -1634,6 +1638,7 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   knapI(d, 'demasker', 'kopier-resultat').click();
   await vent(10);
   tjek('Kopiér resultat: fra Rust (fil_kopi)', skrevet.pop() === 'RIGTIGE-HELE-FILEN');
+  tjek('V-LAAS.4: Kopiér af en demaskeret fil melder det til Rust (fil true)', JSON.stringify(s.kald.filter(k => k[0] === 'udklip_kopieret').map(k => k[1])) === '[{"fil":true}]');
 }
 
 // ── Windows: Ctrl+O og Ctrl+S ──
@@ -2153,7 +2158,7 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
   s.emit('menu', 'om');
   await vent(5);
   const opFoer = rust.st.opKald.length;
-  rust.laasIgen('dvale', { midlertidig_lukket: true, gem_fejl: null });
+  rust.laasIgen('dvale', { midlertidig_gemt: 'Midlertidig 2026-11-11 09.05', midlertidig_fejl: null, gem_fejl: null });
   s.emit('laast', 'dvale');
   await vent(10);
   tjek('V-LAAS.3: hændelsen laast genindlæser siden (location.reload)', s.jsdomFejl.some(m => /navigation/.test(m)), JSON.stringify(s.jsdomFejl));
@@ -2173,8 +2178,8 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
   g.d.getElementById('laas-op').click();
   await vent(30);
   tjek('V-LAAS.3: Lås op giver én dialog og låser op', rust.st.opKald.length === opFoer + 1 && !laaseskaerm(g.d));
-  const b = g.d.querySelector('#laas-banner .ban[data-efter="bMidlertidigLukket"]');
-  tjek('V-LAAS.3: beskeden om den midlertidige sag efter oplåsningen', b && b.querySelector('.ord').textContent === 'Den midlertidige sag blev lukket, da Grimnir låste.' && b.getAttribute('role') === 'status', b && b.textContent);
+  const b = g.d.querySelector('#laas-banner .ban[data-efter="bMidlertidigGemt"]');
+  tjek('V-LAAS.3/4: beskeden om den midlertidige sag efter oplåsningen (V-LAAS.4: gemt under navnet)', b && b.querySelector('.ord').textContent === 'Den midlertidige sag blev gemt som «Midlertidig 2026-11-11 09.05».' && b.getAttribute('role') === 'status', b && b.textContent);
   const luk = b && b.querySelector('button');
   tjek('V-LAAS.3: beskeden har en Luk-knap med aria-label', luk && luk.textContent.trim() === 'Luk' && luk.getAttribute('aria-label') === 'Luk beskeden');
   if (luk) luk.click();
@@ -2184,7 +2189,7 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
 {
   // Låst igen ved stilstand, og den åbne sag kunne ikke gemmes: annulleret → stadig låst, ingen ny dialog af sig selv;
   // Enter → dialogen → ok → advarslen uden indhold (engelsk).
-  const rust = falskLaasRust({ laast: true, igen: 'stilstand', efter: { midlertidig_lukket: false, gem_fejl: { art: 'konflikt' } } });
+  const rust = falskLaasRust({ laast: true, igen: 'stilstand', efter: { midlertidig_gemt: null, midlertidig_fejl: null, gem_fejl: { art: 'konflikt' } } });
   const s = side({ rust, lager: { 'grimnir-sprog': 'en' } });
   const { d } = s;
   await vent(30);
@@ -2255,6 +2260,77 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
   tjek('V-LAAS.3: knappens aria-label og title er uændrede', knap.getAttribute('aria-label') === 'Åbn indstillinger' && knap.title === 'Indstillinger (⌘,)');
   tjek('V-LAAS.3: solen er stadig ikonet for Lys i Vis-fanen', /id: 'tema-lys'[^}]*ikon: 'sol'/.test(ui('assets/app.js')));
   tjek('V-LAAS.3: ikonerne tegnes med 2 px streg (kit.css)', /stroke: currentColor; stroke-width: 2;/.test(ui('assets/kit.css')));
+}
+
+// ── V-LAAS.4: ved lås gemmes den midlertidige sag (beskeden med navnet), og udklipsholderen ryddes (meldingen efter
+// Kopiér i Demaskér; teksten i Indstillinger). Efterlignet Rust som V-LAAS.3. Kun opdigtede navne. ──
+{
+  const udenKommentarer = t => t.replace(/<!--[\s\S]*?-->/g, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  const kode = udenKommentarer(ui('index.html') + ['app.js', 'laas.js', 'maskering.js', 'sager.js', 'ordbog.js', 'indstillinger.js', 'kit.js', 'sprog.js', 'tema.js'].map(f => ui('assets/' + f)).join('\n'));
+  tjek('V-LAAS.4: webvisningen læser aldrig udklipsholderen (ingen readText/read())', kode.length > 50000 && !/readText|clipboard\.read\(/.test(kode));
+  tjek('V-LAAS.4: udklip_kopieret kaldes ét sted (Kopiér i Demaskér)', (kode.match(/invoke\('udklip_kopieret'/g) || []).length === 1);
+  tjek('V-LAAS.4: den gamle besked "blev lukket" er væk', !/bMidlertidigLukket|blev lukket, da Grimnir|was closed when Grimnir/.test(kode));
+}
+const NAVN4 = { da: 'Midlertidig 2026-11-11 09.05', en: 'Temporary 2026-11-11 09.05' };
+for (const lang of ['da', 'en']) {
+  // Låst igen; den midlertidige sag er gemt. Lås op → beskeden med navnet (info, Luk-knap).
+  const rust = falskLaasRust({ laast: true, igen: 'dvale', efter: { midlertidig_gemt: NAVN4[lang], midlertidig_fejl: null, gem_fejl: null } });
+  const s = side({ rust, lager: { 'grimnir-sprog': lang } });
+  const { d } = s;
+  await vent(30);
+  tjek(`V-LAAS.4 (${lang}): låst igen, ingen dialog af sig selv`, rust.st.opKald.length === 0 && laaseskaerm(d));
+  rust.st.kue.push({ svar: 'ok' });
+  s.tast('Enter');
+  await vent(30);
+  const b = d.querySelector('#laas-banner .ban[data-efter="bMidlertidigGemt"]');
+  const ord = b && b.querySelector('.ord').textContent;
+  const ventet = lang === 'da' ? `Den midlertidige sag blev gemt som «${NAVN4.da}».` : `The temporary case was saved as "${NAVN4.en}".`;
+  tjek(`V-LAAS.4 (${lang}): beskeden nævner navnet`, !laaseskaerm(d) && ord === ventet, ord);
+  tjek(`V-LAAS.4 (${lang}): beskeden er en oplysning med role=status og en Luk-knap`, b && b.classList.contains('info') && b.getAttribute('role') === 'status' && b.querySelector('button').getAttribute('aria-label') === (lang === 'da' ? 'Luk beskeden' : 'Close the message'));
+  tjek(`V-LAAS.4 (${lang}): sagen åbnes ikke af sig selv (intet sag_aabn), og der er kun én besked`, !s.kald.some(([c]) => c === 'sag_aabn') && d.querySelectorAll('#laas-banner .ban[data-efter]').length === 1);
+  tjek(`V-LAAS.4 (${lang}): navnet står som tekst, ikke som HTML`, b && b.querySelector('.ord').children.length === 0);
+}
+for (const lang of ['da', 'en']) {
+  // Den midlertidige sag kunne ikke gemmes: advarslen uden indhold.
+  const rust = falskLaasRust({ laast: true, igen: 'stilstand', efter: { midlertidig_gemt: null, midlertidig_fejl: { art: 'noeglering', hvad: 'andet' }, gem_fejl: null } });
+  const s = side({ rust, lager: { 'grimnir-sprog': lang } });
+  const { d } = s;
+  await vent(30);
+  rust.st.kue.push({ svar: 'ok' });
+  d.getElementById('laas-op').click();
+  await vent(30);
+  const b = d.querySelector('#laas-banner .ban[data-efter="bMidlertidigFejl"]');
+  const ord = b && b.querySelector('.ord').textContent;
+  const start = lang === 'da' ? 'Den midlertidige sag kunne ikke gemmes, da Grimnir låste, og er lukket: ' : 'The temporary case could not be saved when Grimnir locked and has been closed: ';
+  tjek(`V-LAAS.4 (${lang}): fejlbeskeden siger, at sagen ikke kunne gemmes og er lukket`, b && b.classList.contains('warn') && ord.startsWith(start) && ord.length > start.length + 10, ord);
+  tjek(`V-LAAS.4 (${lang}): fejlbeskeden har intet fra sagerne og ingen gem-besked`, b && !/Uglebo|Kragevig|kontor\.test/.test(b.textContent) && !d.querySelector('#laas-banner .ban[data-efter="bMidlertidigGemt"]'));
+}
+for (const lang of ['da', 'en']) {
+  // Indstillinger: én sætning om udklipsholderen i teksten om låsen (macOS). Windows rydder intet og lover det ikke.
+  const s = side({ lager: { 'grimnir-sprog': lang } });
+  await vent(10);
+  s.emit('menu', 'indstillinger');
+  await vent(5);
+  const hj = s.d.getElementById('indst-laas-hj').textContent;
+  const r = lang === 'da' ? /Har du kopieret en demaskeret tekst med Kopiér resultat, fjerner Grimnir den fra udklipsholderen, når den låser, hvis den stadig ligger der\./ : /If you copied unmasked text with Copy result, Grimnir removes it from the clipboard when it locks, if it is still there\./;
+  tjek(`V-LAAS.4 (${lang}): Indstillinger siger, at kopieret demaskeret tekst fjernes fra udklipsholderen ved lås`, r.test(hj), hj);
+  const win = side({ platform: 'windows', lager: { 'grimnir-sprog': lang } });
+  await vent(10);
+  tjek(`V-LAAS.4 (${lang}, Windows): teksten lover ikke at rydde udklipsholderen`, !/udklipsholder|clipboard/i.test(win.d.getElementById('indst-laas-hj').textContent));
+}
+{
+  // En kopi, der ikke lykkedes, meldes ikke.
+  const s = side({ hash: '#demasker', rust: falskRust(), foer: w => Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async () => { throw new Error('nægtet'); } }, configurable: true }) });
+  const { d, w } = s;
+  await vent(5);
+  w.GrimnirMaskering.saetSag(3);
+  indsaet(w, d.querySelector('section[data-visning="demasker"] .tom'), 'Prøv kunde01 på GRIMNIR_SECRET_0001\n');
+  s.tast('Enter', { metaKey: true });
+  await vent(5);
+  knapI(d, 'demasker', 'kopier-resultat').click();
+  await vent(5);
+  tjek('V-LAAS.4: kontrol: demaskeret, og Kopiér er prøvet', s.kald.some(k => k[0] === 'demasker') && d.querySelector('section[data-visning="demasker"] .ban.danger'));
+  tjek('V-LAAS.4: en kopi, der fejlede, meldes ikke til Rust', !s.kald.some(k => k[0] === 'udklip_kopieret'));
 }
 
 console.log(`\n${ok + fejl} tjek: ${ok} ok, ${fejl} fejl`);

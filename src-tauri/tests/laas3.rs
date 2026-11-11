@@ -2,10 +2,12 @@
 //!
 //! - N1: en ældre `indstillinger.json` med `"laas_ved_start": false` læses uden fejl og giver låst start.
 //! - N2: hver udløser gennem `laas_igen`; nulstillingen felt for felt (`levende`); en ændret navngiven sag gemmes; fejl
-//!   ved gemning låser alligevel og vises efter oplåsningen uden indhold; en midlertidig sag med poster lukkes med besked;
+//!   ved gemning låser alligevel og vises efter oplåsningen uden indhold (V-LAAS.4: en midlertidig sag med poster gemmes
+//!   nu; testene for den står i `laas4.rs`);
 //!   stilstand med et ur, testen styrer, ved 5 og 15 minutter; aktivitet nulstiller uret; en lang kommando låser ikke midt
 //!   i; oplåsning efter ny lås virker og læser nøglerne igen.
-//! - N4: `unsafe` findes kun i `laas.rs` og `notifikationer.rs`, hver gang med en `SAFETY`-kommentar.
+//! - N4: `unsafe` findes kun i `laas.rs` og `notifikationer.rs` (V-LAAS.4: og `udklip.rs`), hver gang med en
+//!   `SAFETY`-kommentar.
 //! - Kilden: observatørerne registreres ét sted og går gennem `laas_igen`; hver kommando tæller som aktivitet; de lange
 //!   kommandoer holder `travl`.
 //!
@@ -311,13 +313,14 @@ fn fejl_ved_gemning_laaser_alligevel_og_vises_efter_oplaasning() {
     assert_eq!(laas_op(&t, &HukommelsesDoer::ny(Svar::Afvist), "da").efter, None);
     let ud = laas_op(&t, &HukommelsesDoer::ny(Svar::Ok), "da");
     let efter = EfterLaas {
-        midlertidig_lukket: false,
+        midlertidig_gemt: None,
+        midlertidig_fejl: None,
         gem_fejl: Some(SagFejl::Konflikt),
     };
     assert_eq!(ud.efter, Some(efter));
     let json = serde_json::to_string(&ud).unwrap();
     assert!(
-        json.contains(r#""efter":{"midlertidig_lukket":false,"gem_fejl":{"art":"konflikt"}}"#),
+        json.contains(r#""efter":{"midlertidig_gemt":null,"midlertidig_fejl":null,"gem_fejl":{"art":"konflikt"}}"#),
         "{json}"
     );
     for h in HEMMELIGE.iter().chain([&id.as_str(), &m.0.to_str().unwrap()]) {
@@ -326,37 +329,6 @@ fn fejl_ved_gemning_laaser_alligevel_og_vises_efter_oplaasning() {
     // Beskeden gives én gang.
     laas_igen(&t, Udloeser::Dvale);
     assert_eq!(laas_op(&t, &HukommelsesDoer::ny(Svar::Ok), "da").efter, None);
-}
-
-#[test]
-fn midlertidig_sag_med_poster_lukkes_med_besked() {
-    let m = Mappe::ny();
-    let lager = Arc::new(Taellende::default());
-    let t = startet(&m, &lager);
-    // Uden poster: ingen besked.
-    laas_igen(&t, Udloeser::Stilstand);
-    assert_eq!(laas_op(&t, &HukommelsesDoer::ny(Svar::Ok), "da").efter, None);
-    // Med poster: lukket uden at blive gemt, og beskeden kommer efter oplåsningen (også uden dør).
-    masker(&t);
-    assert!(sag_status(&t).unwrap().poster > 0);
-    let filer_foer = std::fs::read_dir(&m.0).unwrap().count();
-    assert!(laas_igen(&t, Udloeser::SkaermSlukket));
-    assert_eq!(levende(&t), Levende::default());
-    assert_eq!(
-        std::fs::read_dir(&m.0).unwrap().count(),
-        filer_foer,
-        "den midlertidige sag er ikke skrevet"
-    );
-    let ud = laas_op(&t, &HukommelsesDoer::ny(Svar::IkkeTilgaengelig { hvorfor: "platform" }), "da");
-    assert_eq!(
-        ud.efter,
-        Some(EfterLaas {
-            midlertidig_lukket: true,
-            gem_fejl: None
-        })
-    );
-    assert_eq!(ud.status.uden_doer, Some("platform"));
-    assert_eq!(sag_status(&t).unwrap().poster, 0, "en ny, tom midlertidig sag");
 }
 
 // ------------------------------------------------------------------------------------------------------- stilstand
@@ -444,9 +416,10 @@ fn krop<'a>(lib: &'a str, navn: &str) -> &'a str {
 
 #[test]
 fn unsafe_kun_i_laas_og_notifikationer() {
-    // N4: `unsafe` (blok, fn, impl, extern) står kun i de to filer, og hver forekomst har en `SAFETY:`-kommentar i
+    // N4: `unsafe` (blok, fn, impl, extern) står kun i de tre filer, og hver forekomst har en `SAFETY:`-kommentar i
     // kommentarblokken lige over (eller på samme linje). Kommentarer og `unsafe_code` tæller ikke.
-    const TILLADT: [&str; 2] = ["laas.rs", "notifikationer.rs"];
+    // V-LAAS.4: også udklip.rs (NSPasteboard).
+    const TILLADT: [&str; 3] = ["laas.rs", "notifikationer.rs", "udklip.rs"];
     let mappe = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
     let mut fundet: Vec<(String, usize)> = Vec::new();
     let mut filer = 0;
@@ -493,10 +466,14 @@ fn unsafe_kun_i_laas_og_notifikationer() {
     }
     assert!(filer >= 11, "for få kildefiler: {filer}");
     let i = |f: &str| fundet.iter().filter(|(n, _)| n == f).count();
-    assert!(i("laas.rs") >= 6 && i("notifikationer.rs") >= 2, "{fundet:?}");
+    assert!(
+        i("laas.rs") >= 6 && i("notifikationer.rs") >= 2 && i("udklip.rs") >= 1,
+        "{fundet:?}"
+    );
     // `lib.rs` nægter `unsafe` for resten af skallen; de to moduler tillader det selv.
     assert!(kilde("lib.rs").contains("#![deny(unsafe_code)]"));
     assert!(kilde("notifikationer.rs").contains("#![allow(unsafe_code)]"));
+    assert!(kilde("udklip.rs").contains("#![allow(unsafe_code)]"));
 }
 
 #[test]

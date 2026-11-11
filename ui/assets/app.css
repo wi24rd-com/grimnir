@@ -87,15 +87,24 @@
 /* Maskér: ✓, Type, Fundet værdi (resten), Erstatning, Antal, Status, Ordbog. Tæt polstring; Altid/Aldrig er ikonknapper. */
 .fundtabel { --celle: var(--space-2); --k1: 28px; --k2: 108px; --k4: 106px; --k5: 60px; --k6: 108px; --k7: 68px; --tabel-min: 618px; }
 html[lang="en"] .fundtabel { --k2: 80px; --k6: 134px; --k7: 92px; --tabel-min: 640px; }
+/* V-LAAS.4 N3: fra 1200 px har Erstatning plads til 24 tegn i feltets skrift (JetBrains Mono 13 px: 600/1000 em = 7,8 px
+   pr. tegn → 187,2 px + feltets polstring og kant 18 px + cellens polstring 16 px = 221,2 px), så fx
+   "user0001, USER0001" og "198.18.0.11" står hele. Under 1200 px beholder den 106 px (900 px ruller ikke vandret). */
+@media (min-width: 1200px) {
+  .fundtabel { --k4: 224px; --tabel-min: 736px; }
+  html[lang="en"] .fundtabel { --tabel-min: 758px; }
+}
 .fundtabel th:first-child, .fundtabel td:first-child { padding-right: var(--space-1); }
 /* Lækagetjekkets rester: Hvad, Type, Tekst (resten), Antal, Linje. */
 .resttabel { --celle: var(--space-2); --k1: 162px; --k2: 108px; --k4: 60px; --k5: 56px; --tabel-min: 526px; }
 html[lang="en"] .resttabel { --k2: 80px; --tabel-min: 498px; }
 /* Demaskér: Hvad, Kode (resten), Antal, Linje. */
 .advtabel { --k1: 280px; --k3: 72px; --k4: 64px; --tabel-min: 556px; }
-/* Maskér: tekst og fund står side om side fra 1400 px. I smallere vinduer kommer fundene under teksten, så tabellen får
-   hele bredden (ved 1200 px ville den ellers kun få 3/5 af fladen, ca. 557 px, og værdien ingen plads). */
-@media (max-width: 1399px) {
+/* Maskér: tekst og fund står side om side fra 1720 px. I smallere vinduer kommer fundene under teksten, så tabellen får
+   hele bredden (ved 1200 px ville den ellers kun få 3/5 af fladen, ca. 557 px, og værdien ingen plads). V-LAAS.4 N3: før
+   1400 px; med Erstatning på 224 px giver side om side først Fundet værdi mindst 240 px fra 1720 px (engelsk: 3/5 af
+   1720 − 256 − 12 = 869 px tabel, 618 px faste kolonner, 251 px til værdien). */
+@media (max-width: 1719px) {
   .delt:not(.lige) { grid-template-columns: minmax(0, 1fr); }
   .delt:not(.lige) .tekst { height: 24vh; min-height: 140px; }
   .delt:not(.lige) .tabelvaert { height: 44vh; min-height: 220px; }

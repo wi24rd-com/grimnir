@@ -1,7 +1,7 @@
 // V-RET.1 R1: regnetest for tabellernes kolonner. jsdom har ingen layout, så bredderne regnes ud fra CSS'en: NavPane'ens
 // bredde (kit.css), arbejdsfladens polstring, gitteret i Maskér og hvornår det stables (app.css), panelernes kant og hver
 // tabels kolonnevariabler (--k1 … --k7, --celle, --tabel-min, også de engelske og dem i @media). For 900 (mindste), 1200
-// (standard) og 1600 px og overgangene imellem regnes det ud, at værdikolonnen får mindst 140 px, at tabellen ikke ruller
+// (standard), 1600 og 1920 px og overgangene imellem regnes det ud, at værdikolonnen får mindst 140 px, at tabellen ikke ruller
 // vandret, og at hver overskrift, chip og typeord kan være i sin kolonne (målt i WebKit, se MAALT_*).
 //
 // Hvad testen IKKE kan se: den regner, den tegner ikke. Den bygger på, at WebKit giver en tabelcelle præcis sin bredde med
@@ -29,8 +29,17 @@ const MAALT_CHIP = { 'Sikker': 69, 'Fra ordbog': 89, 'Sandsynlig': 91, 'Tjek sel
 const MAALT_ORD = { 'IPv4, eget net': 34, 'IPv4, offentlig': 55, 'IPv6, eget net': 33, 'IPv6, offentlig': 55, 'MAC-adresse': 53, 'Maskine': 56, 'Domæne': 61, 'NetBIOS-domæne': 63, 'Bruger': 45, 'Person': 47, 'Database': 63, 'Ord': 25, 'Hemmelighed': 92, 'SID': 23, 'GUID': 35, 'Serienummer': 89, 'CPR-nummer': 55, 'Lang tilfældig streng': 54, 'Ligner en kode': 42, 'IPv4, own network': 54, 'IPv4, public': 41, 'IPv6, own network': 54, 'IPv6, public': 41, 'MAC address': 53, 'Machine': 57, 'Domain': 51, 'NetBIOS domain': 56, 'User': 32, 'Word': 36, 'Secret': 43, 'Serial number': 51, 'CPR number': 51, 'Long random string': 51, 'Looks like a code': 40 };
 
 const VAERDI_MIN = 140;
-const BREDDER = [900, 1200, 1600];
-const OVERGANGE = [1099, 1100, 1399, 1400];
+// V-LAAS.4 N3: 1920 er med som bred skærm; overgangene er de brudpunkter, CSS'en har (1100, 1200 og 1720; 1200 står i BREDDER).
+const BREDDER = [900, 1200, 1600, 1920];
+const OVERGANGE = [1099, 1100, 1199, 1719, 1720];
+/* V-LAAS.4 N3: fra 1200 px skal Erstatning kunne vise 24 tegn i feltets skrift, og Fundet værdi skal have mindst 240 px.
+   Feltets skrift er JetBrains Mono (pakket med). Fremføringen er målt i ui/assets/fonts/jetbrains-mono-latin-wght-normal.woff2
+   (hhea/hmtx/cmap efter brotli-udpakning): alle 95 tegn fra U+0020 til U+007E har 600 enheder ved unitsPerEm 1000, altså
+   0,6 em. Feltets polstring, kant og skriftstørrelse læses fra CSS'en nedenfor. */
+const MONO_EM = 0.6;
+const ERSTATNING_TEGN = 24;
+const ERSTATNING_FRA = 1200;
+const VAERDI_BRED = 240;
 const RULLEBJAELKE = 16; // en klassisk rullebjælke (antaget, ikke målt)
 
 /* ── CSS → regler: [{ media: {max, min}, valg: [selektorer], decl: {navn: værdi}, nr }] ── */
@@ -87,10 +96,21 @@ const FR = [...(decl(APP, '.delt', 'grid-template-columns') || '').matchAll(/(\d
 const stak = APP.find(r => r.media && r.media.max && r.valg.includes('.delt:not(.lige)') && /^minmax\(0, 1fr\)$/.test(r.decl['grid-template-columns'] || ''));
 const STAK_TIL = stak ? stak.media.max : null;
 tjek('fladen: NavPane, polstring, gitter og kant læst fra CSS\'en', NAV === 232 && PAD === 12 && GAP === 12 && KANT === 1 && FR.join() === '2,3', `nav ${NAV}, polstring ${PAD}, gap ${GAP}, kant ${KANT}, fr ${FR}`);
-tjek('Maskér: fundene står under teksten op til ' + STAK_TIL + ' px og side om side derover', STAK_TIL === 1399, String(STAK_TIL));
+// V-LAAS.4 N3: før 1399; med Erstatning på 24 tegn er der først plads side om side fra 1720 px.
+tjek('Maskér: fundene står under teksten op til ' + STAK_TIL + ' px og side om side derover', STAK_TIL === 1719, String(STAK_TIL));
 const vinduMin = px(decl(KIT, '.vindue', 'min-width'));
 const konf = JSON.parse(laes('src-tauri/tauri.conf.json')).app.windows[0];
 tjek('mindste vindue er 900 px i både kit.css og tauri.conf.json (det mindste, der regnes på)', vinduMin === 900 && konf.minWidth === 900 && konf.width === 1200, `${vinduMin} / ${konf.minWidth} / ${konf.width}`);
+
+/* V-LAAS.4 N3: feltet i Erstatning er et <input class="mono"> i en tabelcelle: skriften fra .mono, polstring og kant fra
+   .tabel td input. */
+const MONO_PX = px(decl(KIT, '.mono', 'font-size'));
+const MONO_FAMILIE = decl(KIT, '.mono', 'font-family');
+const FELT_POLSTRING = (decl(KIT, '.tabel td input', 'padding') || '').split(/\s+/).map(px);
+const FELT_KANT = Number((decl(KIT, '.tabel td input', 'border') || '').match(/^(\d+)px/)?.[1]);
+const FELT_EKSTRA = 2 * (FELT_POLSTRING[1] ?? FELT_POLSTRING[0]) + 2 * FELT_KANT;
+const TEGN_PX = MONO_EM * MONO_PX;
+tjek('V-LAAS.4: feltet i Erstatning er <input class="mono"> med JetBrains Mono 13 px, polstring 8 px og kant 1 px', /inp\.className = 'mono';/.test(laes('ui/assets/maskering.js')) && MONO_FAMILIE === 'var(--mono-family)' && /^"JetBrains Mono"/.test(tokens['--font-mono']) && MONO_PX === 13 && FELT_EKSTRA === 18, `${MONO_FAMILIE} ${tokens['--font-mono']} ${MONO_PX} ${FELT_EKSTRA}`);
 
 /* Pladsen til tabellen ved vinduesbredden W (minus en eventuel rullebjælke). */
 function vaertBredde(vaert, W, rb) {
@@ -184,6 +204,13 @@ for (const tb of TABELLER) {
         if (!(t in MAALT_ORD)) mangler.push(t); else if (MAALT_ORD[t] > indhold(i - 1)) for_brede.push(`typen «${t}» ${MAALT_ORD[t]} > ${Math.round(indhold(i - 1))}`);
       }
       tjek(`${navn}: alle tekster er målt (ellers: mål dem i WebKit og skriv dem i MAALT_*)`, mangler.length === 0, [...new Set(mangler)].join(', '));
+      if (tb.klasse === 'fundtabel' && W >= ERSTATNING_FRA) {
+        // V-LAAS.4 N3: Erstatning (kolonne 4) har plads til 24 tegn; Fundet værdi har mindst 240 px.
+        const felt = a.kol[3] - 2 * celle - FELT_EKSTRA;
+        tjek(`${navn}: Erstatning viser ${ERSTATNING_TEGN} tegn (${Math.round(felt * 10) / 10} px ≥ ${ERSTATNING_TEGN} × ${TEGN_PX} px)`, felt >= ERSTATNING_TEGN * TEGN_PX, String(felt));
+        tjek(`${navn}: Fundet værdi har mindst ${VAERDI_BRED} px (${Math.round(a.kol[2])})`, a.kol[2] >= VAERDI_BRED);
+      }
+      if (tb.klasse === 'fundtabel' && W === 900) tjek(`${navn}: V-LAAS.4: ingen vandret rulning ved 900 px (Erstatning er først bredere fra 1200 px)`, !a.rul);
       tjek(`${navn}: overskrifter, chips og typer kan være i deres kolonne`, for_brede.length === 0, for_brede.join('; '));
     }
   }

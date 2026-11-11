@@ -5,7 +5,7 @@
 //! `ordbog_hent`, `ordbog_tilfoej`, `ordbog_ret`, `ordbog_fjern`, `ordbog_proev`, `indstillinger_hent`,
 //! `indstillinger_gem` og `sag_valg`; filerne (V-FIL.1): `fil_aabn`, `fil_aabn_sluppet`, `fil_luk`, `fil_analyser`,
 //! `fil_raekker`, `fil_gem_og_masker`, `fil_demasker`, `fil_kopi`, `fil_gem` og `ordbog_start_forfra`; låsen (V-LAAS.2,
-//! V-LAAS.3): `laas_status`, `laas_op` og `aktivitet`.
+//! V-LAAS.3): `laas_status`, `laas_op` og `aktivitet`; udklipsholderen (V-LAAS.4): `udklip_kopieret`.
 //!
 //! **Låsen (V-LAAS.2).** Grimnir starter altid låst ([`Tilstand::ved_start`]; V-LAAS.3 N1, ADR D20). UI'et kalder
 //! `laas_op` én gang ved start; døren ([`laas::platformens`]: Touch ID med adgangskoden som reserve på macOS) svarer i
@@ -18,6 +18,9 @@
 //! slukker, brugerskift) og stilstand (en tråd kalder [`maskering::tjek_stilstand`] hvert 10. sekund). Hver kommando
 //! tæller som aktivitet (invoke-håndteringen nedenfor), og kommandoen `aktivitet` melder tastatur og mus i vinduet. De
 //! lange kommandoer holder [`Tilstand::travl`], så en analyse, der varer længe, ikke låses midt i.
+//!
+//! **Ved lås mistes intet (V-LAAS.4).** En midlertidig sag med poster gemmes ved låsen under et dato-navn, og
+//! udklipsholderen ryddes, hvis den stadig har den demaskerede tekst, Grimnir kopierede ([`udklip`]; kun macOS).
 //!
 //! **Filer (V-FIL.1).** Åbn- og Gem-dialogerne er styresystemets egne, åbnet herfra med `rfd` (ikke
 //! `tauri-plugin-dialog`/`-fs`); webvisningen får ingen fil-rettigheder og ser aldrig en sti, kun filnavnet. Træk og
@@ -37,6 +40,7 @@
 pub mod fil;
 pub mod igang;
 pub mod indstillinger;
+pub mod klokke;
 pub mod laas;
 pub mod maskering;
 #[cfg(target_os = "macos")]
@@ -44,6 +48,7 @@ mod notifikationer;
 pub mod ordbog;
 pub mod sager;
 pub mod stilstand;
+pub mod udklip;
 
 // Menuen bygges kun på macOS (se `run`); på Windows bruges kun `handling` og `platform_skript`.
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
@@ -110,7 +115,9 @@ fn sag_status(tilstand: State<'_, Tilstand>) -> Result<SagStatus, UiFejl> {
 
 /// Programmenuen på UI'ets sprog (`da` | `en`). Kun macOS har en programmenu; andre steder gør kommandoen intet.
 #[tauri::command]
-fn menu_sprog(app: tauri::AppHandle, valgt: State<'_, Sprogvalg>, sprog: String) -> Result<(), String> {
+fn menu_sprog(app: tauri::AppHandle, valgt: State<'_, Sprogvalg>, tilstand: State<'_, Tilstand>, sprog: String) -> Result<(), String> {
+    // V-LAAS.4: navnet på en midlertidig sag, der gemmes ved lås, følger også UI'ets sprog.
+    tilstand.saet_sprog(&sprog);
     // Filvalgsdialogernes titler følger også UI'ets sprog (V-FIL.1), på alle platforme.
     *valgt.0.lock().unwrap_or_else(|e| e.into_inner()) = programmenu::tekster(&sprog);
     #[cfg(target_os = "macos")]
@@ -243,6 +250,14 @@ fn laas_op(tilstand: State<'_, Tilstand>, doer: State<'_, Doeren>, sprog: String
 /// hver kommando tæller som aktivitet i invoke-håndteringen ([`run`]).
 #[tauri::command]
 fn aktivitet() {}
+
+/// V-LAAS.4: webvisningen har kopieret det demaskerede resultat (Kopiér i Demaskér; `fil`: filens resultat). Rust husker
+/// udklipsholderens tæller, hvis indholdet er Grimnirs, så låsen kan rydde den ([`maskering::udklip_kopieret`]). Kaldes
+/// ikke efter Kopiér i Maskér. Tæller som aktivitet (som hver kommando).
+#[tauri::command(async)]
+fn udklip_kopieret(tilstand: State<'_, Tilstand>, fil: bool) -> Result<bool, UiFejl> {
+    maskering::udklip_kopieret(&tilstand, fil)
+}
 
 /// V-LAAS.3: låser igen ([`maskering::laas_igen`]) og fortæller webvisningen det (hændelsen `laast`; webvisningen
 /// genindlæser siden og står låst). Den ene vej for notifikationerne (kun macOS i denne cyklus; som `programmenu`).
@@ -453,6 +468,7 @@ fn tilstand_for(app: &tauri::AppHandle) -> Tilstand {
         Ok(d) => Tilstand::paa_disk(d, std::sync::Arc::new(sager::Noeglering)),
         Err(_) => Tilstand::ny(),
     }
+    .med_udklip(udklip::platformens())
     .ved_start()
 }
 
@@ -517,7 +533,8 @@ pub fn run() {
         ordbog_start_forfra,
         laas_status,
         laas_op,
-        aktivitet
+        aktivitet,
+        udklip_kopieret
     ]);
     tauri::Builder::default()
         // V-LAAS.3: hver kommando fra webvisningen er aktivitet (stilstand). Før kommandoen kører.

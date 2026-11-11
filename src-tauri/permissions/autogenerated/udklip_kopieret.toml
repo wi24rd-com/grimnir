@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-udklip-kopieret"
+description = "Enables the udklip_kopieret command without any pre-configured scope."
+commands.allow = ["udklip_kopieret"]
+
+[[permission]]
+identifier = "deny-udklip-kopieret"
+description = "Denies the udklip_kopieret command without any pre-configured scope."
+commands.deny = ["udklip_kopieret"]

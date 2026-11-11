@@ -40,15 +40,23 @@
 //! **Lås igen (V-LAAS.3).** Grimnir starter altid låst ([`Tilstand::ved_start`]; "Lås Grimnir ved start" er fjernet,
 //! ADR D20). [`laas_igen`] låser igen ved dvale, skærmslukning, brugerskift og stilstand: den sætter låst først (så porten
 //! lukker for nye kommandoer), gemmer en ændret navngiven sag, og slipper og nulstiller alle nøgler, den åbne sag,
-//! ordbogen, de holdte filer og resultaterne. En midlertidig sag går tabt; det siges efter oplåsningen
-//! ([`EfterLaas`]). Kommandoer, der gemmer noget i tilstanden, tjekker låsen igen, efter de har taget låsen til det, de
-//! gemmer i ([`Tilstand::sag_aaben`]); så kan en kommando, der kom forbi porten lige før [`laas_igen`], ikke lægge
-//! indhold tilbage efter nulstillingen. Stilstand: [`tjek_stilstand`] med uret i [`crate::stilstand`].
+//! ordbogen, de holdte filer og resultaterne. En midlertidig sag med poster gemmes (V-LAAS.4, se nedenfor); det siges
+//! efter oplåsningen ([`EfterLaas`]). Kommandoer, der gemmer noget i tilstanden, tjekker låsen igen, efter de har taget
+//! låsen til det, de gemmer i ([`Tilstand::sag_aaben`]); så kan en kommando, der kom forbi porten lige før
+//! [`laas_igen`], ikke lægge indhold tilbage efter nulstillingen. Stilstand: [`tjek_stilstand`] med uret i
+//! [`crate::stilstand`].
+//!
+//! **Ved lås mistes intet (V-LAAS.4, ADR D21).** En midlertidig sag med poster gemmes ved [`laas_igen`] som en navngiven
+//! sag (`Midlertidig ÅÅÅÅ-MM-DD TT.MM`, uret i [`crate::klokke`]); efter oplåsningen siges navnet ([`EfterLaas`]).
+//! Udklipsholderen ryddes, hvis den stadig har den demaskerede tekst, Grimnir lagde der ([`udklip_kopieret`],
+//! [`crate::udklip`]).
 
 use std::collections::{HashMap, HashSet};
+use std::hash::{BuildHasher, RandomState};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
+use std::thread::ThreadId;
 
 use grimnir_core::{
     analyser as kerne_analyser, demasker as kerne_demasker, foreslaa_med_ordbog, laekagetjek, masker, Advarsel, AdvarselArt, AfledtArt,
@@ -59,10 +67,12 @@ use serde::{Deserialize, Serialize};
 use crate::fil::{self, Fil, FilFejl, Linjeskift, Tegnsaet};
 use crate::igang::Igang;
 use crate::indstillinger::{self, Indstillinger};
+use crate::klokke::{self, Klokke, SystemKlokke};
 use crate::laas::{begrundelse, Doer, Grund, Svar, Udloeser};
 use crate::ordbog::{self as ob, FeltFejl, OrdbogPost, Ordbogsfil, PostType};
 use crate::sager::{nulstil, opret_mappe, rens_navn, ryd_midlertidige, tjek_dato, AabenSag, Arkiv, Noegle, Noeglelager, SagFejl, SagsId};
 use crate::stilstand::{Stilstand, Travl, Ur};
+use crate::udklip::{Indhold, Udklip};
 
 /// Største tekst, Maskér tager imod: 5 MiB (5 242 880 bytes). Større tekster kræver "Åbn fil" (B3b).
 pub const MAKS_BYTES: usize = 5 * 1024 * 1024;
@@ -126,38 +136,89 @@ struct Laas {
     igen: Mutex<Option<Udloeser>>,
     /// V-LAAS.3: det, brugeren skal have at vide efter næste oplåsning.
     efter: Mutex<EfterLaas>,
+    /// V-LAAS.4: den tråd, der er midt i [`laas_igen`] og gemmer den midlertidige sag; kun den kommer forbi vagten om
+    /// nøglelageret, mens der er låst. Deles med [`LaasVagt`].
+    undtagelse: Arc<Mutex<Option<ThreadId>>>,
+    /// V-LAAS.4: holdes under hele [`laas_igen`]; oplåsningen venter på den, så porten ikke åbner midt i en lås, og
+    /// beskederne efter låsen er skrevet, før de gives ud.
+    koerer: Mutex<()>,
 }
 
-/// V-LAAS.3: det, der skete ved [`laas_igen`], og som UI'et viser efter oplåsningen. Intet indhold: kun en sandhedsværdi
-/// og en fejl uden sti eller værdier.
+/// V-LAAS.3: det, der skete ved [`laas_igen`], og som UI'et viser efter oplåsningen. Intet indhold fra sagerne: navnet,
+/// Grimnir selv gav den midlertidige sag, og fejl uden sti eller værdier.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
 pub struct EfterLaas {
-    /// En midlertidig sag med poster blev lukket (og nulstillet), da Grimnir låste.
-    pub midlertidig_lukket: bool,
+    /// V-LAAS.4: den midlertidige sag blev gemt under dette navn (`Midlertidig ÅÅÅÅ-MM-DD TT.MM`); den står i
+    /// sagslisten og åbnes ikke af sig selv.
+    pub midlertidig_gemt: Option<String>,
+    /// V-LAAS.4: den midlertidige sag kunne ikke gemmes (nøglelager eller disk) og er lukket.
+    pub midlertidig_fejl: Option<SagFejl>,
     /// Den åbne navngivne sag var ændret og kunne ikke gemmes, da Grimnir låste.
     pub gem_fejl: Option<SagFejl>,
 }
 
 impl EfterLaas {
     fn tom(&self) -> bool {
-        !self.midlertidig_lukket && self.gem_fejl.is_none()
+        self.midlertidig_gemt.is_none() && self.midlertidig_fejl.is_none() && self.gem_fejl.is_none()
     }
 }
 
 /// Nøglelageret bag låsen: mens Grimnir er låst, afvises hvert opslag ([`SagFejl::Noeglering`] `laast`), og det
 /// rigtige lager (Nøglering) bliver ikke spurgt.
+///
+/// V-LAAS.4: undtagen fra den ene tråd, der står i [`laas_igen`] og gemmer den midlertidige sag ([`Undtagelse`]). Alle
+/// andre tråde afvises fra det øjeblik, låst sættes.
 struct LaasVagt {
     laast: Arc<AtomicBool>,
+    undtagelse: Arc<Mutex<Option<ThreadId>>>,
     lager: Arc<dyn Noeglelager>,
 }
 
 impl LaasVagt {
     fn tjek(&self) -> Result<(), SagFejl> {
-        if self.laast.load(Ordering::SeqCst) {
-            Err(SagFejl::Noeglering { hvad: "laast" })
-        } else {
-            Ok(())
+        if !self.laast.load(Ordering::SeqCst) {
+            return Ok(());
         }
+        if *self.undtagelse.lock().unwrap_or_else(|e| e.into_inner()) == Some(std::thread::current().id()) {
+            return Ok(());
+        }
+        Err(SagFejl::Noeglering { hvad: "laast" })
+    }
+}
+
+/// V-LAAS.4: vagten om nøglelageret lukker denne tråd igennem, så længe værdien lever (også ved panik: `Drop`).
+struct Undtagelse<'a>(&'a Mutex<Option<ThreadId>>);
+
+impl<'a> Undtagelse<'a> {
+    fn ny(m: &'a Mutex<Option<ThreadId>>) -> Self {
+        *m.lock().unwrap_or_else(|e| e.into_inner()) = Some(std::thread::current().id());
+        Undtagelse(m)
+    }
+}
+
+impl Drop for Undtagelse<'_> {
+    fn drop(&mut self) {
+        *self.0.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    }
+}
+
+/// V-LAAS.4: fingeraftryk af et demaskeret resultat: længden og en SipHash med en tilfældig nøgle pr. programstart
+/// (`RandomState`). Bruges kun til at se, om udklipsholderen har netop den tekst; teksten selv gemmes ikke.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Fingeraftryk(usize, u64);
+
+/// V-LAAS.4: det, Rust ved om udklipsholderen. `demaskeret[0]` er seneste demaskering af indsat tekst, `[1]` af filen i
+/// Demaskér. `taeller` er udklipsholderens tæller lige efter et Kopiér i Demaskér, der blev genkendt.
+#[derive(Default)]
+struct UdklipHusk {
+    noegle: RandomState,
+    demaskeret: [Option<Fingeraftryk>; 2],
+    taeller: Option<isize>,
+}
+
+impl UdklipHusk {
+    fn fingeraftryk(&self, tekst: &str) -> Fingeraftryk {
+        Fingeraftryk(tekst.len(), self.noegle.hash_one(tekst.as_bytes()))
     }
 }
 
@@ -194,6 +255,15 @@ pub struct Tilstand {
     laas: Laas,
     /// V-LAAS.3: stilstand, målt med et monotont ur ([`crate::stilstand`]).
     stilstand: Stilstand,
+    /// V-LAAS.4: vægur til navnet på en midlertidig sag, der gemmes ved lås (`None`: [`SystemKlokke`]).
+    klokke: Option<Box<dyn Klokke>>,
+    /// V-LAAS.4: UI'ets sprog er engelsk (navnet `Temporary …` i stedet for `Midlertidig …`). Sættes af `laas_op` og
+    /// `menu_sprog`.
+    engelsk: AtomicBool,
+    /// V-LAAS.4: udklipsholderen (`None`: ingen; intet ryddes). Kun `lib.rs` giver den rigtige; tests en i hukommelsen.
+    udklip: Option<Box<dyn Udklip>>,
+    /// V-LAAS.4: det, Rust ved om udklipsholderen.
+    udklip_husk: Mutex<UdklipHusk>,
 }
 
 impl Tilstand {
@@ -227,6 +297,7 @@ impl Tilstand {
         let laas = Laas::default();
         let lager: Arc<dyn Noeglelager> = Arc::new(LaasVagt {
             laast: laas.laast.clone(),
+            undtagelse: laas.undtagelse.clone(),
             lager,
         });
         Tilstand {
@@ -245,7 +316,7 @@ impl Tilstand {
             filer: Default::default(),
             igang: Some(igang),
             laas,
-            stilstand: Stilstand::default(),
+            ..Tilstand::default()
         }
     }
 
@@ -253,6 +324,32 @@ impl Tilstand {
     pub fn med_ur(mut self, ur: Box<dyn Ur>) -> Self {
         self.stilstand = Stilstand::med(ur);
         self
+    }
+
+    /// V-LAAS.4: den samme tilstand med vægur `klokke` til navnet på en midlertidig sag (tests styrer tiden).
+    pub fn med_klokke(mut self, klokke: Box<dyn Klokke>) -> Self {
+        self.klokke = Some(klokke);
+        self
+    }
+
+    /// V-LAAS.4: den samme tilstand med udklipsholderen `udklip` (`lib.rs`: platformens; tests: en i hukommelsen).
+    pub fn med_udklip(mut self, udklip: Option<Box<dyn Udklip>>) -> Self {
+        self.udklip = udklip;
+        self
+    }
+
+    /// V-LAAS.4: UI'ets sprog (`da` | `en`); afgør navnet på en midlertidig sag, der gemmes ved lås.
+    pub fn saet_sprog(&self, sprog: &str) {
+        self.engelsk.store(sprog == "en", Ordering::SeqCst);
+    }
+
+    /// V-LAAS.4: vægurets tid ([`SystemKlokke`], hvis ingen er givet).
+    fn klokke(&self) -> &dyn Klokke {
+        self.klokke.as_deref().unwrap_or(&SystemKlokke)
+    }
+
+    fn udklip_husk(&self) -> MutexGuard<'_, UdklipHusk> {
+        self.udklip_husk.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     /// V-LAAS.3: der er aktivitet nu (en kommando fra webvisningen, tastatur eller mus i vinduet).
@@ -1221,7 +1318,23 @@ fn gem_og_masker_i(t: &Tilstand, tekst: &str, fravalgt: &[usize], rettelser: &[R
 pub fn demasker(t: &Tilstand, tekst: &str) -> Result<Demaskering, UiFejl> {
     t.aaben()?;
     tjek_tekst_op_til(tekst, MAKS_DEMASKER)?;
-    demasker_i(t, tekst)
+    let d = demasker_i(t, tekst)?;
+    if let Err(f) = husk_demaskeret(t, 0, &d.tekst) {
+        // Låst imens: resultatet udleveres ikke og nulstilles.
+        let mut x = d.tekst;
+        zeroize::Zeroize::zeroize(&mut x);
+        return Err(f);
+    }
+    Ok(d)
+}
+
+/// V-LAAS.4: husker fingeraftrykket af et demaskeret resultat (`i`: 0 indsat tekst, 1 filen), så et senere Kopiér kan
+/// genkendes ([`udklip_kopieret`]). Porten tjekkes igen under låsen, så intet huskes efter [`laas_igen`].
+fn husk_demaskeret(t: &Tilstand, i: usize, tekst: &str) -> Result<(), UiFejl> {
+    let mut h = t.udklip_husk();
+    t.aaben()?;
+    h.demaskeret[i] = Some(h.fingeraftryk(tekst));
+    Ok(())
 }
 
 /// [`demasker`] uden tekstens grænse.
@@ -1700,6 +1813,11 @@ pub fn laas_status(t: &Tilstand) -> LaasStatus {
 /// Lås op efter dørens svar: `Ok` låser op; `IkkeTilgaengelig` låser op uden bekræftelse (banneret); `Annulleret`,
 /// `Afvist` og `Fejl` lader Grimnir være låst. Ved oplåsning svares der med beskederne fra seneste [`laas_igen`].
 fn efter_svar(t: &Tilstand, svar: &Svar) -> Option<EfterLaas> {
+    if matches!(svar, Svar::Annulleret | Svar::Afvist | Svar::Fejl { .. }) {
+        return None;
+    }
+    // V-LAAS.4: en lås, der er i gang (fx venter på Nøglering), gøres færdig, før porten åbner og beskederne gives ud.
+    let _koerer = t.laas.koerer.lock().unwrap_or_else(|e| e.into_inner());
     match svar {
         Svar::Ok => t.laas_op_uden_doer(None),
         Svar::IkkeTilgaengelig { hvorfor } => t.laas_op_uden_doer(Some(hvorfor)),
@@ -1715,6 +1833,7 @@ fn efter_svar(t: &Tilstand, svar: &Svar) -> Option<EfterLaas> {
 /// "Lås op", der kom først), spørges døren ikke, og svaret er `Ok`. Døren spørges højst én gang ad gangen. Nøglerne
 /// læses først, når kommandoerne bruger dem (de blev sluppet ved [`laas_igen`]).
 pub fn laas_op(t: &Tilstand, doer: &dyn Doer, sprog: &str) -> LaasSvar {
+    t.saet_sprog(sprog);
     let _en_ad_gangen = t.laas.doer.lock().unwrap_or_else(|e| e.into_inner());
     let (svar, efter) = if t.er_laast() {
         let svar = doer.laas_op(&begrundelse(Grund::Start, sprog));
@@ -1733,36 +1852,59 @@ pub fn laas_op(t: &Tilstand, doer: &dyn Doer, sprog: &str) -> LaasSvar {
 /// V-LAAS.3 N2: låser Grimnir igen (dvale, skærmen slukker, brugerskift, stilstand). Svarer sand, hvis Grimnir var låst
 /// op (så skal webvisningen have hændelsen `laast`); falsk, hvis den allerede var låst.
 ///
-/// Rækkefølgen:
-/// 1. Låst sættes først: porten ([`Tilstand::aaben`]) og vagten om nøglelageret afviser alt nyt herfra. Et senere
-///    `laas_op` er nødvendigt for at komme ind igen, og UI'et kalder det ikke af sig selv ([`LaasStatus::igen`]).
-/// 2. De holdte filer i Maskér og Demaskér slippes; teksten, rækkernes originaler og resultaterne nulstilles (`Drop`).
+/// Rækkefølgen (V-LAAS.4):
+/// 0. `koerer` tages og holdes til sidst: en oplåsning ([`laas_op`]) venter, til låsen er færdig, så porten ikke åbner
+///    midt i den, og beskederne er skrevet, før de gives ud. To låse på én gang (dvale og skærm) kører efter hinanden.
+/// 1. Låst sættes først: porten ([`Tilstand::aaben`]) og vagten om nøglelageret afviser alt nyt herfra, fra alle tråde.
+///    Et senere `laas_op` er nødvendigt for at komme ind igen, og UI'et kalder det ikke af sig selv ([`LaasStatus::igen`]).
+/// 2. Udklipsholderen ryddes, hvis den stadig har den demaskerede tekst, Grimnir lagde der ([`udklip_kopieret`]), og
+///    fingeraftrykkene glemmes.
+/// 3. De holdte filer i Maskér og Demaskér slippes; teksten, rækkernes originaler og resultaterne nulstilles (`Drop`).
 ///    En kommando, der kører på en fil, gøres færdig først (filens lås).
-/// 3. Sagen: en navngiven sag, der er ændret uden at være gemt, gemmes (med sin egen nøgle, ikke nøglelageret). Fejler
-///    det, låses der alligevel, og fejlen (uden indhold) vises efter oplåsningen. En midlertidig sag med poster lukkes
-///    uden at blive gemt, og det vises efter oplåsningen. Sagen erstattes af en ny, tom midlertidig sag; den gamle sags
-///    strenge nulstilles, og `AabenSag` med sagens [`Noegle`] slippes (nøglen nulstilles). En kommando, der holder
-///    sagen (en maskering), gøres færdig først.
-/// 4. Ordbogen slippes, og posterne og kernens kopi nulstilles. Den læses igen fra disk, første gang den bruges efter
+/// 4. Sagen. Sagens lås tages; en kommando, der holder den (en maskering), gøres færdig først, og en kommando, der kom
+///    forbi porten lige før trin 1, tjekker porten igen efter låsen ([`Tilstand::sag_aaben`]) og lægger intet tilbage.
+///    Med sagens lås holdt åbner vagten om nøglelageret for **denne tråd alene** ([`Undtagelse`]):
+///    - en navngiven sag, der er ændret uden at være gemt, gemmes med sin egen nøgle;
+///    - en midlertidig sag med poster gemmes som navngiven sag ([`gem_midlertidig`]): navnet `Midlertidig ÅÅÅÅ-MM-DD
+///      TT.MM` (` (2)` osv. ved sammenfald, så de eksisterende navne læses), ny nøgle i nøglelageret og standardudløbet
+///      fra indstillingerne.
+///
+///    Undtagelsen slippes, før sagen erstattes. Fejler en gemning (nøglelager eller disk), låses der alligevel, og fejlen
+///    (uden indhold) vises efter oplåsningen. Sagen erstattes af en ny, tom midlertidig sag; den gamle sags strenge
+///    nulstilles, og `AabenSag` med sagens [`Noegle`] slippes (nøglen nulstilles).
+/// 5. Ordbogen slippes, og posterne og kernens kopi nulstilles. Den læses igen fra disk, første gang den bruges efter
 ///    oplåsningen (og nøglen med den).
 ///
-/// Låsene tages i samme orden som ellers (filer før sag; ordbogens aldrig samtidig med sagens).
+/// Hvorfor ikke gemme først og låse bagefter: så stod porten åben for kommandoer fra webvisningen, mens nøglen blev
+/// oprettet (måske i lang tid, hvis Nøglering spørger). Hvorfor ikke slå vagten fra for alle et øjeblik: en kommando, der
+/// kom forbi porten før trin 1 (fx `sag_liste`), kunne så læse nøgler midt i låsen. Undtagelsen gælder kun den tråd,
+/// der låser, og kun mens den holder sagens lås (testen `kommando_midt_i_laasen_svarer_laast`).
+///
+/// Låsene tages i samme orden som ellers (filer før sag; ordbogens aldrig samtidig med sagens; indstillingerne læses,
+/// før sagens lås tages).
 pub fn laas_igen(t: &Tilstand, grund: Udloeser) -> bool {
+    let _koerer = t.laas.koerer.lock().unwrap_or_else(|e| e.into_inner());
+    // 1. Låst.
     let var_aaben = !t.laas.laast.swap(true, Ordering::SeqCst);
     *t.laas.uden_doer.lock().unwrap_or_else(|e| e.into_inner()) = None;
     *t.laas.igen.lock().unwrap_or_else(|e| e.into_inner()) = Some(grund);
-    // 2. Filerne.
+    // 2. Udklipsholderen.
+    ryd_udklip(t);
+    // 3. Filerne.
     for v in [Visning::Masker, Visning::Demasker] {
         let gammel = t.fil(v).take();
         drop(gammel);
     }
-    // 3. Sagen.
+    // 4. Sagen.
     let ny = t.ny_sag();
-    let mut midlertidig_lukket = false;
+    let indst = t.indstillinger();
+    let engelsk = t.engelsk.load(Ordering::SeqCst);
+    let mut midlertidig = None;
     let mut gem_fejl = None;
     {
         let mut a = t.sag();
         let aktuel = &mut *a;
+        let undtagelse = Undtagelse::ny(&t.laas.undtagelse);
         match aktuel.aaben.as_mut() {
             Some(aaben) if aktuel.ugemt => {
                 let hoved = aaben.hoved.clone();
@@ -1775,12 +1917,16 @@ pub fn laas_igen(t: &Tilstand, grund: Udloeser) -> bool {
                 }
             }
             Some(_) => {}
-            None => midlertidig_lukket = aktuel.sag.antal_poster() > 0,
+            None if aktuel.sag.antal_poster() > 0 => {
+                midlertidig = Some(gem_midlertidig(t, &aktuel.sag, &indst, engelsk));
+            }
+            None => {}
         }
+        drop(undtagelse);
         erstat(aktuel, ny, None);
         aktuel.ugemt = false;
     }
-    // 4. Ordbogen.
+    // 5. Ordbogen.
     {
         let mut g = t.ordbog.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(o) = g.take() {
@@ -1789,11 +1935,95 @@ pub fn laas_igen(t: &Tilstand, grund: Udloeser) -> bool {
         }
     }
     let mut efter = t.laas.efter.lock().unwrap_or_else(|e| e.into_inner());
-    efter.midlertidig_lukket |= midlertidig_lukket;
+    match midlertidig {
+        Some(Ok(navn)) => efter.midlertidig_gemt = Some(navn),
+        Some(Err(f)) => efter.midlertidig_fejl = Some(f),
+        None => {}
+    }
     if gem_fejl.is_some() {
         efter.gem_fejl = gem_fejl;
     }
     var_aaben
+}
+
+/// V-LAAS.4 N1: gemmer en midlertidig sag som navngiven sag, som `sag_ny` gør det ([`Arkiv::opret`]: ny nøgle i
+/// nøglelageret og ny fil). Navnet er `Midlertidig ÅÅÅÅ-MM-DD TT.MM` (lokal tid fra [`Tilstand::klokke`]; `Temporary …`
+/// på engelsk), med ` (2)`, ` (3)` … hvis navnet findes; det står kun i sagens krypterede hoved. Udløbet er
+/// standardudløbet fra indstillingerne. Den åbnede sag slippes straks (nøglen nulstilles); den står i sagslisten.
+///
+/// Kaldes kun fra [`laas_igen`], med sagens lås og vagtens undtagelse for denne tråd. En sag, der ikke kan læses, tæller
+/// ikke med i navnene (dens navn kendes ikke).
+fn gem_midlertidig(t: &Tilstand, sag: &Sag, indst: &Indstillinger, engelsk: bool) -> Result<String, SagFejl> {
+    let ark = t.arkiv().map_err(|_| SagFejl::ManglerFil)?;
+    let (ms, forskel) = t.klokke().nu();
+    let tid = klokke::lokal(ms, forskel);
+    let grund = format!("{} {}", if engelsk { "Temporary" } else { "Midlertidig" }, tid.tekst());
+    let navne: HashSet<String> = ark
+        .liste()
+        .map(|l| l.into_iter().filter_map(|p| p.hoved.ok().map(|h| h.navn)).collect())
+        .unwrap_or_default();
+    let navn = ledigt_navn(&grund, &navne);
+    let udloeb = indst.udloeb_dage.map(|d| tid.dato_om(d));
+    let aaben = ark.opret(&navn, udloeb, sag.data(), ms)?;
+    drop(aaben);
+    Ok(navn)
+}
+
+/// `grund`, eller `grund (2)`, `grund (3)` … det første, der ikke er brugt.
+fn ledigt_navn(grund: &str, brugt: &HashSet<String>) -> String {
+    if !brugt.contains(grund) {
+        return grund.to_string();
+    }
+    (2..)
+        .map(|n| format!("{grund} ({n})"))
+        .find(|n| !brugt.contains(n))
+        .unwrap_or_else(|| grund.to_string())
+}
+
+/// V-LAAS.4 N2, ved [`laas_igen`]: står udklipsholderens tæller stadig, hvor den stod lige efter et genkendt Kopiér i
+/// Demaskér, ryddes den. Ellers har nogen skrevet til den siden, og den røres ikke. Fingeraftrykkene glemmes.
+fn ryd_udklip(t: &Tilstand) {
+    let mut h = t.udklip_husk();
+    h.demaskeret = [None, None];
+    if let (Some(c), Some(u)) = (h.taeller.take(), t.udklip.as_deref()) {
+        if u.taeller() == Some(c) {
+            u.ryd();
+        }
+    }
+}
+
+/// V-LAAS.4 N2: webvisningen har kopieret det demaskerede resultat (Kopiér i Demaskér; `fil`: filens resultat, ellers
+/// den indsatte teksts). Rust husker udklipsholderens tæller, hvis indholdet er Grimnirs: teksten sammenlignes med
+/// fingeraftrykket af det, Rust demaskerede, når den må læses uden besked til brugeren ([`crate::udklip`]); ellers
+/// bruges tælleren alene. Svarer sand, hvis tælleren er husket. Teksten fra udklipsholderen gemmes ikke og logges ikke.
+pub fn udklip_kopieret(t: &Tilstand, fil: bool) -> Result<bool, UiFejl> {
+    t.aaben()?;
+    let Some(u) = t.udklip.as_deref() else {
+        return Ok(false);
+    };
+    let mut h = t.udklip_husk();
+    t.aaben()?;
+    h.taeller = None;
+    let Some(fa) = h.demaskeret[usize::from(fil)] else {
+        return Ok(false);
+    };
+    let Some(foer) = u.taeller() else {
+        return Ok(false);
+    };
+    match u.tekst() {
+        Indhold::Tekst(tekst) => {
+            if h.fingeraftryk(&tekst) != fa {
+                return Ok(false);
+            }
+        }
+        Indhold::Ingen => return Ok(false),
+        Indhold::MaaIkkeLaeses => {}
+    }
+    if u.taeller() != Some(foer) {
+        return Ok(false);
+    }
+    h.taeller = Some(foer);
+    Ok(true)
 }
 
 /// V-LAAS.3 N2: låser ved stilstand, når der har været stille i den valgte tid ("Lås efter stilstand"; 5, 15, 30 eller
@@ -1823,6 +2053,8 @@ pub struct Levende {
     pub filer: usize,
     /// Resultater i hukommelsen (maskeret eller demaskeret tekst).
     pub resultater: usize,
+    /// V-LAAS.4: fingeraftryk af demaskerede resultater og en husket tæller for udklipsholderen.
+    pub udklip: usize,
 }
 
 /// Testkrog (V-LAAS.3 N5): tæller [`Levende`].
@@ -1844,7 +2076,23 @@ pub fn levende(t: &Tilstand) -> Levende {
         l.ordbog_laest = true;
         l.ordbogsvaerdier = o.poster.len();
     }
+    {
+        let h = t.udklip_husk();
+        l.udklip = h.demaskeret.iter().flatten().count() + usize::from(h.taeller.is_some());
+    }
     l
+}
+
+/// Testkrog (V-LAAS.4 N4): åbner en sag fra disk forbi porten (som en kommando, der kom forbi porten lige før
+/// [`laas_igen`]), så testene kan se, at vagten om nøglelageret afviser alle andre tråde midt i låsen. Den læste sag og
+/// nøglen slippes straks.
+#[doc(hidden)]
+pub fn aabn_forbi_porten(t: &Tilstand, id: &str) -> Result<(), SagFejl> {
+    let id = SagsId::fra_hex(id)?;
+    let (aaben, data) = t.arkiv().map_err(|_| SagFejl::ManglerFil)?.aabn(&id)?;
+    drop(aaben);
+    nulstil(data);
+    Ok(())
 }
 
 /// Testkrog (V-LAAS.3 N5): markerer den åbne navngivne sag som ændret uden at være gemt, så testene kan prøve, at
@@ -2203,6 +2451,11 @@ pub fn fil_demasker(t: &Tilstand) -> Result<FilDemaskering, UiFejl> {
     let h = g.as_mut().ok_or(UiFejl::IngenFil)?;
     h.resultat = None;
     let d = demasker_i(t, &h.fil.tekst)?;
+    if let Err(f) = husk_demaskeret(t, 1, &d.tekst) {
+        let mut x = d.tekst;
+        zeroize::Zeroize::zeroize(&mut x);
+        return Err(f);
+    }
     let (uddrag, ikke_vist) = fil::uddrag(&d.tekst);
     let bytes = d.tekst.len();
     h.resultat = Some(Resultat {

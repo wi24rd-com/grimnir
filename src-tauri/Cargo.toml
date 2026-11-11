@@ -31,9 +31,11 @@ rfd = { version = "=0.18.0", default-features = false }
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2-local-authentication = { version = "=0.3.2", default-features = false, features = ["std", "LAContext", "LAError", "block2"] }
 objc2 = { version = "=0.6.5", default-features = false, features = ["std"] }
-objc2-foundation = { version = "=0.3.2", default-features = false, features = ["std", "NSString", "NSError", "NSNotification", "NSOperation"] }
+objc2-foundation = { version = "=0.3.2", default-features = false, features = ["std", "NSString", "NSError", "NSNotification", "NSOperation", "NSDate", "NSTimeZone"] }
 block2 = { version = "=0.6.2", default-features = false, features = ["std"] }
 # V-LAAS.3: notifikationerne om dvale, skærme og brugerskift (src/notifikationer.rs). objc2-app-kit står allerede i træet i
 # præcis denne version (via muda og objc2-web-kit); her slås kun featuren NSWorkspace til (og NSNotification/NSOperation
 # på objc2-foundation til addObserverForName). Ingen ny crate; målt i HANDOFF-V-LAAS.3.
-objc2-app-kit = { version = "=0.3.2", default-features = false, features = ["std", "NSWorkspace"] }
+# V-LAAS.4: udklipsholderen ryddes ved lås (src/udklip.rs: NSPasteboard) og den lokale tid til navnet på en midlertidig
+# sag (src/klokke.rs: NSTimeZone, NSDate). Kun features på crates, der allerede står i træet; målt i HANDOFF-V-LAAS.4.
+objc2-app-kit = { version = "=0.3.2", default-features = false, features = ["std", "NSWorkspace", "NSPasteboard"] }

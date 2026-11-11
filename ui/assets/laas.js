@@ -19,8 +19,9 @@
    tekster eller resultater ligger tilbage i DOM'en eller i JS-hukommelsen; åbne dialoger lukkes af genindlæsningen.
    Efter en ny lås svarer laas_status med `igen`, og laas_op kaldes IKKE af sig selv (ellers stod fingerdialogen og
    ventede, mens brugeren er væk): låseskærmen siger "Grimnir låste, mens du var væk", og dialogen kommer først ved tryk på
-   Lås op eller Enter. Efter oplåsningen vises det, der skete ved låsen (svaret `efter`): at en midlertidig sag blev
-   lukket, eller at den åbne sag ikke kunne gemmes (fejlen uden indhold).
+   Lås op eller Enter. Efter oplåsningen vises det, der skete ved låsen (svaret `efter`): V-LAAS.4: at en midlertidig sag
+   blev gemt under et dato-navn (navnet står i beskeden), at den ikke kunne gemmes og er lukket, eller at den åbne sag
+   ikke kunne gemmes (fejlene uden indhold).
    Aktivitet: tastatur og mus i vinduet sender kommandoen `aktivitet` højst hvert 20. sekund (Rust måler stilstand; hver
    anden kommando tæller også).
 
@@ -68,11 +69,12 @@
   function visEfter(efter) {
     if (!efter) return;
     const beskeder = [];
-    if (efter.midlertidig_lukket) beskeder.push(['info', 'bMidlertidigLukket', null]);
-    if (efter.gem_fejl) {
-      const GM = window.GrimnirMaskering;
-      beskeder.push(['warn', 'bGemFejlVedLaas', GM ? GM.sagFejlTekst({ art: 'sag', fejl: efter.gem_fejl }) : S.t('sagfejl_andet')]);
-    }
+    const GM = window.GrimnirMaskering;
+    const fejltekst = f => GM ? GM.sagFejlTekst({ art: 'sag', fejl: f }) : S.t('sagfejl_andet');
+    // V-LAAS.4: den midlertidige sag er gemt under et dato-navn (den åbnes ikke af sig selv; den står i Sager).
+    if (efter.midlertidig_gemt) beskeder.push(['info', 'bMidlertidigGemt', efter.midlertidig_gemt]);
+    if (efter.midlertidig_fejl) beskeder.push(['warn', 'bMidlertidigFejl', fejltekst(efter.midlertidig_fejl)]);
+    if (efter.gem_fejl) beskeder.push(['warn', 'bGemFejlVedLaas', fejltekst(efter.gem_fejl)]);
     for (const [variant, t, v] of beskeder) {
       const b = K.banner({ variant, t, handling: { t: 'luk', ariaT: 'ariaLukBesked', ved: () => b.remove() } });
       b.dataset.efter = t;

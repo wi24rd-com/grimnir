@@ -37,6 +37,7 @@ const KOMMANDOER: &[&str] = &[
     "laas_status",
     "laas_op",
     "aktivitet",
+    "udklip_kopieret",
 ];
 
 fn main() {

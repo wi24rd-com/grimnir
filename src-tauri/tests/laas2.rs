@@ -19,7 +19,7 @@ use grimnir_lib::maskering::{
     analyser, demasker, fil_aabn, fil_analyser, fil_demasker, fil_gem_forslag, fil_gem_og_masker, fil_gem_til, fil_kopi, fil_luk,
     fil_raekker, gem_og_masker, indstillinger_gem, indstillinger_hent, laas_op, laas_status, ordbog_fjern, ordbog_hent, ordbog_proev,
     ordbog_ret, ordbog_start_forfra, ordbog_tilfoej, sag_aabn, sag_liste, sag_luk, sag_nulstil, sag_ny, sag_omdoeb, sag_slet, sag_status,
-    sag_udloeb, sag_valg, LaasStatus, SideValg, Tilstand, UiFejl, Visning,
+    sag_udloeb, sag_valg, udklip_kopieret, LaasStatus, SideValg, Tilstand, UiFejl, Visning,
 };
 use grimnir_lib::sager::{HukommelsesLager, Noegle, Noeglelager, SagFejl, SagsId};
 
@@ -139,6 +139,8 @@ fn alle_kommandoer(t: &Tilstand, fil: &std::path::Path, id: &str) -> Vec<(&'stat
         ("ordbog_start_forfra", j(ordbog_start_forfra(t, "2030-01-01").map(|x| v(&x)))),
         ("ordbog_fjern", j(ordbog_fjern(t, 1).map(|x| v(&x)))),
         ("sag_slet", j(sag_slet(t, id).map(|x| v(&x)))),
+        // V-LAAS.4.
+        ("udklip_kopieret", j(udklip_kopieret(t, false).map(|x| v(&x)))),
     ]
 }
 
