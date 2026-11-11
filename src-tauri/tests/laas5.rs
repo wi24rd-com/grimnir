@@ -219,6 +219,9 @@ fn afslut_roerer_ikke_maskeret_tekst_eller_andres() {
         let m = Mappe::ny();
         let u = Arc::new(HukommelsesUdklip::ny(laesbar));
         let t = startet(&m, &Arc::default(), Some(&u));
+        // V-LAAS.6: brugeren har svaret (Kassér), så ved_afslut kan kaldes flere gange på samme tilstand uden at gemme
+        // og låse; rydningen er den samme på begge veje (den ubesvarede vej: laas6.rs).
+        t.tillad_afslut();
         let maskeret = masker(&t);
         u.skriv(&maskeret);
         let taeller = u.taeller_nu();
@@ -327,11 +330,16 @@ fn hver_vej_ud_gaar_gennem_et_sted() {
         let tekst = kode(&std::fs::read_to_string(&p).unwrap());
         assert!(!tekst.contains("process::exit") && !tekst.contains("abort()"), "{}", p.display());
     }
-    // ved_afslut rydder med samme betingelse som låsen og tager ingen anden lås (venter ikke på låsen, sagen, filer).
+    // ved_afslut rydder med samme betingelse som låsen og venter ikke på låsen, filerne eller ordbogen.
+    // V-LAAS.6 N1: bagefter gemmes en ubesvaret midlertidig sag. `koerer` tages kun, hvis den er ledig, og sagens lås
+    // med en frist (laas6.rs); udklipsholderen ryddes først.
     let m = kode(&kilde("src/maskering.rs"));
     let ved = krop(&m, "ved_afslut");
     assert!(ved.contains("ryd_udklip(t)"));
-    for x in ["koerer", "t.sag()", "t.fil(", "ordbog", ".tekst()"] {
+    assert!(ved.find("ryd_udklip(t)") < ved.find("gem_og_nulstil_sag("));
+    assert!(ved.contains("koerer.try_lock()") && !ved.contains("koerer.lock()"));
+    assert!(ved.contains("t.sag_inden(AFSLUT_VENT)"));
+    for x in ["t.sag()", "t.fil(", "ordbog", ".tekst()"] {
         assert!(!ved.contains(x), "{x} i ved_afslut");
     }
     let ryd = krop(&m, "ryd_udklip");

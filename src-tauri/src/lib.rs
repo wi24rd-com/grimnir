@@ -24,7 +24,9 @@
 //!
 //! **Afslut (V-LAAS.5).** Hver vej ud af programmet ender i Tauris `RunEvent::Exit`, og dér, ét sted
 //! ([`ved_programslut`]), ryddes udklipsholderen på samme betingelse som ved lås ([`maskering::ved_afslut`]). Grimnirs
-//! egne veje kalder [`afslut`]; se dokumentationen dér for listen.
+//! egne veje kalder [`afslut`]; se dokumentationen dér for listen. V-LAAS.6: har brugeren ikke svaret på spørgsmålet om
+//! den midlertidige sag (Afslut fra Dock, log ud, genstart, sluk), gemmes den som ved lås, og navnet siges efter næste
+//! oplåsning.
 //!
 //! **Filer (V-FIL.1).** Åbn- og Gem-dialogerne er styresystemets egne, åbnet herfra med `rfd` (ikke
 //! `tauri-plugin-dialog`/`-fs`); webvisningen får ingen fil-rettigheder og ser aldrig en sti, kun filnavnet. Træk og
@@ -460,7 +462,8 @@ fn program_afslut(app: tauri::AppHandle, tilstand: State<'_, Tilstand>) {
 ///   lukkes → Tauri: ingen vinduer tilbage → `ExitRequested` → `Exit`;
 /// - Afslut fra Dock, log ud, genstart og sluk: macOS sender `terminate:` → tao's `applicationWillTerminate` →
 ///   `Exit` (tao 0.37.2 `app_delegate.rs:130` → `AppState::exit`; tauri-runtime-wry 2.12.3 `LoopDestroyed` →
-///   `RunEvent::Exit`). Disse veje spørger ikke om den midlertidige sag (som før).
+///   `RunEvent::Exit`). Disse veje spørger ikke om den midlertidige sag; V-LAAS.6: den gemmes i stedet som ved lås
+///   ([`maskering::ved_afslut`]).
 ///
 /// Uden for Grimnirs rækkevidde: tvungen afslutning (Tving til at slutte, `kill -9`), et nedbrud, strømsvigt, og en
 /// nedlukning, der dræber programmet, før det når at afslutte.
@@ -469,7 +472,9 @@ fn afslut(app: &tauri::AppHandle) {
 }
 
 /// V-LAAS.5 N1: programmet afslutter (Tauris `RunEvent::Exit`, som hver vej ud ender i; se [`afslut`]). Udklipsholderen
-/// ryddes på samme betingelse som ved lås ([`maskering::ved_afslut`]). Venter ikke på andet og giver ingen dialog.
+/// ryddes på samme betingelse som ved lås, og (V-LAAS.6 N1) en midlertidig sag, brugeren ikke har svaret på, gemmes
+/// ([`maskering::ved_afslut`]). Giver ingen dialog; venter ikke på en lås i gang og højst
+/// [`maskering::AFSLUT_VENT`] på en kommando, der holder sagen.
 fn ved_programslut(app: &tauri::AppHandle) {
     if let Some(t) = app.try_state::<Tilstand>() {
         maskering::ved_afslut(&t);

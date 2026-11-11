@@ -2412,6 +2412,31 @@ for (const lang of ['da', 'en']) {
   const k = fs.readFileSync(path.join(repo, 'tests', 'ui', 'kontrast.mjs'), 'utf8');
   tjek('V-LAAS.5: kontrast.mjs har sloganets par (titellinjen, Om og guiden)', /\['rail-text', 'rail', TEKST, 'Titellinjen: sloganet/.test(k) && /\['text-muted', 'surface', TEKST, 'Om-dialogen og guiden: sloganet/.test(k));
 }
+// ── V-LAAS.6 N2: programmet blev afsluttet uden at spørge (Afslut fra Dock, log ud), og den midlertidige sag blev gemt.
+// Ved næste start (låst, ikke "låst igen") kalder UI'et laas_op af sig selv, og svaret har beskeden med navnet: samme
+// besked som efter en lås, én gang. Kun opdigtede navne. ──
+const NAVN6 = { da: 'Midlertidig 2026-11-11 17.42.08', en: 'Temporary 2026-11-11 17.42.08' };
+for (const lang of ['da', 'en']) {
+  const rust = falskLaasRust({ laast: true, igen: null, svar: [{ svar: 'ok' }], efter: { midlertidig_gemt: NAVN6[lang], midlertidig_fejl: null, gem_fejl: null } });
+  const s = side({ rust, lager: { 'grimnir-sprog': lang } });
+  const { d } = s;
+  await vent(30);
+  tjek(`V-LAAS.6 (${lang}): ved start kaldes laas_op af sig selv, én gang, på UI'ets sprog`, JSON.stringify(rust.st.opKald) === JSON.stringify([lang]), JSON.stringify(rust.st.opKald));
+  const b = d.querySelector('#laas-banner .ban[data-efter="bMidlertidigGemt"]');
+  const ord = b && b.querySelector('.ord').textContent;
+  const ventet = lang === 'da' ? `Den midlertidige sag blev gemt som «${NAVN6.da}».` : `The temporary case was saved as "${NAVN6.en}".`;
+  tjek(`V-LAAS.6 (${lang}): efter oplåsningen ved start nævner beskeden navnet`, !laaseskaerm(d) && ord === ventet, ord);
+  tjek(`V-LAAS.6 (${lang}): samme besked som efter en lås (info, role=status, Luk-knap)`, b && b.classList.contains('info') && b.getAttribute('role') === 'status' && b.querySelector('button').getAttribute('aria-label') === (lang === 'da' ? 'Luk beskeden' : 'Close the message'));
+  tjek(`V-LAAS.6 (${lang}): én besked, navnet som tekst, og sagen åbnes ikke af sig selv`, d.querySelectorAll('#laas-banner .ban[data-efter]').length === 1 && b.querySelector('.ord').children.length === 0 && !s.kald.some(([c]) => c === 'sag_aabn'));
+  b.querySelector('button').click();
+  tjek(`V-LAAS.6 (${lang}): Luk fjerner beskeden`, !d.querySelector('#laas-banner .ban[data-efter]'));
+  // Næste start igen: Rust har givet beskeden (og slettet filen); den kommer ikke igen.
+  rust.st.laast = true;
+  rust.st.kue.push({ svar: 'ok' });
+  const s2 = side({ rust, lager: { 'grimnir-sprog': lang } });
+  await vent(30);
+  tjek(`V-LAAS.6 (${lang}): ved start efter det kommer beskeden ikke igen`, !laaseskaerm(s2.d) && rust.st.opKald.length === 2 && !s2.d.querySelector('#laas-banner .ban[data-efter]'));
+}
 
 console.log(`\n${ok + fejl} tjek: ${ok} ok, ${fejl} fejl`);
 process.exit(fejl ? 1 : 0);

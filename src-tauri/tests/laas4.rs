@@ -475,19 +475,26 @@ fn den_rigtige_udklipsholder_kun_i_programmet() {
         }
     }
     // Rækkefølgen i laas_igen: låst først, udklipsholderen, filerne, sagen med undtagelsen, ordbogen.
+    // V-LAAS.6 N1: sagens del står i gem_og_nulstil_sag, som laas_igen og ved_afslut deler; laas_igen kalder den med
+    // sagens lås.
     let m = kilde("src/maskering.rs");
-    let i = m.find("pub fn laas_igen(").unwrap();
-    let krop = &m[i..i + m[i..].find("\n}\n").unwrap()];
-    let pos = |x: &str| krop.find(x).unwrap_or_else(|| panic!("{x} mangler i laas_igen"));
+    let krop = |navn: &str| {
+        let i = m.find(&format!("fn {navn}(")).unwrap();
+        m[i..i + m[i..].find("\n}\n").unwrap()].to_string()
+    };
+    let laas = krop("laas_igen");
+    let pos = |x: &str| laas.find(x).unwrap_or_else(|| panic!("{x} mangler i laas_igen"));
     assert!(pos("koerer.lock()") < pos(".swap(true"));
     assert!(pos(".swap(true") < pos("ryd_udklip(t)"));
     assert!(pos("ryd_udklip(t)") < pos("t.fil(v).take()"));
-    assert!(pos("t.fil(v).take()") < pos("let mut a = t.sag();"));
-    assert!(pos("let mut a = t.sag();") < pos("Undtagelse::ny("));
-    assert!(pos("Undtagelse::ny(") < pos("gem_midlertidig(") && pos("gem_midlertidig(") < pos("drop(undtagelse)"));
-    assert!(pos("drop(undtagelse)") < pos("erstat(aktuel"));
+    assert!(pos("t.fil(v).take()") < pos("gem_og_nulstil_sag(t, &mut t.sag()"));
+    assert!(pos("gem_og_nulstil_sag(t, &mut t.sag()") < pos("t.ordbog.lock()"));
     assert!(
-        pos("t.indstillinger()") < pos("let mut a = t.sag();"),
+        pos("t.indstillinger()") < pos("gem_og_nulstil_sag(t, &mut t.sag()"),
         "indstillingerne læses før sagens lås"
     );
+    let sag = krop("gem_og_nulstil_sag");
+    let pos = |x: &str| sag.find(x).unwrap_or_else(|| panic!("{x} mangler i gem_og_nulstil_sag"));
+    assert!(pos("Undtagelse::ny(") < pos("gem_midlertidig(") && pos("gem_midlertidig(") < pos("drop(undtagelse)"));
+    assert!(pos("drop(undtagelse)") < pos("erstat(aktuel"));
 }

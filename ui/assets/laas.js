@@ -21,7 +21,9 @@
    ventede, mens brugeren er væk): låseskærmen siger "Grimnir låste, mens du var væk", og dialogen kommer først ved tryk på
    Lås op eller Enter. Efter oplåsningen vises det, der skete ved låsen (svaret `efter`): V-LAAS.4: at en midlertidig sag
    blev gemt under et dato-navn (navnet står i beskeden), at den ikke kunne gemmes og er lukket, eller at den åbne sag
-   ikke kunne gemmes (fejlene uden indhold).
+   ikke kunne gemmes (fejlene uden indhold). V-LAAS.6: det samme svar kan komme ved oplåsningen ved start, når
+   programmet sidst blev afsluttet uden at spørge (Afslut fra Dock, log ud) og den midlertidige sag blev gemt; UI'et
+   viser den samme besked (Rust giver den én gang).
    Aktivitet: tastatur og mus i vinduet sender kommandoen `aktivitet` højst hvert 20. sekund (Rust måler stilstand; hver
    anden kommando tæller også).
 

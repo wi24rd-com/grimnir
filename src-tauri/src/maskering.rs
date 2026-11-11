@@ -50,6 +50,11 @@
 //! sag (`Midlertidig ÅÅÅÅ-MM-DD TT.MM.SS`, uret i [`crate::klokke`]); efter oplåsningen siges navnet ([`EfterLaas`]).
 //! Udklipsholderen ryddes, hvis den stadig har den demaskerede tekst, Grimnir lagde der ([`udklip_kopieret`],
 //! [`crate::udklip`]).
+//!
+//! **Ved afslutning mistes intet (V-LAAS.6).** Afslutter programmet, uden at brugeren har svaret på spørgsmålet om den
+//! midlertidige sag (Afslut fra Dock, log ud, genstart, sluk), gemmes den som ved lås ([`ved_afslut`], med samme
+//! funktion som [`laas_igen`]: [`gem_og_nulstil_sag`]). Navnet står i `<app-data>/gemt-ved-afslut.json`
+//! ([`crate::indstillinger::GEMT_FILNAVN`]) og siges efter næste oplåsning, én gang.
 
 use std::collections::{HashMap, HashSet};
 use std::hash::{BuildHasher, RandomState};
@@ -264,6 +269,9 @@ pub struct Tilstand {
     udklip: Option<Box<dyn Udklip>>,
     /// V-LAAS.4: det, Rust ved om udklipsholderen.
     udklip_husk: Mutex<UdklipHusk>,
+    /// V-LAAS.6 N2: `<app-data>/gemt-ved-afslut.json` med navnet på en midlertidig sag, der blev gemt, da programmet
+    /// afsluttede ([`ved_afslut`]); `None` uden mappe (tests i hukommelsen).
+    gemt_fil: Option<PathBuf>,
 }
 
 impl Tilstand {
@@ -295,6 +303,10 @@ impl Tilstand {
         let indst_fil = indstillinger::sti(&mappe);
         let indst = indstillinger::laes(&indst_fil);
         let laas = Laas::default();
+        // V-LAAS.6 N2: en midlertidig sag, der blev gemt ved sidste afslutning, siges efter første oplåsning
+        // ([`efter_svar`] sletter filen, når beskeden er givet).
+        let gemt_fil = indstillinger::gemt_sti(&mappe);
+        laas.efter.lock().unwrap_or_else(|e| e.into_inner()).midlertidig_gemt = indstillinger::laes_gemt_navn(&gemt_fil);
         let lager: Arc<dyn Noeglelager> = Arc::new(LaasVagt {
             laast: laas.laast.clone(),
             undtagelse: laas.undtagelse.clone(),
@@ -316,6 +328,7 @@ impl Tilstand {
             filer: Default::default(),
             igang: Some(igang),
             laas,
+            gemt_fil: Some(gemt_fil),
             ..Tilstand::default()
         }
     }
@@ -408,6 +421,19 @@ impl Tilstand {
         let g = self.sag();
         self.aaben()?;
         Ok(g)
+    }
+
+    /// V-LAAS.6: låsen til sagen, hvis den kan fås inden `frist` (ved afslutning, [`ved_afslut`]); ellers `None`.
+    fn sag_inden(&self, frist: std::time::Duration) -> Option<MutexGuard<'_, Aktuel>> {
+        let slut = std::time::Instant::now() + frist;
+        loop {
+            match self.sag.try_lock() {
+                Ok(g) => return Some(g),
+                Err(std::sync::TryLockError::Poisoned(e)) => return Some(e.into_inner()),
+                Err(std::sync::TryLockError::WouldBlock) if std::time::Instant::now() >= slut => return None,
+                Err(std::sync::TryLockError::WouldBlock) => std::thread::sleep(std::time::Duration::from_millis(10)),
+            }
+        }
     }
 
     fn arkiv(&self) -> Result<&Arkiv, UiFejl> {
@@ -1826,6 +1852,10 @@ fn efter_svar(t: &Tilstand, svar: &Svar) -> Option<EfterLaas> {
     *t.laas.igen.lock().unwrap_or_else(|e| e.into_inner()) = None;
     t.aktivitet();
     let efter = std::mem::take(&mut *t.laas.efter.lock().unwrap_or_else(|e| e.into_inner()));
+    // V-LAAS.6 N2: navnet fra sidste afslutning er nu givet videre (eller var der ikke); det siges kun én gang.
+    if let Some(f) = &t.gemt_fil {
+        indstillinger::glem_gemt_navn(f);
+    }
     (!efter.tom()).then_some(efter)
 }
 
@@ -1863,7 +1893,8 @@ pub fn laas_op(t: &Tilstand, doer: &dyn Doer, sprog: &str) -> LaasSvar {
 ///    En kommando, der kører på en fil, gøres færdig først (filens lås).
 /// 4. Sagen. Sagens lås tages; en kommando, der holder den (en maskering), gøres færdig først, og en kommando, der kom
 ///    forbi porten lige før trin 1, tjekker porten igen efter låsen ([`Tilstand::sag_aaben`]) og lægger intet tilbage.
-///    Med sagens lås holdt åbner vagten om nøglelageret for **denne tråd alene** ([`Undtagelse`]):
+///    Med sagens lås holdt åbner vagten om nøglelageret for **denne tråd alene** ([`Undtagelse`]; V-LAAS.6: trinnet er
+///    [`gem_og_nulstil_sag`], som [`ved_afslut`] også bruger):
 ///    - en navngiven sag, der er ændret uden at være gemt, gemmes med sin egen nøgle;
 ///    - en midlertidig sag med poster gemmes som navngiven sag ([`gem_midlertidig`]): navnet `Midlertidig ÅÅÅÅ-MM-DD
 ///      TT.MM.SS`, ny nøgle i nøglelageret og standardudløbet fra indstillingerne. Andre sagers nøgler læses ikke
@@ -1899,33 +1930,7 @@ pub fn laas_igen(t: &Tilstand, grund: Udloeser) -> bool {
     let ny = t.ny_sag();
     let indst = t.indstillinger();
     let engelsk = t.engelsk.load(Ordering::SeqCst);
-    let mut midlertidig = None;
-    let mut gem_fejl = None;
-    {
-        let mut a = t.sag();
-        let aktuel = &mut *a;
-        let undtagelse = Undtagelse::ny(&t.laas.undtagelse);
-        match aktuel.aaben.as_mut() {
-            Some(aaben) if aktuel.ugemt => {
-                let hoved = aaben.hoved.clone();
-                if let Err(f) = t
-                    .arkiv()
-                    .map_err(|_| SagFejl::ManglerFil)
-                    .and_then(|ark| ark.gem(aaben, hoved, aktuel.sag.data()))
-                {
-                    gem_fejl = Some(f);
-                }
-            }
-            Some(_) => {}
-            None if aktuel.sag.antal_poster() > 0 => {
-                midlertidig = Some(gem_midlertidig(t, &aktuel.sag, &indst, engelsk));
-            }
-            None => {}
-        }
-        drop(undtagelse);
-        erstat(aktuel, ny, None);
-        aktuel.ugemt = false;
-    }
+    let Gemt { midlertidig, gem_fejl } = gem_og_nulstil_sag(t, &mut t.sag(), ny, &indst, engelsk);
     // 5. Ordbogen.
     {
         let mut g = t.ordbog.lock().unwrap_or_else(|e| e.into_inner());
@@ -1946,6 +1951,53 @@ pub fn laas_igen(t: &Tilstand, grund: Udloeser) -> bool {
     var_aaben
 }
 
+/// Det, [`gem_og_nulstil_sag`] gemte: den midlertidige sag (navnet eller fejlen; `None`: der var ingen at gemme) og en
+/// fejl ved gemningen af en ændret navngiven sag.
+struct Gemt {
+    midlertidig: Option<Result<String, SagFejl>>,
+    gem_fejl: Option<SagFejl>,
+}
+
+/// V-LAAS.4 trin 4 i [`laas_igen`], og (V-LAAS.6 N1) det samme i [`ved_afslut`]: den ene funktion, der gemmer sagen og
+/// nulstiller den. Kaldes med sagens lås holdt (`aktuel`) og **efter** låst er sat, så porten og vagten om nøglelageret
+/// afviser alle andre tråde. Med sagens lås holdt åbner vagten for denne tråd alene ([`Undtagelse`]):
+/// - en navngiven sag, der er ændret uden at være gemt, gemmes med sin egen nøgle;
+/// - en midlertidig sag med poster gemmes som navngiven sag ([`gem_midlertidig`]: ét opslag i nøglelageret, den nye
+///   nøgle);
+/// - en uændret navngiven sag og en tom midlertidig sag gemmes ikke.
+///
+/// Undtagelsen slippes, før sagen erstattes af `ny` (en tom midlertidig sag); den gamle sags strenge nulstilles, og
+/// `AabenSag` med sagens [`Noegle`] slippes (nøglen nulstilles).
+fn gem_og_nulstil_sag(t: &Tilstand, aktuel: &mut Aktuel, ny: Sag, indst: &Indstillinger, engelsk: bool) -> Gemt {
+    debug_assert!(t.er_laast(), "låst sættes, før sagen gemmes");
+    let mut gemt = Gemt {
+        midlertidig: None,
+        gem_fejl: None,
+    };
+    let undtagelse = Undtagelse::ny(&t.laas.undtagelse);
+    match aktuel.aaben.as_mut() {
+        Some(aaben) if aktuel.ugemt => {
+            let hoved = aaben.hoved.clone();
+            if let Err(f) = t
+                .arkiv()
+                .map_err(|_| SagFejl::ManglerFil)
+                .and_then(|ark| ark.gem(aaben, hoved, aktuel.sag.data()))
+            {
+                gemt.gem_fejl = Some(f);
+            }
+        }
+        Some(_) => {}
+        None if aktuel.sag.antal_poster() > 0 => {
+            gemt.midlertidig = Some(gem_midlertidig(t, &aktuel.sag, indst, engelsk));
+        }
+        None => {}
+    }
+    drop(undtagelse);
+    erstat(aktuel, ny, None);
+    aktuel.ugemt = false;
+    gemt
+}
+
 /// V-LAAS.4 N1: gemmer en midlertidig sag som navngiven sag, som `sag_ny` gør det ([`Arkiv::opret`]: ny nøgle i
 /// nøglelageret og ny fil). Navnet er `Midlertidig ÅÅÅÅ-MM-DD TT.MM.SS` (lokal tid fra [`Tilstand::klokke`]; `Temporary …`
 /// på engelsk); det står kun i sagens krypterede hoved. Udløbet er standardudløbet fra indstillingerne. Den åbnede sag
@@ -1956,7 +2008,8 @@ pub fn laas_igen(t: &Tilstand, grund: Udloeser) -> bool {
 /// navnet gør et sammenfald usandsynligt; sker det alligevel (to låse i samme sekund, eller en sag, brugeren selv har
 /// kaldt det samme), får de to sager samme navn, hvad der også er tilladt for navne, brugeren giver.
 ///
-/// Kaldes kun fra [`laas_igen`], med sagens lås og vagtens undtagelse for denne tråd.
+/// Kaldes kun fra [`gem_og_nulstil_sag`] ([`laas_igen`] og [`ved_afslut`]), med sagens lås og vagtens undtagelse for
+/// denne tråd.
 fn gem_midlertidig(t: &Tilstand, sag: &Sag, indst: &Indstillinger, engelsk: bool) -> Result<String, SagFejl> {
     let ark = t.arkiv().map_err(|_| SagFejl::ManglerFil)?;
     let (ms, forskel) = t.klokke().nu();
@@ -1988,12 +2041,59 @@ fn ryd_udklip(t: &Tilstand) {
 ///
 /// Kaldes ét sted: `lib.rs` ved Tauris `RunEvent::Exit`, som hver vej ud af programmet ender i (`program_afslut`, ⌘Q og
 /// menuens Afslut, lukkeknappen på det sidste vindue, Afslut fra Dock og log ud/sluk, der beder programmet afslutte).
-/// Blokerer ikke afslutningen: den venter hverken på låsen ([`laas_igen`], der kan stå og vente på Nøglering), sagen,
-/// filerne eller ordbogen, læser ikke udklipsholderens tekst og kan ikke give en dialog. Gør intet, hvis Grimnir er
-/// låst (låsen har allerede ryddet og glemt tælleren).
+///
+/// **V-LAAS.6 N1: den midlertidige sag.** Har brugeren ikke svaret på spørgsmålet ved afslut (hverken Gem som sag eller
+/// Kassér, [`Tilstand::tillad_afslut`]), fordi programmet afslutter ad en vej, der ikke spørger (Afslut fra Dock, log
+/// ud, genstart, sluk), gemmes en midlertidig sag med poster som ved lås, med den samme funktion
+/// ([`gem_og_nulstil_sag`]): navnet `Midlertidig ÅÅÅÅ-MM-DD TT.MM.SS` / `Temporary …`, standardudløbet og en ny nøgle.
+/// Navnet skrives i `<app-data>/gemt-ved-afslut.json` og siges efter næste oplåsning (N2). Rækkefølgen:
+/// 1. Udklipsholderen ryddes (som før; hurtig, kun tæller og `clearContents`).
+/// 2. Har brugeren svaret, eller er Grimnir låst (låsen har gemt sagen, eller er i gang med det), sker der ikke mere.
+/// 3. `koerer` tages, men kun hvis den er ledig (`try_lock`): er den optaget, er en lås ([`laas_igen`]) eller en
+///    oplåsning i gang. Låsen gemmer selv sagen, og under en oplåsning er sagen tom (Grimnir var låst). Der ventes
+///    aldrig på en lås, der står og venter på Nøglering.
+/// 4. Låst sættes, som i [`laas_igen`]: porten og vagten om nøglelageret afviser alle andre tråde herfra.
+/// 5. Sagens lås tages; en kommando, der holder den (fx en maskering), får højst [`AFSLUT_VENT`] til at blive færdig.
+///    Derefter [`gem_og_nulstil_sag`] (vagtens undtagelse for denne tråd alene, mens sagens lås holdes).
+/// 6. Lykkedes gemningen af en midlertidig sag, skrives navnet ([`indstillinger::gem_gemt_navn`]).
+///
+/// Fejler gemningen, afslutter programmet alligevel: fejlen vises ikke (der er ingen at vise den til) og skrives
+/// ingen steder; [`crate::sager::Arkiv::opret`] sletter den nye nøgle igen, hvis filen ikke kunne skrives.
 pub fn ved_afslut(t: &Tilstand) {
+    // 1. Udklipsholderen.
     ryd_udklip(t);
+    // 2. Svaret, eller låst.
+    if t.afslut.load(Ordering::SeqCst) || t.er_laast() {
+        return;
+    }
+    // 3. Ingen lås eller oplåsning i gang.
+    let _koerer = match t.laas.koerer.try_lock() {
+        Ok(g) => g,
+        Err(std::sync::TryLockError::Poisoned(e)) => e.into_inner(),
+        Err(std::sync::TryLockError::WouldBlock) => return,
+    };
+    // 4. Låst.
+    if t.laas.laast.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    // 5. Sagen (indstillingerne og den nye sag læses, før sagens lås tages, som i laas_igen).
+    let ny = t.ny_sag();
+    let indst = t.indstillinger();
+    let engelsk = t.engelsk.load(Ordering::SeqCst);
+    let Some(mut a) = t.sag_inden(AFSLUT_VENT) else {
+        return;
+    };
+    let gemt = gem_og_nulstil_sag(t, &mut a, ny, &indst, engelsk);
+    drop(a);
+    // 6. Navnet til næste start.
+    if let (Some(Ok(navn)), Some(f)) = (gemt.midlertidig, &t.gemt_fil) {
+        let _ = indstillinger::gem_gemt_navn(f, &navn);
+    }
 }
+
+/// V-LAAS.6 N1: så længe [`ved_afslut`] højst venter på sagens lås, mens en kommando gør sig færdig. Derefter afslutter
+/// programmet uden at gemme (afslutningen må ikke hænge på en kommando, der fx venter på en dialog fra Nøglering).
+pub const AFSLUT_VENT: std::time::Duration = std::time::Duration::from_secs(2);
 
 /// V-LAAS.4 N2: webvisningen har kopieret det demaskerede resultat (Kopiér i Demaskér; `fil`: filens resultat, ellers
 /// den indsatte teksts). Rust husker udklipsholderens tæller, hvis indholdet er Grimnirs: teksten sammenlignes med

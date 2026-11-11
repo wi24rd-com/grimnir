@@ -92,3 +92,72 @@ pub fn gem(fil: &Path, i: &Indstillinger) -> Result<(), SagFejl> {
     bytes.push(b'\n');
     skriv_atomart(fil, &bytes, &mut || Ok(()))
 }
+
+// ------------------------------------------------------------------------------------------------------- V-LAAS.6 N2
+
+/// V-LAAS.6 N2: filen i `<app-data>` med navnet på en midlertidig sag, Grimnir gemte, da programmet afsluttede uden at
+/// spørge (Afslut fra Dock, log ud, genstart, sluk). Ved næste start siges navnet efter oplåsningen, og filen slettes.
+///
+/// Filen har ét felt, `midlertidig_gemt`, og kun et navn, Grimnir selv giver (`Midlertidig ÅÅÅÅ-MM-DD TT.MM.SS` /
+/// `Temporary …`, [`er_midlertidigt_navn`]): et tidsstempel, intet om sagens indhold. Den står derfor i klartekst, som
+/// indstillingerne. Den er en fil for sig og ikke et felt i [`Indstillinger`], fordi webvisningen gemmer indstillingerne
+/// hele (`indstillinger_gem`) og ellers skulle kende og sende feltet tilbage.
+pub const GEMT_FILNAVN: &str = "gemt-ved-afslut.json";
+
+/// Indholdet af [`GEMT_FILNAVN`]. Andre felter afvises (så filen kun kan bære navnet).
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct GemtVedAfslut {
+    midlertidig_gemt: String,
+}
+
+/// Filens sti i mappen.
+pub fn gemt_sti(mappe: &Path) -> PathBuf {
+    mappe.join(GEMT_FILNAVN)
+}
+
+/// Sand, hvis `navn` har præcis formen på et navn, Grimnir giver en midlertidig sag, der gemmes af sig selv:
+/// `Midlertidig ` eller `Temporary ` og `ÅÅÅÅ-MM-DD TT.MM.SS` (cifre).
+pub fn er_midlertidigt_navn(navn: &str) -> bool {
+    let Some(tid) = navn.strip_prefix("Midlertidig ").or_else(|| navn.strip_prefix("Temporary ")) else {
+        return false;
+    };
+    let b = tid.as_bytes();
+    b.len() == 19
+        && b.iter().enumerate().all(|(i, c)| match i {
+            4 | 7 => *c == b'-',
+            10 => *c == b' ',
+            13 | 16 => *c == b'.',
+            _ => c.is_ascii_digit(),
+        })
+}
+
+/// Skriver navnet atomart (mappen oprettes, hvis den mangler). Et andet navn end Grimnirs eget afvises.
+pub fn gem_gemt_navn(fil: &Path, navn: &str) -> Result<(), SagFejl> {
+    if !er_midlertidigt_navn(navn) {
+        return Err(SagFejl::Beskadiget);
+    }
+    if let Some(m) = fil.parent() {
+        crate::sager::opret_mappe(m)?;
+    }
+    let mut bytes = serde_json::to_vec(&GemtVedAfslut {
+        midlertidig_gemt: navn.to_string(),
+    })
+    .map_err(|_| SagFejl::Beskadiget)?;
+    bytes.push(b'\n');
+    skriv_atomart(fil, &bytes, &mut || Ok(()))
+}
+
+/// Læser navnet. Mangler filen, kan den ikke læses, eller er navnet ikke Grimnirs eget, svares der `None`.
+pub fn laes_gemt_navn(fil: &Path) -> Option<String> {
+    std::fs::read(fil)
+        .ok()
+        .and_then(|b| serde_json::from_slice::<GemtVedAfslut>(&b).ok())
+        .map(|g| g.midlertidig_gemt)
+        .filter(|n| er_midlertidigt_navn(n))
+}
+
+/// Sletter filen (beskeden er givet). En fil, der ikke findes, er ikke en fejl.
+pub fn glem_gemt_navn(fil: &Path) {
+    let _ = std::fs::remove_file(fil);
+}
