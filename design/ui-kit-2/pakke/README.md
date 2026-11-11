@@ -14,9 +14,9 @@ Tankerne bag kittet (principper, farvernes betydning, sprogtone) står i `../REA
 | `tokens/wi24rd-ui-kit-2.tokens.json` | Kilden til alle tokens: farver i lyst og mørkt tema (også ok, mærker, dataserier, skala og kort fra 2.1.0), skrift, luft, radier, skygger |
 | `tokens/tokens.css` | Samme tokens som CSS-variabler (genereret) |
 | `tokens/Tokens.xaml` | Samme tokens som WPF-ressourcer (genereret) |
-| `web/kit.css` | Komponenternes udseende (fra 2.2.0 også vælger, sidepanel og segmentknap) |
-| `web/kit.js` | Komponenternes opførsel (`window.Kit`), også `Kit.vaelger`, `Kit.sidepanel` og `Kit.segment` fra 2.2.0 |
-| `web/tema.js` | Lyst, mørkt eller som systemet (`window.Tema`) |
+| `web/kit.css` | Komponenternes udseende (fra 2.2.0 også vælger, sidepanel og segmentknap; fra 2.3.0 dialog, afkrydsning, kontakt, radiogruppe, valgliste, StatusTile, kasse, tom tilstand, fremdrift, værktøjstip, filterchip, tabellens sortering og sideskift, og tekststørrelsen) |
+| `web/kit.js` | Komponenternes opførsel (`window.Kit`), også `Kit.vaelger`, `Kit.sidepanel` og `Kit.segment` fra 2.2.0, og fra 2.3.0 `Kit.dialog`, `Kit.bekraeft`, `Kit.afkrydsning`, `Kit.kontakt`, `Kit.radiogruppe`, `Kit.valgliste`, `Kit.statusflise`, `Kit.statusfliser`, `Kit.kasse`, `Kit.tomTilstand`, `Kit.fremdrift`, `Kit.vaerktoejstip`, `Kit.filterchip`, `Kit.filterchips` og `Kit.sideskift` |
+| `web/tema.js` | Lyst, mørkt eller som systemet (`window.Tema`), og fra 2.3.0 tekststørrelsen i tre trin (`window.Tekst`) |
 | `web/sprogmotor.js` | Sprogets mekanik: opslag, ental og flertal, sprogskift (`window.KitSprog`) |
 | `web/fonts/` | Inter og JetBrains Mono (woff2) med deres OFL-licenser |
 | `demo/index.html` | Demoside med hver komponent; åbnes direkte fra disken |
@@ -70,6 +70,13 @@ document.addEventListener('mitprogram-tema', () => { /* opdatér fx en knap, der
 
 Brug kun tokens til farver i programmets egen CSS (`var(--surface)`, `var(--accent)` …), aldrig farvekoder. Så følger alt med, når temaet skifter.
 
+**Tekststørrelse (fra 2.3.0).** Samme fil giver `window.Tekst`: lille, normal eller stor som én skala for hele fladen (`<html data-tekst>`, `zoom` i `kit.css`). Valget huskes i `localStorage['<præfiks>-tekst']` og sættes før første tegning; uden et valg er alt som før. Genvejene (⌘+ ⌘− ⌘0) og indstillingen er programmets; kittet giver funktionerne.
+
+```js
+Tekst.saet('stor');   Tekst.større();   Tekst.mindre();   Tekst.nulstil();   Tekst.valg;
+document.addEventListener('mitprogram-tekst', () => { /* opdatér fx menuen */ });
+```
+
 ### 4. Sprog
 
 Kittet ejer mekanikken, programmet ejer teksterne. Programmets `sprog.js`:
@@ -96,7 +103,7 @@ Har programmet allerede sit eget sprogmodul, kan det beholde det. Kittet kræver
 
 ### 5. Byg skærmen
 
-Start med skallen i `KOMPONENTER.md` (AppShell) og fyld den med `Kit.commandBar`, `Kit.navTrae`, `Kit.visningsskift` og `Kit.tabel`. Til valg for hele skærmen er der `Kit.vaelger` (titellinje, værktøjslinje, bånd) og `Kit.segment`; til hjælp og detaljer ved siden af arbejdet `Kit.sidepanel`. Et program med få kommandoer bruger båndet uden faner (`udenFaner: true`). Demoens `demo/index.html` og `demo/demo.js` er et lille, komplet eksempel.
+Start med skallen i `KOMPONENTER.md` (AppShell) og fyld den med `Kit.commandBar`, `Kit.navTrae`, `Kit.visningsskift` og `Kit.tabel`. Til valg for hele skærmen er der `Kit.vaelger` (titellinje, værktøjslinje, bånd) og `Kit.segment`; til hjælp og detaljer ved siden af arbejdet `Kit.sidepanel`. Et program med få kommandoer bruger båndet uden faner (`udenFaner: true`). Fra 2.3.0 er der dialoger (`Kit.dialog`, `Kit.bekraeft`), formularens valg (`Kit.afkrydsning`, `Kit.kontakt`, `Kit.radiogruppe`, `Kit.valgliste`; se "Hvilken kontrol hvornår" i `KOMPONENTER.md`), fliser (`Kit.statusfliser`), kasser (`Kit.kasse`), tom tilstand, fremdrift, værktøjstip, filterchips og tabellens sortering og sideskift. Demoens `demo/index.html` og `demo/demo.js` er et lille, komplet eksempel.
 
 Det, kittet forventer af programmet:
 
@@ -105,6 +112,10 @@ Det, kittet forventer af programmet:
 - Titellinjen er programmets: mærke, navn og det, der står til højre (`.hoejre`). Har vinduet styresystemets knapper oven på titellinjen (fx macOS med overlejret titellinje), giver programmet selv plads til dem i sin egen CSS.
 - Mindste vindue er 900 × 560 px. Dér er der plads til otte visninger i visningsskiftet (se NavPane i `KOMPONENTER.md`).
 - Alt, der kan aktiveres, skal have synlig hover, kunne nås med Tab og have en `aria-label`, der siger, hvad der sker.
+
+### Ingen inline-stil
+
+**Kittet sætter aldrig inline-stil**: ingen `.style.`, ingen `style=""` og ingen `setAttribute('style', …)` i `web/`. Tilstande udtrykkes med klasser og attributter (`hidden`, `aria-expanded`, `.op`, `.under` …), og placeringer med klasser, som `kit.css` har reglerne til. Så virker kittet også i et program med en indholdspolitik (CSP), der kun tillader stilark fra programmet selv (`style-src 'self'`). En test i kilde-repoet holder reglen over alle filer i `web/`. Programmet kan gøre det samme i sin egen kode; det er ikke et krav fra kittet.
 
 ## Sådan tager et WPF-program tokens i brug
 
@@ -193,10 +204,10 @@ I kilde-repoet laves programmets kopier af et script (`npm run kit`), og `npm ru
 - **Skrifter til WPF** (TTF eller OTF). Kun woff2 til web.
 - **Logo og app-ikoner.** De hører til det enkelte program.
 - **Et fuldt ikonsæt.** `kit.js` har de almene stregikoner, kittets egne komponenter og de første programmer har brugt. Programmet lægger sine egne til.
-- **Dialog, menu, værktøjstip, tom tilstand, fremdrift, afkrydsning, kontakt (til/fra), valgliste og StatusTile.** De findes ikke som kode i kittet endnu. Et program, der har brug for dem, tegner dem selv med kittets tokens. Vælgeren, sidepanelet og segmentknappen findes fra 2.2.0; vælgeren er til valg for hele skærmen, ikke en valgliste i en formular.
+- **Menu, Cover og en egen listeboks.** De findes ikke som kode i kittet. Et program, der har brug for dem, tegner dem selv med kittets tokens. Vælgeren, sidepanelet og segmentknappen findes fra 2.2.0; dialog, afkrydsning, kontakt, radiogruppe, valgliste, StatusTile, kasse, tom tilstand, fremdrift, værktøjstip og filterchip fra 2.3.0. Vælgeren er til valg for hele skærmen; i en formular bruges valglisten.
 - **Flervalg i træet.** Træet vælger ét punkt; flere valg hører til i vælgeren (se `KOMPONENTER.md`).
 - **Tekster.** Kittet har ingen tekster; alle tekster er programmets.
-- **Tekststørrelse eller tæthed som valg.** Kittet har én størrelse.
+- **Tæthed for sig.** Tekststørrelsen i tre trin findes fra 2.3.0 og skalerer hele fladen; tættere rækker uden mindre tekst findes ikke.
 - **Byggeværktøjet.** `tokens.css` og `Tokens.xaml` laves fra JSON-filen af `design/build-tokens.mjs` i kilde-repoet. Pakken har de færdige filer.
 - **Programmets egne ting:** visninger, data, kommandoer, genveje og vinduesopsætning.
 

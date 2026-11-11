@@ -51,6 +51,12 @@
   .demo-navs { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: flex-start; }
   .demo-otte { height: 290px; }
   .demo-sektion > h3 { margin: var(--space-4) 0 var(--space-1); font-size: var(--h3-size); line-height: var(--h3-line); font-weight: var(--h3-weight); }
+  /* 2.3.0: kasserne står to og to; listen i en kasse. */
+  .demo-kasser { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-3); max-width: 720px; }
+  .demo-liste { margin: 0; padding-left: var(--space-4); }
+  .demo-frem { padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-md); max-width: 420px; margin-bottom: var(--space-2); }
+  #demo-tip { padding-top: var(--space-8); }
+  .demo-ind { padding-left: var(--space-6); }
 </style>
 </head>
 <body>
@@ -58,7 +64,7 @@
   <header class="titel">
     <span class="mrk" aria-hidden="true">W</span>
     <b data-t="appNavn">Wi24rd UI Kit 2</b>
-    <span data-t="undertitel" data-v="2.2.0" id="pakkeversion">Demo · pakke 2.0.1</span>
+    <span data-t="undertitel" data-v="2.3.0" id="pakkeversion">Demo · pakke 2.0.1</span>
     <span class="hoejre">
       <button type="button" class="rk" id="skift-tema" data-t-aria="ariaSkiftTema" data-t-title="ariaSkiftTema"></button>
       <button type="button" class="rk" id="skift-sprog" data-t-aria="ariaSkiftSprog" data-t="skiftSprog"></button>
@@ -131,7 +137,7 @@
             <h2>StatusFooter</h2>
             <p data-t="pStatusFooter"></p>
             <div class="demo-ramme">
-              <div class="fodl"><span data-t="fodVenstre" data-v="16" data-w="13"></span><span class="h"><span id="demo-fod-laas"></span><span data-t="fodVersion" data-v="2.2.0"></span></span></div>
+              <div class="fodl"><span data-t="fodVenstre" data-v="16" data-w="13"></span><span class="h"><span id="demo-fod-laas"></span><span data-t="fodVersion" data-v="2.3.0"></span></span></div>
             </div>
           </section>
 
@@ -140,6 +146,53 @@
             <p data-t="pDataTable"></p>
             <div class="demo-ramme" id="demo-tabel"></div>
             <p class="demo-valgt" id="tabel-valgt" data-t="intetValgt"></p>
+            <h3 data-t="hTabelNy">Sortering, to hovedrækker og sideskift</h3>
+            <p data-t="pTabelNy"></p>
+            <div class="demo-ramme" id="demo-tabel-ny"></div>
+            <p class="demo-valgt" id="tabel-ny-valgt" data-t="intetValgt"></p>
+          </section>
+
+          <section class="demo-sektion" data-gruppe="indhold" data-navn="StatusTile">
+            <h2>StatusTile</h2>
+            <p data-t="pStatusTile"></p>
+            <div id="demo-fliser"></div>
+            <p class="demo-valgt" id="flise-valgt" data-t="intetValgt"></p>
+          </section>
+
+          <section class="demo-sektion" data-gruppe="indhold" data-navn="Kasse">
+            <h2 data-t="hKasse">Kasse</h2>
+            <p data-t="pKasse"></p>
+            <div class="demo-kasser" id="demo-kasser"></div>
+            <p class="demo-valgt" id="kasse-valgt" data-t="intetValgt"></p>
+          </section>
+
+          <section class="demo-sektion" data-gruppe="indhold" data-navn="Tom tilstand">
+            <h2 data-t="hTom">Tom tilstand</h2>
+            <p data-t="pTom"></p>
+            <div class="demo-ramme" id="demo-tom-stor"></div>
+            <h3 data-t="hTomTabel">Tom tabel og ingen træffere</h3>
+            <div class="demo-ramme" id="demo-tom-tabel"></div>
+            <p class="demo-valgt" id="tom-valgt" data-t="intetValgt"></p>
+          </section>
+
+          <section class="demo-sektion" data-gruppe="indhold" data-navn="Fremdrift">
+            <h2 data-t="hFrem">Fremdrift</h2>
+            <p data-t="pFrem"></p>
+            <div class="demo-stak demo-frem" id="demo-frem"></div>
+            <div class="demo-raekke" id="demo-frem-knapper"></div>
+          </section>
+
+          <section class="demo-sektion" data-gruppe="indhold" data-navn="Værktøjstip">
+            <h2 data-t="hTip">Værktøjstip</h2>
+            <p data-t="pTip"></p>
+            <div class="demo-raekke" id="demo-tip"></div>
+          </section>
+
+          <section class="demo-sektion" data-gruppe="indhold" data-navn="Dialog">
+            <h2>Dialog</h2>
+            <p data-t="pDialog"></p>
+            <div class="demo-raekke" id="demo-dialog"></div>
+            <p class="demo-valgt" id="dialog-valgt" data-t="intetValgt"></p>
           </section>
 
           <section class="demo-sektion" data-gruppe="indhold" data-navn="StatusChip">
@@ -196,6 +249,41 @@
             <p class="demo-valgt" id="segment-valgt" data-t="intetValgt"></p>
           </section>
 
+          <section class="demo-sektion" data-gruppe="kontroller" data-navn="Filterchip">
+            <h2 data-t="hFilterchip">Filterchip</h2>
+            <p data-t="pFilterchip"></p>
+            <div class="demo-raekke" id="demo-filterchips"></div>
+            <p class="demo-valgt" id="filterchip-valgt" data-t="intetValgt"></p>
+          </section>
+
+          <section class="demo-sektion" data-gruppe="kontroller" data-navn="Afkrydsning">
+            <h2 data-t="hAfk">Afkrydsning</h2>
+            <p data-t="pAfk"></p>
+            <div class="demo-stak" id="demo-afk"></div>
+            <p class="demo-valgt" id="afk-valgt" data-t="intetValgt"></p>
+          </section>
+
+          <section class="demo-sektion" data-gruppe="kontroller" data-navn="Kontakt">
+            <h2 data-t="hKontakt">Kontakt</h2>
+            <p data-t="pKontakt"></p>
+            <div class="demo-stak" id="demo-kontakt"></div>
+            <p class="demo-valgt" id="kontakt-valgt" data-t="intetValgt"></p>
+          </section>
+
+          <section class="demo-sektion" data-gruppe="kontroller" data-navn="Radiogruppe">
+            <h2 data-t="hRadio">Radiogruppe</h2>
+            <p data-t="pRadio"></p>
+            <div class="demo-felter" id="demo-radio"></div>
+            <p class="demo-valgt" id="radio-valgt" data-t="intetValgt"></p>
+          </section>
+
+          <section class="demo-sektion" data-gruppe="kontroller" data-navn="Valgliste">
+            <h2 data-t="hValgliste">Valgliste</h2>
+            <p data-t="pValgliste"></p>
+            <div class="demo-felter" id="demo-valgliste"></div>
+            <p class="demo-valgt" id="valgliste-valgt" data-t="intetValgt"></p>
+          </section>
+
           <section class="demo-sektion" data-gruppe="kontroller" data-navn="Button">
             <h2>Button</h2>
             <p data-t="pButton"></p>
@@ -207,6 +295,13 @@
             <h2>TextField</h2>
             <p data-t="pTextField"></p>
             <div class="demo-felter" id="demo-felter"></div>
+          </section>
+
+          <section class="demo-sektion" data-gruppe="grundlag" data-navn="Tekststørrelse">
+            <h2 data-t="hTekst">Tekststørrelse</h2>
+            <p data-t="pTekst"></p>
+            <div class="demo-raekke" id="demo-tekst"></div>
+            <p class="demo-valgt" id="tekst-valgt" data-t="intetValgt"></p>
           </section>
 
           <section class="demo-sektion" data-gruppe="grundlag" data-navn="Ikoner">
@@ -267,7 +362,7 @@
 
       <footer class="fodl">
         <span id="fod-antal" data-t="fodAntal" data-v="0"></span>
-        <span class="h"><span id="fod-laas"></span><span data-t="fodVersion" data-v="2.2.0"></span></span>
+        <span class="h"><span id="fod-laas"></span><span data-t="fodVersion" data-v="2.3.0"></span></span>
       </footer>
     </main>
   </div>

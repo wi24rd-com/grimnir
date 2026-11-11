@@ -68,6 +68,34 @@
         alleDomaener: 'Alle domæner', nValgt: '{v} valgt', soegDomaene: 'Søg i domænerne', soegDomaenePh: 'Søg', ingenFundet: 'Ingen domæner passer',
         hSegment: 'Segmentknap', pSegment: 'Fra 2.2.0. To til fem valg, præcis ét valgt. Tab går ind og ud som én kontrol; pilene flytter og vælger.',
         periodeAria: 'Periode', p7: '7 dage', p30: '30 dage', pAar: 'År',
+        hFilterchip: 'Filterchip', pFilterchip: 'Fra 2.3.0. En chip, der kan klikkes: den slår et filter til og fra. Valgt har flueben, kant og fed skrift, ikke kun en farve. Den almindelige chip kan stadig ikke klikkes.',
+        filterAria: 'Vis', fcFejl: 'Fejl', fcAdv: 'Advarsler', fcInfo: 'Oplysninger',
+        pStatusTile: 'Fra 2.3.0. Ét tal, én etiket og én status; hele flisen er en knap, der åbner det, tallet tæller. En flise findes kun, når brugeren handler på tallet.',
+        fliserAria: 'Status for sagen', flMaskeres: 'Maskeres', flVenter: 'Venter på dig', flHemmelige: 'Hemmeligheder', flRester: 'Rester efter maskering', stKlar: 'Klar', stTjek: 'Tjek selv', stKrypteres: 'Krypteres', stIngen: 'Ingen', udvEnMere: '1 mere end i går',
+        hTom: 'Tom tilstand', pTom: 'Fra 2.3.0. Ikon, overskrift, én sætning og højst én handling: til en tom visning, en tom tabel og ingen træffere.', hTomTabel: 'Tom tabel og ingen træffere',
+        tomSagerH: 'Ingen sager endnu', tomSagerP: 'Indsæt en tekst, så laves en midlertidig sag. Du kan gemme den bagefter.', nySag: 'Ny sag', ingenTraef: 'Ingen træffere', ingenTraefP: 'Intet passer på søgningen "srv-db".', kolNavn: 'Navn', kolOprettet: 'Oprettet',
+        hFrem: 'Fremdrift', pFrem: 'Fra 2.3.0. En bestemt bjælke, når programmet ved, hvor langt det er, og en ring, der snurrer, når det ikke ved det. Altid med en tekst; ringen står stille, hvis du har bedt om mindre bevægelse.',
+        fremAnalyserer: 'Analyserer filen …', fremNafM: '{v} af {w} filer', fremEtTrin: 'Et trin frem', fremFaerdig: 'Færdig',
+        hTip: 'Værktøjstip', pTip: 'Fra 2.3.0. Vises ved hover og ved Tab, kan holdes åbent med musen og lukkes med Esc. Til forklaringer ud over navnet; navnet selv står i aria-label.',
+        tipKopier: 'Kopiér', tipKopierHvorfor: 'Vælg en række i tabellen først.', tipKopierVaerdi: 'Kopiér værdien', tipKopierVaerdiTip: 'Kopierer den maskerede værdi, aldrig originalen.',
+        hAfk: 'Afkrydsning', pAfk: 'Fra 2.3.0. Browserens egen afkrydsning med kittets tegning: flueben, delvis valgt (en streg), hjælp og fejl under.',
+        afkAlle: 'Vælg alle typer', afkIp: 'IP-adresser', afkVaert: 'Værtsnavne', afkBruger: 'Brugernavne', afkFremmede: 'Maskér fremmede offentlige adresser', hjFremmede: 'Adresser, der hverken er dine eller dokumentationsnet.', afkVilkaar: 'Jeg har læst vejledningen', fejlVilkaar: 'Sæt kryds for at gå videre.',
+        hKontakt: 'Kontakt', pKontakt: 'Fra 2.3.0. Til eller fra, der virker straks. Til og fra ses på knoppens plads og på ordet, ikke kun på farven.',
+        kontaktLaas: 'Lås efter 5 minutter uden brug', kontaktLyd: 'Lyd ved fejl', til: 'Til', fra: 'Fra', hjLyd: 'Kan ikke bruges i denne demo.',
+        hRadio: 'Radiogruppe', pRadio: 'Fra 2.3.0. Ét af få valg i en formular, alle synlige. Pilene flytter og vælger; Tab går ind og ud som ét stop.',
+        radioMaske: 'Hvad maskeres?', radioAlt: 'Alt, der er fundet', radioHemmelig: 'Kun hemmeligheder', radioIntet: 'Intet', hjIntet: 'Teksten deles, som den er.', radioTema: 'Tema i vinduet', fejlRadio: 'Vælg et tema.',
+        hValgliste: 'Valgliste', pValgliste: 'Fra 2.3.0. Browserens egen valgliste med kittets kant og pil. Til ét af mange valg i en formular.',
+        vlUdloeb: 'Udløber efter', vl7: '7 dage', vl30: '30 dage', vl90: '90 dage', vlAldrig: 'Aldrig', hjUdloeb: 'Sagen slettes, når den udløber.', vlSprog: 'Sprog i kvitteringen', vlVaelg: 'Vælg …', fejlSprog: 'Vælg et sprog.',
+        pDialog: 'Fra 2.3.0. Browserens egen dialog: fokus bliver i dialogen, Esc lukker, og fokus går tilbage bagefter. Den primære knap står til højre; en farlig handling har sin egen farve og får ikke fokus.',
+        dlgOmdoeb: 'Omdøb sagen …', dlgOmdoebH: 'Omdøb sagen', dlgOmdoebP: 'Navnet ses kun på denne maskine.', dlgNavn: 'Nyt navn', dlgNavnFejl: 'Skriv et navn.', annuller: 'Annullér', gem: 'Gem', lukAria: 'Luk',
+        dlgSlet: 'Slet sagen …', dlgSletH: 'Slet sagen?', dlgSletP: 'Sagen og dens nøgle slettes. Det kan ikke fortrydes.', slet: 'Slet sag', svaret: 'Svaret var: {v}',
+        hTabelNy: 'Sortering, to hovedrækker og sideskift', pTabelNy: 'Fra 2.3.0. Klik på et kolonnehoved for at sortere (programmet sorterer selv); grupperne Afvist og Angreb står over deres kolonner; siderne skiftes under tabellen.',
+        tabelNyAria: 'Domæner', kolDomaene: 'Domæne', thAfvist: 'Afvist', thIGaar: 'I går', th7: '7 dage', thAngreb: 'Angreb', thUge: 'Denne uge',
+        siderAria: 'Sider i tabellen', forrige: 'Forrige', naeste: 'Næste', sideAf: 'Side {v} af {w}', prSide: 'Pr. side',
+        hTekst: 'Tekststørrelse', pTekst: 'Fra 2.3.0. Tre trin som én skala for hele fladen; valget huskes og sættes, før siden tegnes. Prøv også ⌘+, ⌘− og ⌘0 (Ctrl på Windows): genvejene er programmets, funktionerne kittets.',
+        tekstAria: 'Tekststørrelse', tLille: 'Lille', tNormal: 'Normal', tStor: 'Stor', gTekst: 'Tekst',
+        hKasse: 'Kasse', pKasse: 'Fra 2.3.0. Kittets kort: en flade med overskrift, indhold, en valgfri handling i hovedet og en valgfri fodlinje. Klassen hedder .kasse.',
+        kasseSager: 'Seneste sager', kasseNet: 'Egne net', visAlle: 'Vis alle', kasseFod: 'Opdateret for 2 minutter siden', sag1: 'Supportsag 0042', sag2: 'Leverandør 0007', sag3: 'Test 0001', netTekst: 'Adresser i 192.0.2.0/24 og 2001:db8::/32 maskeres altid.',
       },
       en: {
         dokTitel: 'Wi24rd UI Kit 2 — demo', appNavn: 'Wi24rd UI Kit 2', undertitel: 'Demo · package {v}',
@@ -128,6 +156,34 @@
         alleDomaener: 'All domains', nValgt: '{v} selected', soegDomaene: 'Search the domains', soegDomaenePh: 'Search', ingenFundet: 'No domains match',
         hSegment: 'Segmented button', pSegment: 'From 2.2.0. Two to five choices, exactly one selected. Tab goes in and out as one control; the arrow keys move and select.',
         periodeAria: 'Period', p7: '7 days', p30: '30 days', pAar: 'Year',
+        hFilterchip: 'Filter chip', pFilterchip: 'From 2.3.0. A chip that can be clicked: it turns a filter on and off. Selected has a tick, a border and bold text, not only a colour. The ordinary chip still cannot be clicked.',
+        filterAria: 'Show', fcFejl: 'Errors', fcAdv: 'Warnings', fcInfo: 'Information',
+        pStatusTile: 'From 2.3.0. One number, one label and one status; the whole tile is a button that opens what the number counts. A tile only exists when the user acts on the number.',
+        fliserAria: 'Status of the case', flMaskeres: 'Will be masked', flVenter: 'Waiting for you', flHemmelige: 'Secrets', flRester: 'Left after masking', stKlar: 'Ready', stTjek: 'Check yourself', stKrypteres: 'Encrypted', stIngen: 'None', udvEnMere: '1 more than yesterday',
+        hTom: 'Empty state', pTom: 'From 2.3.0. Icon, heading, one sentence and at most one action: for an empty view, an empty table and no matches.', hTomTabel: 'Empty table and no matches',
+        tomSagerH: 'No cases yet', tomSagerP: 'Paste a text, and a temporary case is made. You can save it afterwards.', nySag: 'New case', ingenTraef: 'No matches', ingenTraefP: 'Nothing matches the search "srv-db".', kolNavn: 'Name', kolOprettet: 'Created',
+        hFrem: 'Progress', pFrem: 'From 2.3.0. A determinate bar when the program knows how far it is, and a ring that spins when it does not. Always with a text; the ring stands still if you have asked for less motion.',
+        fremAnalyserer: 'Analysing the file …', fremNafM: '{v} of {w} files', fremEtTrin: 'One step on', fremFaerdig: 'Done',
+        hTip: 'Tooltip', pTip: 'From 2.3.0. Shown on hover and on Tab, can be kept open with the mouse and closed with Esc. For explanations beyond the name; the name itself is in aria-label.',
+        tipKopier: 'Copy', tipKopierHvorfor: 'Select a row in the table first.', tipKopierVaerdi: 'Copy the value', tipKopierVaerdiTip: 'Copies the masked value, never the original.',
+        hAfk: 'Checkbox', pAfk: 'From 2.3.0. The browser\'s own checkbox drawn by the kit: tick, partly selected (a line), help and error below.',
+        afkAlle: 'Select all types', afkIp: 'IP addresses', afkVaert: 'Host names', afkBruger: 'User names', afkFremmede: 'Mask foreign public addresses', hjFremmede: 'Addresses that are neither yours nor documentation networks.', afkVilkaar: 'I have read the guide', fejlVilkaar: 'Tick the box to go on.',
+        hKontakt: 'Switch', pKontakt: 'From 2.3.0. On or off, and it works at once. On and off are seen on the position of the knob and on the word, not only on the colour.',
+        kontaktLaas: 'Lock after 5 minutes without use', kontaktLyd: 'Sound on errors', til: 'On', fra: 'Off', hjLyd: 'Cannot be used in this demo.',
+        hRadio: 'Radio group', pRadio: 'From 2.3.0. One of a few choices in a form, all visible. The arrow keys move and select; Tab goes in and out as one stop.',
+        radioMaske: 'What is masked?', radioAlt: 'Everything found', radioHemmelig: 'Only secrets', radioIntet: 'Nothing', hjIntet: 'The text is shared as it is.', radioTema: 'Theme in the window', fejlRadio: 'Choose a theme.',
+        hValgliste: 'Select list', pValgliste: 'From 2.3.0. The browser\'s own select with the border and arrow of the kit. For one of many choices in a form.',
+        vlUdloeb: 'Expires after', vl7: '7 days', vl30: '30 days', vl90: '90 days', vlAldrig: 'Never', hjUdloeb: 'The case is deleted when it expires.', vlSprog: 'Language of the receipt', vlVaelg: 'Choose …', fejlSprog: 'Choose a language.',
+        pDialog: 'From 2.3.0. The browser\'s own dialog: focus stays in the dialog, Esc closes, and focus goes back afterwards. The primary button is on the right; a dangerous action has its own colour and does not get focus.',
+        dlgOmdoeb: 'Rename the case …', dlgOmdoebH: 'Rename the case', dlgOmdoebP: 'The name is only seen on this machine.', dlgNavn: 'New name', dlgNavnFejl: 'Enter a name.', annuller: 'Cancel', gem: 'Save', lukAria: 'Close',
+        dlgSlet: 'Delete the case …', dlgSletH: 'Delete the case?', dlgSletP: 'The case and its key are deleted. It cannot be undone.', slet: 'Delete case', svaret: 'The answer was: {v}',
+        hTabelNy: 'Sorting, two header rows and paging', pTabelNy: 'From 2.3.0. Click a column header to sort (the program sorts itself); the groups Rejected and Attacks stand over their columns; the pages are changed below the table.',
+        tabelNyAria: 'Domains', kolDomaene: 'Domain', thAfvist: 'Rejected', thIGaar: 'Yesterday', th7: '7 days', thAngreb: 'Attacks', thUge: 'This week',
+        siderAria: 'Pages in the table', forrige: 'Previous', naeste: 'Next', sideAf: 'Page {v} of {w}', prSide: 'Per page',
+        hTekst: 'Text size', pTekst: 'From 2.3.0. Three steps as one scale for the whole surface; the choice is remembered and set before the page is drawn. Also try ⌘+, ⌘− and ⌘0 (Ctrl on Windows): the shortcuts are the program\'s, the functions the kit\'s.',
+        tekstAria: 'Text size', tLille: 'Small', tNormal: 'Normal', tStor: 'Large', gTekst: 'Text',
+        hKasse: 'Box', pKasse: 'From 2.3.0. The card of the kit: a surface with a heading, content, an optional action in the header and an optional footer. The class is .kasse.',
+        kasseSager: 'Latest cases', kasseNet: 'Own networks', visAlle: 'Show all', kasseFod: 'Updated 2 minutes ago', sag1: 'Support case 0042', sag2: 'Supplier 0007', sag3: 'Test 0001', netTekst: 'Addresses in 192.0.2.0/24 and 2001:db8::/32 are always masked.',
       },
     },
   });
@@ -281,6 +337,33 @@
 
   for (const [v, t] of [['ok', 'cOk'], ['warn', 'cWarn'], ['danger', 'cDanger'], ['info', 'cInfo'], ['none', 'cNone']]) $('demo-chips').appendChild(K.chip(v, { t }));
 
+  /* 2.3.0: en tabel, der sorteres og deles i sider. Programmet (her demoen) sorterer og skærer rækkerne til; kittet melder
+     kolonne, retning og side. Kun opdigtede domæner og tal. */
+  const DOMAENE_NAVNE = ['eksempel.dk', 'shop.eksempel.dk', 'blog.eksempel.dk', 'api.eksempel.dk', 'intra.eksempel.dk', 'mail.eksempel.dk', 'www.eksempel.dk', 'test.eksempel.dk', 'filer.eksempel.dk', 'vpn.eksempel.dk', 'git.eksempel.dk', 'wiki.eksempel.dk'];
+  const DOMAENE_TAL = DOMAENE_NAVNE.map((navn, i) => [navn, (i * 37) % 50, (i * 53) % 90 + 3, (i * 17) % 11]);
+  let tabelSort = { kolonne: 0, retning: 'stigende' }, tabelSide = 1, tabelPr = 5;
+  const antalSider = () => Math.ceil(DOMAENE_TAL.length / tabelPr);
+  function sideRaekker() {
+    const k = tabelSort.kolonne, fortegn = tabelSort.retning === 'faldende' ? -1 : 1;
+    return DOMAENE_TAL.slice().sort((a, b) => (a[k] < b[k] ? -1 : a[k] > b[k] ? 1 : 0) * fortegn)
+      .slice((tabelSide - 1) * tabelPr, tabelSide * tabelPr).map(r => ({ celler: r, mono: [0], data: r[0] }));
+  }
+  const tabelNy = K.tabel({
+    ariaT: 'tabelNyAria',
+    kolonnegrupper: [{ id: 'afvist', t: 'thAfvist' }, { id: 'angreb', t: 'thAngreb' }],
+    kolonner: [{ t: 'kolDomaene', sort: true }, { t: 'thIGaar', tal: true, gruppe: 'afvist', sort: true, sortStart: 'faldende' }, { t: 'th7', tal: true, gruppe: 'afvist', sort: true, sortStart: 'faldende' }, { t: 'thUge', tal: true, gruppe: 'angreb', sort: true, sortStart: 'faldende' }],
+    sortering: tabelSort, raekker: sideRaekker(),
+    vedSortering: (kolonne, retning) => { tabelSort = { kolonne, retning }; tabelSide = 1; sider.saet(1); tabelNy.saetRaekker(sideRaekker()); S.anvend(sider.rod); },
+    vedValg: (tr, data) => meld('tabel-ny-valgt', null, data),
+  });
+  const sider = K.sideskift({
+    ariaT: 'siderAria', side: 1, sider: antalSider(), forrige: { t: 'forrige' }, naeste: { t: 'naeste' }, sideAf: { t: 'sideAf' },
+    valg: [5, 10, 25], prSide: tabelPr, prSideEtiket: { t: 'prSide' },
+    vedSide: n => { tabelSide = n; tabelNy.saetRaekker(sideRaekker()); S.anvend(sider.rod); },
+    vedPrSide: n => { tabelPr = n; tabelSide = 1; sider.saet(1, antalSider()); tabelNy.saetRaekker(sideRaekker()); S.anvend(sider.rod); },
+  });
+  $('demo-tabel-ny').append(tabelNy, sider.rod);
+
   $('demo-bannere').append(
     K.banner({ variant: 'info', t: 'bInfo' }),
     K.banner({ variant: 'ok', t: 'bOk' }),
@@ -379,6 +462,126 @@
     vedLuk: aarsag => { const p = $('sp-valgt'); p.setAttribute('data-t', 'spLukket'); p.setAttribute('data-v', aarsag); S.anvend(p); },
   });
   $('demo-sp-aabn').addEventListener('click', () => panel.skift());
+
+  /* ── 2.3.0: komponenterne (K10–K17) ── */
+  const FC = { fejl: 'fcFejl', adv: 'fcAdv', info: 'fcInfo' };
+  const filtre = K.filterchips({
+    ariaT: 'filterAria', valgt: ['fejl'],
+    chips: [{ id: 'fejl', t: 'fcFejl', antal: 3 }, { id: 'adv', t: 'fcAdv', antal: 12 }, { id: 'info', t: 'fcInfo', antal: 40 }],
+    vedValg: ids => meld('filterchip-valgt', null, ids.map(id => S.t(FC[id])).join(', ') || '–'),
+  });
+  $('demo-filterchips').appendChild(filtre.rod);
+
+  $('demo-fliser').appendChild(K.statusfliser({
+    ariaT: 'fliserAria',
+    fliser: [
+      { t: 'flMaskeres', tal: 13, status: { variant: 'ok', t: 'stKlar' }, ved: () => meld('flise-valgt', 'flMaskeres') },
+      { t: 'flVenter', tal: 2, status: { variant: 'warn', t: 'stTjek' }, udvikling: { retning: 'op', t: 'udvEnMere' }, ved: () => meld('flise-valgt', 'flVenter') },
+      { t: 'flHemmelige', tal: 1, status: { variant: 'info', t: 'stKrypteres' }, ved: () => meld('flise-valgt', 'flHemmelige') },
+      { t: 'flRester', tal: 0, status: { variant: 'ok', t: 'stIngen' }, ved: () => meld('flise-valgt', 'flRester') },
+    ],
+  }));
+
+  $('demo-tom-stor').appendChild(K.tomTilstand({ ikon: 'mappe', t: 'tomSagerH', p: 'tomSagerP', handling: { t: 'nySag', variant: 'primary', ved: () => meld('tom-valgt', 'nySag') } }));
+  $('demo-tom-tabel').append(
+    K.tabel({ ariaT: 'hTomTabel', kolonner: [{ t: 'kolNavn' }, { t: 'kolOprettet' }], raekker: [] }),
+    K.tomTilstand({ lille: true, ikon: 'soeg', t: 'ingenTraef', p: 'ingenTraefP', handling: { t: 'rydFilter', ved: () => meld('tom-valgt', 'rydFilter') } }),
+  );
+
+  const fremRamme = $('demo-frem');
+  const fremU = K.fremdrift({ t: 'fremAnalyserer' });
+  const fremB = K.fremdrift({ t: 'fremNafM', maks: 8, vaerdi: 3, omraade: fremRamme });
+  fremB.rod.querySelector('.frem-tekst').setAttribute('data-v', '3');
+  fremB.rod.querySelector('.frem-tekst').setAttribute('data-w', '8');
+  fremRamme.append(fremU.rod, fremB.rod);
+  let fremN = 3;
+  $('demo-frem-knapper').appendChild(K.knap({ t: 'fremEtTrin', ved: () => {
+    fremN = fremN >= 8 ? 0 : fremN + 1;
+    fremB.saet(fremN, fremN === 8 ? { t: 'fremFaerdig' } : { t: 'fremNafM', v: fremN, w: 8 });
+    if (fremN === 8) fremB.faerdig(); else fremRamme.setAttribute('aria-busy', 'true');
+    S.anvend(fremB.rod);
+  } }));
+
+  const tipKnap = K.knap({ t: 'tipKopier', ikon: 'kopier' });
+  tipKnap.setAttribute('aria-disabled', 'true');
+  const tipIkon = K.knap({ ikon: 'kopier', ariaT: 'tipKopierVaerdi', variant: 'ghost' });
+  tipIkon.setAttribute('data-t-title', 'tipKopierVaerdi');
+  $('demo-tip').append(tipKnap, tipIkon);
+  K.vaerktoejstip(tipKnap, { t: 'tipKopierHvorfor' });
+  K.vaerktoejstip(tipIkon, { t: 'tipKopierVaerdiTip' });
+
+  /* Afkrydsning: "Vælg alle" over tre typer er delvis valgt, når nogle er valgt. */
+  const AFK = { ip: 'afkIp', vaert: 'afkVaert', bruger: 'afkBruger' };
+  const typer = {};
+  const alleTyper = K.afkrydsning({ t: 'afkAlle', delvis: true, vedSkift: v => { for (const a of Object.values(typer)) a.saetValgt(v); visTyper(); } });
+  function visTyper() {
+    const valgte = Object.keys(typer).filter(k => typer[k].valgt);
+    if (valgte.length === 0 || valgte.length === 3) alleTyper.saetValgt(valgte.length === 3); else alleTyper.saetDelvis();
+    meld('afk-valgt', null, valgte.map(k => S.t(AFK[k])).join(', ') || '–');
+  }
+  const typeListe = document.createElement('div');
+  typeListe.className = 'demo-stak demo-ind';
+  for (const [id, t] of Object.entries(AFK)) {
+    typer[id] = K.afkrydsning({ t, valgt: id === 'ip', vedSkift: visTyper });
+    typeListe.appendChild(typer[id].rod);
+  }
+  $('demo-afk').append(alleTyper.rod, typeListe,
+    K.afkrydsning({ t: 'afkFremmede', valgt: true, hjaelp: { t: 'hjFremmede' } }).rod,
+    K.afkrydsning({ t: 'afkVilkaar', fejl: { t: 'fejlVilkaar' } }).rod);
+
+  const kontaktLaas = K.kontakt({ t: 'kontaktLaas', til: true, ord: { til: { t: 'til' }, fra: { t: 'fra' } }, vedSkift: til => meld('kontakt-valgt', til ? 'til' : 'fra') });
+  $('demo-kontakt').append(kontaktLaas.rod, K.kontakt({ t: 'kontaktLyd', deaktiveret: true, ord: { til: { t: 'til' }, fra: { t: 'fra' } }, hjaelp: { t: 'hjLyd' } }).rod);
+
+  const RADIO = { alt: 'radioAlt', hemmelig: 'radioHemmelig', intet: 'radioIntet' };
+  const radioMaske = K.radiogruppe({ etiket: { t: 'radioMaske' }, valgt: 'alt', valg: [{ id: 'alt', t: 'radioAlt' }, { id: 'hemmelig', t: 'radioHemmelig' }, { id: 'intet', t: 'radioIntet', hjaelp: { t: 'hjIntet' } }], vedValg: id => meld('radio-valgt', RADIO[id]) });
+  const radioTema = K.radiogruppe({ etiket: { t: 'radioTema' }, vandret: true, fejl: { t: 'fejlRadio' }, valg: [{ id: 'lys', t: 'kLys' }, { id: 'moerk', t: 'kMoerk' }, { id: 'system', t: 'kSystem' }] });
+  $('demo-radio').append(radioMaske.rod, radioTema.rod);
+
+  const VL = { 7: 'vl7', 30: 'vl30', 90: 'vl90', aldrig: 'vlAldrig' };
+  $('demo-valgliste').append(
+    K.valgliste({ etiket: { t: 'vlUdloeb' }, hjaelp: { t: 'hjUdloeb' }, valgt: '30', valg: [{ id: '7', t: 'vl7' }, { id: '30', t: 'vl30' }, { id: '90', t: 'vl90' }, { id: 'aldrig', t: 'vlAldrig' }], vedValg: id => meld('valgliste-valgt', VL[id]) }).rod,
+    K.valgliste({ etiket: { t: 'vlSprog' }, fejl: { t: 'fejlSprog' }, valgt: '', valg: [{ id: '', t: 'vlVaelg' }, { id: 'da', t: 'kDansk' }, { id: 'en', t: 'kEngelsk' }] }).rod,
+  );
+
+  /* Dialog: en lille formular, der holder sig åben ved en fejl, og en bekræftelse af en farlig handling. */
+  function svaret(v) { const p = $('dialog-valgt'); p.setAttribute('data-t', 'svaret'); p.setAttribute('data-v', v); S.anvend(p); }
+  const navnFelt = K.felt({ etiket: { t: 'dlgNavn' }, vaerdi: 'Supportsag 0042', foelsom: true });
+  const omdoeb = K.dialog({
+    t: 'dlgOmdoebH', p: 'dlgOmdoebP', indhold: navnFelt, luk: { ariaT: 'lukAria' },
+    knapper: [{ id: 'gem', t: 'gem', variant: 'primary', ved: () => {
+      const inp = navnFelt.querySelector('input'), hj = navnFelt.querySelector('.hj');
+      const tomt = !inp.value.trim();
+      inp.toggleAttribute('aria-invalid', tomt);
+      hj.classList.toggle('fejltekst', tomt);
+      if (tomt) { hj.setAttribute('data-t', 'dlgNavnFejl'); inp.setAttribute('aria-describedby', hj.id); S.anvend(hj); inp.focus(); return false; }
+      return true;
+    } }, { id: 'annuller', t: 'annuller' }],
+    vedLuk: svaret,
+  });
+  $('demo-dialog').append(
+    K.knap({ t: 'dlgOmdoeb', ved: () => { S.anvend(omdoeb.rod); omdoeb.aabn(); } }),
+    K.knap({ t: 'dlgSlet', variant: 'danger', ikon: 'slet', ved: () => K.bekraeft({ t: 'dlgSletH', p: 'dlgSletP', nej: { t: 'annuller' }, ja: { t: 'slet' }, farlig: true, udfyld: rod => S.anvend(rod) }).then(ja => svaret(String(ja))) }),
+  );
+
+  /* Tekststørrelse: kittets funktioner (tema.js), demoens egen segmentknap og genveje. */
+  const TEKST_T = { lille: 'tLille', normal: 'tNormal', stor: 'tStor' };
+  const tekstValg = K.segment({ ariaT: 'tekstAria', valgt: window.Tekst.valg, valg: window.Tekst.TRIN.map(id => ({ id, t: TEKST_T[id] })), vedValg: id => window.Tekst.saet(id) });
+  $('demo-tekst').appendChild(tekstValg.rod);
+  document.addEventListener('kit-demo-tekst', () => { tekstValg.vaelg(window.Tekst.valg); meld('tekst-valgt', TEKST_T[window.Tekst.valg]); });
+  document.addEventListener('keydown', e => {
+    if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+    if (e.key === '+' || e.key === '=') { e.preventDefault(); window.Tekst.større(); }
+    else if (e.key === '-') { e.preventDefault(); window.Tekst.mindre(); }
+    else if (e.key === '0') { e.preventDefault(); window.Tekst.nulstil(); }
+  });
+
+  const tekstEl = (tag, noegle, klasse) => { const e = document.createElement(tag); e.setAttribute('data-t', noegle); if (klasse) e.className = klasse; return e; };
+  const sagListe = document.createElement('ul');
+  sagListe.className = 'demo-liste';
+  for (const n of ['sag1', 'sag2', 'sag3']) sagListe.appendChild(tekstEl('li', n));
+  const kasseSager = K.kasse({ t: 'kasseSager', handling: K.knap({ t: 'visAlle', variant: 'ghost', ved: () => meld('kasse-valgt', 'visAlle') }), indhold: sagListe, fod: tekstEl('span', 'kasseFod') });
+  const kasseNet = K.kasse({ t: 'kasseNet', indhold: tekstEl('p', 'netTekst', 'muted') });
+  $('demo-kasser').append(kasseSager.rod, kasseNet.rod);
 
   /* ── Tokens-visningen. Navnene er dem i tokens.json (testen holder dem ens). ── */
   const FARVER = ['bg', 'surface', 'surface-raised', 'rail', 'rail-text', 'rail-strong', 'rail-active', 'accent-on-rail', 'border', 'border-strong', 'text', 'text-muted', 'accent', 'accent-hover', 'on-accent', 'accent-soft', 'ok', 'ok-soft', 'info', 'info-soft', 'warn', 'warn-soft', 'danger', 'danger-soft', 'ok-mark', 'warn-mark', 'danger-mark', 'info-mark', 'none-mark', 'data-1', 'data-2', 'data-3', 'data-4', 'data-5', 'data-6', 'data-axis', 'data-grid', 'data-label', 'seq-1', 'seq-2', 'seq-3', 'seq-4', 'seq-5', 'map-sea', 'map-land', 'map-border', 'map-ring', 'map-arc'];
