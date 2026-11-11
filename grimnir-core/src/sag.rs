@@ -129,6 +129,8 @@ struct Indeks {
     kode_smaa: HashMap<String, usize>,
     alias: HashMap<String, usize>,
     alias_smaa: HashMap<String, Vec<usize>>,
+    /// Koder og aliaser uden en af Grimnirs kodeformer (selvvalgte, V-PUDS.2 N1), med små bogstaver → posterne.
+    uden_form: HashMap<String, Vec<usize>>,
     net4: HashMap<u32, u32>,
     maal4: HashMap<u32, u32>,
     net6: HashMap<u64, u64>,
@@ -235,6 +237,15 @@ fn spejlet(klasse: Klasse, ny: &str, original: &str) -> String {
     }
 }
 
+/// Sand, hvis hele koden har en af Grimnirs kodeformer (så finder demaskeringens F4 den med andre store/små
+/// bogstaver via [`find_kodeformer`]).
+fn har_kodeform(kode: &str) -> bool {
+    let b = kode.as_bytes();
+    let mut hel = false;
+    find_kodeformer(b, |s, e, _| hel |= s == 0 && e == b.len());
+    hel
+}
+
 /// Om en kendt original må genbruges som frit ord i en ny tekst (F1).
 ///
 /// Adresser er udeladt, fordi genkenderne altid finder dem. Under fire tegn, rene tal og stopord
@@ -282,6 +293,9 @@ impl Sag {
                 });
             }
             idx.kode_smaa.entry(smaa(&p.kode)).or_insert(i);
+            if !har_kodeform(&p.kode) {
+                idx.uden_form.entry(smaa(&p.kode)).or_default().push(i);
+            }
             idx.stavning.insert((e.klasse, p.original.clone()), i);
             match e.klasse {
                 Klasse::Ipv4 => {
@@ -309,6 +323,9 @@ impl Sag {
                 });
             }
             idx.alias_smaa.entry(smaa(k)).or_default().push(*p);
+            if !har_kodeform(k) {
+                idx.uden_form.entry(smaa(k)).or_default().push(*p);
+            }
         }
         for (n, m) in &data.net4 {
             let net = n.som_tekst().parse::<u32>().map_err(|_| Fejl::UgyldigeSagsdata { hvad: "net4" })?;
@@ -499,14 +516,25 @@ impl Sag {
             self.idx.alias_smaa.entry(smaa(&gammel)).or_default().push(i);
             self.data.aliaser.push((gammel, i));
         }
-        // Opslaget uafhængigt af store/små: første post med koden, som `fra_data` bygger det.
+        // Opslaget uafhængigt af store/små: første post med koden, som `fra_data` bygger det. Det samme for koderne og
+        // aliaserne uden kodeform (først koderne, så aliaserne).
         for l in &beroerte {
             self.idx.kode_smaa.remove(l);
+            self.idx.uden_form.remove(l);
         }
         for (j, p) in self.data.poster.iter().enumerate() {
             let l = smaa(&p.kode);
             if beroerte.contains(&l) {
-                self.idx.kode_smaa.entry(l).or_insert(j);
+                self.idx.kode_smaa.entry(l.clone()).or_insert(j);
+                if !har_kodeform(&p.kode) {
+                    self.idx.uden_form.entry(l).or_default().push(j);
+                }
+            }
+        }
+        for (k, j) in &self.data.aliaser {
+            let l = smaa(k);
+            if beroerte.contains(&l) && !har_kodeform(k) {
+                self.idx.uden_form.entry(l).or_default().push(*j);
             }
         }
         Ok(())
@@ -539,6 +567,52 @@ impl Sag {
             .get(&l)
             .copied()
             .or_else(|| self.idx.alias_smaa.get(&l).and_then(|v| v.first().copied()))
+    }
+
+    /// Sagens selvvalgte koder og aliaser uden kodeform, hvor kun store/små bogstaver afviger (V-PUDS.2 N1): (start, slut,
+    /// post). Samme grænseregel som [`Sag::find_koder`]: længst til venstre, derefter længst, og en kortere kode med samme
+    /// start, hvis den længste ikke står ved en grænse. Et spænd, der overlapper et præcist træf (`praecise`, sorteret), er
+    /// udeladt: det præcise træf vinder. Posten er `None`, hvis koden bortset fra store/små hører til poster i flere
+    /// enheder ([`Sag::ret`] afviser det; det kan kun komme fra data udefra); så sættes ingen af dem tilbage.
+    pub(crate) fn find_selvvalgte_smaa(&self, t: &[u8], praecise: &[(usize, usize, usize)]) -> Vec<(usize, usize, Option<usize>)> {
+        let mut ud = Vec::new();
+        if self.idx.uden_form.is_empty() {
+            return ud;
+        }
+        let Ok(ac) = AhoCorasick::builder()
+            .ascii_case_insensitive(true)
+            .match_kind(MatchKind::LeftmostLongest)
+            .build(self.idx.uden_form.keys())
+        else {
+            return ud;
+        };
+        let overlapper = |s: usize, e: usize| {
+            let j = praecise.partition_point(|x| x.1 <= s);
+            praecise.get(j).is_some_and(|x| x.0 < e)
+        };
+        let mut pos = 0;
+        while pos < t.len() {
+            let Some(m) = ac.find(Input::new(t).span(pos..t.len())) else {
+                break;
+            };
+            let s = m.start();
+            let valgt = (s + 1..=m.end()).rev().find_map(|e| {
+                let l = std::str::from_utf8(&t[s..e]).ok()?.to_ascii_lowercase();
+                let poster = self.idx.uden_form.get(&l)?;
+                let p = *poster.first()?;
+                (ved_graense(t, s, e, self.klasse_af(p).moenster()) && !overlapper(s, e)).then_some((e, poster))
+            });
+            match valgt {
+                Some((e, poster)) => {
+                    let enhed = self.data.poster[poster[0]].enhed;
+                    let p = poster.iter().all(|q| self.data.poster[*q].enhed == enhed).then_some(poster[0]);
+                    ud.push((s, e, p));
+                    pos = e;
+                }
+                None => pos = s + 1,
+            }
+        }
+        ud
     }
 
     /// Det egne /24 bag et mål-/24.
@@ -727,6 +801,9 @@ impl Sag {
         self.idx.stavning.insert((klasse, Original::ny(original)), i);
         self.idx.kode.insert(kode.clone(), i);
         self.idx.kode_smaa.entry(smaa(&kode)).or_insert(i);
+        if !har_kodeform(&kode) {
+            self.idx.uden_form.entry(smaa(&kode)).or_default().push(i);
+        }
         self.data.poster.push(Post {
             enhed,
             original: Original::ny(original),

@@ -165,3 +165,83 @@ proptest! {
         prop_assert_eq!(grimnir_core::demasker(&ka.maskeret, &igen).0, a);
     }
 }
+
+proptest! {
+    #![proptest_config(ProptestConfig { cases: 512, ..ProptestConfig::default() })]
+
+    /// V-PUDS.2 N1: maskér, giv en værdi en selvvalgt kode, maskér igen, skift store/små i den selvvalgte kode (kun der,
+    /// hvor den står ved en grænse), og demaskér: originalen kommer tilbage. Den ændrede kode har blandede bogstaver (første
+    /// bogstav stort), så spejlingen giver originalen, som den er.
+    #[test]
+    fn selvvalgt_kode_med_andre_bogstaver_demaskeres(
+        a in tekst(),
+        valg in 0usize..1000,
+        ny in "[a-z][a-z0-9-]{1,8}[a-z]",
+    ) {
+        let mut sag = Sag::default();
+        let _ = kaede(&a, &ordbog(), &mut sag);
+        prop_assume!(sag.antal_poster() > 0);
+        let kode = sag.data().poster[valg % sag.antal_poster()].kode.clone();
+        prop_assume!(sag.ret(&kode, &ny, &a).is_ok());
+        let p = sag.data().poster.iter().position(|x| x.kode == ny).expect("posten har den nye kode");
+        let klasse = sag.data().enheder[sag.data().poster[p].enhed].klasse;
+        let kb = kaede(&a, &ordbog(), &mut sag);
+        prop_assert_eq!(&kb.tilbage, &a);
+        let mut aendret = ny.clone();
+        aendret[..1].make_ascii_uppercase();
+        let m = kb.maskeret.as_bytes();
+        let mut ud = String::with_capacity(kb.maskeret.len());
+        let mut pos = 0;
+        let mut skiftet = 0;
+        for (s, _) in kb.maskeret.match_indices(ny.as_str()) {
+            if s >= pos && grimnir_core::ved_graense(m, s, s + ny.len(), klasse.moenster()) {
+                ud.push_str(&kb.maskeret[pos..s]);
+                ud.push_str(&aendret);
+                pos = s + ny.len();
+                skiftet += 1;
+            }
+        }
+        ud.push_str(&kb.maskeret[pos..]);
+        prop_assume!(skiftet > 0);
+        let (tilbage, adv) = grimnir_core::demasker(&ud, &sag);
+        prop_assert_eq!(&tilbage, &a);
+        let andre = adv
+            .iter()
+            .filter(|x| x.art == grimnir_core::AdvarselArt::AfledtForm(grimnir_core::AfledtArt::AndenStavemaade) && x.kode == aendret)
+            .count();
+        prop_assert_eq!(andre, skiftet);
+    }
+
+    /// V-PUDS.2 N1: en senere tekst, hvor den selvvalgte kode står med andre bogstaver som et almindeligt ord, maskeres og
+    /// demaskeres bytepræcist (kollisionspasset maskerer den, ellers ville demaskeringen sætte en forkert original ind).
+    #[test]
+    fn selvvalgt_kode_med_andre_bogstaver_i_en_senere_tekst(
+        a in tekst(),
+        b in tekst(),
+        valg in 0usize..1000,
+        ny in "[a-z][a-z0-9-]{1,8}[a-z]",
+        hvor in prop::collection::vec((0usize..10_000, 0..SKILLE.len(), 0usize..3), 1..4),
+    ) {
+        let mut sag = Sag::default();
+        let ka = kaede(&a, &ordbog(), &mut sag);
+        prop_assume!(sag.antal_poster() > 0);
+        let kode = sag.data().poster[valg % sag.antal_poster()].kode.clone();
+        prop_assume!(sag.ret(&kode, &ny, &a).is_ok());
+        let mut b = b;
+        for (pos, skille, form) in hvor {
+            let mut p = pos % (b.len() + 1);
+            while !b.is_char_boundary(p) {
+                p -= 1;
+            }
+            let ord = match form {
+                0 => ny.to_ascii_uppercase(),
+                1 => { let mut x = ny.clone(); x[..1].make_ascii_uppercase(); x }
+                _ => ny.clone(),
+            };
+            b.insert_str(p, &format!("{}{ord}{}", SKILLE[skille], SKILLE[skille]));
+        }
+        let kb = kaede(&b, &ordbog(), &mut sag);
+        prop_assert_eq!(kb.tilbage, b);
+        prop_assert_eq!(grimnir_core::demasker(&ka.maskeret, &sag).0, a);
+    }
+}

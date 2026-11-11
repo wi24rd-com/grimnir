@@ -5,6 +5,9 @@
 // forrest i PATH, som kun skriver deres argumenter i en log. Ægte er kun de lokale værktøjer (git, touch, find, stat,
 // ditto, xattr, plutil, date). Alle identiteter og profiler er opdigtede.
 //
+// V-PUDS.2: testrepoet har en commit, en .gitignore (target/, signer.lokal) og en "origin", der er en lokal, tom
+// git-mappe i den midlertidige mappe (intet net). Det er kun testens egne, midlertidige repoer; Grimnirs repo røres ikke.
+//
 //   node tests/signer/signer.mjs
 import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -59,7 +62,7 @@ exit 0
   xcrun: `#!/bin/sh
 echo "xcrun $*" >> "$STUB_LOG"
 case "$1 $2" in
-  "notarytool submit") printf '{"id":"00000000-0000-0000-0000-000000000001","status":"%s","message":"opdigtet"}\\n' "\${STUB_STATUS:-Accepted}" ;;
+  "notarytool submit") if [ -n "\${STUB_HAENG:-}" ]; then echo $$ > "$STUB_HAENG"; sleep 6007; fi; printf '{"id":"00000000-0000-0000-0000-000000000001","status":"%s","message":"opdigtet"}\\n' "\${STUB_STATUS:-Accepted}" ;;
   "notarytool log") for x; do f=$x; done; printf '{"logFormatVersion":1,"status":"opdigtet"}\\n' > "$f" ;;
   "stapler staple") for x; do a=$x; done; printf 'billet' > "$a/Contents/CodeResources" ;;
 esac
@@ -85,12 +88,27 @@ function nytRepo() {
   fs.copyFileSync(SCRIPT, path.join(repo, "tools/signer.sh"));
   for (const f of ["tauri.conf.json", "Grimnir.entitlements"]) fs.copyFileSync(path.join(REPO, "src-tauri", f), path.join(repo, "src-tauri", f));
   for (const [navn, indhold] of Object.entries(STUBBE)) fs.writeFileSync(path.join(stub, navn), indhold, { mode: 0o755 });
-  execFileSync("git", ["init", "-q"], { cwd: repo });
-  return { rod, repo, hjem, stub, log: path.join(rod, "stub.log") };
+  fs.writeFileSync(path.join(repo, ".gitignore"), "/target/\n/tools/signer.lokal\n");
+  const r = { rod, repo, hjem, stub, log: path.join(rod, "stub.log"), origin: path.join(rod, "origin.git") };
+  git(r, "init", "-q", "-b", "main");
+  git(r, "add", "-A");
+  git(r, "commit", "-q", "-m", "opdigtet");
+  execFileSync("git", ["init", "-q", "--bare", r.origin], { env: gitMiljoe(r) });
+  git(r, "remote", "add", "origin", r.origin);
+  git(r, "push", "-q", "-u", "origin", "main");
+  return r;
+}
+
+// git i testrepoet med en midlertidig HOME (ingen global opsætning, hooks eller signering fra maskinen).
+function gitMiljoe(r) {
+  return { PATH: "/usr/bin:/bin", HOME: r.hjem, GIT_CONFIG_NOSYSTEM: "1", GIT_AUTHOR_NAME: "Prøve Person", GIT_AUTHOR_EMAIL: "proeve@eksempel.dk", GIT_COMMITTER_NAME: "Prøve Person", GIT_COMMITTER_EMAIL: "proeve@eksempel.dk" };
+}
+function git(r, ...args) {
+  return execFileSync("git", args, { cwd: r.repo, env: gitMiljoe(r), encoding: "utf8" });
 }
 
 function koer(r, args, { klokken = IND, miljoe = {}, lokal = null } = {}) {
-  execFileSync("git", ["config", "fasttid.klokken", klokken], { cwd: r.repo });
+  git(r, "config", "fasttid.klokken", klokken);
   const lokalSti = path.join(r.repo, "tools/signer.lokal");
   if (lokal === null) fs.rmSync(lokalSti, { force: true });
   else fs.writeFileSync(lokalSti, lokal);
@@ -219,10 +237,10 @@ try {
     tjek("vagt: også uden --toer, og ingen værktøjer kørt", u.status !== 0 && u.stub.length === 0, u.stub.join(" | "));
     const d = koer(r, ["udgiv", "--toer"], { klokken: klokkenFra(nuMin - 40), lokal: lokalProfil });
     tjek("vagt: vinduet lukker efter 30 minutter", d.status !== 0);
-    execFileSync("git", ["config", "signer.vindue", "60"], { cwd: r.repo });
+    git(r, "config", "signer.vindue", "60");
     const e = koer(r, ["udgiv", "--toer"], { klokken: klokkenFra(nuMin - 40), lokal: lokalProfil });
     tjek("vagt: git config signer.vindue 60 forlænger", e.status === 0, e.fejl);
-    execFileSync("git", ["config", "--unset", "signer.vindue"], { cwd: r.repo });
+    git(r, "config", "--unset", "signer.vindue");
     const f = koer(r, ["udgiv", "--toer"], { klokken: "25:99", lokal: lokalProfil });
     tjek("vagt: ugyldigt klokkeslæt afvises", f.status !== 0);
   }
@@ -280,6 +298,16 @@ try {
     tjek("zip: alle poster har klokkeslættet", poster.length >= 8 && poster.every((l) => l.includes(`.${hhmmss} `)), poster.join(" | "));
     tjek("zip: ingen __MACOSX/udvidede attributter", fs.existsSync(zip) && !lokalt("unzip", ["-Z", "-1", zip]).includes("__MACOSX"));
     tjek("notarisering: loggen hentet til en fil uden for repoet", fs.existsSync(path.join(ud, "notarisering-00000000-0000-0000-0000-000000000001.json")));
+    // V-PUDS.2 N2: version og commit i den sidste linje og i en tekstfil ved zip-filen, uden klokkeslæt.
+    const h = git(r, "rev-parse", "--short", "HEAD").trim();
+    const txt = path.join(ud, "Grimnir-0.1.0.txt");
+    const indhold = fs.existsSync(txt) ? fs.readFileSync(txt, "utf8") : "";
+    tjek("N2: tekstfilen ved zip-filen: version og commit", indhold === `Grimnir 0.1.0\ncommit ${h}\n`, JSON.stringify(indhold));
+    tjek("N2: tekstfilen har intet klokkeslæt, og dens filtid er den faste", !/\d\d:\d\d/.test(indhold) && lokalt("stat", ["-f", "%Sm", "-t", "%H:%M:%S", txt]).trim() === IND);
+    const sidste = k.ud.trim().split("\n").pop();
+    tjek("N2: den sidste linje har version og commit", sidste.startsWith("== færdig: ") && sidste.includes(`Grimnir 0.1.0, commit ${h}`), sidste);
+    tjek("N2: rent og pushet står i loggen", k.ud.includes(`kode: arbejdstræet er rent, og HEAD ${h} findes på origin/main`));
+    tjek("N2: intet midlertidigt zip-navn tilbage", !fs.readdirSync(ud).some((f) => f.endsWith(".ufaerdig")), fs.readdirSync(ud).join(", "));
   }
 
   // ---- 9. udgiv med stubbe: notariseringen afvist ----
@@ -317,6 +345,88 @@ try {
     tjek("udgivelser i repoet afvises", k.status !== 0 && k.fejl.includes("ligger i repoet"));
     const u = koer(r, ["proeve", "--toer", "--ukendt"]);
     tjek("ukendt flag afvises", u.status !== 0);
+  }
+  // ---- 15. N2: urent træ og upushet HEAD stopper udgiv før bygning ----
+  {
+    const stopper = (navn, k) => {
+      tjek(`${navn}: exit ≠ 0`, k.status !== 0);
+      tjek(`${navn}: intet bygget, signeret eller indsendt`, !k.linjer.some((l) => l.startsWith("+ npm") || l.startsWith("+ codesign") || l.startsWith("+ xcrun")) && k.stub.length === 0, k.linjer.concat(k.stub).join(" | "));
+    };
+    // En usporet fil.
+    fs.writeFileSync(path.join(r.repo, "ny-fil.txt"), "opdigtet\n");
+    let k = koer(r, ["udgiv", "--toer"], { lokal: lokalProfil });
+    stopper("N2 usporet fil (--toer)", k);
+    tjek("N2 usporet fil: siger hvorfor", k.fejl.includes("stoppet før bygning") && k.fejl.includes("arbejdstræet er ikke rent (1 ændrede"), k.fejl);
+    stopper("N2 usporet fil, også med --uden-vagt uden for vinduet", koer(r, ["udgiv", "--toer", "--uden-vagt"], { klokken: UDE, lokal: lokalProfil }));
+    stopper("N2 usporet fil, også uden --toer", koer(r, ["udgiv"], { lokal: lokalProfil }));
+    // --urent tilsidesætter, med advarsel, og tekstfilen siger det.
+    k = koer(r, ["udgiv", "--toer", "--urent"], { lokal: lokalProfil });
+    tjek("N2 --urent: tilsidesætter (bygger og signerer)", k.status === 0 && k.linjer.some((l) => l.startsWith("+ codesign --force --sign")), k.fejl);
+    tjek("N2 --urent: advarer", k.fejl.includes("ADVARSEL") && k.fejl.includes("--urent") && k.fejl.includes("ikke rent"), k.fejl);
+    tjek("N2 --urent --toer: tekstfilen nævnt med urent", k.linjer.some((l) => l.includes("Grimnir-0.1.0.txt: Grimnir 0.1.0, commit ") && l.endsWith(", urent arbejdstræ")));
+    fs.rmSync(path.join(r.hjem, "Grimnir-udgivelser"), { recursive: true, force: true });
+    k = koer(r, ["udgiv", "--urent"], { lokal: lokalProfil });
+    const txt = path.join(r.hjem, "Grimnir-udgivelser/Grimnir-0.1.0.txt");
+    const indhold = fs.existsSync(txt) ? fs.readFileSync(txt, "utf8") : "";
+    tjek("N2 --urent (stubbe): tekstfilen siger urent", k.status === 0 && indhold.includes("arbejdstræ: urent (--urent)"), k.fejl + indhold);
+    tjek("N2 --urent (stubbe): den sidste linje siger urent", k.ud.trim().split("\n").pop().endsWith(", urent)"));
+    fs.rmSync(path.join(r.repo, "ny-fil.txt"));
+    // En ændret, sporet fil.
+    fs.appendFileSync(path.join(r.repo, ".gitignore"), "# ændret\n");
+    k = koer(r, ["udgiv", "--toer"], { lokal: lokalProfil });
+    stopper("N2 ændret fil", k);
+    git(r, "checkout", "-q", "--", ".gitignore");
+    // En commit, der ikke er pushet.
+    fs.writeFileSync(path.join(r.repo, "ny-fil.txt"), "opdigtet\n");
+    git(r, "add", "ny-fil.txt");
+    git(r, "commit", "-q", "-m", "ikke pushet");
+    k = koer(r, ["udgiv", "--toer"], { lokal: lokalProfil });
+    stopper("N2 upushet HEAD", k);
+    tjek("N2 upushet HEAD: siger hvorfor", k.fejl.includes("er ikke pushet til origin/main"), k.fejl);
+    stopper("N2 upushet HEAD, også med --uden-vagt", koer(r, ["udgiv", "--toer", "--uden-vagt"], { klokken: UDE, lokal: lokalProfil }));
+    const kilde = fs.readFileSync(path.join(r.repo, "tools/signer.sh"), "utf8");
+    tjek("N2: scriptet henter og pusher aldrig selv", !/git[^\n]*\b(fetch|push|pull)\b/.test(kilde));
+    // Ingen sporet gren.
+    git(r, "push", "-q", "origin", "main");
+    git(r, "branch", "-q", "--unset-upstream");
+    k = koer(r, ["udgiv", "--toer"], { lokal: lokalProfil });
+    stopper("N2 ingen sporet gren", k);
+    tjek("N2 ingen sporet gren: siger hvorfor", k.fejl.includes("sporer ingen gren på origin"), k.fejl);
+    git(r, "branch", "-q", "--set-upstream-to=origin/main");
+    k = koer(r, ["udgiv", "--toer"], { lokal: lokalProfil });
+    tjek("N2: rent og pushet igen: udgiv kører", k.status === 0, k.fejl);
+  }
+
+  // ---- 16. N3: koer med tidsgrænse ----
+  {
+    const ud = path.join(r.hjem, "Grimnir-udgivelser");
+    // Uden hængende kald: udgiv lykkes, og jobbet fjerner sig selv.
+    fs.rmSync(ud, { recursive: true, force: true });
+    let k = koer(r, ["koer"], { lokal: lokalProfil, miljoe: { SIGNER_GRAENSE: "60" } });
+    tjek("N3 koer: exit 0 og jobbet fjernes", k.status === 0 && k.ud.includes("udgiv lykkedes; jobbet fjernes") && k.stub.some((l) => l.startsWith("launchctl bootout")), k.ud + k.fejl);
+    tjek("N3 koer: tidsgrænsen står i loggen", k.ud.includes("tidsgrænse: 60 s"));
+    // notarytool hænger (som en dialog, ingen svarer på): jobbet stoppes ved grænsen.
+    fs.rmSync(ud, { recursive: true, force: true });
+    const pidfil = path.join(r.rod, "haeng.pid");
+    const start = Date.now();
+    k = koer(r, ["koer"], { lokal: lokalProfil, miljoe: { SIGNER_GRAENSE: "2", STUB_HAENG: pidfil } });
+    const sek = (Date.now() - start) / 1000;
+    if (process.env.SIGNER_VIS) console.log(`--- koer med hængende notarytool (${sek} s), stdout:\n${k.ud}--- stderr:\n${k.fejl}---`);
+    tjek("N3 hænger: afbrudt (exit ≠ 0) inden for få sekunder", k.status !== 0 && sek < 20, `${sek} s, exit ${k.status}`);
+    tjek("N3 hænger: notarytool var i gang", fs.existsSync(pidfil) && k.stub.some((l) => l.startsWith("xcrun notarytool submit")));
+    tjek("N3 hænger: loglinjen siger hvad der skete", k.ud.includes("tidsgrænse: udgiv afbrudt efter 2 s") && k.ud.includes("Fjernet: Grimnir-0.1.0-til-notarisering.zip"), k.ud);
+    tjek("N3 hænger: loglinjen om den indsendte notarisering", k.ud.includes("næste aften bygges, signeres og indsendes en ny"));
+    tjek("N3 hænger: jobbet bliver stående (ingen bootout) og prøver igen", !k.stub.some((l) => l.startsWith("launchctl")) && k.ud.includes("jobbet prøver igen kl."), k.stub.join(" | "));
+    const tilbage = fs.existsSync(ud) ? fs.readdirSync(ud) : [];
+    tjek("N3 hænger: ingen zip (hel eller halv) i udgivelsesmappen", !tilbage.some((f) => f.includes(".zip")), tilbage.join(", "));
+    const pid = fs.existsSync(pidfil) ? Number(fs.readFileSync(pidfil, "utf8")) : 0;
+    let lever = false;
+    try { process.kill(pid, 0); lever = true; } catch { /* stoppet */ }
+    tjek("N3 hænger: det hængende kald er stoppet", pid > 0 && !lever, String(pid));
+    tjek("N3 hænger: også barnebarnet (sleep) er stoppet", lokalt("pgrep", ["-f", "sleep 6007"]).trim() === "");
+    tjek("N3: ugyldig grænse afvises", koer(r, ["koer"], { lokal: lokalProfil, miljoe: { SIGNER_GRAENSE: "x" } }).status !== 0);
+    const kilde = fs.readFileSync(SCRIPT, "utf8");
+    tjek("N3: intet timeout fra coreutils", !/\b(g?timeout)\s/.test(kilde.replace(/^\s*#.*$/gm, "")));
   }
 } finally {
   fs.rmSync(r.rod, { recursive: true, force: true });

@@ -1806,6 +1806,33 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   tjek('R1: rester: teksten forkortes (mono) og står i title', rt && rt.classList.contains('kort') && rt.title === 'Hemmelig42');
 }
 
+// ── V-PUDS.2 N1: en selvvalgt kode med andre store/små bogstaver giver rækken "Andre store/små bogstaver" i Demaskér-tabellen,
+// med koden, antal og linje fra Rust; "sat tilbage" for koden har alle stederne. Webvisningen tæller intet selv. ──
+{
+  const s = side({ hash: '#demasker', rust: falskRust() });
+  const { d, w } = s;
+  await vent(5);
+  const D = w.GrimnirMaskering.D;
+  D.st.tekst = 'Svar\r\nFW-YDRE og FW-YDRE\r\nFw-Ydre\r\nfw-ydre\r\n';
+  D.st.bytes = D.st.tekst.length;
+  D.st.resultat = {
+    tekst: 'Svar\r\nFW01 og FW01\r\nfw01\r\nfw01\r\n', linjer: 4, koder: ['fw-ydre'],
+    tilbage: [{ kode: 'fw-ydre', antal: 4, linje: 2 }],
+    advarsler: [{ art: 'anden_stavemaade', kode: 'FW-YDRE', antal: 2, linje: 2 }, { art: 'anden_stavemaade', kode: 'Fw-Ydre', antal: 1, linje: 3 }],
+  };
+  D.tegn();
+  const dsek = d.querySelector('section[data-visning="demasker"]');
+  const celler = () => [...dsek.querySelectorAll('.advarselpanel tbody tr')].map(r => [...r.querySelectorAll('td')].map(c => c.textContent.trim()));
+  D.filter('advarsler');
+  const adv = celler();
+  tjek('V-PUDS.2: Demaskér: rækken for den selvvalgte kode med store bogstaver (hvad, kode, antal, linje)',
+    adv.length === 2 && adv.every(r => r[0].endsWith('Andre store/små bogstaver')) && adv[0].slice(1).join('|') === 'FW-YDRE|2|2' && adv[1].slice(1).join('|') === 'Fw-Ydre|1|3', JSON.stringify(adv));
+  D.filter('alle');
+  const alle = celler();
+  tjek('V-PUDS.2: Demaskér: "sat tilbage" for den selvvalgte kode tæller alle fire steder fra linje 2', alle.length === 3 && alle[0].slice(1).join('|') === 'fw-ydre|4|2', JSON.stringify(alle));
+  tjek('V-PUDS.2: Demaskér: advarslen står i banneret med antal steder', dsek.querySelector('.ban.warn') && dsek.querySelector('.ban.warn').textContent.includes('3 steder'), dsek.querySelector('.ban.warn') && dsek.querySelector('.ban.warn').textContent);
+}
+
 // ── V-RET.1 R2: tekstpanelerne bryder ikke linjer; "Ombryd" skifter, og valget huskes ikke ──
 {
   const s = side({ rust: falskRust() });

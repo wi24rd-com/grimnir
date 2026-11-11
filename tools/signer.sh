@@ -2,7 +2,7 @@
 # signer.sh – Grimnir signeret med Developer ID, notariseret og hæftet, med fast signeringstid (V-SIGN.1).
 #
 #   sh tools/signer.sh proeve [--toer]               # debug-bundle, Developer ID, hardened runtime, UDEN tidsstempel
-#   sh tools/signer.sh udgiv [--toer] [--uden-vagt]  # release: bygning uden navne, signering, notarisering, hæftning
+#   sh tools/signer.sh udgiv [--toer] [--uden-vagt] [--urent]  # release: bygning uden navne, signering, notarisering, hæftning
 #   sh tools/signer.sh tjek <sti til .app> [--toer]  # kun kontrollerne, ingen signering
 #   sh tools/signer.sh planlaeg|afplanlaeg|status [--toer]   # launchd kører udgiv kl. 23:30, til det er lykkedes
 #   --toer: tørkørsel. Skriver kommandoerne (linjer med "+ "), kører dem ikke, skriver intet til disken.
@@ -14,6 +14,11 @@
 # (minutter, standard 30). udgiv nægter at signere og indsende uden for vinduet; Apples tidsstempel kan ikke vælges.
 # Er Mac'en i dvale kl. 23:30, kører launchd jobbet ved næste opvågning; så er vinduet lukket, og der prøves igen
 # næste aften. Kun macOS.
+# udgiv kræver et rent arbejdstræ og at HEAD findes på origin (den sporede gren, som git sidst kendte den; intet hentes
+# fra nettet), før noget bygges. --urent tilsidesætter det med en advarsel (til prøver); --uden-vagt gør ikke. Version og
+# commit står i den sidste linje og i Grimnir-<version>.txt ved zip-filen.
+# Jobbet (koer) har en tidsgrænse: når vinduet lukker, stoppes hele udgiv (bygning, codesign, notarytool), og der
+# efterlades ingen halv zip i udgivelsesmappen. Jobbet bliver stående til næste aften.
 set -eu
 
 ROD=$(cd "$(dirname "$0")/.." && pwd -P)
@@ -29,13 +34,14 @@ lokal() { # $1 = nøgle → sidste værdi i tools/signer.lokal (læses som tekst
   sed -n "s/^$1=//p" "$f" | tail -n 1
 }
 
-TOER=0; UDEN_VAGT=0; MAAL=""
+TOER=0; UDEN_VAGT=0; URENT=0; URENT_BRUGT=0; MAAL=""
 TILSTAND=${1:-}
 [ $# -gt 0 ] && shift
 for a in "$@"; do
   case $a in
     --toer) TOER=1 ;;
     --uden-vagt) UDEN_VAGT=1 ;;
+    --urent) URENT=1 ;;
     -*) fejl "ukendt flag: $a" ;;
     *) [ -z "$MAAL" ] || fejl "for mange argumenter: $a"; MAAL=$a ;;
   esac
@@ -105,6 +111,43 @@ vagt() { # $1 = hvad der skal ske nu
 
 # ---- byggeklodser ----
 version() { plutil -extract version raw -o - "$ROD/src-tauri/tauri.conf.json"; }
+kort() { git -C "$ROD" rev-parse --short HEAD 2>/dev/null || echo ingen; }
+
+ren_kode() { # rent arbejdstræ, og HEAD findes på origin (den sporede gren), før noget bygges. Kalder aldrig fetch eller push.
+  problemer=""; spor=""
+  if ! git -C "$ROD" rev-parse --verify -q HEAD >/dev/null; then
+    problemer="der er ingen commit"
+  else
+    aendret=$(git -C "$ROD" status --porcelain --untracked-files=normal | wc -l | tr -d ' ')
+    [ "$aendret" = 0 ] || problemer="arbejdstræet er ikke rent ($aendret ændrede eller usporede filer, se git status)"
+    if spor=$(git -C "$ROD" rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null); then
+      case $spor in
+        origin/*)
+          git -C "$ROD" merge-base --is-ancestor HEAD '@{u}' 2>/dev/null ||
+            problemer="${problemer:+$problemer; }HEAD $(kort) er ikke pushet til $spor (som git sidst kendte den; intet hentet)" ;;
+        *) problemer="${problemer:+$problemer; }grenen sporer $spor, ikke en gren på origin" ;;
+      esac
+    else
+      problemer="${problemer:+$problemer; }grenen sporer ingen gren på origin"
+    fi
+  fi
+  if [ -z "$problemer" ]; then echo "kode: arbejdstræet er rent, og HEAD $(kort) findes på $spor"; return 0; fi
+  if [ "$URENT" = 1 ]; then
+    URENT_BRUGT=1
+    echo "signer: ADVARSEL: $problemer (--urent). Udgivelsen svarer ikke til en pushet commit; kun til prøver." >&2
+    return 0
+  fi
+  fejl "udgiv stoppet før bygning: $problemer. Commit og push først (med fast tid), eller --urent til en prøve"
+}
+
+info() { # $1 = sti → version og commit ved siden af zip-filen, uden klokkeslæt; filtiden er den faste tid
+  if [ "$TOER" = 1 ]; then
+    echo "+ (fil) $1: Grimnir $v, commit $h$([ "$URENT_BRUGT" = 0 ] || echo ", urent arbejdstræ")"
+    return 0
+  fi
+  { echo "Grimnir $v"; echo "commit $h"; [ "$URENT_BRUGT" = 0 ] || echo "arbejdstræ: urent (--urent), svarer ikke til commit $h"; } > "$1"
+  filtider "$1"
+}
 
 filtider() { # $1 = sti → alle filtider (også mapper og links) sættes til den faste tid
   koer find "$1" -exec touch -h -t "$TS" '{}' +
@@ -158,6 +201,7 @@ notariser() { # $1 = zip-fil
   fi
   svar="$UD/notarisering-svar.json"
   rc=0
+  echo "notarisering: indsender $(basename "$1") (en indsendelse kan ikke trækkes tilbage)"
   xcrun notarytool submit "$1" --keychain-profile "$PROFIL" --wait --output-format json > "$svar" || rc=$?
   status=$(plutil -extract status raw -o - "$svar" 2>/dev/null || echo ukendt)
   id=$(plutil -extract id raw -o - "$svar" 2>/dev/null || true)
@@ -197,11 +241,13 @@ proeve() {
 
 udgiv() {
   vagt "udgiv"
+  ren_kode
   [ "$TOER" = 1 ] || mkdir -p "$UD"
   cd "$ROD"
   v=$(version)
+  h=$(kort)
   app="$ROD/target/release/bundle/macos/Grimnir.app"
-  trin "udgivelse $v: fast tid $TS, identitet $IDENTITET, profil $PROFIL, ud: $UD"
+  trin "udgivelse $v (commit $h): fast tid $TS, identitet $IDENTITET, profil $PROFIL, ud: $UD"
   byg_release
   [ "$TOER" = 1 ] || [ -d "$app" ] || fejl "bundlen findes ikke: $app"
   tjek_navne "$app"
@@ -219,10 +265,14 @@ udgiv() {
   trin "kontrol"
   tjek_filtider "$app"
   kontrol "$app"
+  # Den endelige zip skrives under et midlertidigt navn og flyttes til sidst: en afbrudt kørsel efterlader aldrig en halv
+  # Grimnir-<version>.zip (og rører ikke en tidligere, hel en).
   slut="$UD/Grimnir-$v.zip"
-  zip_af "$app" "$slut"
+  zip_af "$app" "$slut.ufaerdig"
+  koer mv -f "$slut.ufaerdig" "$slut"
   koer rm -f "$indsend"
-  trin "færdig: $slut"
+  info "$UD/Grimnir-$v.txt"
+  trin "færdig: $slut (Grimnir $v, commit $h$([ "$URENT_BRUGT" = 0 ] || echo ", urent"))"
 }
 
 tjek() {
@@ -290,9 +340,52 @@ status() {
   if [ -f "$(logfil)" ]; then echo "log:       $(logfil), sidste linjer:"; tail -n 5 "$(logfil)"; fi
 }
 
-koer_job() { # kaldes af launchd: udgiv i en ny proces (så set -e gælder fuldt), og afplanlæg efter succes
+graense_sek() { # sekunder, til vinduet lukker (mindst 60, så vagtens besked kan nå loggen); SIGNER_GRAENSE: kun til prøver
+  if [ -n "${SIGNER_GRAENSE:-}" ]; then
+    case $SIGNER_GRAENSE in ''|*[!0-9]*) fejl "SIGNER_GRAENSE skal være et antal sekunder (fik $SIGNER_GRAENSE)" ;; esac
+    echo "$SIGNER_GRAENSE"; return 0
+  fi
+  n=$(( $(heltal "$(date +%H)") * 3600 + $(heltal "$(date +%M)") * 60 + $(heltal "$(date +%S)") ))
+  if [ "$TIL" -gt 1440 ] && [ "$n" -lt $(( (TIL - 1440) * 60 )) ]; then n=$(( n + 86400 )); fi
+  r=$(( TIL * 60 - n ))
+  [ "$r" -ge 60 ] || r=60
+  echo "$r"
+}
+
+koer_job() { # kaldes af launchd: udgiv i en ny proces (så set -e gælder fuldt) med tidsgrænse, og afplanlæg efter succes
   echo "== launchd $(date '+%Y-%m-%d %H:%M')"
-  if sh "$ROD/tools/signer.sh" udgiv; then
+  g=$(graense_sek)
+  v=$(version)
+  maerke=$(mktemp "${TMPDIR:-/tmp}/signer-graense.XXXXXX")
+  rm -f "$maerke"
+  # Uden coreutils' timeout (findes ikke på macOS): med set -m får hvert baggrundsjob sin egen procesgruppe, så udgiv og
+  # alt, det starter (npm, cargo, codesign, notarytool), kan stoppes samlet med kill mod gruppen. Vagten er et andet job.
+  set -m
+  sh "$ROD/tools/signer.sh" udgiv &
+  job=$!
+  ( sleep "$g"; : > "$maerke"; kill -s TERM -- "-$job" 2>/dev/null ) &
+  ur=$!
+  set +m
+  echo "tidsgrænse: $g s (vinduet lukker $(hhmm "$TIL"))"
+  rc=0
+  wait "$job" || rc=$?
+  kill -s TERM -- "-$ur" 2>/dev/null || true
+  if [ -f "$maerke" ]; then
+    rm -f "$maerke"
+    sleep 2
+    kill -s KILL -- "-$job" 2>/dev/null || true   # det, der ikke stoppede ved TERM
+    halv=""
+    for f in "$UD/Grimnir-$v-til-notarisering.zip" "$UD/Grimnir-$v.zip.ufaerdig" "$UD/notarisering-svar.json"; do
+      if [ -e "$f" ]; then halv="$halv $(basename "$f")"; rm -f "$f"; fi
+    done
+    echo "tidsgrænse: udgiv afbrudt efter $g s, fordi vinduet lukkede (exit $rc). Fjernet:${halv:- intet}."
+    case $halv in
+      *til-notarisering*) echo "tidsgrænse: zip-filen til notarisering var lavet. Var den indsendt, gør Apple den færdig, men den bruges ikke; næste aften bygges, signeres og indsendes en ny." ;;
+    esac
+    echo "udgiv lykkedes ikke; jobbet prøver igen kl. $(hhmm "$FRA")"
+    exit 1
+  fi
+  if [ "$rc" = 0 ]; then
     echo "udgiv lykkedes; jobbet fjernes"
     rm -f "$(plist)"
     launchctl bootout "gui/$(id -u)/$(etiket)" 2>/dev/null || true
@@ -310,5 +403,5 @@ case $TILSTAND in
   afplanlaeg) afplanlaeg ;;
   status) status ;;
   koer) koer_job ;;
-  *) sed -n '2,16p' "$0"; exit 1 ;;
+  *) awk 'NR > 1 && /^#/ { print; next } NR > 1 { exit }' "$0"; exit 1 ;;
 esac

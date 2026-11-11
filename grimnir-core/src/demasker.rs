@@ -20,6 +20,23 @@ fn advarsel(art: AdvarselArt, start: usize, slut: usize, kode: &str, forslag: Op
     }
 }
 
+/// Originalen for post `p`, når koden står med andre store/små bogstaver (F4): navne og adresser får originalen i samme
+/// bogstavform som koden; hemmeligheder og andre klasser uden spejling sættes tilbage bogstaveligt.
+fn med_kodens_bogstaver(sag: &Sag, p: usize, kode: &str) -> String {
+    let o = sag.post(p).original.som_tekst();
+    let kb = kode.as_bytes();
+    let spejl = sag.klasse_af(p).spejler() || matches!(sag.klasse_af(p), Klasse::Ipv6 | Klasse::Mac);
+    if !spejl {
+        o.to_string()
+    } else if !kb.iter().any(u8::is_ascii_lowercase) {
+        o.to_ascii_uppercase()
+    } else if !kb.iter().any(u8::is_ascii_uppercase) {
+        o.to_ascii_lowercase()
+    } else {
+        o.to_string()
+    }
+}
+
 /// Hvor en af sagens poster blev sat tilbage (V-PUDS.1 N4): antal steder i teksten og byte-positionen for det første.
 /// Kun postens nummer og tal; ingen original.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -81,32 +98,23 @@ pub fn demasker_med_steder(tekst: &str, sag: &Sag) -> (String, Vec<Advarsel>, Ve
         }
     }
 
+    // Selvvalgte koder og aliaser uden kodeform med andre store/små bogstaver (V-PUDS.2 N1). Et præcist træf vinder
+    // altid; mod kodeformerne nedenfor afgøres et overlap længst til venstre, derefter længst.
+    let kandidater = sag.find_selvvalgte_smaa(t, &traef);
+    let mut fjernet = vec![false; kandidater.len()];
+
     // Kodeformer, der ikke er sagens koder
     let mut ekstra: Vec<(usize, usize, String, usize)> = Vec::new();
     let mut ukendte = 0usize;
     // En kode, hvis bogstaver er ændret efter maskeringen (F4): opslag uafhængigt af store/små.
-    // Navne og adresser får originalen i samme bogstavform som koden; hemmeligheder og andre
-    // klasser uden spejling sættes tilbage bogstaveligt.
     let mut anden_stavemaade = |s: usize, e: usize, kode: &str, advarsler: &mut Vec<Advarsel>| -> bool {
         let Some(p) = sag.kode_smaa(kode) else { return false };
         if ekstra.iter().any(|x| x.0 < e && s < x.1) {
             return true;
         }
-        let o = sag.post(p).original.som_tekst();
-        let kb = kode.as_bytes();
-        let spejl = sag.klasse_af(p).spejler() || matches!(sag.klasse_af(p), Klasse::Ipv6 | Klasse::Mac);
-        let ny = if !spejl {
-            o.to_string()
-        } else if !kb.iter().any(u8::is_ascii_lowercase) {
-            o.to_ascii_uppercase()
-        } else if !kb.iter().any(u8::is_ascii_uppercase) {
-            o.to_ascii_lowercase()
-        } else {
-            o.to_string()
-        };
         brugt[p] = true;
         advarsler.push(advarsel(AdvarselArt::AfledtForm(AfledtArt::AndenStavemaade), s, e, kode, None));
-        ekstra.push((s, e, ny, p));
+        ekstra.push((s, e, med_kodens_bogstaver(sag, p, kode), p));
         true
     };
     find_kodeformer(t, |s, e, form| {
@@ -115,6 +123,22 @@ pub fn demasker_med_steder(tekst: &str, sag: &Sag) -> (String, Vec<Advarsel>, Ve
             return;
         }
         let kode = String::from_utf8_lossy(&t[s..e]).into_owned();
+        // Overlapper spændet en selvvalgt kode med andre bogstaver (N1), vinder kodeformen kun, hvis den selv er en af
+        // sagens koder med andre bogstaver og står længst til venstre (eller samme sted og længere); ellers er den udeladt.
+        // Kandidaterne overlapper ikke hinanden, så de er sorteret efter både start og slut.
+        let k0 = kandidater.partition_point(|x| x.1 <= s);
+        let k1 = k0 + kandidater[k0..].iter().take_while(|c| c.0 < e).count();
+        if (k0..k1).any(|k| !fjernet[k]) {
+            let vinder = !matches!(form, Kodeform::Ipv4(_))
+                && sag.kode_smaa(&kode).is_some()
+                && (k0..k1)
+                    .filter(|k| !fjernet[*k])
+                    .all(|k| s < kandidater[k].0 || (s == kandidater[k].0 && e > kandidater[k].1));
+            if !vinder {
+                return;
+            }
+            fjernet[k0..k1].iter_mut().for_each(|f| *f = true);
+        }
         match form {
             Kodeform::Ipv4(v) => {
                 if let Some(eget) = sag.eget_net_for(v >> 8) {
@@ -144,6 +168,22 @@ pub fn demasker_med_steder(tekst: &str, sag: &Sag) -> (String, Vec<Advarsel>, Ve
             }
         }
     });
+
+    for (k, &(s, e, p)) in kandidater.iter().enumerate() {
+        if fjernet[k] {
+            continue;
+        }
+        let kode = std::str::from_utf8(&t[s..e]).unwrap_or_default();
+        match p {
+            Some(p) => {
+                brugt[p] = true;
+                advarsler.push(advarsel(AdvarselArt::AfledtForm(AfledtArt::AndenStavemaade), s, e, kode, None));
+                ekstra.push((s, e, med_kodens_bogstaver(sag, p, kode), p));
+            }
+            // Ens bortset fra store/små for poster i flere enheder: ingen sættes tilbage, og koden står urørt.
+            None => advarsler.push(advarsel(AdvarselArt::UkendtKode, s, e, kode, None)),
+        }
+    }
 
     if ukendte >= ANDEN_SAG && ukendte > traef.len() {
         advarsler.push(advarsel(AdvarselArt::LignerAndenSag, 0, 0, "", None));

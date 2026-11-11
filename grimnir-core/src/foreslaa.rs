@@ -71,7 +71,8 @@ pub fn foreslaa(fund: &[Fund], tekst: &str, sag: &mut Sag) -> Vec<Erstatning> {
 ///    Et fund fra `analyser`, der maskeres, vinder over et overlappende sagsfund; "maskér aldrig" i
 ///    `ordbog` vinder over begge.
 /// 3. Enhver forekomst af en af sagens koder, som står urørt i teksten, maskeres også, så
-///    demaskeringen aldrig kan sætte en forkert original ind.
+///    demaskeringen aldrig kan sætte en forkert original ind. Det gælder også koderne med andre store/små
+///    bogstaver (F4 og V-PUDS.2 N1).
 pub fn foreslaa_med_ordbog(fund: &[Fund], tekst: &str, sag: &mut Sag, ordbog: &Ordbog) -> Vec<Erstatning> {
     let t = tekst.as_bytes();
     let opslag = ordbog.opslag();
@@ -124,7 +125,8 @@ pub fn foreslaa_med_ordbog(fund: &[Fund], tekst: &str, sag: &mut Sag, ordbog: &O
     }
 
     // Kollisioner: sagens koder og adresser i sagens mål-net, der står urørt i teksten.
-    let mut urort: Vec<(usize, usize)> = sag.find_koder(t).into_iter().map(|(s, e, _)| (s, e)).collect();
+    let koder = sag.find_koder(t);
+    let mut urort: Vec<(usize, usize)> = koder.iter().map(|&(s, e, _)| (s, e)).collect();
     find_ipv4(t, |s, e, ip, foer_ok| {
         if foer_ok && sag.maal4_i_brug(ip.verdi >> 8) {
             urort.push((s, e));
@@ -137,6 +139,9 @@ pub fn foreslaa_med_ordbog(fund: &[Fund], tekst: &str, sag: &mut Sag, ordbog: &O
             urort.push((s, e));
         }
     });
+    // Selvvalgte koder og aliaser uden kodeform med andre store/små bogstaver (V-PUDS.2 N1): demaskeringen sætter dem
+    // også tilbage, så de maskeres her på samme måde (også dem, der hører til flere enheder).
+    urort.extend(sag.find_selvvalgte_smaa(t, &koder).into_iter().map(|(s, e, _)| (s, e)));
     urort.sort_unstable();
     urort.dedup();
     let mut nye = Vec::new();
