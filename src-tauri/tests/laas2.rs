@@ -1,6 +1,10 @@
 //! V-LAAS.2 L5 (skallen uden vindue): døren ved start. De fem svar gennem `laas_op` med døren i hukommelsen; ingen
-//! nøgleopslag i låst tilstand (et nøglelager, der tæller); oplåsning giver adgang; "Lås Grimnir ved start" fra kræver en
-//! oplåsning; fejl uden indhold. Tests kalder aldrig `LAContext` og rører aldrig Nøglering: døren er
+//! nøgleopslag i låst tilstand (et nøglelager, der tæller); oplåsning giver adgang; fejl uden indhold.
+//!
+//! V-LAAS.3 N1: "Lås Grimnir ved start" er fjernet (ADR D20). De to tests af indstillingen (`laas_ved_start_fra_…`) er
+//! fjernet med den; testen af ældre filer er nu i `laas3.rs` (`aeldre_fil_med_laas_ved_start_false_starter_laast`).
+//! `LaasStatus` har ikke længere `ved_start`, men `igen`, og `LaasSvar` har `efter`; hjælperen `status` og den faste
+//! JSON i `fejl_og_svar_er_uden_indhold` er rettet til det. `aktivitet` er ny blandt kommandoerne, der virker låst. Tests kalder aldrig `LAContext` og rører aldrig Nøglering: døren er
 //! [`HukommelsesDoer`], nøglelageret er [`HukommelsesLager`]. Kun opdigtede værdier (`kontor.test`, RFC 1918, opfundne
 //! navne). Mappen er en midlertidig mappe med tilfældigt navn, ryddet efter testen.
 
@@ -13,9 +17,9 @@ use grimnir_lib::indstillinger::Indstillinger;
 use grimnir_lib::laas::{begrundelse, Begrundelse, Doer, Grund, HukommelsesDoer, Svar};
 use grimnir_lib::maskering::{
     analyser, demasker, fil_aabn, fil_analyser, fil_demasker, fil_gem_forslag, fil_gem_og_masker, fil_gem_til, fil_kopi, fil_luk,
-    fil_raekker, gem_og_masker, indstillinger_gem, indstillinger_hent, laas_op, laas_status, laas_ved_start, ordbog_fjern, ordbog_hent,
-    ordbog_proev, ordbog_ret, ordbog_start_forfra, ordbog_tilfoej, sag_aabn, sag_liste, sag_luk, sag_nulstil, sag_ny, sag_omdoeb, sag_slet,
-    sag_status, sag_udloeb, sag_valg, LaasStatus, SideValg, Tilstand, UiFejl, Visning,
+    fil_raekker, gem_og_masker, indstillinger_gem, indstillinger_hent, laas_op, laas_status, ordbog_fjern, ordbog_hent, ordbog_proev,
+    ordbog_ret, ordbog_start_forfra, ordbog_tilfoej, sag_aabn, sag_liste, sag_luk, sag_nulstil, sag_ny, sag_omdoeb, sag_slet, sag_status,
+    sag_udloeb, sag_valg, LaasStatus, SideValg, Tilstand, UiFejl, Visning,
 };
 use grimnir_lib::sager::{HukommelsesLager, Noegle, Noeglelager, SagFejl, SagsId};
 
@@ -82,10 +86,10 @@ fn med_data(m: &Mappe, lager: &Arc<Taellende>) -> String {
     s.id.unwrap()
 }
 
-fn status(laast: bool, ved_start: bool, uden_doer: Option<&'static str>) -> LaasStatus {
+fn status(laast: bool, uden_doer: Option<&'static str>) -> LaasStatus {
     LaasStatus {
         laast,
-        ved_start,
+        igen: None,
         uden_doer,
     }
 }
@@ -168,7 +172,7 @@ const AABNE_I_LAAST: [&str; 8] = [
     "indstillinger_gem",
     "laas_status",
     "laas_op",
-    "laas_ved_start",
+    "aktivitet",
 ];
 
 #[test]
@@ -234,12 +238,12 @@ fn laast_laeses_ingen_noegle_og_hver_kommando_svarer_laast() {
         ..Indstillinger::default()
     };
     assert_eq!(indstillinger_gem(&t, i), Ok(i));
-    assert_eq!(laas_status(&t), status(true, true, None));
+    assert_eq!(laas_status(&t), status(true, None));
     assert_eq!(lager.opslag() - opslag_foer, 0);
 
     // Lås op: nu virker kommandoerne og læser nøglerne.
     let d = HukommelsesDoer::ny(Svar::Ok);
-    assert_eq!(laas_op(&t, &d, "da").status, status(false, true, None));
+    assert_eq!(laas_op(&t, &d, "da").status, status(false, None));
     let liste = sag_liste(&t).unwrap();
     assert_eq!(
         liste.iter().map(|p| p.navn.clone()).collect::<Vec<_>>(),
@@ -282,20 +286,17 @@ fn de_fem_svar_gennem_laas_op() {
     let lager = Arc::new(Taellende::default());
     med_data(&m, &lager);
     let tilfaelde: [(Svar, LaasStatus); 6] = [
-        (Svar::Ok, status(false, true, None)),
-        (Svar::Annulleret, status(true, true, None)),
-        (Svar::Afvist, status(true, true, None)),
+        (Svar::Ok, status(false, None)),
+        (Svar::Annulleret, status(true, None)),
+        (Svar::Afvist, status(true, None)),
         (
             Svar::IkkeTilgaengelig {
                 hvorfor: "ingen_adgangskode",
             },
-            status(false, true, Some("ingen_adgangskode")),
+            status(false, Some("ingen_adgangskode")),
         ),
-        (
-            Svar::IkkeTilgaengelig { hvorfor: "platform" },
-            status(false, true, Some("platform")),
-        ),
-        (Svar::Fejl { kode: -10 }, status(true, true, None)),
+        (Svar::IkkeTilgaengelig { hvorfor: "platform" }, status(false, Some("platform"))),
+        (Svar::Fejl { kode: -10 }, status(true, None)),
     ];
     for (svar, efter) in tilfaelde {
         let t = start(&m, &lager);
@@ -310,7 +311,7 @@ fn de_fem_svar_gennem_laas_op() {
             assert_eq!(sag_liste(&t), Err(UiFejl::Laast), "{svar:?}: stadig låst");
             // Programmet lukker ikke; brugeren kan prøve igen (Lås op på låseskærmen).
             d.svar(Svar::Ok);
-            assert_eq!(laas_op(&t, &d, "en").status, status(false, true, None));
+            assert_eq!(laas_op(&t, &d, "en").status, status(false, None));
             assert_eq!(d.sidste(), Some(begrundelse(Grund::Start, "en")));
         }
         assert_eq!(sag_liste(&t).unwrap().len(), 1, "{svar:?}: låst op giver adgang");
@@ -352,94 +353,19 @@ fn to_tryk_paa_laas_op_giver_en_dialog() {
 }
 
 #[test]
-fn laas_ved_start_fra_kraever_oplaasning() {
+fn starter_altid_laast() {
+    // V-LAAS.3 N1: uanset indstillingsfilen (ingen, ældre, beskadiget) og uden mappe er programmet låst ved start.
     let m = Mappe::ny();
     let lager = Arc::new(Taellende::default());
-    med_data(&m, &lager);
-    let t = start(&m, &lager);
-    let d = HukommelsesDoer::ny(Svar::Ok);
-    laas_op(&t, &d, "da");
-    assert!(!t.er_laast());
-
-    // indstillinger_gem kan ikke slå låsen fra.
-    let fra = Indstillinger {
-        laas_ved_start: false,
-        ..indstillinger_hent(&t)
-    };
-    assert!(indstillinger_gem(&t, fra).unwrap().laas_ved_start);
-    assert!(indstillinger_hent(&t).laas_ved_start);
-
-    // Annulleret, Afvist og Fejl: intet ændret, også på disken; døren er spurgt med sin egen tekst.
-    for svar in [Svar::Annulleret, Svar::Afvist, Svar::Fejl { kode: -1004 }] {
-        let d = HukommelsesDoer::ny(svar.clone());
-        let ud = laas_ved_start(&t, &d, false, "en").unwrap();
-        assert_eq!(ud.svar, svar);
-        assert_eq!(ud.status, status(false, true, None));
-        assert_eq!(d.kald(), 1);
-        assert_eq!(d.sidste(), Some(begrundelse(Grund::SlaaFra, "en")));
-        assert!(indstillinger_hent(&t).laas_ved_start);
-        assert!(start(&m, &lager).er_laast(), "{svar:?}: næste start er stadig låst");
-    }
-
-    // Ok: gemt; næste start er ulåst og spørger ikke.
-    let d = HukommelsesDoer::ny(Svar::Ok);
-    let ud = laas_ved_start(&t, &d, false, "da").unwrap();
-    assert_eq!((ud.svar, ud.status), (Svar::Ok, status(false, false, None)));
-    assert_eq!(d.sidste(), Some(begrundelse(Grund::SlaaFra, "da")));
-    let json = std::fs::read_to_string(m.0.join("indstillinger.json")).unwrap();
-    assert!(json.contains("\"laas_ved_start\": false"), "{json}");
-    let t2 = start(&m, &lager);
-    assert!(!t2.er_laast());
-    assert_eq!(sag_liste(&t2).unwrap().len(), 1);
-
-    // Til igen kræver ingen dør; næste start er låst.
-    let d = HukommelsesDoer::ny(Svar::Afvist);
-    let ud = laas_ved_start(&t2, &d, true, "da").unwrap();
-    assert_eq!((ud.svar, d.kald()), (Svar::Ok, 0));
-    assert!(start(&m, &lager).er_laast());
-    // Allerede fra: at slå den fra igen spørger ikke.
-    let d = HukommelsesDoer::ny(Svar::Ok);
-    laas_ved_start(&t2, &d, false, "da").unwrap();
-    laas_ved_start(&t2, &d, false, "da").unwrap();
-    assert_eq!(d.kald(), 1);
-}
-
-#[test]
-fn laas_ved_start_fra_mens_laast_laaser_op_ved_ok() {
-    let m = Mappe::ny();
-    let lager = Arc::new(Taellende::default());
-    med_data(&m, &lager);
-    let t = start(&m, &lager);
-    let d = HukommelsesDoer::ny(Svar::Annulleret);
-    assert_eq!(laas_ved_start(&t, &d, false, "da").unwrap().status, status(true, true, None));
-    d.svar(Svar::Ok);
-    assert_eq!(laas_ved_start(&t, &d, false, "da").unwrap().status, status(false, false, None));
-    assert_eq!(sag_liste(&t).unwrap().len(), 1);
-    // En maskine, der ikke kan bekræfte brugeren: valget gemmes, og banneret står.
-    let m2 = Mappe::ny();
-    let t = start(&m2, &lager);
-    let d = HukommelsesDoer::ny(Svar::IkkeTilgaengelig { hvorfor: "platform" });
-    assert_eq!(
-        laas_ved_start(&t, &d, false, "da").unwrap().status,
-        status(false, false, Some("platform"))
-    );
-}
-
-#[test]
-fn indstillingen_fra_starter_ulaast_og_aeldre_fil_er_laast() {
-    let m = Mappe::ny();
-    std::fs::write(m.0.join("indstillinger.json"), "{\"laas_ved_start\": false}").unwrap();
-    let lager = Arc::new(Taellende::default());
-    assert!(!start(&m, &lager).er_laast());
-    // En ældre fil uden feltet, en beskadiget fil og ingen fil: låst.
     for indhold in [Some("{\"guide_vist\": true}"), Some("{ikke json"), None] {
         match indhold {
             Some(x) => std::fs::write(m.0.join("indstillinger.json"), x).unwrap(),
-            None => std::fs::remove_file(m.0.join("indstillinger.json")).unwrap(),
+            None => {
+                let _ = std::fs::remove_file(m.0.join("indstillinger.json"));
+            }
         }
         assert!(start(&m, &lager).er_laast(), "{indhold:?}");
     }
-    // Uden mappe (app-data kunne ikke findes) er programmet også låst ved start.
     assert!(Tilstand::ny().ved_start().er_laast());
     assert!(!Tilstand::ny().er_laast(), "en ny tilstand alene er ulåst (tests)");
 }
@@ -471,7 +397,7 @@ fn fejl_og_svar_er_uden_indhold() {
     let j = serde_json::to_string(&laas_op(&start(&m, &lager), &HukommelsesDoer::ny(Svar::Fejl { kode: -1004 }), "da")).unwrap();
     assert_eq!(
         j,
-        r#"{"svar":"fejl","kode":-1004,"status":{"laast":true,"ved_start":true,"uden_doer":null}}"#
+        r#"{"svar":"fejl","kode":-1004,"status":{"laast":true,"igen":null,"uden_doer":null},"efter":null}"#
     );
     for hemmeligt in [SAGSNAVN, ORD, "kontor.test", "10.20.0.5", "anders", &id, m.0.to_str().unwrap()] {
         assert!(!alt.contains(hemmeligt), "{hemmeligt} står i et svar: {alt}");

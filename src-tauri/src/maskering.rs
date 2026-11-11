@@ -36,6 +36,14 @@
 //! `Ok`; ved `IkkeTilgaengelig` låses op uden bekræftelse, og [`LaasStatus::uden_doer`] siger hvorfor (banneret).
 //! Døren beskytter mod en person ved en ulåst maskine, ikke mod et andet program, der kører som brugeren
 //! ([`crate::laas`]).
+//!
+//! **Lås igen (V-LAAS.3).** Grimnir starter altid låst ([`Tilstand::ved_start`]; "Lås Grimnir ved start" er fjernet,
+//! ADR D20). [`laas_igen`] låser igen ved dvale, skærmslukning, brugerskift og stilstand: den sætter låst først (så porten
+//! lukker for nye kommandoer), gemmer en ændret navngiven sag, og slipper og nulstiller alle nøgler, den åbne sag,
+//! ordbogen, de holdte filer og resultaterne. En midlertidig sag går tabt; det siges efter oplåsningen
+//! ([`EfterLaas`]). Kommandoer, der gemmer noget i tilstanden, tjekker låsen igen, efter de har taget låsen til det, de
+//! gemmer i ([`Tilstand::sag_aaben`]); så kan en kommando, der kom forbi porten lige før [`laas_igen`], ikke lægge
+//! indhold tilbage efter nulstillingen. Stilstand: [`tjek_stilstand`] med uret i [`crate::stilstand`].
 
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -51,9 +59,10 @@ use serde::{Deserialize, Serialize};
 use crate::fil::{self, Fil, FilFejl, Linjeskift, Tegnsaet};
 use crate::igang::Igang;
 use crate::indstillinger::{self, Indstillinger};
-use crate::laas::{begrundelse, Doer, Grund, Svar};
+use crate::laas::{begrundelse, Doer, Grund, Svar, Udloeser};
 use crate::ordbog::{self as ob, FeltFejl, OrdbogPost, Ordbogsfil, PostType};
 use crate::sager::{nulstil, opret_mappe, rens_navn, ryd_midlertidige, tjek_dato, AabenSag, Arkiv, Noegle, Noeglelager, SagFejl, SagsId};
+use crate::stilstand::{Stilstand, Travl, Ur};
 
 /// Største tekst, Maskér tager imod: 5 MiB (5 242 880 bytes). Større tekster kræver "Åbn fil" (B3b).
 pub const MAKS_BYTES: usize = 5 * 1024 * 1024;
@@ -63,11 +72,17 @@ pub const MAKS_DEMASKER: usize = 8 * 1024 * 1024;
 
 /// Den sag, der er i brug: sagen i hukommelsen og, hvis den er navngiven, dens fil og nøgle. `nr` tælles op, hver gang
 /// sagen erstattes (V-FIL.1: en maskeret fil i hukommelsen hører til den sag, der lavede den).
+///
+/// V-LAAS.3: `ugemt` er sand, når en navngiven sag i hukommelsen er ændret uden at være gemt; så gemmer [`laas_igen`] den
+/// før nulstillingen. I dag sætter ingen kommando den: hver ændring af en navngiven sag gemmes, før den træder i kraft
+/// ([`gem_og_masker`], [`sag_valg`], `ret_hoved`), og fejler gemningen, er sagen i hukommelsen uændret. Kun testkrogen
+/// [`marker_ugemt`] sætter den.
 #[derive(Default)]
 struct Aktuel {
     sag: Sag,
     aaben: Option<AabenSag>,
     nr: u64,
+    ugemt: bool,
 }
 
 /// Ordbogen i hukommelsen: posterne, skrivetælleren, de blev læst med, kernens ordbog og fejlen, hvis filen ikke kunne
@@ -106,6 +121,27 @@ struct Laas {
     doer: Mutex<()>,
     /// Hvorfor Grimnir er låst op uden bekræftelse (`ingen_adgangskode` | `platform`); til banneret.
     uden_doer: Mutex<Option<&'static str>>,
+    /// V-LAAS.3: hvorfor Grimnir er låst igen efter start (`None` ved start og efter oplåsning). Så længe den er sat,
+    /// kalder UI'et ikke `laas_op` af sig selv efter genindlæsningen.
+    igen: Mutex<Option<Udloeser>>,
+    /// V-LAAS.3: det, brugeren skal have at vide efter næste oplåsning.
+    efter: Mutex<EfterLaas>,
+}
+
+/// V-LAAS.3: det, der skete ved [`laas_igen`], og som UI'et viser efter oplåsningen. Intet indhold: kun en sandhedsværdi
+/// og en fejl uden sti eller værdier.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
+pub struct EfterLaas {
+    /// En midlertidig sag med poster blev lukket (og nulstillet), da Grimnir låste.
+    pub midlertidig_lukket: bool,
+    /// Den åbne navngivne sag var ændret og kunne ikke gemmes, da Grimnir låste.
+    pub gem_fejl: Option<SagFejl>,
+}
+
+impl EfterLaas {
+    fn tom(&self) -> bool {
+        !self.midlertidig_lukket && self.gem_fejl.is_none()
+    }
 }
 
 /// Nøglelageret bag låsen: mens Grimnir er låst, afvises hvert opslag ([`SagFejl::Noeglering`] `laast`), og det
@@ -154,8 +190,10 @@ pub struct Tilstand {
     filer: [Mutex<Option<HoldtFil>>; 2],
     /// V-RET.1 R5: igangværende skrivninger i brugerens mapper (`<app-data>/igang.json`); kun på disk.
     igang: Option<Igang>,
-    /// V-LAAS.2: låsen. En ny tilstand er ulåst; [`Tilstand::ved_start`] låser efter indstillingen.
+    /// V-LAAS.2: låsen. En ny tilstand er ulåst; [`Tilstand::ved_start`] låser.
     laas: Laas,
+    /// V-LAAS.3: stilstand, målt med et monotont ur ([`crate::stilstand`]).
+    stilstand: Stilstand,
 }
 
 impl Tilstand {
@@ -196,6 +234,7 @@ impl Tilstand {
                 sag: Sag::ny(indst.valg()),
                 aaben: None,
                 nr: 0,
+                ugemt: false,
             }),
             arkiv: Some(Arkiv::ny(mappe.join("sager"), Box::new(lager.clone()))),
             ordbogsfil: Some(Ordbogsfil::ny(mappe, Box::new(lager))),
@@ -206,18 +245,34 @@ impl Tilstand {
             filer: Default::default(),
             igang: Some(igang),
             laas,
+            stilstand: Stilstand::default(),
         }
     }
 
-    /// V-LAAS.2: tilstanden ved programmets start. Er "Lås Grimnir ved start" til (standard), er den låst; ellers ulåst.
-    pub fn ved_start(self) -> Self {
-        if self.indstillinger().laas_ved_start {
-            self.laas();
-        }
+    /// V-LAAS.3: den samme tilstand med stilstand målt med uret `ur` (tests styrer tiden).
+    pub fn med_ur(mut self, ur: Box<dyn Ur>) -> Self {
+        self.stilstand = Stilstand::med(ur);
         self
     }
 
-    /// Låser Grimnir (ved start; V-LAAS.3 også ved dvale og stilstand).
+    /// V-LAAS.3: der er aktivitet nu (en kommando fra webvisningen, tastatur eller mus i vinduet).
+    pub fn aktivitet(&self) {
+        self.stilstand.aktivitet();
+    }
+
+    /// V-LAAS.3: en kommando er i gang, til vagten slippes; imens låser stilstand ikke.
+    pub fn travl(&self) -> Travl<'_> {
+        self.stilstand.travl()
+    }
+
+    /// Tilstanden ved programmets start: altid låst (V-LAAS.3 N1, ADR D20). En maskine uden dør låses op af `laas_op`,
+    /// der svarer `IkkeTilgaengelig` (banneret).
+    pub fn ved_start(self) -> Self {
+        self.laas();
+        self
+    }
+
+    /// Låser Grimnir (ved start). At låse igen efter start er [`laas_igen`], der også nulstiller.
     pub fn laas(&self) {
         self.laas.laast.store(true, Ordering::SeqCst);
         *self.laas.uden_doer.lock().unwrap_or_else(|e| e.into_inner()) = None;
@@ -247,6 +302,15 @@ impl Tilstand {
     /// en anden tråd) efterlader aldrig en halvt ændret sag; derfor bruges indholdet videre.
     fn sag(&self) -> MutexGuard<'_, Aktuel> {
         self.sag.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// V-LAAS.3: låsen til sagen for en kommando, der vil gemme noget i den: tjekker porten igen, efter låsen er taget.
+    /// [`laas_igen`] sætter låst, før den tager sagens lås; derfor kan en kommando, der kom forbi porten lige før, ikke
+    /// lægge en sag (eller en nøgle) tilbage efter nulstillingen.
+    fn sag_aaben(&self) -> Result<MutexGuard<'_, Aktuel>, UiFejl> {
+        let g = self.sag();
+        self.aaben()?;
+        Ok(g)
     }
 
     fn arkiv(&self) -> Result<&Arkiv, UiFejl> {
@@ -1081,7 +1145,13 @@ pub fn gem_og_masker(t: &Tilstand, tekst: &str, fravalgt: &[usize], rettelser: &
 /// [`gem_og_masker`] uden tekstens grænse. Svarer også med sagens nummer efter gemningen.
 fn gem_og_masker_i(t: &Tilstand, tekst: &str, fravalgt: &[usize], rettelser: &[Rettelse]) -> Result<(Maskering, u64), UiFejl> {
     let ordbog = t.kerne_ordbog();
-    let mut a = t.sag();
+    let mut a = match t.sag_aaben() {
+        Ok(a) => a,
+        Err(f) => {
+            ob::nulstil_kerne(ordbog);
+            return Err(f);
+        }
+    };
     let b = beregn(&a.sag, tekst, Udvalg::Fravalgt(fravalgt), rettelser, &ordbog);
     ob::nulstil_kerne(ordbog);
     let b = b?;
@@ -1214,7 +1284,7 @@ pub fn sag_ny(t: &Tilstand, navn: &str, udloeb: Option<&str>) -> Result<SagStatu
     t.aaben()?;
     let arkiv = t.arkiv()?;
     let ny = t.ny_sag();
-    let mut a = t.sag();
+    let mut a = t.sag_aaben()?;
     let data = if a.aaben.is_none() { a.sag.data() } else { ny.data() };
     let aaben = arkiv.opret(navn, udloeb.map(str::to_string), data, nu_ms())?;
     if a.aaben.is_some() {
@@ -1270,7 +1340,15 @@ pub fn sag_aabn(t: &Tilstand, id: &str) -> Result<SagStatus, UiFejl> {
     let id = id_af(id)?;
     let (aaben, data) = t.arkiv()?.aabn(&id)?;
     let sag = Sag::fra_data(data).map_err(|_| UiFejl::from(SagFejl::Beskadiget))?;
-    let mut a = t.sag();
+    let mut a = match t.sag_aaben() {
+        Ok(a) => a,
+        Err(f) => {
+            // Låst, mens sagen blev læst: den læste sag og nøglen slippes og nulstilles.
+            nulstil(sag.til_data());
+            drop(aaben);
+            return Err(f);
+        }
+    };
     erstat(&mut a, sag, Some(aaben));
     Ok(status(&a))
 }
@@ -1339,7 +1417,7 @@ pub fn sag_slet(t: &Tilstand, id: &str) -> Result<SagStatus, UiFejl> {
 /// værdier. En navngiven sag gemmes (med kontrol af skrivetælleren).
 pub fn sag_valg(t: &Tilstand, masker_fremmede: bool, bevar_sidste_oktet: bool) -> Result<SagStatus, UiFejl> {
     t.aaben()?;
-    let mut a = t.sag();
+    let mut a = t.sag_aaben()?;
     let mut d = a.sag.data().clone();
     d.valg = Valg {
         masker_fremmede,
@@ -1390,6 +1468,8 @@ pub fn ordbog_hent(t: &Tilstand) -> Result<OrdbogUd, UiFejl> {
 /// Ændrer ordbogen: `aendr` får en kopi af posterne. Gemmes kopien, bliver den ordbogen; fejler noget, er intet ændret.
 fn aendr_ordbog(t: &Tilstand, aendr: impl FnOnce(&mut Vec<OrdbogPost>) -> Result<(), UiFejl>) -> Result<OrdbogUd, UiFejl> {
     let mut g = t.ordbog();
+    // V-LAAS.3: låst, efter porten blev passeret: læg ikke en tom ordbog i tilstanden (den ville ikke blive læst igen).
+    t.aaben()?;
     let o = g.get_or_insert_with(OrdbogTilstand::default);
     if let Some(f) = &o.fejl {
         return Err(UiFejl::OrdbogLaast { fejl: f.clone() });
@@ -1558,14 +1638,12 @@ pub fn indstillinger_hent(t: &Tilstand) -> Indstillinger {
 
 /// Gemmer indstillingerne. Uden mappe (tests) gælder de kun i hukommelsen. Virker også, mens Grimnir er låst.
 ///
-/// V-LAAS.2: "Lås Grimnir ved start" (`laas_ved_start`) ændres ikke her; feltet beholder sin værdi, uanset hvad der
-/// sendes. Det ændres kun med [`laas_ved_start`], der kræver en oplåsning for at slå det fra.
-pub fn indstillinger_gem(t: &Tilstand, mut ny: Indstillinger) -> Result<Indstillinger, UiFejl> {
+/// V-LAAS.3: "Lås efter stilstand" skal være 5, 15, 30 eller 60 minutter; alt andet afvises (låsen kan ikke slås fra).
+pub fn indstillinger_gem(t: &Tilstand, ny: Indstillinger) -> Result<Indstillinger, UiFejl> {
     if !ny.gyldig() {
         return Err(UiFejl::Indstillinger { fejl: None });
     }
     let mut g = t.indst.lock().unwrap_or_else(|e| e.into_inner());
-    ny.laas_ved_start = g.laas_ved_start;
     skriv_indstillinger(t, &mut g, ny)
 }
 
@@ -1588,15 +1666,17 @@ fn skriv_indstillinger(t: &Tilstand, g: &mut Indstillinger, ny: Indstillinger) -
 pub struct LaasStatus {
     /// Grimnir er låst.
     pub laast: bool,
-    /// "Lås Grimnir ved start" er til.
-    pub ved_start: bool,
+    /// V-LAAS.3: Grimnir er låst igen efter start, og hvorfor (`dvale` | `skaerm_slukket` | `brugerskift` |
+    /// `stilstand`). Så længe den er sat, kalder UI'et ikke `laas_op` af sig selv; dialogen kommer først, når brugeren
+    /// trykker "Lås op". `null` ved start og efter oplåsning.
+    pub igen: Option<Udloeser>,
     /// Grimnir er låst op uden bekræftelse, fordi maskinen ikke kan bekræfte brugeren: `ingen_adgangskode` |
     /// `platform`. UI'et viser så et vedvarende banner ("Grimnir er ikke låst").
     pub uden_doer: Option<&'static str>,
 }
 
-/// Svaret fra [`laas_op`] og [`laas_ved_start`]: dørens svar (`svar`, og `hvorfor` eller `kode`) og låsens tilstand
-/// bagefter.
+/// Svaret fra [`laas_op`]: dørens svar (`svar`, og `hvorfor` eller `kode`), låsens tilstand bagefter og, når denne
+/// oplåsning fulgte efter [`laas_igen`], det, brugeren skal have at vide (`efter`; ellers `null`).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct LaasSvar {
     /// Dørens svar.
@@ -1604,68 +1684,177 @@ pub struct LaasSvar {
     pub svar: Svar,
     /// Låsen bagefter.
     pub status: LaasStatus,
+    /// V-LAAS.3: beskeder fra seneste [`laas_igen`] (gives én gang, ved oplåsningen).
+    pub efter: Option<EfterLaas>,
 }
 
 /// Låsens tilstand. Virker altid.
 pub fn laas_status(t: &Tilstand) -> LaasStatus {
     LaasStatus {
         laast: t.er_laast(),
-        ved_start: t.indstillinger().laas_ved_start,
+        igen: *t.laas.igen.lock().unwrap_or_else(|e| e.into_inner()),
         uden_doer: *t.laas.uden_doer.lock().unwrap_or_else(|e| e.into_inner()),
     }
 }
 
 /// Lås op efter dørens svar: `Ok` låser op; `IkkeTilgaengelig` låser op uden bekræftelse (banneret); `Annulleret`,
-/// `Afvist` og `Fejl` lader Grimnir være låst.
-fn efter_svar(t: &Tilstand, svar: &Svar) {
+/// `Afvist` og `Fejl` lader Grimnir være låst. Ved oplåsning svares der med beskederne fra seneste [`laas_igen`].
+fn efter_svar(t: &Tilstand, svar: &Svar) -> Option<EfterLaas> {
     match svar {
         Svar::Ok => t.laas_op_uden_doer(None),
         Svar::IkkeTilgaengelig { hvorfor } => t.laas_op_uden_doer(Some(hvorfor)),
-        Svar::Annulleret | Svar::Afvist | Svar::Fejl { .. } => {}
+        Svar::Annulleret | Svar::Afvist | Svar::Fejl { .. } => return None,
     }
+    *t.laas.igen.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    t.aktivitet();
+    let efter = std::mem::take(&mut *t.laas.efter.lock().unwrap_or_else(|e| e.into_inner()));
+    (!efter.tom()).then_some(efter)
 }
 
 /// Låser op med døren (`sprog`: UI'ets sprog til dialogens tekst). Er Grimnir allerede låst op (fx af et andet tryk på
-/// "Lås op", der kom først), spørges døren ikke, og svaret er `Ok`. Døren spørges højst én gang ad gangen.
+/// "Lås op", der kom først), spørges døren ikke, og svaret er `Ok`. Døren spørges højst én gang ad gangen. Nøglerne
+/// læses først, når kommandoerne bruger dem (de blev sluppet ved [`laas_igen`]).
 pub fn laas_op(t: &Tilstand, doer: &dyn Doer, sprog: &str) -> LaasSvar {
     let _en_ad_gangen = t.laas.doer.lock().unwrap_or_else(|e| e.into_inner());
-    let svar = if t.er_laast() {
+    let (svar, efter) = if t.er_laast() {
         let svar = doer.laas_op(&begrundelse(Grund::Start, sprog));
-        efter_svar(t, &svar);
-        svar
+        let efter = efter_svar(t, &svar);
+        (svar, efter)
     } else {
-        Svar::Ok
+        (Svar::Ok, None)
     };
     LaasSvar {
         svar,
         status: laas_status(t),
+        efter,
     }
 }
 
-/// Slår "Lås Grimnir ved start" til eller fra. At slå den til kræver intet. At slå den fra kræver en oplåsning med døren
-/// (også når Grimnir allerede er låst op): kun ved `Ok` (eller `IkkeTilgaengelig`, hvor maskinen alligevel ikke kan
-/// bekræfte brugeren) gemmes valget; og er Grimnir låst, låses den samtidig op. Ved `Annulleret`, `Afvist` og `Fejl` er
-/// intet ændret. Virker også, mens Grimnir er låst (Indstillinger).
-pub fn laas_ved_start(t: &Tilstand, doer: &dyn Doer, til: bool, sprog: &str) -> Result<LaasSvar, UiFejl> {
-    let nu = t.indstillinger().laas_ved_start;
-    let svar = if til || !nu {
-        Svar::Ok
-    } else {
-        let _en_ad_gangen = t.laas.doer.lock().unwrap_or_else(|e| e.into_inner());
-        doer.laas_op(&begrundelse(Grund::SlaaFra, sprog))
-    };
-    if matches!(svar, Svar::Ok | Svar::IkkeTilgaengelig { .. }) && til != nu {
-        let mut g = t.indst.lock().unwrap_or_else(|e| e.into_inner());
-        let ny = Indstillinger { laas_ved_start: til, ..*g };
-        skriv_indstillinger(t, &mut g, ny)?;
+/// V-LAAS.3 N2: låser Grimnir igen (dvale, skærmen slukker, brugerskift, stilstand). Svarer sand, hvis Grimnir var låst
+/// op (så skal webvisningen have hændelsen `laast`); falsk, hvis den allerede var låst.
+///
+/// Rækkefølgen:
+/// 1. Låst sættes først: porten ([`Tilstand::aaben`]) og vagten om nøglelageret afviser alt nyt herfra. Et senere
+///    `laas_op` er nødvendigt for at komme ind igen, og UI'et kalder det ikke af sig selv ([`LaasStatus::igen`]).
+/// 2. De holdte filer i Maskér og Demaskér slippes; teksten, rækkernes originaler og resultaterne nulstilles (`Drop`).
+///    En kommando, der kører på en fil, gøres færdig først (filens lås).
+/// 3. Sagen: en navngiven sag, der er ændret uden at være gemt, gemmes (med sin egen nøgle, ikke nøglelageret). Fejler
+///    det, låses der alligevel, og fejlen (uden indhold) vises efter oplåsningen. En midlertidig sag med poster lukkes
+///    uden at blive gemt, og det vises efter oplåsningen. Sagen erstattes af en ny, tom midlertidig sag; den gamle sags
+///    strenge nulstilles, og `AabenSag` med sagens [`Noegle`] slippes (nøglen nulstilles). En kommando, der holder
+///    sagen (en maskering), gøres færdig først.
+/// 4. Ordbogen slippes, og posterne og kernens kopi nulstilles. Den læses igen fra disk, første gang den bruges efter
+///    oplåsningen (og nøglen med den).
+///
+/// Låsene tages i samme orden som ellers (filer før sag; ordbogens aldrig samtidig med sagens).
+pub fn laas_igen(t: &Tilstand, grund: Udloeser) -> bool {
+    let var_aaben = !t.laas.laast.swap(true, Ordering::SeqCst);
+    *t.laas.uden_doer.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    *t.laas.igen.lock().unwrap_or_else(|e| e.into_inner()) = Some(grund);
+    // 2. Filerne.
+    for v in [Visning::Masker, Visning::Demasker] {
+        let gammel = t.fil(v).take();
+        drop(gammel);
     }
-    if !til && nu {
-        efter_svar(t, &svar);
+    // 3. Sagen.
+    let ny = t.ny_sag();
+    let mut midlertidig_lukket = false;
+    let mut gem_fejl = None;
+    {
+        let mut a = t.sag();
+        let aktuel = &mut *a;
+        match aktuel.aaben.as_mut() {
+            Some(aaben) if aktuel.ugemt => {
+                let hoved = aaben.hoved.clone();
+                if let Err(f) = t
+                    .arkiv()
+                    .map_err(|_| SagFejl::ManglerFil)
+                    .and_then(|ark| ark.gem(aaben, hoved, aktuel.sag.data()))
+                {
+                    gem_fejl = Some(f);
+                }
+            }
+            Some(_) => {}
+            None => midlertidig_lukket = aktuel.sag.antal_poster() > 0,
+        }
+        erstat(aktuel, ny, None);
+        aktuel.ugemt = false;
     }
-    Ok(LaasSvar {
-        svar,
-        status: laas_status(t),
-    })
+    // 4. Ordbogen.
+    {
+        let mut g = t.ordbog.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(o) = g.take() {
+            ob::nulstil(o.poster);
+            ob::nulstil_kerne(o.kerne);
+        }
+    }
+    let mut efter = t.laas.efter.lock().unwrap_or_else(|e| e.into_inner());
+    efter.midlertidig_lukket |= midlertidig_lukket;
+    if gem_fejl.is_some() {
+        efter.gem_fejl = gem_fejl;
+    }
+    var_aaben
+}
+
+/// V-LAAS.3 N2: låser ved stilstand, når der har været stille i den valgte tid ("Lås efter stilstand"; 5, 15, 30 eller
+/// 60 minutter) og ingen kommando er i gang. Kaldes jævnligt fra en tråd i `lib.rs`. Svarer som [`laas_igen`]; er
+/// Grimnir allerede låst, sker der intet.
+pub fn tjek_stilstand(t: &Tilstand) -> bool {
+    if t.er_laast() || !t.stilstand.udloebet(t.indstillinger().laas_efter_min) {
+        return false;
+    }
+    laas_igen(t, Udloeser::Stilstand)
+}
+
+/// Testkrog (V-LAAS.3 N5): det, tilstanden holder i hukommelsen, felt for felt (forbi porten). Efter [`laas_igen`] skal
+/// alt være nul. `Arkiv` og `Ordbogsfil` holder ingen nøgler, kun nøglelageret (vagten om Nøglering), så de tælles ikke.
+#[doc(hidden)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Levende {
+    /// Nøgler: den åbne navngivne sags [`Noegle`] (i `AabenSag`).
+    pub noegler: usize,
+    /// Originaler i sagen i hukommelsen (én pr. post).
+    pub originaler: usize,
+    /// Ordbogens poster i hukommelsen.
+    pub ordbogsvaerdier: usize,
+    /// Ordbogen er læst (posterne og kernens kopi ligger i hukommelsen).
+    pub ordbog_laest: bool,
+    /// Holdte filer (Maskér og Demaskér) med tekst og rækker.
+    pub filer: usize,
+    /// Resultater i hukommelsen (maskeret eller demaskeret tekst).
+    pub resultater: usize,
+}
+
+/// Testkrog (V-LAAS.3 N5): tæller [`Levende`].
+#[doc(hidden)]
+pub fn levende(t: &Tilstand) -> Levende {
+    let mut l = Levende::default();
+    for v in [Visning::Masker, Visning::Demasker] {
+        if let Some(h) = t.fil(v).as_ref() {
+            l.filer += 1;
+            l.resultater += usize::from(h.resultat.is_some());
+        }
+    }
+    {
+        let a = t.sag();
+        l.noegler = usize::from(a.aaben.is_some());
+        l.originaler = a.sag.antal_poster();
+    }
+    if let Some(o) = t.ordbog.lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
+        l.ordbog_laest = true;
+        l.ordbogsvaerdier = o.poster.len();
+    }
+    l
+}
+
+/// Testkrog (V-LAAS.3 N5): markerer den åbne navngivne sag som ændret uden at være gemt, så testene kan prøve, at
+/// [`laas_igen`] gemmer den. Ingen kommando i programmet kalder den (se [`Aktuel`]).
+#[doc(hidden)]
+pub fn marker_ugemt(t: &Tilstand) {
+    let mut a = t.sag();
+    if a.aaben.is_some() {
+        a.ugemt = true;
+    }
 }
 
 // ------------------------------------------------------------------------------------------------------- filer (V-FIL.1)
@@ -1783,7 +1972,11 @@ pub fn fil_aabn(t: &Tilstand, v: Visning, sti: &std::path::Path) -> Result<FilIn
         fejl: Vec::new(),
         resultat: None,
     };
-    let gammel = t.fil(v).replace(ny);
+    let mut g = t.fil(v);
+    // V-LAAS.3: låst, mens filen blev læst: den læste tekst slippes (og nulstilles) i stedet for at blive holdt.
+    t.aaben()?;
+    let gammel = g.replace(ny);
+    drop(g);
     drop(gammel);
     Ok(info)
 }
@@ -2129,6 +2322,8 @@ pub fn ordbog_start_forfra(t: &Tilstand, dato: &str) -> Result<StartForfra, UiFe
     t.aaben()?;
     tjek_dato(dato)?;
     let mut g = t.ordbog();
+    // V-LAAS.3: som `aendr_ordbog`.
+    t.aaben()?;
     let o = g.get_or_insert_with(OrdbogTilstand::default);
     if o.fejl.is_none() {
         return Ok(StartForfra {

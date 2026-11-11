@@ -4,14 +4,20 @@
 //! `sag_luk`, `sag_omdoeb`, `sag_udloeb`, `sag_slet` og `program_afslut`; ordbogen og indstillingerne (V-ORDBOG.1):
 //! `ordbog_hent`, `ordbog_tilfoej`, `ordbog_ret`, `ordbog_fjern`, `ordbog_proev`, `indstillinger_hent`,
 //! `indstillinger_gem` og `sag_valg`; filerne (V-FIL.1): `fil_aabn`, `fil_aabn_sluppet`, `fil_luk`, `fil_analyser`,
-//! `fil_raekker`, `fil_gem_og_masker`, `fil_demasker`, `fil_kopi`, `fil_gem` og `ordbog_start_forfra`; låsen (V-LAAS.2):
-//! `laas_status`, `laas_op` og `laas_ved_start`.
+//! `fil_raekker`, `fil_gem_og_masker`, `fil_demasker`, `fil_kopi`, `fil_gem` og `ordbog_start_forfra`; låsen (V-LAAS.2,
+//! V-LAAS.3): `laas_status`, `laas_op` og `aktivitet`.
 //!
-//! **Låsen (V-LAAS.2).** Grimnir starter låst, når "Lås Grimnir ved start" er til ([`Tilstand::ved_start`]). UI'et kalder
+//! **Låsen (V-LAAS.2).** Grimnir starter altid låst ([`Tilstand::ved_start`]; V-LAAS.3 N1, ADR D20). UI'et kalder
 //! `laas_op` én gang ved start; døren ([`laas::platformens`]: Touch ID med adgangskoden som reserve på macOS) svarer i
 //! en blok på en anden tråd, og kommandoen er `async`, så hovedtråden aldrig venter. Mens der er låst, svarer hver
 //! kommando, der bruger sager, ordbog, filer eller nøgler, med fejlen `laast`, og Åbn fil viser ikke engang dialogen.
 //! Døren beskytter mod en person ved en ulåst maskine, ikke mod et andet program, der kører som brugeren ([`laas`]).
+//!
+//! **Lås igen (V-LAAS.3).** [`laas_igen_og_meld`] er den ene vej: [`maskering::laas_igen`] nulstiller, og webvisningen
+//! får hændelsen `laast` og genindlæser siden. Udløserne er macOS' notifikationer ([`notifikationer`]: dvale, skærmene
+//! slukker, brugerskift) og stilstand (en tråd kalder [`maskering::tjek_stilstand`] hvert 10. sekund). Hver kommando
+//! tæller som aktivitet (invoke-håndteringen nedenfor), og kommandoen `aktivitet` melder tastatur og mus i vinduet. De
+//! lange kommandoer holder [`Tilstand::travl`], så en analyse, der varer længe, ikke låses midt i.
 //!
 //! **Filer (V-FIL.1).** Åbn- og Gem-dialogerne er styresystemets egne, åbnet herfra med `rfd` (ikke
 //! `tauri-plugin-dialog`/`-fs`); webvisningen får ingen fil-rettigheder og ser aldrig en sti, kun filnavnet. Træk og
@@ -33,14 +39,18 @@ pub mod igang;
 pub mod indstillinger;
 pub mod laas;
 pub mod maskering;
+#[cfg(target_os = "macos")]
+mod notifikationer;
 pub mod ordbog;
 pub mod sager;
+pub mod stilstand;
 
 // Menuen bygges kun på macOS (se `run`); på Windows bruges kun `handling` og `platform_skript`.
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 mod programmenu;
 
 use indstillinger::Indstillinger;
+use laas::Udloeser;
 use maskering::{
     Analyse, Demaskering, FilAnalyse, FilDemaskering, FilInfo, FilMaskering, LaasStatus, LaasSvar, Maskering, OrdbogUd, Proeve, RaekkeSide,
     Rettelse, SagListePost, SagStatus, SideValg, StartForfra, Tilstand, UiFejl, Visning,
@@ -68,6 +78,7 @@ fn analyser(
     fravalgt: Option<Vec<usize>>,
     rettelser: Option<Vec<Rettelse>>,
 ) -> Result<Analyse, UiFejl> {
+    let _travl = tilstand.travl();
     maskering::analyser(&tilstand, &tekst, fravalgt.as_deref(), rettelser.as_deref().unwrap_or_default())
 }
 
@@ -79,12 +90,14 @@ fn gem_og_masker(
     fravalgt: Vec<usize>,
     rettelser: Vec<Rettelse>,
 ) -> Result<Maskering, UiFejl> {
+    let _travl = tilstand.travl();
     maskering::gem_og_masker(&tilstand, &tekst, &fravalgt, &rettelser)
 }
 
 /// Sætter de rigtige værdier tilbage i en tekst med sagens koder.
 #[tauri::command(async)]
 fn demasker(tilstand: State<'_, Tilstand>, tekst: String) -> Result<Demaskering, UiFejl> {
+    let _travl = tilstand.travl();
     maskering::demasker(&tilstand, &tekst)
 }
 
@@ -125,12 +138,14 @@ fn sag_ny(tilstand: State<'_, Tilstand>, navn: String, udloeb: Option<String>) -
 /// Sagerne på disk (hovederne; en sag, der ikke kan åbnes, står med årsag).
 #[tauri::command(async)]
 fn sag_liste(tilstand: State<'_, Tilstand>) -> Result<Vec<SagListePost>, UiFejl> {
+    let _travl = tilstand.travl();
     maskering::sag_liste(&tilstand)
 }
 
 /// Åbner en sag fra disk.
 #[tauri::command(async)]
 fn sag_aabn(tilstand: State<'_, Tilstand>, id: String) -> Result<SagStatus, UiFejl> {
+    let _travl = tilstand.travl();
     maskering::sag_aabn(&tilstand, &id)
 }
 
@@ -191,6 +206,7 @@ fn ordbog_fjern(tilstand: State<'_, Tilstand>, id: u64) -> Result<OrdbogUd, UiFe
 /// Kører analysen med ordbogen på en tekst uden at røre sagen; teksten gemmes ikke.
 #[tauri::command(async)]
 fn ordbog_proev(tilstand: State<'_, Tilstand>, tekst: String) -> Result<Proeve, UiFejl> {
+    let _travl = tilstand.travl();
     maskering::ordbog_proev(&tilstand, &tekst)
 }
 
@@ -206,7 +222,8 @@ fn indstillinger_gem(tilstand: State<'_, Tilstand>, indstillinger: Indstillinger
     maskering::indstillinger_gem(&tilstand, indstillinger)
 }
 
-/// V-LAAS.2: låsens tilstand (låst, "Lås ved start", og om Grimnir er låst op uden bekræftelse).
+/// V-LAAS.2: låsens tilstand (låst, om den er låst igen efter start og hvorfor, og om Grimnir er låst op uden
+/// bekræftelse).
 #[tauri::command]
 fn laas_status(tilstand: State<'_, Tilstand>) -> LaasStatus {
     maskering::laas_status(&tilstand)
@@ -222,10 +239,36 @@ fn laas_op(tilstand: State<'_, Tilstand>, doer: State<'_, Doeren>, sprog: String
     maskering::laas_op(&tilstand, doer.0.as_ref(), &sprog)
 }
 
-/// Slår "Lås Grimnir ved start" til eller fra; fra kræver en oplåsning med døren. `async` som `laas_op`.
-#[tauri::command(async)]
-fn laas_ved_start(tilstand: State<'_, Tilstand>, doer: State<'_, Doeren>, til: bool, sprog: String) -> Result<LaasSvar, UiFejl> {
-    maskering::laas_ved_start(&tilstand, doer.0.as_ref(), til, &sprog)
+/// V-LAAS.3: tastatur eller mus i Grimnirs vindue (webvisningen sender den højst hvert 20. sekund). Gør intet selv:
+/// hver kommando tæller som aktivitet i invoke-håndteringen ([`run`]).
+#[tauri::command]
+fn aktivitet() {}
+
+/// V-LAAS.3: låser igen ([`maskering::laas_igen`]) og fortæller webvisningen det (hændelsen `laast`; webvisningen
+/// genindlæser siden og står låst). Den ene vej for notifikationerne (kun macOS i denne cyklus; som `programmenu`).
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+fn laas_igen_og_meld(app: &tauri::AppHandle, grund: Udloeser) {
+    if maskering::laas_igen(&app.state::<Tilstand>(), grund) {
+        meld_laast(app, grund);
+    }
+}
+
+/// Efter [`maskering::laas_igen`]: den sti, et træk og slip efterlod, glemmes, og webvisningen får hændelsen `laast`.
+fn meld_laast(app: &tauri::AppHandle, grund: Udloeser) {
+    *app.state::<Sluppet>().0.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    let _ = app.emit("laast", grund);
+}
+
+/// V-LAAS.3: stilstand. Tjekker hvert 10. sekund, om "Lås efter stilstand" er nået; [`maskering::tjek_stilstand`]
+/// kalder [`maskering::laas_igen`].
+fn start_stilstandsvagt(app: &tauri::AppHandle) {
+    let app = app.clone();
+    std::thread::spawn(move || loop {
+        std::thread::sleep(std::time::Duration::from_secs(10));
+        if maskering::tjek_stilstand(&app.state::<Tilstand>()) {
+            meld_laast(&app, Udloeser::Stilstand);
+        }
+    });
 }
 
 /// UI'ets sprog i Rust: titlerne på filvalgsdialogerne.
@@ -255,7 +298,10 @@ async fn fil_aabn(
         .pick_file()
         .await;
     match valgt {
-        Some(h) => maskering::fil_aabn(&tilstand, visning, h.path()).map(Some),
+        Some(h) => {
+            let _travl = tilstand.travl();
+            maskering::fil_aabn(&tilstand, visning, h.path()).map(Some)
+        }
         None => Ok(None),
     }
 }
@@ -264,6 +310,7 @@ async fn fil_aabn(
 #[tauri::command(async)]
 fn fil_aabn_sluppet(tilstand: State<'_, Tilstand>, sluppet: State<'_, Sluppet>, visning: Visning) -> Result<Option<FilInfo>, UiFejl> {
     let sti = sluppet.0.lock().unwrap_or_else(|e| e.into_inner()).take();
+    let _travl = tilstand.travl();
     match sti {
         Some(p) => maskering::fil_aabn(&tilstand, visning, &p).map(Some),
         None => Ok(None),
@@ -285,6 +332,7 @@ fn fil_analyser(
     rettelser: Option<Vec<Rettelse>>,
     side: SideValg,
 ) -> Result<FilAnalyse, UiFejl> {
+    let _travl = tilstand.travl();
     maskering::fil_analyser(
         &tilstand,
         fravalgt.as_deref(),
@@ -297,24 +345,28 @@ fn fil_analyser(
 /// En side rækker fra seneste analyse af filen (filter, søgning, Vis flere).
 #[tauri::command(async)]
 fn fil_raekker(tilstand: State<'_, Tilstand>, side: SideValg) -> Result<RaekkeSide, UiFejl> {
+    let _travl = tilstand.travl();
     maskering::fil_raekker(&tilstand, &side)
 }
 
 /// `gem_og_masker` for den åbne fil i Maskér; den maskerede tekst bliver i Rust.
 #[tauri::command(async)]
 fn fil_gem_og_masker(tilstand: State<'_, Tilstand>, fravalgt: Vec<usize>, rettelser: Vec<Rettelse>) -> Result<FilMaskering, UiFejl> {
+    let _travl = tilstand.travl();
     maskering::fil_gem_og_masker(&tilstand, &fravalgt, &rettelser)
 }
 
 /// `demasker` for den åbne fil i Demaskér; teksten med de rigtige værdier bliver i Rust.
 #[tauri::command(async)]
 fn fil_demasker(tilstand: State<'_, Tilstand>) -> Result<FilDemaskering, UiFejl> {
+    let _travl = tilstand.travl();
     maskering::fil_demasker(&tilstand)
 }
 
 /// Hele resultatet til Kopiér (højst 5 MiB).
 #[tauri::command(async)]
 fn fil_kopi(tilstand: State<'_, Tilstand>, visning: Visning) -> Result<String, UiFejl> {
+    let _travl = tilstand.travl();
     maskering::fil_kopi(&tilstand, visning)
 }
 
@@ -341,7 +393,10 @@ async fn fil_gem(
         d = d.set_directory(m);
     }
     match d.save_file().await {
-        Some(h) => maskering::fil_gem_til(&tilstand, visning, h.path(), ok).map(Some),
+        Some(h) => {
+            let _travl = tilstand.travl();
+            maskering::fil_gem_til(&tilstand, visning, h.path(), ok).map(Some)
+        }
         None => Ok(None),
     }
 }
@@ -392,7 +447,7 @@ fn anmod_afslut(app: &tauri::AppHandle) -> bool {
 }
 
 /// Programmets mappe `<app-data>` (macOS: `~/Library/Application Support/com.wi24rd.grimnir`) med `sager/`,
-/// `ordbog.grimnir` og `indstillinger.json`. V-LAAS.2: låst, når "Lås Grimnir ved start" er til.
+/// `ordbog.grimnir` og `indstillinger.json`. Altid låst ved start (V-LAAS.3 N1).
 fn tilstand_for(app: &tauri::AppHandle) -> Tilstand {
     match app.path().app_data_dir() {
         Ok(d) => Tilstand::paa_disk(d, std::sync::Arc::new(sager::Noeglering)),
@@ -419,47 +474,59 @@ fn aabn_vindue(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>>
     Ok(())
 }
 
+/// Giver `generate_handler!` sin type, så den kan kaldes inde i Grimnirs egen invoke-håndtering (V-LAAS.3).
+fn kommandoliste<F: Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool>(f: F) -> F {
+    f
+}
+
 /// Starter programmet.
 pub fn run() {
+    let kommandoer = kommandoliste(tauri::generate_handler![
+        kerne_version,
+        analyser,
+        gem_og_masker,
+        demasker,
+        sag_status,
+        sag_nulstil,
+        menu_sprog,
+        sag_ny,
+        sag_liste,
+        sag_aabn,
+        sag_luk,
+        sag_omdoeb,
+        sag_udloeb,
+        sag_slet,
+        program_afslut,
+        sag_valg,
+        ordbog_hent,
+        ordbog_tilfoej,
+        ordbog_ret,
+        ordbog_fjern,
+        ordbog_proev,
+        indstillinger_hent,
+        indstillinger_gem,
+        fil_aabn,
+        fil_aabn_sluppet,
+        fil_luk,
+        fil_analyser,
+        fil_raekker,
+        fil_gem_og_masker,
+        fil_demasker,
+        fil_kopi,
+        fil_gem,
+        ordbog_start_forfra,
+        laas_status,
+        laas_op,
+        aktivitet
+    ]);
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![
-            kerne_version,
-            analyser,
-            gem_og_masker,
-            demasker,
-            sag_status,
-            sag_nulstil,
-            menu_sprog,
-            sag_ny,
-            sag_liste,
-            sag_aabn,
-            sag_luk,
-            sag_omdoeb,
-            sag_udloeb,
-            sag_slet,
-            program_afslut,
-            sag_valg,
-            ordbog_hent,
-            ordbog_tilfoej,
-            ordbog_ret,
-            ordbog_fjern,
-            ordbog_proev,
-            indstillinger_hent,
-            indstillinger_gem,
-            fil_aabn,
-            fil_aabn_sluppet,
-            fil_luk,
-            fil_analyser,
-            fil_raekker,
-            fil_gem_og_masker,
-            fil_demasker,
-            fil_kopi,
-            fil_gem,
-            ordbog_start_forfra,
-            laas_status,
-            laas_op,
-            laas_ved_start
-        ])
+        // V-LAAS.3: hver kommando fra webvisningen er aktivitet (stilstand). Før kommandoen kører.
+        .invoke_handler(move |invoke| {
+            if let Some(t) = invoke.message.webview_ref().try_state::<Tilstand>() {
+                t.aktivitet();
+            }
+            kommandoer(invoke)
+        })
         .on_window_event(|vindue, ev| match ev {
             tauri::WindowEvent::CloseRequested { api, .. } => {
                 if anmod_afslut(vindue.app_handle()) {
@@ -513,6 +580,18 @@ pub fn run() {
             app.manage(Doeren(laas::platformens()));
             app.manage(Sprogvalg(Mutex::new(&programmenu::DA)));
             app.manage(Sluppet::default());
+            // V-LAAS.3: udløserne. Notifikationerne kun på macOS; stilstand på alle platforme.
+            #[cfg(target_os = "macos")]
+            {
+                let h = app.handle().clone();
+                notifikationer::registrer(move |grund| {
+                    // Notifikationen kommer på hovedtråden; låsen kan vente på en kommando, der kører (en analyse), så
+                    // den gøres i en anden tråd, og vinduet fryser ikke.
+                    let h = h.clone();
+                    std::thread::spawn(move || laas_igen_og_meld(&h, grund));
+                });
+            }
+            start_stilstandsvagt(app.handle());
             // Kun macOS: på Windows ville menuen blive en menubjælke i vinduet; dér fanger rammen Ctrl+, selv.
             #[cfg(target_os = "macos")]
             app.set_menu(programmenu::byg(app.handle(), &programmenu::DA)?)?;

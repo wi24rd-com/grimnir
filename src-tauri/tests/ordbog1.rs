@@ -688,7 +688,8 @@ fn indstillinger_gemmes_og_gaelder_en_ny_sag() {
         bevar_sidste_oktet: false,
         udloeb_dage: Some(30),
         guide_vist: true,
-        laas_ved_start: true,
+        // V-LAAS.3: `laas_ved_start` er fjernet (N1); "Lås efter stilstand" er med i stedet og gemmes som de andre.
+        laas_efter_min: 30,
     };
     assert_eq!(indstillinger_gem(&t, ny_i), Ok(ny_i));
     let s = sag_status(&t).unwrap();

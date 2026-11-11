@@ -15,12 +15,15 @@
 // rækker fra Rust i sider, søgning over alle rækker, gem og kopiér, rester → Gem alligevel, Demaskér med bekræftelse,
 // træk og slip (én fil, flere filer, en mappe), arbejder-tilstand; ingen fil-rettigheder; Start forfra; adgangskode-advarsel.
 // V-LAAS.2: låseskærmen med en efterlignet Rust (falskLaasRust): start låst, Lås op (ok, annulleret, afvist, ikke
-// tilgængelig, fejl), Afslut, banneret ved ikke tilgængelig, intet sagsindhold i DOM'en, Enter, begge sprog, "Lås Grimnir
-// ved start" fra kræver oplåsning.
+// tilgængelig, fejl), Afslut, banneret ved ikke tilgængelig, intet sagsindhold i DOM'en, Enter, begge sprog.
+// V-LAAS.3: "Lås Grimnir ved start" er væk i begge sprog (de V-LAAS.2-tjek, der slog den fra, er fjernet med den);
+// hændelsen `laast` genindlæser siden (location.reload; jsdom melder "navigation"), og den genindlæste side er tom og
+// kalder ikke laas_op af sig selv; beskeden om den midlertidige sag og om en sag, der ikke kunne gemmes; "Lås efter
+// stilstand"; aktivitet fra tastatur og mus højst hvert 20. sekund; tandhjulet i titellinjen er ikke solen.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { JSDOM } from 'jsdom';
+import { JSDOM, VirtualConsole } from 'jsdom';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const ui = p => fs.readFileSync(path.join(repo, 'ui', p), 'utf8');
@@ -34,7 +37,13 @@ const vent = (ms = 0) => new Promise(r => setTimeout(r, ms));
 function side({ hash = '', lager = {}, platform = 'macos', rust = null, foer = null } = {}) {
   const html = ui('index.html');
   const scripts = [...html.matchAll(/<script src="([^"]+)"(?: defer)?><\/script>/g)].map(m => m[1]);
-  const dom = new JSDOM(html.replace(/<script[^>]*><\/script>/g, ''), { url: 'http://tauri.localhost/index.html' + hash, runScripts: 'outside-only', pretendToBeVisual: true });
+  // jsdom kan ikke navigere: location.reload() giver fejlen "Not implemented: navigation". Den samles her (og andre
+  // jsdom-fejl vises stadig), så testen kan se, at siden bad om at blive genindlæst (V-LAAS.3).
+  const jsdomFejl = [];
+  const konsol = new VirtualConsole();
+  konsol.sendTo(console, { omitJSDOMErrors: true });
+  konsol.on('jsdomError', e => { jsdomFejl.push(String(e && e.message)); if (!/navigation/.test(String(e && e.message))) console.error(e); });
+  const dom = new JSDOM(html.replace(/<script[^>]*><\/script>/g, ''), { url: 'http://tauri.localhost/index.html' + hash, runScripts: 'outside-only', pretendToBeVisual: true, virtualConsole: konsol });
   const w = dom.window;
   for (const [k, v] of Object.entries(lager)) w.localStorage.setItem(k, v);
   Object.defineProperty(w, '__GRIMNIR_PLATFORM__', { value: platform });
@@ -50,7 +59,8 @@ function side({ hash = '', lager = {}, platform = 'macos', rust = null, foer = n
         if (cmd === 'kerne_version') return '0.1.0';
         if (rust && cmd in rust) return rust[cmd](args || {});
         // V-LAAS.2: uden en efterlignet dør er Grimnir låst op (de ældre afsnit); låseskærmen prøves i sit eget afsnit.
-        if (cmd === 'laas_status') return { laast: false, ved_start: true, uden_doer: null };
+        if (cmd === 'laas_status') return { laast: false, igen: null, uden_doer: null };
+        if (cmd === 'aktivitet') return null;
         if (cmd === 'sag_status') return { poster: 0, id: null, navn: null, udloeb: null };
         if (cmd === 'sag_liste') return [];
         if (cmd === 'menu_sprog') return null;
@@ -64,7 +74,7 @@ function side({ hash = '', lager = {}, platform = 'macos', rust = null, foer = n
   for (const s of scripts) w.eval(ui(s));
   const emit = (navn, payload) => (lyttere[navn] || []).forEach(cb => cb({ payload }));
   const tast = (key, x = {}) => w.document.dispatchEvent(new w.KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...x }));
-  return { w, d: w.document, kald, emit, tast, scripts };
+  return { w, d: w.document, kald, emit, tast, scripts, jsdomFejl };
 }
 const synlige = d => [...d.querySelectorAll('section.visning')].filter(s => !s.hidden).map(s => s.dataset.visning);
 const VIS = ['masker', 'demasker', 'sager', 'ordbog'];
@@ -907,7 +917,7 @@ const aaben = (d, id) => d.getElementById(id).hasAttribute('open');
 function falskOrdbogRust({ poster = [], indst = {}, laast = null, sager = [], gemFejl = false } = {}) {
   const r = falskSagRust({ sager });
   let db = poster.map((p, i) => ({ id: i + 1, note: null, oprettet: 1, ...p }));
-  let i0 = { masker_fremmede: false, bevar_sidste_oktet: true, udloeb_dage: null, guide_vist: false, ...indst };
+  let i0 = { masker_fremmede: false, bevar_sidste_oktet: true, udloeb_dage: null, guide_vist: false, laas_efter_min: 15, ...indst };
   let valg = { masker_fremmede: false, bevar_sidste_oktet: true };
   const ud = () => ({ poster: db.map(p => ({ ...p })), fejl: laast });
   const felt = (f, fejl) => ({ art: 'ordbog', fejl: [{ felt: f, fejl }] });
@@ -1880,14 +1890,20 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
 // ── V-LAAS.2: låseskærmen. Efterlignet Rust: låst ved start, laas_op svarer fra en kø, og hver kommando med sager,
 // ordbog eller filer svarer `laast`, mens der er låst. Kaldene, mens der er låst, logges, så testen ser, at UI'et slet ikke
 // spørger efter data. Kun opdigtede navne. ──
-const AABNE_I_LAAST = ['kerne_version', 'menu_sprog', 'program_afslut', 'indstillinger_hent', 'indstillinger_gem', 'laas_status', 'laas_op', 'laas_ved_start'];
-function falskLaasRust({ svar = [], vedStart = true, laast = true, poster = [{ type: 'ord', vaerdi: 'Kragevig' }] } = {}) {
-  const r = falskOrdbogRust({ poster, sager: [{ id: hexId(7), navn: 'Uglebo-sagen', poster: 7 }], indst: { guide_vist: false, laas_ved_start: vedStart } });
-  const st = { laast, vedStart, udenDoer: null, kue: [...svar], vedStartKue: [], kaldLaast: [], opKald: [], vent: null };
-  const status = () => ({ laast: st.laast, ved_start: st.vedStart, uden_doer: st.udenDoer });
+const AABNE_I_LAAST = ['kerne_version', 'menu_sprog', 'program_afslut', 'indstillinger_hent', 'indstillinger_gem', 'laas_status', 'laas_op', 'aktivitet'];
+function falskLaasRust({ svar = [], laast = true, igen = null, efter: efterLaas = null, poster = [{ type: 'ord', vaerdi: 'Kragevig' }] } = {}) {
+  const r = falskOrdbogRust({ poster, sager: [{ id: hexId(7), navn: 'Uglebo-sagen', poster: 7 }], indst: { guide_vist: false } });
+  const st = { laast, igen, efterLaas, udenDoer: null, kue: [...svar], kaldLaast: [], opKald: [], aktivitet: 0, vent: null };
+  const status = () => ({ laast: st.laast, igen: st.igen, uden_doer: st.udenDoer });
+  /* Som Rust: ved oplåsning ryddes `igen`, og beskederne fra låsen gives én gang. */
   const efter = sv => {
     if (sv.svar === 'ok') { st.laast = false; st.udenDoer = null; }
     if (sv.svar === 'ikke_tilgaengelig') { st.laast = false; st.udenDoer = sv.hvorfor; }
+    if (st.laast) return null;
+    st.igen = null;
+    const e = st.efterLaas;
+    st.efterLaas = null;
+    return e;
   };
   const ud = {};
   for (const [k, f] of Object.entries(r)) {
@@ -1903,16 +1919,12 @@ function falskLaasRust({ svar = [], vedStart = true, laast = true, poster = [{ t
     if (st.vent) await st.vent;
     if (!st.laast) return { svar: 'ok', status: status() };
     const sv = st.kue.length ? st.kue.shift() : { svar: 'annulleret' };
-    efter(sv);
-    return { ...sv, status: status() };
+    const e = efter(sv);
+    return { ...sv, status: status(), efter: e };
   };
-  ud.laas_ved_start = ({ til }) => {
-    let sv = { svar: 'ok' };
-    if (!til && st.vedStart) { sv = st.vedStartKue.length ? st.vedStartKue.shift() : { svar: 'annulleret' }; if (sv.svar === 'ok' || sv.svar === 'ikke_tilgaengelig') { st.vedStart = false; efter(sv); } }
-    else st.vedStart = til;
-    return { ...sv, status: status() };
-  };
-  ud.indstillinger_hent = () => ({ ...r.ob.indst, laas_ved_start: st.vedStart });
+  ud.aktivitet = () => { st.aktivitet++; return null; };
+  /* Rust låser igen (dvale, skærm, brugerskift, stilstand): som laas_igen. */
+  ud.laasIgen = (grund, efterLaas = null) => { st.laast = true; st.igen = grund; st.udenDoer = null; st.efterLaas = efterLaas; };
   ud.program_afslut = () => { st.afsluttet = true; return null; };
   ud.st = st;
   return ud;
@@ -1931,7 +1943,7 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
   tjek('Lås: båndet og NavPane er nedtonede, mens der er låst', /html\[data-laast\] #baand, html\[data-laast\] \.nav \{ opacity: \.45; \}/.test(css));
   const js = ui('assets/laas.js').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
   tjek('Lås: laas.js skriver ikke til konsollen og ikke til localStorage (koden uden kommentarer)', js.length > 2000 && !/console\.|localStorage/.test(js));
-  const tekster = Object.values(ui('assets/sprog.js').match(/laasH:[\s\S]*?laasFraFejl: '[^']*'/g) || []).join(' ').toLowerCase();
+  const tekster = Object.values(ui('assets/sprog.js').match(/laasH:[\s\S]*?bGemFejlVedLaas: '[^']*'/g) || []).join(' ').toLowerCase();
   tjek('Lås: teksterne lover ikke mere end døren (ingen "beskytter dine sager", "sikker", "krypteret")', tekster.length > 500 && !/beskytter dine|beskytter sagerne|sikker|krypter|secure|protects your|encrypt/.test(tekster), tekster.slice(0, 80));
   tjek('Lås: teksterne siger, hvad låsen ikke gør (andre programmer)', /andre programmer/.test(tekster) && /other apps/.test(tekster));
 }
@@ -1972,7 +1984,7 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
   s.emit('menu', 'indstillinger');
   await vent(5);
   tjek('Lås: Indstillinger virker', d.getElementById('dlg-indst').hasAttribute('open') && !d.getElementById('dlg-om').hasAttribute('open'));
-  tjek('Lås: "Lås Grimnir ved start" står til', d.getElementById('indst-laas').checked && !d.getElementById('indst-laas').disabled);
+  tjek('Lås: "Lås efter stilstand" kan vælges, mens der er låst (15 minutter)', d.getElementById('indst-stilstand').value === '15' && !d.getElementById('indst-stilstand').disabled);
   tjek('Lås: "Vis guiden igen" er nedtonet med forklaring', d.getElementById('indst-guide').disabled && /låst/.test(d.getElementById('indst-guide').title));
   tjek('Lås: hjælpeteksten siger, hvad låsen ikke gør', /andre programmer/.test(d.getElementById('indst-laas-hj').textContent));
   d.getElementById('dlg-indst').close();
@@ -2043,8 +2055,9 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
   tjek('Lås: banneret på engelsk', d.querySelector('#laas-banner .ord').textContent === 'This machine cannot confirm who you are. Grimnir is not locked.');
 }
 {
-  // Allerede låst op ved start (indstillingen fra): ingen dialog, intet banner.
-  const rust = falskLaasRust({ laast: false, vedStart: false });
+  // Rust svarer, at der ikke er låst (V-LAAS.3: indstillingen er væk; det sker kun, hvis siden genindlæses efter
+  // oplåsning): ingen dialog, intet banner.
+  const rust = falskLaasRust({ laast: false });
   const { d } = side({ rust });
   await vent(20);
   tjek('Lås: ulåst ved start → ingen laas_op, ingen låseskærm', rust.st.opKald.length === 0 && !laaseskaerm(d) && d.getElementById('laas-banner').children.length === 0);
@@ -2078,36 +2091,170 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
   tjek('Lås: to tryk og Enter mens døren spørger → ét kald', rust.st.opKald.length === 2 && !laaseskaerm(d), JSON.stringify(rust.st.opKald));
 }
 {
-  // "Lås Grimnir ved start" fra kræver oplåsning: annulleret → fluebenet står igen; ok → fra (og låst op).
-  const rust = falskLaasRust({ svar: [{ svar: 'annulleret' }] });
-  const s = side({ rust });
-  const { d, kald } = s;
-  await vent(20);
-  s.emit('menu', 'indstillinger');
-  await vent(5);
-  const cb = d.getElementById('indst-laas');
-  rust.st.vedStartKue.push({ svar: 'annulleret' });
-  cb.checked = false;
-  cb.dispatchEvent(new s.w.Event('change', { bubbles: true }));
-  await vent(10);
-  const lk = kald.filter(([c]) => c === 'laas_ved_start');
-  tjek('Lås: fra → laas_ved_start(til: false) på UI\'ets sprog', lk.length === 1 && lk[0][1].til === false && lk[0][1].sprog === 'da');
-  tjek('Lås: fra, annulleret → fluebenet står igen, med besked', cb.checked && d.getElementById('indst-fejl').textContent === 'Låsen ved start er stadig slået til, fordi du annullerede.' && laaseskaerm(d));
-  rust.st.vedStartKue.push({ svar: 'ok' });
-  cb.checked = false;
-  cb.dispatchEvent(new s.w.Event('change', { bubbles: true }));
-  await vent(20);
-  tjek('Lås: fra, ok → slået fra og Grimnir låst op', !cb.checked && !rust.st.vedStart && !laaseskaerm(d) && d.getElementById('indst-fejl').textContent === '');
-  cb.checked = true;
-  cb.dispatchEvent(new s.w.Event('change', { bubbles: true }));
-  await vent(10);
-  tjek('Lås: til igen → gemt uden dør', cb.checked && rust.st.vedStart && kald.filter(([c]) => c === 'laas_ved_start').length === 3);
-}
-{
-  // Windows (ingen dør i denne cyklus): hjælpeteksten lover ikke en lås.
+  // Windows (ingen dør i denne cyklus): hjælpeteksten lover ikke en lås ved start, men nævner stilstand.
   const { d } = side({ platform: 'windows' });
   await vent(10);
-  tjek('Lås (Windows): hjælpeteksten siger, at Grimnir ikke starter låst her', d.getElementById('indst-laas-hj').textContent === 'Denne maskine kan endnu ikke bekræfte, hvem du er, så Grimnir starter ikke låst her.');
+  tjek('Lås (Windows): hjælpeteksten siger, at Grimnir ikke starter låst her', d.getElementById('indst-laas-hj').textContent.startsWith('Denne maskine kan endnu ikke bekræfte, hvem du er, så Grimnir starter ikke låst her.') && /stået stille/.test(d.getElementById('indst-laas-hj').textContent));
+}
+
+// ── V-LAAS.3: låsen kan ikke slås fra, og Grimnir låser igen. Efterlignet Rust som V-LAAS.2 (falskLaasRust) med
+// laasIgen (som Rusts laas_igen) og hændelsen `laast`. Kun opdigtede navne. ──
+{
+  // N1: "Lås Grimnir ved start" er væk i begge sprog: ingen afkrydsningsboks, ingen tekster, ingen kommando.
+  // Kode og tekster, uden kommentarer (kommentarerne må gerne sige, at indstillingen er fjernet).
+  const udenKommentarer = t => t.replace(/<!--[\s\S]*?-->/g, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  const kilde = udenKommentarer(ui('index.html') + ui('assets/sprog.js') + ['laas.js', 'indstillinger.js', 'app.js'].map(f => ui('assets/' + f)).join('\n'));
+  tjek('V-LAAS.3: kontrol: kilden uden kommentarer har stadig teksterne', kilde.length > 20000 && /Lås efter stilstand/.test(kilde) && /invoke\('laas_op'/.test(kilde));
+  tjek('V-LAAS.3: "Lås Grimnir ved start" findes ikke i index.html, sprog.js eller scripts', !/indst-laas"|kLaasVedStart|hjLaasVedStart|laasFra|Lås Grimnir ved start|Lock Grimnir at startup|laas_ved_start/.test(kilde));
+  const TEKST = {
+    da: { label: 'Lås efter stilstand', valg: ['5 minutter', '15 minutter', '30 minutter', '60 minutter'], ord: [/dvale/, /skærmen slukker/, /skifter bruger/, /stået stille/, /andre programmer/] },
+    en: { label: 'Lock after inactivity', valg: ['5 minutes', '15 minutes', '30 minutes', '60 minutes'], ord: [/sleep/, /display turns off/, /switch user/, /idle/, /other apps/] },
+  };
+  for (const lang of ['da', 'en']) {
+    const rust = falskLaasRust({ svar: [{ svar: 'ok' }] });
+    const s = side({ rust, lager: { 'grimnir-sprog': lang } });
+    const { d } = s;
+    await vent(30);
+    s.emit('menu', 'indstillinger');
+    await vent(5);
+    const dlg = d.getElementById('dlg-indst');
+    tjek(`V-LAAS.3 (${lang}): Indstillinger har ingen "Lås ved start"`, !d.getElementById('indst-laas') && !dlg.querySelector('input[type="checkbox"][id*="laas"]') && !/ved start|at startup/i.test(dlg.textContent), dlg.textContent.slice(0, 120));
+    const sel = d.getElementById('indst-stilstand');
+    const t = TEKST[lang];
+    tjek(`V-LAAS.3 (${lang}): "${t.label}" med 5, 15, 30 og 60 minutter, ingen "aldrig"`, d.querySelector('label[for="indst-stilstand"]').textContent === t.label && JSON.stringify([...sel.options].map(o => o.value)) === '["5","15","30","60"]' && JSON.stringify([...sel.options].map(o => o.textContent)) === JSON.stringify(t.valg), JSON.stringify([...sel.options].map(o => o.textContent)));
+    tjek(`V-LAAS.3 (${lang}): standard 15 minutter; aria-label og hjælpetekst`, sel.value === '15' && sel.getAttribute('aria-label') === t.label && sel.getAttribute('aria-describedby') === 'indst-laas-hj');
+    const hj = d.getElementById('indst-laas-hj').textContent;
+    tjek(`V-LAAS.3 (${lang}): hjælpeteksten siger, hvad låsen beskytter imod, og hvornår den låser igen`, t.ord.every(r => r.test(hj)), hj);
+  }
+}
+{
+  // "Lås efter stilstand" gemmes som de andre valg, uden laas_ved_start.
+  const rust = falskLaasRust({ svar: [{ svar: 'ok' }] });
+  const s = side({ rust });
+  const { d, kald } = s;
+  await vent(30);
+  s.emit('menu', 'indstillinger');
+  await vent(5);
+  const sel = d.getElementById('indst-stilstand');
+  sel.value = '5';
+  sel.dispatchEvent(new s.w.Event('change', { bubbles: true }));
+  await vent(10);
+  const gemt = kald.filter(([c]) => c === 'indstillinger_gem').map(([, a]) => a.indstillinger);
+  tjek('V-LAAS.3: 5 minutter gemmes (laas_efter_min: 5) uden laas_ved_start', gemt.length === 1 && gemt[0].laas_efter_min === 5 && !('laas_ved_start' in gemt[0]) && rust.ob.indst.laas_efter_min === 5, JSON.stringify(gemt));
+  tjek('V-LAAS.3: valget står efter gemningen', sel.value === '5');
+}
+{
+  // N3: låst op med sager og ordbog i DOM'en og en åben dialog; Rust låser igen → `laast` → siden genindlæses.
+  const rust = falskLaasRust({ svar: [{ svar: 'ok' }] });
+  const s = side({ rust, hash: '#sager' });
+  const { d } = s;
+  await vent(30);
+  tjek('V-LAAS.3: kontrol: låst op, og sagens navn står i DOM\'en', !laaseskaerm(d) && /Uglebo-sagen/.test(altIDom(d)));
+  s.emit('menu', 'om');
+  await vent(5);
+  const opFoer = rust.st.opKald.length;
+  rust.laasIgen('dvale', { midlertidig_lukket: true, gem_fejl: null });
+  s.emit('laast', 'dvale');
+  await vent(10);
+  tjek('V-LAAS.3: hændelsen laast genindlæser siden (location.reload)', s.jsdomFejl.some(m => /navigation/.test(m)), JSON.stringify(s.jsdomFejl));
+  tjek('V-LAAS.3: visningerne skjules med det samme, før siden er genindlæst', laaseskaerm(d));
+  tjek('V-LAAS.3: laast kalder ikke laas_op', rust.st.opKald.length === opFoer);
+  // Den genindlæste side: samme Rust (låst igen), ny DOM og ny JS-hukommelse fra index.html.
+  const g = side({ rust, hash: '#sager' });
+  await vent(30);
+  tjek('V-LAAS.3: efter genindlæsningen er siden låst', laaseskaerm(g.d));
+  tjek('V-LAAS.3: efter genindlæsningen indeholder DOM\'en ingen af de opdigtede værdier', !/Uglebo|Kragevig|7 værdier|7 sag/.test(altIDom(g.d)));
+  tjek('V-LAAS.3: efter genindlæsningen er laas_op ikke kaldt (ingen fingerdialog, mens du er væk)', rust.st.opKald.length === opFoer && !g.kald.some(([c]) => c === 'laas_op'), JSON.stringify(rust.st.opKald));
+  tjek('V-LAAS.3: efter genindlæsningen er ingen dialog åben', g.d.querySelectorAll('dialog[open]').length === 0);
+  tjek('V-LAAS.3: efter genindlæsningen spørger UI\'et ikke efter data', fremmedeKald(g.kald).length === 0 && rust.st.kaldLaast.length === 0, JSON.stringify(fremmedeKald(g.kald)));
+  tjek('V-LAAS.3: låseskærmen siger, at Grimnir låste, og fokus står på Lås op', g.d.getElementById('laas-besked').textContent === 'Grimnir låste, mens du var væk. Tryk Lås op for at fortsætte.' && g.d.activeElement === g.d.getElementById('laas-op'), g.d.getElementById('laas-besked').textContent);
+  // Først et tryk på Lås op giver dialogen; ok → beskeden om den midlertidige sag.
+  rust.st.kue.push({ svar: 'ok' });
+  g.d.getElementById('laas-op').click();
+  await vent(30);
+  tjek('V-LAAS.3: Lås op giver én dialog og låser op', rust.st.opKald.length === opFoer + 1 && !laaseskaerm(g.d));
+  const b = g.d.querySelector('#laas-banner .ban[data-efter="bMidlertidigLukket"]');
+  tjek('V-LAAS.3: beskeden om den midlertidige sag efter oplåsningen', b && b.querySelector('.ord').textContent === 'Den midlertidige sag blev lukket, da Grimnir låste.' && b.getAttribute('role') === 'status', b && b.textContent);
+  const luk = b && b.querySelector('button');
+  tjek('V-LAAS.3: beskeden har en Luk-knap med aria-label', luk && luk.textContent.trim() === 'Luk' && luk.getAttribute('aria-label') === 'Luk beskeden');
+  if (luk) luk.click();
+  tjek('V-LAAS.3: Luk fjerner beskeden', !g.d.querySelector('#laas-banner .ban[data-efter]'));
+  tjek('V-LAAS.3: efter oplåsningen hentes data igen', g.kald.some(([c]) => c === 'sag_liste') && /Uglebo-sagen/.test(altIDom(g.d)));
+}
+{
+  // Låst igen ved stilstand, og den åbne sag kunne ikke gemmes: annulleret → stadig låst, ingen ny dialog af sig selv;
+  // Enter → dialogen → ok → advarslen uden indhold (engelsk).
+  const rust = falskLaasRust({ laast: true, igen: 'stilstand', efter: { midlertidig_lukket: false, gem_fejl: { art: 'konflikt' } } });
+  const s = side({ rust, lager: { 'grimnir-sprog': 'en' } });
+  const { d } = s;
+  await vent(30);
+  tjek('V-LAAS.3 (en): låst igen → ingen laas_op og beskeden på engelsk', rust.st.opKald.length === 0 && d.getElementById('laas-besked').textContent === 'Grimnir locked while you were away. Press Unlock to continue.', d.getElementById('laas-besked').textContent);
+  rust.st.kue.push({ svar: 'annulleret' }, { svar: 'ok' });
+  s.tast('Enter');
+  await vent(20);
+  tjek('V-LAAS.3 (en): Enter → dialogen; annulleret → stadig låst', rust.st.opKald.length === 1 && laaseskaerm(d) && d.getElementById('laas-besked').textContent === 'Grimnir is still locked. Press Unlock to try again.');
+  await vent(20);
+  tjek('V-LAAS.3 (en): ingen ny dialog af sig selv efter annulleret', rust.st.opKald.length === 1);
+  s.tast('Enter');
+  await vent(30);
+  const b = d.querySelector('#laas-banner .ban[data-efter="bGemFejlVedLaas"]');
+  const ord = b && b.querySelector('.ord').textContent;
+  tjek('V-LAAS.3 (en): ok → advarslen om sagen, der ikke kunne gemmes', !laaseskaerm(d) && b && b.classList.contains('warn') && ord.startsWith('The open case could not be saved when Grimnir locked: ') && ord.length > 60, ord);
+  tjek('V-LAAS.3 (en): advarslen har intet fra sagerne', b && !/Uglebo|Kragevig/.test(b.textContent));
+  tjek('V-LAAS.3 (en): beskeden gives én gang (Rust rydder den)', rust.st.efterLaas === null && d.querySelectorAll('#laas-banner .ban[data-efter]').length === 1);
+}
+{
+  // Ved programmets start kaldes laas_op stadig af sig selv (én gang), også efter V-LAAS.3.
+  const rust = falskLaasRust({ svar: [{ svar: 'annulleret' }] });
+  side({ rust });
+  await vent(30);
+  tjek('V-LAAS.3: ved start kaldes laas_op én gang af sig selv', rust.st.opKald.length === 1);
+}
+{
+  // Aktivitet: tastatur og mus melder `aktivitet` højst hvert 20. sekund, og ikke mens der er låst.
+  const rust = falskLaasRust({ svar: [{ svar: 'ok' }] });
+  const s = side({ rust });
+  const { w, d } = s;
+  await vent(30);
+  const nu0 = Date.now();
+  let nu = nu0;
+  w.Date.now = () => nu;
+  const n0 = rust.st.aktivitet;
+  s.tast('a');
+  d.dispatchEvent(new w.MouseEvent('pointermove', { bubbles: true }));
+  d.dispatchEvent(new w.MouseEvent('pointerdown', { bubbles: true }));
+  d.dispatchEvent(new w.WheelEvent('wheel', { bubbles: true }));
+  await vent(5);
+  tjek('V-LAAS.3: tastatur og mus → ét kald til aktivitet inden for 20 sekunder', rust.st.aktivitet === n0 + 1, String(rust.st.aktivitet - n0));
+  nu = nu0 + 19999;
+  s.tast('b');
+  await vent(5);
+  tjek('V-LAAS.3: 19,999 sekunder efter → intet nyt kald', rust.st.aktivitet === n0 + 1);
+  nu = nu0 + 20000;
+  d.dispatchEvent(new w.MouseEvent('pointermove', { bubbles: true }));
+  await vent(5);
+  tjek('V-LAAS.3: 20 sekunder efter → nyt kald', rust.st.aktivitet === n0 + 2);
+  const l = falskLaasRust({ svar: [{ svar: 'annulleret' }] });
+  const ls = side({ rust: l });
+  await vent(30);
+  ls.tast('x');
+  ls.d.dispatchEvent(new ls.w.MouseEvent('pointermove', { bubbles: true }));
+  await vent(5);
+  tjek('V-LAAS.3: mens der er låst, sendes ingen aktivitet', l.st.aktivitet === 0 && laaseskaerm(ls.d));
+}
+{
+  // N4: tandhjulet i titellinjen er et tandhjul, ikke solen; solen er stadig ikonet for Lys i Vis-fanen.
+  const { w, d } = side();
+  await vent(5);
+  const I = w.Kit.IKONER;
+  const tal = JSON.stringify(I.tandhjul).match(/-?\d+(\.\d+)?/g).map(Number);
+  tjek('V-LAAS.3: tandhjul er en egen tegning, ikke solen', JSON.stringify(I.tandhjul) !== JSON.stringify(I.sol) && I.tandhjul.some(([el, a]) => el === 'path' && (a.d.match(/L/g) || []).length >= 18 && (a.d.match(/A/g) || []).length === 6), JSON.stringify(I.tandhjul).slice(0, 80));
+  tjek('V-LAAS.3: tandhjulet holder sig inden for 24 × 24 med plads til stregen', tal.every(x => x >= 0 && x <= 22) && Math.max(...tal) <= 22 && Math.min(...tal.filter(x => x > 1)) >= 2);
+  const knap = d.getElementById('aabn-indst');
+  tjek('V-LAAS.3: titellinjens knap bruger tandhjul', knap.querySelector('svg path') && knap.querySelector('svg path').getAttribute('d') === I.tandhjul[0][1].d && knap.querySelectorAll('svg').length === 1);
+  tjek('V-LAAS.3: knappens aria-label og title er uændrede', knap.getAttribute('aria-label') === 'Åbn indstillinger' && knap.title === 'Indstillinger (⌘,)');
+  tjek('V-LAAS.3: solen er stadig ikonet for Lys i Vis-fanen', /id: 'tema-lys'[^}]*ikon: 'sol'/.test(ui('assets/app.js')));
+  tjek('V-LAAS.3: ikonerne tegnes med 2 px streg (kit.css)', /stroke: currentColor; stroke-width: 2;/.test(ui('assets/kit.css')));
 }
 
 console.log(`\n${ok + fejl} tjek: ${ok} ok, ${fejl} fejl`);

@@ -22,13 +22,22 @@ Pakkerne er kontrolleret mod npm-registrets `dist.integrity` (sha512) før brug.
 
 ## Rust-crates og npm-pakker
 
-Skallens direkte afhængigheder: `tauri` 2.12.5 (Apache-2.0 OR MIT), `serde` 1.0.229 og `serde_json` 1.0.154 (MIT OR Apache-2.0), `keyring` 3.6.3 med `apple-native` og `windows-native` (MIT OR Apache-2.0), `chacha20poly1305` 0.11.0 (Apache-2.0 OR MIT), `zeroize` 1.9.1 (Apache-2.0 OR MIT) og `grimnir-core` (Grimnirs egen, Apache-2.0) med `regex` 1.13.1 (MIT OR Apache-2.0) og `aho-corasick` 1.1.5 (Unlicense OR MIT). Sagernes crates (V-SAG.1) trækker kun MIT OR Apache-2.0-crates ind (RustCrypto, `security-framework` på macOS, `windows-sys` på Windows), undtagen `byteorder` 1.5.0 (Unlicense OR MIT, kun Windows). Filvalgsdialogerne (V-FIL.1): `rfd` 0.18.0 (MIT) uden standardfunktioner; den trækker kun én ny crate ind ud over sig selv, `objc2-uniform-type-identifiers` 0.3.2 (Zlib OR Apache-2.0 OR MIT, kun macOS); resten (`objc2`-familien, `block2`, `dispatch2`, `raw-window-handle`, `log`, `windows-sys` 0.61.2) var der i forvejen via `tauri`.
+Skallens direkte afhængigheder: `tauri` 2.12.5 (Apache-2.0 OR MIT), `serde` 1.0.229 og `serde_json` 1.0.154 (MIT OR Apache-2.0), `keyring` 3.6.3 med `apple-native` og `windows-native` (MIT OR Apache-2.0), `chacha20poly1305` 0.11.0 (Apache-2.0 OR MIT), `zeroize` 1.9.1 (Apache-2.0 OR MIT) og `grimnir-core` (Grimnirs egen, Apache-2.0) med `regex` 1.13.1 (MIT OR Apache-2.0) og `aho-corasick` 1.1.5 (Unlicense OR MIT). Sagernes crates (V-SAG.1) trækker kun MIT OR Apache-2.0-crates ind (RustCrypto, `security-framework` på macOS, `windows-sys` på Windows), undtagen `byteorder` 1.5.0 (Unlicense OR MIT, kun Windows). Filvalgsdialogerne (V-FIL.1): `rfd` 0.18.0 (MIT) uden standardfunktioner; den trækker kun én ny crate ind ud over sig selv, `objc2-uniform-type-identifiers` 0.3.2 (Zlib OR Apache-2.0 OR MIT, kun macOS); resten (`objc2`-familien, `block2`, `dispatch2`, `raw-window-handle`, `log`, `windows-sys` 0.61.2) var der i forvejen via `tauri`. Døren ved start (V-LAAS.2): `objc2-local-authentication` 0.3.2 (Zlib OR Apache-2.0 OR MIT, kun macOS), den eneste nye crate; `objc2` 0.6.5, `objc2-foundation` 0.3.2 og `block2` 0.6.2 nævnes direkte, men var der i forvejen. Låsen igen (V-LAAS.3): `objc2-app-kit` 0.3.2 (Zlib OR Apache-2.0 OR MIT, kun macOS) nævnes direkte for featuren `NSWorkspace`; den var der i forvejen (via `muda` og `objc2-web-kit`), så ingen ny crate.
 
-Hele træet på macOS (aarch64-apple-darwin) er 226 forskellige crates, inklusive `grimnir` og `grimnir-core` (`cargo tree -p grimnir -e normal --target aarch64-apple-darwin --prefix none --format '{p}'`, unikke linjer; V-FIL.1). Windows (x86_64-pc-windows-msvc) er 230. De fleste er MIT og/eller Apache-2.0; resten, alle trukket ind af `tauri`:
+Hele træet efter V-LAAS.3, i forskellige crates inklusive `grimnir` og `grimnir-core` (`cargo tree --offline -p grimnir -e normal --target <mål> --prefix none --format '{p}'`, unikke linjer uden `(*)`):
+
+| Mål | Crates |
+|---|---|
+| aarch64-apple-darwin | 227 |
+| x86_64-apple-darwin | 228 |
+| x86_64-pc-windows-msvc | 230 |
+| aarch64-pc-windows-msvc | 229 |
+
+De fleste er MIT og/eller Apache-2.0; resten, alle trukket ind af `tauri`:
 - MPL-2.0: `cssparser`, `cssparser-macros`, `dtoa-short`, `option-ext`, `selectors`.
 - Unicode-3.0: `icu_*` (7 crates), `litemap`, `potential_utf`, `tinystr`, `writeable`, `yoke`, `yoke-derive`, `zerofrom`, `zerofrom-derive`, `zerotrie`, `zerovec`, `zerovec-derive`; `unicode-ident` er (MIT OR Apache-2.0) AND Unicode-3.0.
 - BSD-3-Clause: `alloc-no-stdlib`, `alloc-stdlib`; `brotli` (BSD-3-Clause AND MIT), `brotli-decompressor` (BSD-3-Clause/MIT).
-- Zlib: `foldhash` 0.2.0 (via `dom_query` 0.28.0 → `tauri-utils` 2.10.2 → `tauri`, ifølge `cargo tree -i foldhash`). `dpi`: Apache-2.0 AND MIT.
+- Zlib: `foldhash` 0.2.0 (via `dom_query` 0.28.0 → `tauri-utils` 2.10.2 → `tauri`, ifølge `cargo tree -i foldhash`). `dpi`: Apache-2.0 AND MIT. I `objc2`-familien (kun macOS) er `objc2`, `objc2-encode`, `objc2-foundation` og `block2` MIT; `objc2-app-kit`, `objc2-core-foundation`, `objc2-exception-helper`, `objc2-local-authentication`, `objc2-quartz-core`, `objc2-uniform-type-identifiers`, `objc2-web-kit` og `dispatch2` er Zlib OR Apache-2.0 OR MIT (V-LAAS.3, `Cargo.toml` i hver crate).
 
 Licensteksterne for crates er endnu ikke samlet i programmet; det skal ske før første udgivelse.
 

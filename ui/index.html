@@ -94,8 +94,16 @@
     </fieldset>
     <fieldset class="valg lodret">
       <legend class="label" data-t="indstLaas">Lås</legend>
-      <label class="afkryds"><input type="checkbox" id="indst-laas" data-t-aria="kLaasVedStart" aria-describedby="indst-laas-hj"> <span data-t="kLaasVedStart">Lås Grimnir ved start</span></label>
-      <span class="hj" id="indst-laas-hj" data-t="hjLaasVedStart"></span>
+      <div class="felt">
+        <label class="label" for="indst-stilstand" data-t="kLaasEfter">Lås efter stilstand</label>
+        <select id="indst-stilstand" data-t-aria="kLaasEfter" aria-describedby="indst-laas-hj">
+          <option value="5" data-t="stilstand5">5 minutter</option>
+          <option value="15" data-t="stilstand15">15 minutter</option>
+          <option value="30" data-t="stilstand30">30 minutter</option>
+          <option value="60" data-t="stilstand60">60 minutter</option>
+        </select>
+      </div>
+      <span class="hj" id="indst-laas-hj" data-t="hjLaas"></span>
     </fieldset>
     <fieldset class="valg lodret">
       <legend class="label" data-t="indstGuide">Første start</legend>

@@ -1,8 +1,10 @@
-/* Grimnir — låseskærmen (V-LAAS.2, L3 og L4). Bygger på skallen (window.Grimnir), kittet (window.Kit) og sproget.
+/* Grimnir — låseskærmen (V-LAAS.2, L3 og L4; V-LAAS.3, N3). Bygger på skallen (window.Grimnir), kittet (window.Kit) og
+   sproget.
 
-   Grimnir starter låst, når "Lås Grimnir ved start" er til. <html data-laast> står allerede i index.html, så siden er
-   låst, før noget script har kørt (og forbliver låst, hvis et script fejler). Her spørges Rust (laas_status); er der
-   låst, kaldes laas_op straks én gang: macOS viser sin dialog med Touch ID og adgangskoden som reserve. Svaret:
+   Grimnir starter altid låst (V-LAAS.3: indstillingen "Lås Grimnir ved start" er fjernet). <html data-laast> står
+   allerede i index.html, så siden er låst, før noget script har kørt (og forbliver låst, hvis et script fejler). Her
+   spørges Rust (laas_status); er der låst ved start, kaldes laas_op straks én gang: macOS viser sin dialog med Touch ID og
+   adgangskoden som reserve. Svaret:
      ok                → låseskærmen forsvinder, og Sager og Ordbog henter deres data (GrimnirLaas.klar).
      annulleret/afvist → Grimnir bliver låst med låseskærmen; "Lås op" prøver igen; programmet lukker ikke.
      ikke_tilgaengelig → maskinen kan ikke bekræfte brugeren (ingen adgangskode, eller ingen dør på platformen):
@@ -12,10 +14,20 @@
    `laast` på hver kommando, der bruger dem. Visningsskiftet og båndet er nedtonede (inert) med en forklaring i title;
    titellinjen, menuen, Indstillinger og Om virker. Fokus står på "Lås op"; Enter låser op.
 
+   V-LAAS.3, lås igen: når Rust låser (dvale, skærmen slukker, brugerskift, stilstand), kommer hændelsen `laast`, og
+   siden genindlæses (location.reload). Så starter den forfra fra index.html i låst tilstand, og intet fra sager, ordbog,
+   tekster eller resultater ligger tilbage i DOM'en eller i JS-hukommelsen; åbne dialoger lukkes af genindlæsningen.
+   Efter en ny lås svarer laas_status med `igen`, og laas_op kaldes IKKE af sig selv (ellers stod fingerdialogen og
+   ventede, mens brugeren er væk): låseskærmen siger "Grimnir låste, mens du var væk", og dialogen kommer først ved tryk på
+   Lås op eller Enter. Efter oplåsningen vises det, der skete ved låsen (svaret `efter`): at en midlertidig sag blev
+   lukket, eller at den åbne sag ikke kunne gemmes (fejlen uden indhold).
+   Aktivitet: tastatur og mus i vinduet sender kommandoen `aktivitet` højst hvert 20. sekund (Rust måler stilstand; hver
+   anden kommando tæller også).
+
    Døren beskytter mod en person, der sætter sig ved en ulåst maskine og åbner Grimnir. Den beskytter ikke mod et andet
    program, der kører som brugeren; ingen tekst her må love mere end det.
 
-   Rust-kommandoer: laas_status, laas_op, program_afslut (og laas_ved_start fra indstillinger.js). Intet her skriver til
+   Rust-kommandoer: laas_status, laas_op, program_afslut, aktivitet. Rust-hændelser: laast. Intet her skriver til
    konsollen eller til localStorage. */
 (function () {
   'use strict';
@@ -44,11 +56,29 @@
 
   /* Banneret, når Grimnir er låst op uden bekræftelse (L3). Vedvarende: det står, til programmet lukkes. */
   function saetBanner(udenDoer) {
-    bannerRod.textContent = '';
+    for (const b of bannerRod.querySelectorAll('.ban[data-hvorfor]')) b.remove();
     if (!udenDoer) return;
     const b = K.banner({ variant: 'info', t: 'bIkkeLaast' });
     b.dataset.hvorfor = udenDoer;
-    bannerRod.appendChild(b);
+    bannerRod.prepend(b);
+    S.anvend(bannerRod);
+  }
+
+  /* V-LAAS.3: det, der skete, da Grimnir låste igen (svaret `efter` fra laas_op). Én sætning pr. besked og en Luk-knap. */
+  function visEfter(efter) {
+    if (!efter) return;
+    const beskeder = [];
+    if (efter.midlertidig_lukket) beskeder.push(['info', 'bMidlertidigLukket', null]);
+    if (efter.gem_fejl) {
+      const GM = window.GrimnirMaskering;
+      beskeder.push(['warn', 'bGemFejlVedLaas', GM ? GM.sagFejlTekst({ art: 'sag', fejl: efter.gem_fejl }) : S.t('sagfejl_andet')]);
+    }
+    for (const [variant, t, v] of beskeder) {
+      const b = K.banner({ variant, t, handling: { t: 'luk', ariaT: 'ariaLukBesked', ved: () => b.remove() } });
+      b.dataset.efter = t;
+      if (v != null) b.querySelector('.ord').setAttribute('data-v', v);
+      bannerRod.appendChild(b);
+    }
     S.anvend(bannerRod);
   }
 
@@ -71,12 +101,12 @@
   }
 
   const SVAR = { annulleret: 'laasAnnulleret', afvist: 'laasAfvist' };
-  /* Svaret fra laas_op eller laas_ved_start: låsens tilstand bagefter gælder. */
+  /* Svaret fra laas_op: låsens tilstand bagefter gælder; efter en ny lås også beskederne (`efter`). */
   function anvend(r) {
     const st = r && r.status;
     if (!st) return;
     saetBanner(st.uden_doer);
-    if (!st.laast) { if (html.hasAttribute('data-laast')) saetLaast(false); return; }
+    if (!st.laast) { if (html.hasAttribute('data-laast')) saetLaast(false); visEfter(r.efter); return; }
     if (r.svar === 'fejl') saetBesked('laasFejl', r.kode, true);
     else if (SVAR[r.svar]) saetBesked(SVAR[r.svar], null, r.svar === 'afvist');
   }
@@ -110,10 +140,29 @@
   }, true);
   document.addEventListener('grimnir-sprog', () => { if (html.hasAttribute('data-laast')) S.anvend(document.body); });
 
-  /* Start: spørg Rust. Uden Rust (forhåndsvisning i en browser) er der intet at låse. */
+  /* V-LAAS.3: Rust har låst igen. Siden genindlæses og starter låst fra index.html; intet bliver tilbage. */
+  const api = { genindlaes: () => window.location.reload() };
+  // Visningerne skjules med det samme (CSS: html[data-laast]), også i det øjeblik, genindlæsningen tager.
+  if (G.tauri && G.tauri.event) G.tauri.event.listen('laast', () => { html.setAttribute('data-laast', ''); api.genindlaes(); });
+
+  /* V-LAAS.3: tastatur og mus i vinduet er aktivitet (stilstand). Højst ét kald hvert 20. sekund; ikke mens der er låst. */
+  const AKTIVITET_MS = 20000;
+  let sidstMeldt = -Infinity;
+  function aktivitet() {
+    if (html.hasAttribute('data-laast')) return;
+    const nu = Date.now();
+    if (nu - sidstMeldt < AKTIVITET_MS) return;
+    sidstMeldt = nu;
+    invoke('aktivitet').catch(() => { /* Rust måler selv; et tabt kald giver højst en tidligere lås */ });
+  }
+  for (const h of ['keydown', 'pointerdown', 'pointermove', 'wheel']) document.addEventListener(h, aktivitet, { capture: true, passive: true });
+
+  /* Start: spørg Rust. Uden Rust (forhåndsvisning i en browser) er der intet at låse. Ved programmets start kaldes
+     laas_op én gang af sig selv; efter en ny lås (st.igen) venter låseskærmen på brugeren. */
   const start = invoke('laas_status').then(st => {
     if (st && st.laast) {
       saetLaast(true);
+      if (st.igen) { saetBesked('laasIgen'); return null; }
       return laasOp();
     }
     saetBanner(st && st.uden_doer);
@@ -126,5 +175,7 @@
     return null;
   });
 
-  window.GrimnirLaas = { klar, start, laasOp, anvend, get laast() { return html.hasAttribute('data-laast'); } };
+  Object.assign(api, { klar, start, laasOp, anvend, aktivitet });
+  Object.defineProperty(api, 'laast', { get: () => html.hasAttribute('data-laast'), enumerable: true });
+  window.GrimnirLaas = api;
 })();

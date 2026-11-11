@@ -9,11 +9,12 @@
    indstillingerne, ikke i ordbogen). Den kan åbnes igen fra Indstillinger. Tre trin: hvad Grimnir gør; egne domæner og
    NetBIOS-navne; egne net og navnemønstre. Spring over findes på alle trin; Escape er det samme som Spring over.
 
-   V-LAAS.2: "Lås Grimnir ved start" (til som standard). At slå den til gemmes straks; at slå den fra kræver en
-   oplåsning (Rust spørger døren med sin egen tekst), og først ved ok gemmes valget. Indstillingerne virker, mens Grimnir
-   er låst; "Vis guiden igen" er da nedtonet (guiden bruger ordbogen).
+   V-LAAS.3: "Lås Grimnir ved start" er fjernet; låsen kan ikke slås fra (ADR D20). "Lås efter stilstand" (5, 15, 30
+   eller 60 minutter; standard 15) gemmes som de andre valg; der er ingen "aldrig". Hjælpeteksten siger, hvad låsen
+   beskytter imod, og hvornår Grimnir låser igen. Indstillingerne virker, mens Grimnir er låst; "Vis guiden igen" er da
+   nedtonet (guiden bruger ordbogen).
 
-   Rust-kommandoer: indstillinger_hent, indstillinger_gem, laas_ved_start (og ordbogens via ordbog.js). Intet her skriver til konsollen
+   Rust-kommandoer: indstillinger_hent, indstillinger_gem (og ordbogens via ordbog.js). Intet her skriver til konsollen
    eller til localStorage. */
 (function () {
   'use strict';
@@ -22,12 +23,12 @@
   if (!G || !K || !S || !T || !GO || !GM || !GL) return;
   const invoke = G.tauri && G.tauri.core && G.tauri.core.invoke ? (c, a) => G.tauri.core.invoke(c, a) : () => Promise.reject({ art: 'ingen_rust' });
   const $ = id => document.getElementById(id);
-  const st = { indst: null, venterLaas: false };
+  const st = { indst: null };
 
   /* ═════════════════════════════ Indstillinger ═════════════════════════════ */
-  const iFremmede = $('indst-fremmede'), iOktet = $('indst-oktet'), iUdloeb = $('indst-udloeb'), iLaas = $('indst-laas'), guideKnap = $('indst-guide');
+  const iFremmede = $('indst-fremmede'), iOktet = $('indst-oktet'), iUdloeb = $('indst-udloeb'), iStilstand = $('indst-stilstand'), guideKnap = $('indst-guide');
   // Uden dør (i denne cyklus alt andet end macOS) starter Grimnir ikke låst; hjælpeteksten siger det.
-  $('indst-laas-hj').setAttribute('data-t', G.mac ? 'hjLaasVedStart' : 'hjLaasVedStartIngen');
+  $('indst-laas-hj').setAttribute('data-t', G.mac ? 'hjLaas' : 'hjLaasIngen');
   S.anvend($('indst-laas-hj'));
   function tegnIndst() {
     for (const r of document.querySelectorAll('input[name="indst-tema"]')) r.checked = r.value === T.valg;
@@ -38,13 +39,12 @@
     else { guideKnap.removeAttribute('data-t-title'); guideKnap.removeAttribute('title'); }
     S.anvend(guideKnap.parentNode);
     const i = st.indst;
-    for (const e of [iFremmede, iOktet, iUdloeb]) e.disabled = !i;
-    iLaas.disabled = !i || st.venterLaas;
+    for (const e of [iFremmede, iOktet, iUdloeb, iStilstand]) e.disabled = !i;
     if (!i) return;
     iFremmede.checked = i.masker_fremmede;
     iOktet.checked = i.bevar_sidste_oktet;
     iUdloeb.value = i.udloeb_dage == null ? '' : String(i.udloeb_dage);
-    iLaas.checked = i.laas_ved_start;
+    iStilstand.value = String(i.laas_efter_min);
   }
   function gem(aendring) {
     if (!st.indst) return Promise.resolve(null);
@@ -64,28 +64,7 @@
   iFremmede.addEventListener('change', () => gem({ masker_fremmede: iFremmede.checked }));
   iOktet.addEventListener('change', () => gem({ bevar_sidste_oktet: iOktet.checked }));
   iUdloeb.addEventListener('change', () => gem({ udloeb_dage: iUdloeb.value ? Number(iUdloeb.value) : null }));
-  /* Lås ved start: fra kræver en oplåsning (Rust spørger døren). Mislykkes den, står fluebenet igen, og beskeden siger hvorfor. */
-  const LAAS_FRA = { annulleret: 'laasFraAnnulleret', afvist: 'laasFraAfvist', fejl: 'laasFraFejl' };
-  function saetLaasVedStart(til) {
-    if (!st.indst || st.venterLaas) return Promise.resolve(null);
-    st.venterLaas = true;
-    $('indst-fejl').textContent = '';
-    tegnIndst();
-    return invoke('laas_ved_start', { til, sprog: S.lang })
-      .then(r => {
-        st.indst = { ...st.indst, laas_ved_start: r.status.ved_start };
-        if (LAAS_FRA[r.svar]) $('indst-fejl').textContent = S.t(LAAS_FRA[r.svar], r.kode);
-        GL.anvend(r);
-        return r;
-      })
-      .catch(e => {
-        const f = e && e.art === 'indstillinger' && e.fejl ? GM.sagFejlTekst({ art: 'sag', fejl: e.fejl }) : S.t('sagfejl_andet');
-        $('indst-fejl').textContent = S.t('bIndstIkkeGemt', f);
-        return null;
-      })
-      .finally(() => { st.venterLaas = false; tegnIndst(); });
-  }
-  iLaas.addEventListener('change', () => saetLaasVedStart(iLaas.checked));
+  iStilstand.addEventListener('change', () => gem({ laas_efter_min: Number(iStilstand.value) }));
   document.addEventListener('grimnir-laas', tegnIndst);
   $('indst-guide').addEventListener('click', () => { $('dlg-indst').close(); visGuide(); });
   document.addEventListener('grimnir-tema', tegnIndst);
@@ -203,5 +182,5 @@
     const o = GO.st;
     if (i && !i.guide_vist && !o.fejl && o.poster.length === 0 && !document.querySelector('dialog[open]')) visGuide();
   });
-  window.GrimnirIndst = { st, klar, visGuide, gem, wiz, saetLaasVedStart };
+  window.GrimnirIndst = { st, klar, visGuide, gem, wiz };
 })();

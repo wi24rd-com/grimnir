@@ -36,7 +36,7 @@ const KOMMANDOER: &[&str] = &[
     "ordbog_start_forfra",
     "laas_status",
     "laas_op",
-    "laas_ved_start",
+    "aktivitet",
 ];
 
 fn main() {

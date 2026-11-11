@@ -45,12 +45,28 @@ pub enum Svar {
 }
 
 /// Hvorfor døren spørges. Teksten i dialogen følger heraf.
+///
+/// V-LAAS.3 N1: `SlaaFra` ("Lås Grimnir ved start" fra) er fjernet sammen med indstillingen (ADR D20). Der er nu kun én
+/// grund; enum'en bliver, så en senere grund ikke ændrer kaldene.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Grund {
     /// Grimnir er låst og skal låses op (ved start, eller når brugeren trykker "Lås op").
     Start,
-    /// Brugeren slår "Lås Grimnir ved start" fra; det kræver selv en oplåsning.
-    SlaaFra,
+}
+
+/// V-LAAS.3 N2: hvorfor Grimnir låser igen ([`crate::maskering::laas_igen`]). De tre første er macOS' notifikationer
+/// (`crate::notifikationer`); stilstand måles i skallen ([`crate::stilstand`]) og er fælles for alle platforme.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Udloeser {
+    /// Maskinen går i dvale (`NSWorkspaceWillSleepNotification`).
+    Dvale,
+    /// Skærmene slukker (`NSWorkspaceScreensDidSleepNotification`).
+    SkaermSlukket,
+    /// Brugeren skifter til en anden bruger (`NSWorkspaceSessionDidResignActiveNotification`).
+    Brugerskift,
+    /// Ingen aktivitet i den valgte tid.
+    Stilstand,
 }
 
 /// Teksterne til dialogen.
@@ -76,14 +92,6 @@ pub fn begrundelse(grund: Grund, sprog: &str) -> Begrundelse {
         },
         (Grund::Start, true) => Begrundelse {
             aarsag: "unlock your cases and your dictionary",
-            annuller: "Cancel",
-        },
-        (Grund::SlaaFra, false) => Begrundelse {
-            aarsag: "slå låsen ved start fra",
-            annuller: "Annullér",
-        },
-        (Grund::SlaaFra, true) => Begrundelse {
-            aarsag: "turn off the lock at startup",
             annuller: "Cancel",
         },
     }
@@ -374,7 +382,7 @@ mod tests {
     #[test]
     fn begrundelsen_passer_i_rammen_og_lover_ikke_for_meget() {
         for sprog in ["da", "en"] {
-            for g in [Grund::Start, Grund::SlaaFra] {
+            for g in [Grund::Start] {
                 let b = begrundelse(g, sprog);
                 assert!(!b.aarsag.is_empty() && !b.annuller.is_empty());
                 // Rammen er macOS': "Grimnir" forsøger at <aarsag>. Ingen stort begyndelsesbogstav, intet punktum.

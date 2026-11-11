@@ -1,5 +1,9 @@
 //! Indstillinger (V-ORDBOG.1 O6): standardvalg for nye sager, standardudløb og om guiden ved første start er vist; fra
-//! V-LAAS.2 også "Lås Grimnir ved start".
+//! V-LAAS.3 også "Lås efter stilstand" (5, 15, 30 eller 60 minutter).
+//!
+//! V-LAAS.3 N1 (ADR D20): "Lås Grimnir ved start" fra V-LAAS.2 er fjernet. Låsen ved start kan ikke slås fra, fordi
+//! denne fil står i klartekst og kan rettes af en person ved maskinen. En ældre fil med feltet `laas_ved_start` læses
+//! uden fejl; feltet ignoreres (som alle ukendte felter) og forsvinder, næste gang filen gemmes.
 //!
 //! Filen `<app-data>/indstillinger.json` er ikke følsom (kun sandhedsværdier og et tal) og står derfor i klartekst. Den
 //! skrives atomart med samme kode som sagerne ([`crate::sager::skriv_atomart`]). Tema og sprog bliver i webvisningens
@@ -12,6 +16,7 @@ use grimnir_core::Valg;
 use serde::{Deserialize, Serialize};
 
 use crate::sager::{skriv_atomart, SagFejl};
+use crate::stilstand;
 
 /// Filens navn i `<app-data>`.
 pub const FILNAVN: &str = "indstillinger.json";
@@ -31,9 +36,9 @@ pub struct Indstillinger {
     pub udloeb_dage: Option<u32>,
     /// Guiden ved første start er afsluttet eller sprunget over.
     pub guide_vist: bool,
-    /// V-LAAS.2 L3: "Lås Grimnir ved start" (standard: ja). Mangler feltet (en ældre fil), er låsen til. Ændres kun med
-    /// kommandoen `laas_ved_start`; at slå den fra kræver en oplåsning ([`crate::maskering::laas_ved_start`]).
-    pub laas_ved_start: bool,
+    /// V-LAAS.3: "Lås efter stilstand" i minutter: 5, 15 (standard), 30 eller 60 ([`stilstand::MINUTTER`]). Der er
+    /// ingen værdi, der slår låsen fra.
+    pub laas_efter_min: u32,
 }
 
 impl Default for Indstillinger {
@@ -44,7 +49,7 @@ impl Default for Indstillinger {
             bevar_sidste_oktet: v.bevar_sidste_oktet,
             udloeb_dage: None,
             guide_vist: false,
-            laas_ved_start: true,
+            laas_efter_min: stilstand::STANDARD_MINUTTER,
         }
     }
 }
@@ -58,9 +63,9 @@ impl Indstillinger {
         }
     }
 
-    /// Sand, hvis standardudløbet er et af de tilladte.
+    /// Sand, hvis standardudløbet og grænsen for stilstand er blandt de tilladte.
     pub fn gyldig(&self) -> bool {
-        UDLOEB.contains(&self.udloeb_dage)
+        UDLOEB.contains(&self.udloeb_dage) && stilstand::MINUTTER.contains(&self.laas_efter_min)
     }
 }
 

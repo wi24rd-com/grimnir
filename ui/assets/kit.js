@@ -34,7 +34,9 @@
     skaerm: [['rect', { x: 3, y: 4, width: 18, height: 12, rx: 1.5 }], ['path', { d: 'M8 20h8M12 16v4' }]],
     sprog: [['circle', { cx: 12, cy: 12, r: 9 }], ['path', { d: 'M3 12h18' }], ['path', { d: 'M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z' }]],
     laas: [['rect', { x: 5, y: 11, width: 14, height: 9, rx: 2 }], ['path', { d: 'M8 11V8a4 4 0 0 1 8 0v3' }]],
-    tandhjul: [['circle', { cx: 12, cy: 12, r: 3 }], ['path', { d: 'M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1' }]],
+    /* Tandhjul: seks tænder (yderradius 10, inderradius 7,3) om et hul (r 3). Den gamle tegning (stråler om en cirkel)
+       lignede solen og dermed et tema-ikon. */
+    tandhjul: [['path', { d: 'M9.4 5.2L10.1 2.2L13.9 2.2L14.6 5.2A7.3 7.3 0 0 1 16.6 6.3L19.6 5.4L21.5 8.7L19.2 10.9A7.3 7.3 0 0 1 19.2 13.1L21.5 15.3L19.6 18.6L16.6 17.7A7.3 7.3 0 0 1 14.6 18.8L13.9 21.8L10.1 21.8L9.4 18.8A7.3 7.3 0 0 1 7.4 17.7L4.5 18.6L2.5 15.3L4.8 13.1A7.3 7.3 0 0 1 4.8 10.9L2.5 8.7L4.5 5.4L7.4 6.3A7.3 7.3 0 0 1 9.4 5.2z' }], ['circle', { cx: 12, cy: 12, r: 3 }]],
     ned: [['path', { d: 'M6 9l6 6 6-6' }]],
     hoejre: [['path', { d: 'M9 6l6 6-6 6' }]],
     filter: [['path', { d: 'M4 5h16l-6 7v6l-4 2v-8z' }]],
