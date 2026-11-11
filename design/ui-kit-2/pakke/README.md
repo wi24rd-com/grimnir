@@ -1,0 +1,204 @@
+# Wi24rd UI Kit 2 — pakken
+
+Version: se `VERSION`. Ændringer: se `CHANGELOG.md`.
+
+Denne mappe er Wi24rd UI Kit 2 som kode: farver, skrift, luft og de fælles komponenter til Wi24rd-skrivebordsprogrammerne. Et program tager kittet i brug ved at kopiere mappen (eller de dele, det skal bruge) ind i sit eget repo og følge vejledningen herunder. Du behøver ikke kende det program, kittet blev udskilt fra.
+
+Tankerne bag kittet (principper, farvernes betydning, sprogtone) står i `../README.md` i kilde-repoet. Hver komponent er beskrevet i `KOMPONENTER.md`.
+
+## Indhold
+
+| Sti | Hvad |
+|---|---|
+| `VERSION`, `CHANGELOG.md` | Pakkens version og hvad der er ændret |
+| `tokens/wi24rd-ui-kit-2.tokens.json` | Kilden til alle tokens: farver i lyst og mørkt tema, skrift, luft, radier, skygger |
+| `tokens/tokens.css` | Samme tokens som CSS-variabler (genereret) |
+| `tokens/Tokens.xaml` | Samme tokens som WPF-ressourcer (genereret) |
+| `web/kit.css` | Komponenternes udseende |
+| `web/kit.js` | Komponenternes opførsel (`window.Kit`) |
+| `web/tema.js` | Lyst, mørkt eller som systemet (`window.Tema`) |
+| `web/sprogmotor.js` | Sprogets mekanik: opslag, ental og flertal, sprogskift (`window.KitSprog`) |
+| `web/fonts/` | Inter og JetBrains Mono (woff2) med deres OFL-licenser |
+| `demo/index.html` | Demoside med hver komponent; åbnes direkte fra disken |
+| `KOMPONENTER.md` | Hver komponent: formål, markup, tilstande, tastatur, hvad den kræver |
+| `flytning/` | Vejledninger til de programmer, der skal over på kittet |
+| `LICENSE.md` | Licens |
+
+Se demoen ved at dobbeltklikke på `demo/index.html`. Den henter intet udefra. Skift tema og sprog i titellinjen eller på fanen Vis.
+
+## Sådan tager et webbaseret program kittet i brug (Tauri eller browser)
+
+Kittet er almindelige filer uden byggetrin: ingen npm-pakker, ingen bundler.
+
+### 1. Kopiér filerne
+
+Læg disse filer i samme mappe i programmet (fx `ui/assets/`):
+
+- `tokens/tokens.css`
+- `web/kit.css`, `web/kit.js`, `web/tema.js`, `web/sprogmotor.js`
+- hele `web/fonts/` som undermappen `fonts/` (kit.css henter skrifterne fra `fonts/` ved siden af sig selv)
+
+Ret ikke i kopierne. Programmets eget udseende og egne tekster ligger i programmets egne filer.
+
+### 2. Indlæs dem i denne rækkefølge
+
+```html
+<html lang="da" data-tema="system" data-kit-praefiks="mitprogram">
+<head>
+  <link rel="stylesheet" href="assets/tokens.css">
+  <link rel="stylesheet" href="assets/kit.css">
+  <link rel="stylesheet" href="assets/app.css">           <!-- programmets egen CSS, efter kittets -->
+  <script src="assets/tema.js"></script>                   <!-- uden defer: temaet sættes, før siden tegnes -->
+  <script src="assets/sprogmotor.js" defer></script>
+  <script src="assets/sprog.js" defer></script>            <!-- programmets tekster, se trin 4 -->
+  <script src="assets/kit.js" defer></script>
+  <script src="assets/app.js" defer></script>              <!-- programmets egen kode -->
+</head>
+```
+
+`data-kit-praefiks` er programmets eget korte navn (små bogstaver og bindestreg). Det bruges til navnene i `localStorage` og på hændelserne, så to programmer aldrig deler valg: `mitprogram-tema` og `mitprogram-sprog`. Udelades det, er præfikset `wi24rd`.
+
+### 3. Tema
+
+`tema.js` læser valget fra `localStorage['<præfiks>-tema']` og sætter `<html data-tema="lys | moerk | system">`. `system` følger macOS eller Windows. Standard er `system`.
+
+```js
+Tema.saet('moerk');            // lys | moerk | system; huskes, og siden skifter straks
+Tema.valg;                     // det aktuelle valg
+document.addEventListener('mitprogram-tema', () => { /* opdatér fx en knap, der viser valget */ });
+```
+
+Brug kun tokens til farver i programmets egen CSS (`var(--surface)`, `var(--accent)` …), aldrig farvekoder. Så følger alt med, når temaet skifter.
+
+### 4. Sprog
+
+Kittet ejer mekanikken, programmet ejer teksterne. Programmets `sprog.js`:
+
+```js
+window.Sprog = window.KitSprog.opret({
+  standard: 'da',
+  titel: 'dokTitel',                       // nøglen til vinduets titel; kan udelades
+  tekst: {
+    da: { dokTitel: 'Mit program', gem: 'Gem', antal: '{v} {v:fil|filer}' },
+    en: { dokTitel: 'My program', gem: 'Save', antal: '{v} {v:file|files}' },
+  },
+});
+```
+
+- I markup: `data-t="gem"` (tekst), `data-t-aria="…"` (aria-label), `data-t-title="…"` (title), `data-t-ph="…"` (placeholder).
+- `{v}` og `{w}` erstattes af elementets `data-v` og `data-w`. `{v:ental|flertal}` vælger form efter tallet: ental kun ved præcis 1.
+- `Sprog.anvend(rod)` udfylder alle elementer under `rod` (eller hele siden). Kald den, når programmet har bygget noget nyt med kittet.
+- `Sprog.saet('en')` skifter straks, husker valget i `localStorage['<præfiks>-sprog']` og melder `<præfiks>-sprog` på `document`.
+- `Sprog.t('antal', 3)` giver teksten direkte.
+- Alle sprog skal have de samme nøgler. Dansk først.
+
+Har programmet allerede sit eget sprogmodul, kan det beholde det. Kittet kræver kun, at der findes noget, som udfylder `data-t`, `data-t-aria` og `data-t-title` på de elementer, `kit.js` bygger. Se `flytning/HUGINN-MUNINN.md` for et eksempel.
+
+### 5. Byg skærmen
+
+Start med skallen i `KOMPONENTER.md` (AppShell) og fyld den med `Kit.commandBar`, `Kit.navTrae`, `Kit.visningsskift` og `Kit.tabel`. Demoens `demo/index.html` og `demo/demo.js` er et lille, komplet eksempel.
+
+Det, kittet forventer af programmet:
+
+- Programmet ejer visningsskiftet (hvad der vises for `#id`), hvad kommandoerne gør, og alle data.
+- Programmets egne ikoner lægges til med `Kit.registrerIkoner({ navn: [[element, attributter], …] })`, før de bruges.
+- Titellinjen er programmets: mærke, navn og det, der står til højre (`.hoejre`). Har vinduet styresystemets knapper oven på titellinjen (fx macOS med overlejret titellinje), giver programmet selv plads til dem i sin egen CSS.
+- Mindste vindue er 900 × 560 px.
+- Alt, der kan aktiveres, skal have synlig hover, kunne nås med Tab og have en `aria-label`, der siger, hvad der sker.
+
+## Sådan tager et WPF-program tokens i brug
+
+**Komponenterne findes ikke til WPF endnu.** Pakken har kun tokens til WPF: farver, skrift, luft, radier og skygger. Knapper, tabeller, bånd og resten skal programmet selv tegne som WPF-stilarter ud fra `KOMPONENTER.md` og demoen, indtil kittet får en WPF-udgave.
+
+`Tokens.xaml` er ikke bygget i et WPF-projekt endnu. Filen er kontrolleret som velformet XML, og nøgler og farver er sammenlignet med CSS-udgaven af en test, men den første, der fletter den ind, skal bekræfte, at den indlæses.
+
+### Navneregel
+
+`Wi24rd` + tokenets navn i PascalCase. Navnet er det samme som CSS-variablens: bindestreger fjernes, og hvert led får stort begyndelsesbogstav.
+
+| Token (CSS) | Nøgle i XAML | Type |
+|---|---|---|
+| `--accent` | `Wi24rdAccentBrush` | `SolidColorBrush` (den, man normalt bruger) |
+| `--accent` | `Wi24rdAccentColor` | `Color` |
+| `--surface-raised` | `Wi24rdSurfaceRaisedBrush` / `…Color` | som ovenfor |
+| `--body-size`, `--body-line` | `Wi24rdBodySize`, `Wi24rdBodyLine` | `Double` |
+| `--body-weight` | `Wi24rdBodyWeight` | `FontWeight` |
+| `--body-family`, `--font-sans` | `Wi24rdBodyFamily`, `Wi24rdFontSans` | `FontFamily` |
+| `--label-tracking` | `Wi24rdLabelTracking` | `Double` i em (WPF har ingen egenskab til det på `TextBlock`) |
+| `--space-3` | `Wi24rdSpace3` / `Wi24rdSpace3Thickness` | `Double` / `Thickness` (til `Margin` og `Padding`) |
+| `--radius-md` | `Wi24rdRadiusMd` | `CornerRadius` |
+| `--shadow-card` | `Wi24rdShadowCard` | `DropShadowEffect` (spredning findes ikke i WPF og er udeladt) |
+
+Tal er WPF-enheder: 1 enhed er 1 px ved 96 dpi, så værdierne er de samme som i CSS.
+
+### Flet ind
+
+Filen har to ordbøger med de samme nøgler: `Wi24rdLys` og `Wi24rdMoerk`. Hver indeholder alle tokens. Programmet fletter præcis én af dem ind ad gangen.
+
+1. Kopiér `tokens/Tokens.xaml` ind i projektet (fx `Tokens/Tokens.xaml`). Byggehandlingen er `Page`, som for andre XAML-filer.
+2. Indlæs filen i `App.xaml`:
+
+```xml
+<Application.Resources>
+  <ResourceDictionary>
+    <ResourceDictionary.MergedDictionaries>
+      <ResourceDictionary Source="Tokens/Tokens.xaml"/>
+    </ResourceDictionary.MergedDictionaries>
+    <!-- programmets egne stilarter herunder -->
+  </ResourceDictionary>
+</Application.Resources>
+```
+
+3. Vælg tema ved start, og igen når brugeren skifter (i `App.xaml.cs`):
+
+```csharp
+private ResourceDictionary? _tema;
+
+public void SaetTema(bool moerk)
+{
+    var nyt = (ResourceDictionary)FindResource(moerk ? "Wi24rdMoerk" : "Wi24rdLys");
+    if (_tema != null) Resources.MergedDictionaries.Remove(_tema);
+    Resources.MergedDictionaries.Add(nyt);
+    _tema = nyt;
+}
+```
+
+4. Brug `DynamicResource` til alt fra kittet, så et temaskift slår igennem uden genstart:
+
+```xml
+<Border Background="{DynamicResource Wi24rdSurfaceBrush}"
+        BorderBrush="{DynamicResource Wi24rdBorderBrush}"
+        CornerRadius="{DynamicResource Wi24rdRadiusMd}"
+        Padding="{DynamicResource Wi24rdSpace4Thickness}"/>
+```
+
+`StaticResource` virker kun, hvis programmet aldrig skifter tema, mens det kører.
+
+### Skrifterne i WPF
+
+`Wi24rdFontSans` er `Inter, Segoe UI`, og `Wi24rdFontMono` er `JetBrains Mono, Cascadia Mono, Menlo`. WPF bruger det første navn, der er installeret på maskinen, så uden videre falder et WPF-program tilbage til Segoe UI og Cascadia Mono. Pakken har kun skrifterne som woff2, og det kan WPF ikke læse. Skal programmet vise Inter og JetBrains Mono, skal skrifterne lægges ind som TTF eller OTF i projektet. Det er et hul i pakken (se nederst).
+
+## Sådan opdaterer du til en ny version
+
+1. Læs `CHANGELOG.md` i den nye pakke fra din nuværende version og frem. Første tal i versionen stiger, når noget skal ændres i programmet (en klasse eller funktion er omdøbt eller fjernet). Andet tal stiger ved nyt, der ikke kræver ændringer. Tredje tal ved rettelser.
+2. Erstat de kopierede filer med de nye. Ret aldrig i kopierne: har programmet brug for noget andet, hører det hjemme i programmets egne filer eller som et ønske til kittet.
+3. Notér pakkens version i programmet (fx i en kommentar ved siden af kopierne), så det kan ses, hvilken version der er i brug.
+4. Kør programmets egne tests, og se demoen i den nye pakke for det, der er nyt.
+
+I kilde-repoet laves programmets kopier af et script (`npm run kit`), og `npm run kit -- --check` fejler, hvis en kopi ikke er byte for byte som pakken. Et program, der vil have samme sikkerhed, kan sammenligne sine kopier med pakken på samme måde.
+
+## Hvad pakken ikke indeholder
+
+- **Komponenter til WPF.** Kun tokens.
+- **Skrifter til WPF** (TTF eller OTF). Kun woff2 til web.
+- **Logo og app-ikoner.** De hører til det enkelte program.
+- **Et fuldt ikonsæt.** `kit.js` har de almene stregikoner, kittets egne komponenter og de første programmer har brugt. Programmet lægger sine egne til.
+- **Dialog, menu, værktøjstip, tom tilstand, fremdrift, afkrydsning, kontakt (til/fra), valgliste og StatusTile.** De findes ikke som kode i kittet endnu. Et program, der har brug for dem, tegner dem selv med kittets tokens.
+- **Tekster.** Kittet har ingen tekster; alle tekster er programmets.
+- **Tekststørrelse eller tæthed som valg.** Kittet har én størrelse.
+- **Byggeværktøjet.** `tokens.css` og `Tokens.xaml` laves fra JSON-filen af `design/build-tokens.mjs` i kilde-repoet. Pakken har de færdige filer.
+- **Programmets egne ting:** visninger, data, kommandoer, genveje og vinduesopsætning.
+
+## Licens
+
+Se `LICENSE.md`: Apache-2.0 som resten af kilde-repoet. Skrifterne i `web/fonts/` er under SIL Open Font License 1.1.

@@ -16,6 +16,14 @@
   const mac = platform === 'macos';
   const mod = mac ? '⌘' : 'Ctrl+';
 
+  /* Grimnirs egne ikoner (V-KIT.1: flyttet hertil fra kit.js; kittet har kun de almene). Samme format som kittets. */
+  K.registrerIkoner({
+    foerefter: [['rect', { x: 3, y: 5, width: 8, height: 14, rx: 1 }], ['rect', { x: 13, y: 5, width: 8, height: 14, rx: 1 }]],
+    kvittering: [['path', { d: 'M6 3h12v18l-3-2-3 2-3-2-3 2z' }], ['path', { d: 'M9 8h6M9 12h6' }]],
+    maske: [['path', { d: 'M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z' }], ['path', { d: 'M4 4l16 16' }]],
+    naeste: [['path', { d: 'M12 4v10' }], ['path', { d: 'M12 18.5v.5' }], ['path', { d: 'M17 9l3 3-3 3' }]],
+  });
+
   const senere = (id, t, ikon, pri) => ({ id, t, ikon, pri: Boolean(pri), deaktiveret: true, hvorfor: 'hvorforSenere' });
   /* En kommando, maskering.js styrer: starter nedtonet (indtil der er noget at gøre) og kalder den registrerede handling. */
   const HANDLINGER = {};

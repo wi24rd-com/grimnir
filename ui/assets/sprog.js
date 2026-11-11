@@ -1,11 +1,12 @@
-/* Grimnir — sprog. Dansk først, engelsk med samme nøgler (mønsteret fra Huginn and Muninn: data-t). Valget huskes i
-   localStorage['grimnir-sprog'] = da | en; dansk er standard. anvend(rod) udfylder:
+/* Grimnir — sprog: teksterne. Dansk først, engelsk med samme nøgler (mønsteret fra Huginn and Muninn: data-t). Valget
+   huskes i localStorage['grimnir-sprog'] = da | en; dansk er standard. Mekanikken er kittets (sprogmotor.js, V-KIT.1):
+   anvend(rod) udfylder:
      data-t="noegle"        → textContent
      data-t-aria="noegle"   → aria-label
      data-t-title="noegle"  → title
      data-t-ph="noegle"     → placeholder
    {v} og {w} i en tekst erstattes af elementets data-v og data-w (fx versionsnummeret eller to antal); {v:ental|flertal}
-   vælger formen efter antallet (V-RET.1 R4, se t). saet('en') skifter straks uden genindlæsning og
+   vælger formen efter antallet (V-RET.1 R4). saet('en') skifter straks uden genindlæsning og
    melder 'grimnir-sprog' på document. Kun opdigtede eksempler i teksterne. */
 (function () {
   'use strict';
@@ -527,49 +528,9 @@
     },
   };
 
-  let lang = 'da';
-  try {
-    const v = localStorage.getItem(NOEGLE);
-    if (v === 'da' || v === 'en') lang = v;
-  } catch (e) { /* ingen lagring: dansk */ }
-
-  /* V-RET.1 R4: ental og flertal. {v:ental|flertal} i en tekst vælger formen efter {v}, {w:ental|flertal} efter {w}: ental
-     kun ved præcis 1, flertal ved 0, 2 og flere (og når tallet mangler, fx "…"). En form må selv indeholde {v} eller {w}.
-     Hver tekst med et antal bruger mønsteret i begge sprog, også hvor formerne er ens ("{v:fund|fund}"). */
-  const FORM = /\{([vw]):((?:[^{}|]|\{[vw]\})*)\|((?:[^{}|]|\{[vw]\})*)\}/g;
-  const ental = x => x != null && String(x).trim() === '1';
-  const t = (k, v, w) => {
-    let s = TEKST[lang][k];
-    if (s == null) return null;
-    s = s.replace(FORM, (_, hvem, en, fler) => (ental(hvem === 'v' ? v : w) ? en : fler));
-    if (v != null) s = s.replace(/\{v\}/g, String(v));
-    if (w != null) s = s.replace(/\{w\}/g, String(w));
-    return s;
-  };
-  const ATTR = [['data-t', null], ['data-t-aria', 'aria-label'], ['data-t-title', 'title'], ['data-t-ph', 'placeholder']];
-
-  function anvend(rod) {
-    const r = rod || document;
-    for (const [kilde, maal] of ATTR) {
-      const liste = [...r.querySelectorAll(`[${kilde}]`)];
-      if (r.nodeType === 1 && r.hasAttribute(kilde)) liste.push(r);
-      for (const el of liste) {
-        const tekst = t(el.getAttribute(kilde), el.getAttribute('data-v'), el.getAttribute('data-w'));
-        if (tekst == null) continue;
-        if (maal) el.setAttribute(maal, tekst);
-        else el.textContent = tekst;
-      }
-    }
-    document.documentElement.lang = lang;
-    document.title = t('dokTitel');
-  }
-
-  function saet(l) {
-    lang = l === 'en' ? 'en' : 'da';
-    try { localStorage.setItem(NOEGLE, lang); } catch (e) { /* valget gælder kun denne gang */ }
-    anvend(document);
-    document.dispatchEvent(new CustomEvent('grimnir-sprog'));
-  }
-
-  window.Sprog = { TEKST, FAELLES, get lang() { return lang; }, t, anvend, saet };
+  /* V-KIT.1: mekanikken (opslag, ental og flertal, anvend, saet, localStorage) er kittets: sprogmotor.js, som står lige
+     før denne fil i index.html. Her står kun Grimnirs tekster og Grimnirs valg: dansk som standard, nøglen og hændelsen
+     'grimnir-sprog', og dokTitel som vinduets titel. */
+  const M = window.KitSprog.opret({ tekst: TEKST, standard: 'da', noegle: NOEGLE, haendelse: NOEGLE, titel: 'dokTitel' });
+  window.Sprog = { TEKST, FAELLES, get lang() { return M.lang; }, t: M.t, anvend: M.anvend, saet: M.saet };
 })();

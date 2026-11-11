@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="da" data-tema="system" data-kit-praefiks="kit-demo">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wi24rd UI Kit 2</title>
+<!-- Demoside for Wi24rd UI Kit 2. Åbnes direkte fra disken (dobbeltklik): ingen server, intet net, kun pakkens egne
+     filer. Rækkefølgen herunder er den, et program skal bruge (se ../README.md). Kun opdigtede data. -->
+<link rel="stylesheet" href="../tokens/tokens.css">
+<link rel="stylesheet" href="../web/kit.css">
+<script src="../web/tema.js"></script>
+<script src="../web/sprogmotor.js" defer></script>
+<script src="../web/kit.js" defer></script>
+<style>
+  /* Kun demosidens egen opstilling (det, et program ville have i sin egen CSS). Ingen farvekoder: kun tokens. */
+  .demo-side { padding: var(--space-6); display: flex; flex-direction: column; gap: var(--space-6); background: var(--bg); min-height: 100%; }
+  .demo-sektion { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-4); box-shadow: var(--shadow-card); }
+  .demo-sektion > h2 { margin: 0 0 var(--space-1); font-size: var(--h2-size); line-height: var(--h2-line); font-weight: var(--h2-weight); }
+  .demo-sektion > p { margin: 0 0 var(--space-3); color: var(--text-muted); }
+  .demo-raekke { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+  .demo-stak { display: flex; flex-direction: column; gap: var(--space-2); max-width: 640px; }
+  .demo-felter { display: grid; grid-template-columns: repeat(2, minmax(0, 280px)); gap: var(--space-3); }
+  .demo-ramme { border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+  .demo-smal { width: 234px; }
+  .demo-ikoner { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: var(--space-2); }
+  .demo-ikon { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); padding: var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+  .demo-ikon svg { width: 24px; height: 24px; }
+  .demo-farver { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--space-2); }
+  .demo-farve { display: flex; align-items: center; gap: var(--space-2); }
+  .demo-farve i { width: 36px; height: 36px; flex: none; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); }
+  .demo-skrift > div { margin-bottom: var(--space-2); }
+  .demo-luft i { display: inline-block; height: 16px; background: var(--accent); border-radius: var(--radius-sm); vertical-align: middle; margin-right: var(--space-2); }
+  .demo-radius i { display: inline-block; width: 64px; height: 36px; border: 1px solid var(--border-strong); background: var(--surface-raised); margin-right: var(--space-2); vertical-align: middle; }
+  .demo-pop { padding: var(--space-4); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-pop); max-width: 320px; }
+  .demo-valgt { color: var(--text-muted); font-size: var(--small-size); }
+</style>
+</head>
+<body>
+<div class="vindue">
+  <header class="titel">
+    <span class="mrk" aria-hidden="true">W</span>
+    <b data-t="appNavn">Wi24rd UI Kit 2</b>
+    <span data-t="undertitel" data-v="2.0.0" id="pakkeversion">Demo · pakke 2.0.0</span>
+    <span class="hoejre">
+      <button type="button" class="rk" id="skift-tema" data-t-aria="ariaSkiftTema" data-t-title="ariaSkiftTema"></button>
+      <button type="button" class="rk" id="skift-sprog" data-t-aria="ariaSkiftSprog" data-t="skiftSprog"></button>
+    </span>
+  </header>
+
+  <div id="baand"></div>
+
+  <div class="midte">
+    <nav class="nav" data-t-aria="navAria">
+      <h3 data-t="navH">Komponenter</h3>
+      <ul id="trae"></ul>
+      <div id="skift"></div>
+    </nav>
+
+    <main class="arb" id="arb">
+      <div class="vl">
+        <label class="soeg">
+          <span class="skjult-tekst" data-t="soegEtiket">Søg i komponenter</span>
+          <input type="search" id="soeg" data-t-ph="soegPh" autocomplete="off" spellcheck="false">
+        </label>
+        <button type="button" class="fl" id="ryd" data-t="rydFilter">Ryd filter</button>
+        <span class="hoejre"><span id="status-chip"></span></span>
+      </div>
+
+      <div class="flade">
+        <!-- Visning 1: komponenterne -->
+        <div class="demo-side visning" id="v-komponenter" data-visning="komponenter">
+          <div id="flet-plads"></div>
+
+          <section class="demo-sektion" data-gruppe="skal" data-navn="AppShell">
+            <h2>AppShell</h2>
+            <p data-t="pAppShell"></p>
+            <p class="mono">.vindue · .titel (.mrk, .rk, .hoejre) · .midte · .arb · .vl (.soeg, .fl, .hoejre) · .flade</p>
+          </section>
+
+          <section class="demo-sektion" data-gruppe="skal" data-navn="CommandBar">
+            <h2>CommandBar</h2>
+            <p data-t="pCommandBar"></p>
+            <div class="demo-ramme"><div id="demo-baand"></div></div>
+            <p class="demo-valgt" id="baand-valgt" data-t="intetValgt"></p>
+          </section>
+
+          <section class="demo-sektion" data-gruppe="skal" data-navn="NavPane">
+            <h2>NavPane</h2>
+            <p data-t="pNavPane"></p>
+            <div class="demo-ramme demo-smal">
+              <div class="nav">
+                <h3 data-t="navDemoH">Filtre</h3>
+                <ul id="demo-trae"></ul>
+                <div id="demo-skift"></div>
+              </div>
+            </div>
+            <p class="demo-valgt" id="trae-valgt" data-t="intetValgt"></p>
+          </section>
+
+          <section class="demo-sektion" data-gruppe="skal" data-navn="StatusFooter">
+            <h2>StatusFooter</h2>
+            <p data-t="pStatusFooter"></p>
+            <div class="demo-ramme">
+              <div class="fodl"><span data-t="fodVenstre" data-v="16" data-w="13"></span><span class="h"><span id="demo-fod-laas"></span><span data-t="fodVersion" data-v="2.0.0"></span></span></div>
+            </div>
+          </section>
+
+          <section class="demo-sektion" data-gruppe="indhold" data-navn="DataTable">
+            <h2>DataTable</h2>
+            <p data-t="pDataTable"></p>
+            <div class="demo-ramme" id="demo-tabel"></div>
+            <p class="demo-valgt" id="tabel-valgt" data-t="intetValgt"></p>
+          </section>
+
+          <section class="demo-sektion" data-gruppe="indhold" data-navn="StatusChip">
+            <h2>StatusChip</h2>
+            <p data-t="pStatusChip"></p>
+            <div class="demo-raekke" id="demo-chips"></div>
+          </section>
+
+          <section class="demo-sektion" data-gruppe="indhold" data-navn="Banner">
+            <h2>Banner</h2>
+            <p data-t="pBanner"></p>
+            <div class="demo-stak" id="demo-bannere"></div>
+          </section>
+
+          <section class="demo-sektion" data-gruppe="indhold" data-navn="Wizard">
+            <h2>Wizard</h2>
+            <p data-t="pWizard"></p>
+            <div class="demo-ramme"><div id="demo-guide" role="group" aria-labelledby="demo-guide-h"></div></div>
+          </section>
+
+          <section class="demo-sektion" data-gruppe="kontroller" data-navn="Button">
+            <h2>Button</h2>
+            <p data-t="pButton"></p>
+            <div class="demo-raekke" id="demo-knapper"></div>
+            <div class="demo-raekke" id="demo-knapper-fra"></div>
+          </section>
+
+          <section class="demo-sektion" data-gruppe="kontroller" data-navn="TextField">
+            <h2>TextField</h2>
+            <p data-t="pTextField"></p>
+            <div class="demo-felter" id="demo-felter"></div>
+          </section>
+
+          <section class="demo-sektion" data-gruppe="grundlag" data-navn="Ikoner">
+            <h2 data-t="hIkoner">Ikoner</h2>
+            <p data-t="pIkoner"></p>
+            <div class="demo-ikoner" id="demo-ikoner"></div>
+          </section>
+
+          <section class="demo-sektion" data-gruppe="grundlag" data-navn="Fletbaand">
+            <h2>Fletbaand</h2>
+            <p data-t="pFletbaand"></p>
+            <div id="demo-flet"></div>
+          </section>
+
+          <section class="demo-sektion" data-gruppe="grundlag" data-navn="Grundlag">
+            <h2 data-t="hGrundlag">Grundlag</h2>
+            <p data-t="pGrundlag"></p>
+            <div class="demo-stak">
+              <span class="label" data-t="gLabel"></span>
+              <span class="muted" data-t="gMuted"></span>
+              <span class="mono">srv-app01.eksempel.dk · 192.0.2.17</span>
+              <span><svg class="ik" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg> <span data-t="gIk"></span></span>
+              <span><span data-t="gSkjult"></span><span class="skjult-tekst" data-t="gSkjultTekst"></span></span>
+            </div>
+          </section>
+        </div>
+
+        <!-- Visning 2: tokens -->
+        <div class="demo-side visning" id="v-tokens" data-visning="tokens" hidden>
+          <section class="demo-sektion">
+            <h2 data-t="hFarver">Farver</h2>
+            <p data-t="pFarver"></p>
+            <div class="demo-farver" id="demo-farver"></div>
+          </section>
+          <section class="demo-sektion demo-skrift">
+            <h2 data-t="hSkrift">Skrift</h2>
+            <p data-t="pSkrift"></p>
+            <div id="demo-skrift"></div>
+          </section>
+          <section class="demo-sektion">
+            <h2 data-t="hLuft">Luft, radier og skygger</h2>
+            <p data-t="pLuft"></p>
+            <div class="demo-stak demo-luft" id="demo-luft"></div>
+            <div class="demo-raekke demo-radius" id="demo-radius"></div>
+            <div class="demo-pop" data-t="pSkygge"></div>
+          </section>
+        </div>
+      </div>
+
+      <footer class="fodl">
+        <span id="fod-antal" data-t="fodAntal" data-v="0"></span>
+        <span class="h"><span id="fod-laas"></span><span data-t="fodVersion" data-v="2.0.0"></span></span>
+      </footer>
+    </main>
+  </div>
+</div>
+
+<script defer src="demo.js"></script>
+</body>
+</html>

@@ -392,7 +392,8 @@ const raekkeMed = (d, id) => d.querySelector(`section[data-visning="masker"] .fu
   const medKonsol = js.filter(f => /\bconsole\s*\./.test(ui('assets/' + f)));
   tjek('ingen console.* i ui/assets/*.js', medKonsol.length === 0, medKonsol.join(', '));
   const lager = js.filter(f => /localStorage\s*\.\s*setItem|sessionStorage|indexedDB/.test(ui('assets/' + f)));
-  tjek('kun tema.js og sprog.js skriver til localStorage (ingen sessionStorage/IndexedDB)', JSON.stringify(lager.sort()) === JSON.stringify(['sprog.js', 'tema.js']), lager.join(', '));
+  // V-KIT.1: sprogets mekanik (og dermed skrivningen) er flyttet til kittets sprogmotor.js; sprog.js har kun teksterne.
+  tjek('kun tema.js og sprogmotor.js skriver til localStorage (ingen sessionStorage/IndexedDB)', JSON.stringify(lager.sort()) === JSON.stringify(['sprogmotor.js', 'tema.js']), lager.join(', '));
   const m = ui('assets/maskering.js');
   tjek('Maskér viser teksten i <pre>, aldrig i et textarea', !/createElement\(['"]textarea/.test(m) && /el\('pre'/.test(m));
   tjek('teksten tages fra clipboardData.getData(\'text/plain\')', /clipboardData\.getData\('text\/plain'\)/.test(m));
@@ -2275,7 +2276,7 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
 // Kopiér i Demaskér; teksten i Indstillinger). Efterlignet Rust som V-LAAS.3. Kun opdigtede navne. ──
 {
   const udenKommentarer = t => t.replace(/<!--[\s\S]*?-->/g, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
-  const kode = udenKommentarer(ui('index.html') + ['app.js', 'laas.js', 'maskering.js', 'sager.js', 'ordbog.js', 'indstillinger.js', 'kit.js', 'sprog.js', 'tema.js'].map(f => ui('assets/' + f)).join('\n'));
+  const kode = udenKommentarer(ui('index.html') + ['app.js', 'laas.js', 'maskering.js', 'sager.js', 'ordbog.js', 'indstillinger.js', 'kit.js', 'sprogmotor.js', 'sprog.js', 'tema.js'].map(f => ui('assets/' + f)).join('\n'));
   tjek('V-LAAS.4: webvisningen læser aldrig udklipsholderen (ingen readText/read())', kode.length > 50000 && !/readText|clipboard\.read\(/.test(kode));
   tjek('V-LAAS.4: udklip_kopieret kaldes ét sted (Kopiér i Demaskér)', (kode.match(/invoke\('udklip_kopieret'/g) || []).length === 1);
   tjek('V-LAAS.4: den gamle besked "blev lukket" er væk', !/bMidlertidigLukket|blev lukket, da Grimnir|was closed when Grimnir/.test(kode));

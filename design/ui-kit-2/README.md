@@ -39,7 +39,7 @@ Det er bevidst **ikke** en kopi: zonerne er almindelige mønstre for skrivebords
 
 ## Skrift
 
-Inter til alt, JetBrains Mono til værdier. Begge hentes fra Google Fonts i forhåndsvisningerne; i et program, der ikke må bruge net, skal skriftfilerne pakkes med (OFL-licens) eller systemskriften bruges (`Segoe UI`, `system-ui`). Brødtekst er `body` (14/20). Værdier, brugeren skal kontrollere, står altid i `mono`.
+Inter til alt, JetBrains Mono til værdier. Begge hentes fra Google Fonts i forhåndsvisningerne i `components/`; pakken har skriftfilerne med (OFL-licens, `pakke/web/fonts/`), så et program og demosiden ikke bruger net. Uden skriftfilerne bruges systemskriften (`Segoe UI`, `system-ui`). Brødtekst er `body` (14/20). Værdier, brugeren skal kontrollere, står altid i `mono`.
 
 ## Form og luft
 
@@ -57,6 +57,17 @@ Dansk først, engelsk med samme nøgler. Du-form, korte sætninger, ingen udråb
 
 Fletbaand er det ene pynteelement, og det er valgfrit. Runemærker og lignende hører til det enkelte programs logo, ikke til kittet.
 
+## Pakken
+
+Kittet findes som pakket kode i `pakke/` (version i `pakke/VERSION`): tokens som JSON, CSS og XAML, komponenterne til web, tema og sprogets mekanik, skrifterne, en demoside og vejledninger. `pakke/README.md` siger, hvordan et program tager det i brug; `pakke/KOMPONENTER.md` beskriver hver komponent. Pakken er kittets ene kilde: Grimnirs egne kopier i `ui/assets/` laves af `npm run kit`.
+
+Som kode findes: AppShell, CommandBar, NavPane, StatusFooter, DataTable, StatusChip, Button, TextField, Banner, Wizard, Fletbaand, stregikoner, tema og sprog. Forhåndsvisningerne i `components/` er de oprindelige skitser; StatusTile og Cover findes kun dér.
+
 ## Det mangler
 
-Logo og app-ikoner, et ikonsæt, dialog, menu, værktøjstip, tom tilstand og fremdrift. Komponenterne findes som forhåndsvisninger i HTML og CSS; der er ingen pakket kode endnu.
+- Logo og app-ikoner (hører til det enkelte program).
+- Et fuldt ikonsæt: `kit.js` har de almene stregikoner; et program lægger sine egne til.
+- Dialog, menu, værktøjstip, tom tilstand og fremdrift.
+- Afkrydsning, kontakt (til/fra) og valgliste.
+- StatusTile og Cover som kode.
+- Komponenter til WPF: pakken har kun tokens (`pakke/tokens/Tokens.xaml`), og skrifterne findes kun som woff2.

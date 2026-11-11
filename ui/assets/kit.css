@@ -1,9 +1,9 @@
-/* Wi24rd UI Kit 2 — kittet som kode. Fælles for alle Wi24rd-skrivebordsprogrammer (ADR-001 D14); intet her må kun gælde
-   ét program (det enkelte programs eget ligger i dets app.css). Farver, luft, radier og skrift kommer fra tokens.css;
-   ingen farvekoder her. Klassenavnene følger forhåndsvisningerne i design/ui-kit-2/components/<navn>/preview.html.
-   Komponenter: AppShell (.vindue, .titel, .midte, .arb, .vl), CommandBar (.cmd), NavPane (.nav), StatusFooter (.fodl),
-   DataTable (.tabel), StatusChip (.chip), Button (.btn), TextField (.felt), Banner (.ban), Wizard (.wiz) og Fletbaand
-   (.flet). StatusTile kommer senere. */
+/* Wi24rd UI Kit 2 — kittet som kode. Fælles for alle Wi24rd-skrivebordsprogrammer; intet her må kun gælde ét program
+   (det enkelte programs eget ligger i dets egen CSS, der indlæses efter denne). Farver, luft, radier og skrift kommer fra
+   tokens.css; ingen farvekoder her. Hver komponent er beskrevet i pakkens KOMPONENTER.md.
+   Komponenter: AppShell (.vindue, .titel, .midte, .arb, .vl, .soeg, .fl, .flade), CommandBar (.cmd), NavPane (.nav),
+   StatusFooter (.fodl), DataTable (.tabel), StatusChip (.chip), Button (.btn), TextField (.felt), Banner (.ban), Wizard
+   (.wiz) og Fletbaand (.flet). */
 
 /* ── Skrifter (pakket med, OFL; intet hentes) ── */
 @font-face { font-family: "Inter"; font-style: normal; font-display: swap; font-weight: 100 900; src: url(fonts/inter-latin-wght-normal.woff2) format("woff2-variations"); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
@@ -133,15 +133,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
   background: var(--rail); color: var(--rail-text); font-size: 13px;
   user-select: none; -webkit-user-select: none;
 }
-/* macOS med titleBarStyle "Overlay": trafiklysene står oven på titellinjen. */
-[data-platform="macos"] .titel { padding-left: 80px; }
 .titel b { color: var(--rail-strong); font-weight: 600; letter-spacing: .02em; }
 .titel .mrk {
   display: grid; place-items: center; width: 20px; height: 20px; flex: none;
   border-radius: var(--radius-sm); background: var(--accent-on-rail); color: var(--rail);
   font-weight: 700; font-size: 12px;
 }
-.titel .sag { margin-left: auto; display: flex; align-items: center; gap: var(--space-2); }
+.titel .hoejre { margin-left: auto; display: flex; align-items: center; gap: var(--space-2); }
 .titel .rk {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1);
   height: 26px; min-width: 26px; padding: 0 var(--space-2);

@@ -143,7 +143,8 @@ const thBrydes = (klasse, W) => APP.some(r => mediaPasser(r.media, W) && r.media
 const S = (() => {
   const w = { localStorage: { getItem: () => null, setItem() { } } };
   const doc = { documentElement: {}, addEventListener() { }, dispatchEvent() { } };
-  new Function('window', 'localStorage', 'document', 'CustomEvent', laes('ui/assets/sprog.js'))(w, w.localStorage, doc, function () { });
+  // V-KIT.1: mekanikken er kittets sprogmotor.js (indlæses før sprog.js, som i index.html).
+  new Function('window', 'localStorage', 'document', 'CustomEvent', laes('ui/assets/sprogmotor.js') + '\n' + laes('ui/assets/sprog.js'))(w, w.localStorage, doc, function () { });
   return w.Sprog;
 })();
 const T = S.TEKST;

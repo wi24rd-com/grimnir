@@ -1,27 +1,25 @@
 /* Wi24rd UI Kit 2 — kittets opførsel som kode (window.Kit). Fælles for alle Wi24rd-skrivebordsprogrammer; intet her
    kender det enkelte program. Forbrugeren leverer indholdet (faner, grupper, knapper, træets punkter, visninger, rækker) og
    hvad der sker ved valg. Tekster gives som nøgler (t: 'noegle'); elementerne får data-t / data-t-aria / data-t-title, og
-   programmets sprogmodul udfylder dem (window.Sprog.anvend). Gives tekst i stedet for t, står teksten, som den er.
-   Ingen innerHTML med data: alt bygges med createElement og textContent. */
+   programmets sprogmodul udfylder dem (Sprog.anvend(rod), se sprogmotor.js). Gives tekst i stedet for t, står teksten, som
+   den er. Ingen innerHTML med data: alt bygges med createElement og textContent. Hver funktion er beskrevet i pakkens
+   KOMPONENTER.md. */
 (function () {
   'use strict';
   const SVG = 'http://www.w3.org/2000/svg';
 
   /* Stregikoner, 24×24, 2 px streg, runde ender, currentColor (kittets README: egne stregikoner). Kittet har endnu intet
-     ikonsæt; disse er tegnet til skallen og forhåndsvisningerne. Hver post er en liste af [element, attributter]. */
+     fuldt ikonsæt; disse er de almene. Hver post er en liste af [element, attributter]. Et program lægger sine egne
+     ikoner til med registrerIkoner (samme format), så de kan bruges overalt, hvor kittet tager et ikonnavn. */
   const IKONER = {
     indsaet: [['path', { d: 'M9 4h6v3H9z' }], ['path', { d: 'M9 5H6v15h12V5h-3' }]],
     fil: [['path', { d: 'M6 3h8l4 4v14H6z' }], ['path', { d: 'M14 3v4h4' }]],
     soeg: [['circle', { cx: 11, cy: 11, r: 6.5 }], ['path', { d: 'M20 20l-4.2-4.2' }]],
     skjold: [['path', { d: 'M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z' }]],
-    foerefter: [['rect', { x: 3, y: 5, width: 8, height: 14, rx: 1 }], ['rect', { x: 13, y: 5, width: 8, height: 14, rx: 1 }]],
     kopier: [['rect', { x: 8, y: 8, width: 12, height: 12, rx: 2 }], ['path', { d: 'M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2' }]],
-    kvittering: [['path', { d: 'M6 3h12v18l-3-2-3 2-3-2-3 2z' }], ['path', { d: 'M9 8h6M9 12h6' }]],
-    maske: [['path', { d: 'M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z' }], ['path', { d: 'M4 4l16 16' }]],
     oeje: [['path', { d: 'M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z' }], ['circle', { cx: 12, cy: 12, r: 2.5 }]],
     mappe: [['path', { d: 'M3 7h6l2 2h10v10H3z' }]],
     bog: [['path', { d: 'M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z' }], ['path', { d: 'M9 8h6M9 12h6' }]],
-    naeste: [['path', { d: 'M12 4v10' }], ['path', { d: 'M12 18.5v.5' }], ['path', { d: 'M17 9l3 3-3 3' }]],
     gem: [['path', { d: 'M12 4v11' }], ['path', { d: 'M7 10l5 5 5-5' }], ['path', { d: 'M5 20h14' }]],
     plus: [['path', { d: 'M12 5v14M5 12h14' }]],
     aabn: [['path', { d: 'M14 4h6v6' }], ['path', { d: 'M20 4l-9 9' }], ['path', { d: 'M18 14v6H4V6h6' }]],
@@ -44,6 +42,14 @@
     rediger: [['path', { d: 'M4 20l1-4L16 5l3 3L8 19z' }], ['path', { d: 'M14 7l3 3' }]],
     kalender: [['rect', { x: 4, y: 5, width: 16, height: 15, rx: 1.5 }], ['path', { d: 'M4 10h16M8 3v4M16 3v4' }]],
   };
+
+  /* Programmets egne ikoner: { navn: [[element, attributter], …] }. Et navn, kittet allerede har, kan ikke overtages. */
+  function registrerIkoner(nye) {
+    for (const [navn, dele] of Object.entries(nye)) {
+      if (navn in IKONER) throw new Error('ikonet findes allerede: ' + navn);
+      IKONER[navn] = dele;
+    }
+  }
 
   function ikon(navn, klasse) {
     const dele = IKONER[navn];
@@ -508,5 +514,5 @@
     return svg;
   }
 
-  window.Kit = Object.freeze({ IKONER, ikon, chip, knap, felt, banner, tabel, commandBar, navTrae, visningsskift, guide, fletbaand, SYMBOL });
+  window.Kit = Object.freeze({ IKONER, ikon, registrerIkoner, chip, knap, felt, banner, tabel, commandBar, navTrae, visningsskift, guide, fletbaand, SYMBOL });
 })();

@@ -1,9 +1,11 @@
-// Kontrast for Wi24rd UI Kit 2's par i begge temaer, regnet ud fra design/wi24rd-ui-kit-2.tokens.json (WCAG 2.x
+// Kontrast for Wi24rd UI Kit 2's par i begge temaer, regnet ud fra pakkens tokens.json (V-KIT.1: kilden er
+// design/ui-kit-2/pakke/tokens/wi24rd-ui-kit-2.tokens.json; stien kommer fra build-tokens.mjs og skrives først; WCAG 2.x
 // relativ luminans). Tekst mod flade skal være mindst 4,5:1; kontrolkanter, fokusring og ikoner, der bærer betydning,
 // mindst 3:1. Fejler (exit 1), hvis et par er under grænsen. Brug: node tests/ui/kontrast.mjs
 // Listen er kittets par, som kit.css og app.css bruger dem; et nyt par i CSS'en skal også stå her (V-ORDBOG.1: Wizard,
 // Ordbog-visningen og Maskér → ordbogen).
-import { laesTokens, temaVaerdier } from '../../design/build-tokens.mjs';
+import path from 'node:path';
+import { laesTokens, temaVaerdier, KILDE } from '../../design/build-tokens.mjs';
 
 const TEKST = 4.5, KANT = 3;
 
@@ -139,6 +141,7 @@ export function kontrast(a, b) {
 }
 
 const tokens = laesTokens();
+console.log('Tokens læses fra ' + path.relative(process.cwd(), KILDE) + '\n');
 let fejl = 0, ok = 0;
 for (const tema of ['light', 'dark']) {
   const farver = Object.fromEntries(temaVaerdier(tokens, tema));
