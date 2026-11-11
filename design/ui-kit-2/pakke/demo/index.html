@@ -43,6 +43,14 @@
   .demo-radius i { display: inline-block; width: 64px; height: 36px; border: 1px solid var(--border-strong); background: var(--surface-raised); margin-right: var(--space-2); vertical-align: middle; }
   .demo-pop { padding: var(--space-4); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-pop); max-width: 320px; }
   .demo-valgt { color: var(--text-muted); font-size: var(--small-size); }
+  /* 2.2.0: vælgerens liste ligger over siden; rammen om den må ikke klippe. Sidepanelets lille skal har fast højde. */
+  .demo-ramme.demo-aaben { overflow: visible; }
+  .demo-ramme > .titel { border-radius: var(--radius-md) var(--radius-md) 0 0; }
+  .demo-midte { height: 260px; }
+  .demo-midte .arb { padding: var(--space-4); gap: var(--space-3); }
+  .demo-navs { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: flex-start; }
+  .demo-otte { height: 290px; }
+  .demo-sektion > h3 { margin: var(--space-4) 0 var(--space-1); font-size: var(--h3-size); line-height: var(--h3-line); font-weight: var(--h3-weight); }
 </style>
 </head>
 <body>
@@ -50,7 +58,7 @@
   <header class="titel">
     <span class="mrk" aria-hidden="true">W</span>
     <b data-t="appNavn">Wi24rd UI Kit 2</b>
-    <span data-t="undertitel" data-v="2.1.0" id="pakkeversion">Demo · pakke 2.0.1</span>
+    <span data-t="undertitel" data-v="2.2.0" id="pakkeversion">Demo · pakke 2.0.1</span>
     <span class="hoejre">
       <button type="button" class="rk" id="skift-tema" data-t-aria="ariaSkiftTema" data-t-title="ariaSkiftTema"></button>
       <button type="button" class="rk" id="skift-sprog" data-t-aria="ariaSkiftSprog" data-t="skiftSprog"></button>
@@ -92,16 +100,28 @@
             <p data-t="pCommandBar"></p>
             <div class="demo-ramme"><div id="demo-baand"></div></div>
             <p class="demo-valgt" id="baand-valgt" data-t="intetValgt"></p>
+            <h3 data-t="hBaandEnkel">Bånd med én fane</h3>
+            <p data-t="pBaandEnkel"></p>
+            <div class="demo-ramme demo-aaben"><div id="demo-baand-enkel"></div></div>
+            <p class="demo-valgt" id="baand-enkel-valgt" data-t="intetValgt"></p>
           </section>
 
           <section class="demo-sektion" data-gruppe="skal" data-navn="NavPane">
             <h2>NavPane</h2>
             <p data-t="pNavPane"></p>
-            <div class="demo-ramme demo-smal">
-              <div class="nav">
-                <h3 data-t="navDemoH">Filtre</h3>
-                <ul id="demo-trae"></ul>
-                <div id="demo-skift"></div>
+            <div class="demo-navs">
+              <div class="demo-ramme demo-smal">
+                <div class="nav">
+                  <h3 data-t="navDemoH">Filtre</h3>
+                  <ul id="demo-trae"></ul>
+                  <div id="demo-skift"></div>
+                </div>
+              </div>
+              <div class="demo-ramme demo-smal">
+                <div class="nav demo-otte">
+                  <h3 data-t="navOtteH">Otte visninger</h3>
+                  <div id="demo-skift-otte"></div>
+                </div>
               </div>
             </div>
             <p class="demo-valgt" id="trae-valgt" data-t="intetValgt"></p>
@@ -111,7 +131,7 @@
             <h2>StatusFooter</h2>
             <p data-t="pStatusFooter"></p>
             <div class="demo-ramme">
-              <div class="fodl"><span data-t="fodVenstre" data-v="16" data-w="13"></span><span class="h"><span id="demo-fod-laas"></span><span data-t="fodVersion" data-v="2.1.0"></span></span></div>
+              <div class="fodl"><span data-t="fodVenstre" data-v="16" data-w="13"></span><span class="h"><span id="demo-fod-laas"></span><span data-t="fodVersion" data-v="2.2.0"></span></span></div>
             </div>
           </section>
 
@@ -138,6 +158,42 @@
             <h2>Wizard</h2>
             <p data-t="pWizard"></p>
             <div class="demo-ramme"><div id="demo-guide" role="group" aria-labelledby="demo-guide-h"></div></div>
+          </section>
+
+          <section class="demo-sektion" data-gruppe="skal" data-navn="Sidepanel">
+            <h2>Sidepanel</h2>
+            <p data-t="pSidepanel"></p>
+            <div class="demo-ramme">
+              <div class="midte demo-midte">
+                <main class="arb">
+                  <span><button type="button" class="btn" id="demo-sp-aabn" aria-controls="demo-sidepanel" aria-expanded="false" data-t="spAabn">Åbn hjælpen</button></span>
+                  <p class="muted" data-t="spArb"></p>
+                </main>
+                <aside id="demo-sidepanel"></aside>
+              </div>
+            </div>
+            <p class="demo-valgt" id="sp-valgt" data-t="intetValgt"></p>
+          </section>
+
+          <section class="demo-sektion" data-gruppe="kontroller" data-navn="Vælger">
+            <h2 data-t="hVaelger">Vælger</h2>
+            <p data-t="pVaelger"></p>
+            <div class="demo-ramme demo-aaben">
+              <div class="titel" id="demo-vaelger-titel">
+                <span class="mrk" aria-hidden="true">W</span>
+                <b data-t="appNavn">Wi24rd UI Kit 2</b>
+                <span class="hoejre" id="demo-vaelger-hoejre"></span>
+              </div>
+              <div class="vl" id="demo-vaelger-vl"></div>
+            </div>
+            <p class="demo-valgt" id="vaelger-valgt" data-t="intetValgt"></p>
+          </section>
+
+          <section class="demo-sektion" data-gruppe="kontroller" data-navn="Segmentknap">
+            <h2 data-t="hSegment">Segmentknap</h2>
+            <p data-t="pSegment"></p>
+            <div class="demo-raekke" id="demo-segment"></div>
+            <p class="demo-valgt" id="segment-valgt" data-t="intetValgt"></p>
           </section>
 
           <section class="demo-sektion" data-gruppe="kontroller" data-navn="Button">
@@ -211,7 +267,7 @@
 
       <footer class="fodl">
         <span id="fod-antal" data-t="fodAntal" data-v="0"></span>
-        <span class="h"><span id="fod-laas"></span><span data-t="fodVersion" data-v="2.1.0"></span></span>
+        <span class="h"><span id="fod-laas"></span><span data-t="fodVersion" data-v="2.2.0"></span></span>
       </footer>
     </main>
   </div>

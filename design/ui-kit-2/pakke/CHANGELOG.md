@@ -2,6 +2,24 @@
 
 Første tal stiger, når et program skal ændre noget for at følge med. Andet tal ved nyt. Tredje tal ved rettelser.
 
+## 2.2.0 — 2026-11-11
+
+Skallen: flere visninger, vælger, sidepanel, bånd uden faner og segmentknap. Intet er omdøbt eller fjernet; et program, der bruger 2.1.0, kan skifte filerne ud uden at ændre noget. Uden de nye indstillinger ser båndet, træet og visningsskiftet ud og virker som i 2.0.0.
+
+### Nyt
+
+- **Op til otte visninger** (K5): `Kit.visningsskift` tager nu højst otte visninger (før: seks). Ved syv og otte får skiftet klassen `.taet`, og hvert punkt er 30 px højt, så otte kan stå i det mindste vindue (900 × 560 px). Seks eller færre er uændret. Ni eller flere giver en fejl. Reglen i `KOMPONENTER.md` er rettet, med anbefalingen: Indstillinger i titellinjen, en opsætningsguide i Wizard.
+- **Vælger** (K6): `Kit.vaelger`, en knap med den aktuelle værdi og en liste. Ét valg eller flere valg (afkrydsning, "alle" øverst, "N valgt"), valgfrit søgefelt, tastatur og ARIA som en listbox. Står i titellinjen, værktøjslinjen og båndet; listen holder sig inden for vinduet uden inline-stil. Klasserne begynder med `.vlg`.
+- **Træet vælger ét punkt** (K7): en skreven regel i `KOMPONENTER.md` under NavPane og Vælger. "Et, flere eller alle" er et filter og hører til i vælgeren. `Kit.navTrae` er uændret.
+- **Sidepanel** (K8): `Kit.sidepanel`, et panel i højre side af `.midte` med overskrift, lukkeknap og rulbart indhold. Skubber arbejdsfladen fra 1200 px vindue og op og lægger sig over med skygge under det (eller altid med `overlaeg: true`). Esc og lukkeknappen lukker; fokus går ind ved åbning og tilbage ved lukning; `role="complementary"`. Klasserne `.sidepanel`, `.over`, `.sp-top`, `.sp-luk`, `.sp-indhold`.
+- **Bånd uden faner** (K9): `Kit.commandBar` med `udenFaner: true` har ingen fanerække (præcis én fane). En post `{ id, element }` i en gruppe sætter en vælger eller segmentknap ind i båndet (`.baand-el`). Klassen `.cmd.enkel`. Et bånd uden de to indstillinger er som før.
+- **Segmentknap** (K9): `Kit.segment`, to til fem valg med præcis ét valgt. `role="radiogroup"` med `role="radio"` og `aria-checked`; pilene flytter og vælger, Tab går ind og ud som én kontrol. Klasserne `.seg` og `.seg-v`.
+- Demoen har en sektion for hver af de tre nye komponenter, et bånd med én fane, en vælger og en segmentknap, og et visningsskift med otte punkter. Kontrasttesten måler de farvepar, de nye komponenter bruger.
+
+### Ændret
+
+- `Kit.visningsskift` med ni eller flere visninger giver nu en fejl. Det var aldrig tilladt (reglen var højst seks); nu siger kittet det, som ved et ukendt ikon.
+
 ## 2.1.0 — 2026-11-11
 
 Nye tokens. Intet er omdøbt eller fjernet; et program, der bruger 2.0.1, kan skifte filerne ud uden at ændre noget.

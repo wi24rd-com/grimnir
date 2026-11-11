@@ -40,7 +40,7 @@ Programmet får hele Kit 2's skal (se beslutningen øverst). Trin 1–6 lægger 
 4. **Skrift.** Kit 2 bruger Inter; programmet bruger Outfit. Skiftet sker, når `kit.css` indlæses og `--font-*` peger på kittets. Tekstbredder ændrer sig, så alt med faste bredder skal ses efter.
 5. **Sprog.** Behold `hmSprog`. Kittet kræver kun, at noget udfylder `data-t`, `data-t-aria` og `data-t-title` på de elementer, `kit.js` bygger. Programmets egen udfyldning tager i dag kun `data-t`; den skal udvides med de to andre (og `data-t-ph`), eller programmet giver kittet færdig tekst (`tekst:` og `aria:`) i stedet for nøgler. `sprogmotor.js` skal ikke bruges, så længe programmet har brug for `{domaene}`, `__fl` og genindlæsning.
 6. **Komponenterne, én ad gangen.** Erstat programmets egne med kittets, hvor de findes: knapper (`.knap` → `.btn`), chips (`.chip-groen/-gul/-roed/-graa` → `.chip.ok/.warn/.danger/.none`; symbolet står i dag i CSS og kommer i Kit 2 fra `Kit.chip`), tabeller (`.tabel` findes begge steder, men er ikke ens: programmets har talkolonner, to hovedrækker og egne celletyper), tekstfelter og bannere. Klassenavnene `.chip` og `.tabel` findes i begge sæt og vil støde sammen, når `kit.css` indlæses: tag dem i samme trin, som `kit.css` kommer ind.
-7. **Skallen.** Byg siden om til AppShell: titellinje, `Kit.commandBar`, `Kit.navTrae` og `Kit.visningsskift`, værktøjslinje og fodlinje. Kittets visningsskift er til højst seks visninger; programmet har ti, så nogle skal blive til punkter i træet eller til faner. Båndets vælgere (domæne, land) skal have en ny plads. Det blå bånd med bølger og sidebjælken udgår. Pladsen til macOS' vinduesknapper står i dag som `[data-platform="macos"] .band`; den flyttes til `.titel` i programmets egen CSS.
+7. **Skallen.** Byg siden om til AppShell: titellinje, `Kit.commandBar`, `Kit.navTrae` og `Kit.visningsskift`, værktøjslinje og fodlinje. Kittets visningsskift tager fra 2.2.0 højst otte visninger; programmet har ti, så Indstillinger flyttes til en `.rk`-knap i titellinjen og Opsætning til en Wizard (anbefalingen i `KOMPONENTER.md`). Båndets vælgere (domæne, land) bliver til `Kit.vaelger` i titellinjen eller båndet, og hjælpeskuffen til `Kit.sidepanel`. Det blå bånd med bølger og sidebjælken udgår. Pladsen til macOS' vinduesknapper står i dag som `[data-platform="macos"] .band`; den flyttes til `.titel` i programmets egen CSS.
 8. **Ryd op.** Fjern det gamle `tokens.json`-lag, der ikke længere bruges, den gamle `tema.js`, Outfit og de regler i `app.css`, kittet har overtaget.
 
 ## Opfyldte ønsker
@@ -53,6 +53,11 @@ Programmet får hele Kit 2's skal (se beslutningen øverst). Trin 1–6 lægger 
 | K2 Mærkefarver | 2.1.0 | `--ok-mark`, `--warn-mark`, `--danger-mark`, `--info-mark`, `--none-mark`. Afløser `--status-*-dot` |
 | K3 Diagramfarver | 2.1.0 | `--data-1` … `--data-6`, `--data-axis`, `--data-grid`, `--data-label`. Angreb er `--danger-mark`, besøg `--info-mark`. Afløser `--chart-http-*` og tavlens seriefarver |
 | K4 Kortfarver | 2.1.0 | `--seq-1` … `--seq-5` og `--map-sea`, `--map-land`, `--map-border`, `--map-ring`, `--map-arc`. Afløser `--kort-*` |
+| K5 Flere end seks visninger | 2.2.0 | `Kit.visningsskift` tager højst otte (tæt ved syv og otte, `.skift.taet`). Afløser sidebjælkens ti links (`.side .nav`), når Indstillinger er i titellinjen og Opsætning i en Wizard |
+| K6 Vælger i titellinje eller bånd | 2.2.0 | `Kit.vaelger` med ét eller flere valg, søgefelt og "alle". Afløser `<select id="vg-zone">` og `<select id="vg-land">` i `.band-vaelger` og domænevælgerens "Samlet (N)" |
+| K7 Træ med flere valgte | 2.2.0 | Regel: træet vælger ét punkt; "et, flere eller alle domæner" er en vælger med `flere: true` og `alle`. Afløser listen med Vælg alle / Fravælg alle som filter (indstillingen i Indstillinger kan blive) |
+| K8 Sidepanel/skuffe | 2.2.0 | `Kit.sidepanel`: skubber fra 1200 px vindue, lægger sig over under det. Afløser hjælpeskuffen (`aside.hjaelp`, `--help-width`, `hjaelp()` i `ramme.js`) |
+| K9 Bånd til programmer, man ser i | 2.2.0 | `Kit.commandBar` med `udenFaner: true` og `{ id, element }` i grupperne, og `Kit.segment`. Afløser `.band-hoejre` (Hent nu, Hjælp) og `.segment` (`hmTegn.segment` i `vg-tegn.js`) |
 
 Det af `--board-*`, der ikke har en modpart i kittet, bliver programmets eget og peger på kittets flader og tekstfarver.
 
@@ -61,8 +66,8 @@ Det af `--board-*`, der ikke har en modpart i kittet, bliver programmets eget og
 | Hvad | Hvorfor |
 |---|---|
 | Tekststørrelse i tre trin (`data-density`) | Kit 2 har én størrelse |
-| Hjælpeskuffen, dialoger, afkrydsning, kontakt (til/fra), valglister, fliser, spinner | Findes ikke i kittet som kode (se `KOMPONENTER.md`, "Findes ikke endnu") |
-| Båndets bølger, logo og vælgere | Kit 2's titellinje er en rolig linje på 34 px uden plads til dem. Med hele skallen udgår bølgerne; logoet og vælgerne (domæne, land) skal have en ny plads, og har kittet ingen, udvides kittet |
+| Dialoger, afkrydsning, kontakt (til/fra), valglister, fliser, spinner | Findes ikke i kittet som kode (se `KOMPONENTER.md`, "Findes ikke endnu"); de kommer i 2.3.0 (K10–K17). Hjælpeskuffen er `Kit.sidepanel` fra 2.2.0 |
+| Båndets bølger og logo | Kit 2's titellinje er en rolig linje på 34 px. Med hele skallen udgår bølgerne; logoet bliver til mærket (`.mrk`) eller programmets eget. Vælgerne (domæne, land) har plads fra 2.2.0 (`Kit.vaelger` i `.titel .hoejre`) |
 | Sprogets mekanik (`hmSprog`) | Programmets er rigere end kittets (`{domaene}`, `{land}`, datoer, tal, ordliste, genindlæsning). Flyttes ikke |
 | XAML-udgaven fra Kit 1.0 (`design/out/Wi24rdTokens.xaml`) | Filen siger selv, at den endnu ikke bruges af FTP. Kit 2 har sin egen (`tokens/Tokens.xaml`) med andre nøgler; den gamle kan udgå, når Kit 1.0 udgår |
 
@@ -84,7 +89,7 @@ Opdelingen er den for hele skallen: seks cyklusser efter undersøgelsen.
 | B1 | Trin 1–3: pakken ind, broen mellem tokens, tema. Programmet ser nyt ud i farverne, men er bygget som før | Ja |
 | B2 | Trin 4–6: skrift, sprogaftalen og komponenterne | Ja |
 | B3 | Trin 7, rammen: titellinje, handlingsbånd, visningsskift, træ, værktøjslinje og fodlinje; det blå bånd og sidebjælken udgår. Visningernes indhold flyttes uændret ind | Ja |
-| B4 | Trin 7, visningerne: hver af de ti visninger får sine kommandoer i handlingsbåndet, sit træ og sin fodlinje; vælgerne og hjælpeskuffen får deres plads | Ja |
+| B4 | Trin 7, visningerne: hver af de otte visninger får sine kommandoer i handlingsbåndet (`udenFaner`, `Kit.segment` til perioden), sit træ og sin fodlinje; vælgerne bliver `Kit.vaelger`, hjælpeskuffen `Kit.sidepanel`, Indstillinger en knap i titellinjen og Opsætning en Wizard | Ja |
 | B5 | Trin 8 og fotobogen: oprydning og ny fotobog | Ja |
 | B6 | Manualen: nye billeder og gennemskrivning på dansk og engelsk, også af hvordan man kommer rundt | Ja |
 

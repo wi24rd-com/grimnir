@@ -95,7 +95,7 @@ Regler:
 
 ## CommandBar
 
-**Klasser:** `.cmd`, `.tabs`, `.tab`, `.on`, `.grupper`, `.grp`, `.kn`, `.cap`, `.cb`, `.pri`
+**Klasser:** `.cmd`, `.tabs`, `.tab`, `.on`, `.grupper`, `.grp`, `.kn`, `.cap`, `.cb`, `.pri`, `.enkel`, `.baand-el`
 
 **Funktioner:** `Kit.commandBar`
 
@@ -126,9 +126,32 @@ baand.vaelgFane('start');    // skift fane fra koden
 
 **Kræver af programmet:** Hvad hver kommando gør (`ved`). At ændre en knaps tilstand selv (`aria-disabled`, `aria-pressed`, `data-t-title`) på elementet fra `baand.knap(id)`. Højst én primær kommando pr. visning og højst otte knapper pr. fane. Fanerne skifter båndets indhold, aldrig visningen.
 
+### Bånd til programmer med få kommandoer (fra 2.2.0)
+
+Et program, man ser i og ikke arbejder i (fx et overblik med opdatér, periode, eksport og hjælp), har kun én fane. Så er en fanerække en kontrol, der ikke gør noget, og den udelades.
+
+- **Indstillingen `udenFaner: true`** giver et bånd uden fanerække. Den kræver præcis én fane; flere giver en fejl. Grupper og gruppenavne er som i dag.
+- **Valgt som indstilling**, ikke som noget, én fane selv udløser: et program på 2.0.0 med én fane skal se ud og virke som før (et bånd uden indstillingen er præcis som i 2.0.0, også med én fane).
+- **En gruppe kan rumme en vælger eller en segmentknap**: en post `{ id, element }` i `knapper` sætter elementet ind i gruppen (`.baand-el`, 54 px høj, centreret). `baand.knap(id)` giver elementet.
+- Båndet har rollen `group` med navnet fra `ariaT`; der er ingen faner og ingen `tabpanel`.
+- Højst én primær kommando, og helst under seks poster i alt.
+
+```js
+const periode = Kit.segment({ ariaT: 'periodeAria', valgt: '7', valg: [{ id: '7', t: 'p7' }, { id: '30', t: 'p30' }, { id: 'aar', t: 'pAar' }], vedValg: id => hent(id) });
+const domaene = Kit.vaelger({ etiket: { t: 'domaene' }, punkter: [{ id: 'a', tekst: 'eksempel.dk' }], vedValg: id => vis(id) });
+Kit.commandBar(document.getElementById('baand'), {
+  ariaT: 'cmdAria', udenFaner: true,
+  faner: [{ id: 'start', t: 'faneStart', grupper: [
+    { t: 'gData', knapper: [{ id: 'opdater', t: 'kOpdater', ikon: 'afspil', pri: true, ved: () => hent() }, { id: 'eksport', t: 'kEksport', ikon: 'eksport' }] },
+    { t: 'gPeriode', knapper: [{ id: 'periode', element: periode.rod }] },
+    { t: 'gDomaene', knapper: [{ id: 'domaene', element: domaene.rod }] },
+  ] }],
+});
+```
+
 ## NavPane
 
-**Klasser:** `.nav`, `.trae`, `.tr`, `.ant`, `.skift`, `.vs`
+**Klasser:** `.nav`, `.trae`, `.tr`, `.ant`, `.skift`, `.vs`, `.taet`
 
 **Funktioner:** `Kit.navTrae`, `Kit.visningsskift`
 
@@ -156,11 +179,17 @@ const skift = Kit.visningsskift(document.getElementById('skift'), [
 skift.markér('filer');
 ```
 
-**Tilstande:** Valgt punkt i træet (`.tr.on`, `aria-current`). Foldet ud eller ind (`aria-expanded`). Aktiv visning (`.vs.on`, `aria-current="page"`).
+**Tilstande:** Valgt punkt i træet (`.tr.on`, `aria-current`). Foldet ud eller ind (`aria-expanded`). Aktiv visning (`.vs.on`, `aria-current="page"`). Tæt visningsskift (`.skift.taet`, fra 2.2.0): ved syv og otte visninger er hvert punkt 30 px højt i stedet for 38 px; seks eller færre er som i 2.0.0.
 
 **Tastatur:** I træet: op og ned flytter, Home og End går til første og sidste, højre folder ud, venstre folder ind eller går til forælderen, Enter og mellemrum vælger. Visningsskiftets punkter er links og nås med Tab.
 
-**Kræver af programmet:** Hvad et valg i træet filtrerer (`vedValg`). Selve visningsskiftet: hvert punkt er et link til `#id`; programmet viser den rigtige visning, kalder `markér(id)` og sætter selv eventuelle genveje. Højst seks visninger, altid i samme rækkefølge.
+**Kræver af programmet:** Hvad et valg i træet filtrerer (`vedValg`). Selve visningsskiftet: hvert punkt er et link til `#id`; programmet viser den rigtige visning, kalder `markér(id)` og sætter selv eventuelle genveje. Højst otte visninger, altid i samme rækkefølge.
+
+**Højst otte visninger (fra 2.2.0; før: seks).** Ni eller flere giver en fejl (`visningsskift: højst otte visninger`), som et ukendt ikon gør. Anbefalingen er at holde tallet nede: Indstillinger hører til i titellinjen (en `.rk`-knap med tandhjulet), og en opsætningsguide hører til i Wizard, ikke i visningsskiftet. Har programmet stadig flere end otte, er nogle af dem punkter i træet eller faner i båndet.
+
+**Det mindste vindue, kittet lover, er 900 × 560 px** (`.vindue` i `kit.css`). Dér er der plads til otte visninger: titellinjen (34 px) og et bånd med faner og én række grupper (116 px) efterlader 410 px til navigationsruden. Overskriften tager 40 px, otte tætte punkter 256 px, og træet har 114 px, så mindst tre punkter ses, og resten rulles. Uden fanerække (`udenFaner`) er der 33 px mere. I bredden har navnet 143 px ved siden af ikonet og en genvej på to tegn; det er 17 tegn i 13 px Inter, regnet med 0,62 em pr. tegn (mere end Inters gennemsnit). Et længere navn afkortes med … og bør gøres kortere.
+
+**Træet vælger ét punkt (fra 2.2.0, regel).** Træet er navigation: det vælger præcis ét punkt, og valget filtrerer arbejdsfladen. "Et, flere eller alle" (fx domæner) er et filter og hører til i en vælger med flere valg (se Vælger), ikke i træet. Træet får ingen afkrydsning.
 
 ## StatusFooter
 
@@ -371,6 +400,126 @@ plads.appendChild(Kit.fletbaand());
 
 **Kræver af programmet:** Ét sted pr. skærm, og det er valgfrit. Båndet betyder ikke noget og må ikke bære information.
 
+## Vælger
+
+**Klasser:** `.vlg`, `.vlg-knap`, `.vlg-vaerdi`, `.vlg-pop`, `.op`, `.hoejre-kant`, `.vlg-soeg`, `.vlg-liste`, `.vlg-p`, `.aktiv`, `.vlg-mark`, `.vlg-boks`, `.vlg-alle`, `.vlg-navn`, `.vlg-ingen`, `.ant`
+
+**Funktioner:** `Kit.vaelger`
+
+**Formål:** En knap, der viser den aktuelle værdi, og en liste, der åbner under den (fra 2.2.0). Til valg, der gælder hele skærmen: domæne, land, periode med mange trin. Står i titellinjen (`.titel .hoejre`), i værktøjslinjen og i båndet; udseendet følger fladen (mørk på titellinjen, lys ellers). To former: **ét valg** (listen lukker ved valg) og **flere valg** (afkrydsning pr. punkt, "alle" øverst, listen bliver åben). Det er ikke en valgliste i en formular; til det bruges `<select>` i `.felt`.
+
+**Markup:** Bygges af funktionen; programmet sætter `rod` ind.
+
+```js
+const land = Kit.vaelger({
+  etiket: { t: 'landEtiket' },                       // knappens og listens navn (skjult tekst)
+  punkter: [{ id: 'dk', t: 'landDk', antal: 12 }, { id: 'se', t: 'landSe' }],
+  valgt: 'dk',
+  vedValg: id => vis(id),                            // kun når brugeren ændrer valget
+});
+document.querySelector('.titel .hoejre').prepend(land.rod);
+
+const domaener = Kit.vaelger({
+  etiket: { t: 'domaeneEtiket' }, flere: true,
+  alle: { t: 'alleDomaener' },                       // punktet øverst; knappen viser det, når alt er valgt
+  nValgt: { t: 'nValgt' },                           // '{v} valgt'; data-v er antallet
+  soeg: { ph: 'soegDomaenePh', ariaT: 'soegDomaene' }, ingen: { t: 'ingenFundet' },
+  punkter: [{ id: 'z1', tekst: 'eksempel.dk' }, { id: 'z2', tekst: 'shop.eksempel.dk' }],
+  valgt: ['z1', 'z2'],
+  vedValg: ids => { filtrer(ids); Sprog.anvend(domaener.rod); },
+});
+Sprog.anvend(domaener.rod);
+domaener.saetPunkter([...], ['z1']);   domaener.saetValgt(['z2']);   domaener.valgt;   domaener.aaben;
+```
+
+```html
+<div class="vlg">
+  <button type="button" class="vlg-knap" aria-haspopup="listbox" aria-expanded="false" aria-controls="kit-vlg1-liste">
+    <span class="skjult-tekst" id="kit-vlg1-etiket">Land</span><span class="vlg-vaerdi">Danmark</span><svg>…</svg>
+  </button>
+  <div class="vlg-pop" hidden>
+    <ul class="vlg-liste" id="kit-vlg1-liste" role="listbox" aria-labelledby="kit-vlg1-etiket" tabindex="-1">
+      <li class="vlg-p" role="option" aria-selected="true"><span class="vlg-mark" aria-hidden="true">✓</span><span class="vlg-navn">Danmark</span><span class="ant">12</span></li>
+    </ul>
+  </div>
+</div>
+```
+
+**Tilstande:** Åben (`aria-expanded="true"`, listen er synlig). Valgt punkt (`aria-selected="true"`): ved ét valg flueben, fed skrift og blød accentflade; ved flere valg en afkrydset boks og fed skrift. Aktivt punkt med tastaturet (`.aktiv`, `aria-activedescendant`, fokusring i `info`). "Alle" er valgt, når hvert punkt er. Listen åbner opad (`.op`), når der er mere plads over knappen, og står ved knappens højre kant (`.hoejre-kant`), når den ellers ville gå ud over vinduet. Største højde er 360 px og højst et halvt vindue minus 48 px; resten rulles. Søgefeltet skjuler punkter, der ikke passer, og "alle" mens der søges; `ingen` vises, når intet passer.
+
+**Tastatur:** På knappen åbner Enter, mellemrum og pil ned (og pil op). I listen flytter pil op og ned, Home og End går til første og sidste, Enter vælger (ved flere valg: krydser af), mellemrum krydser af ved flere valg og vælger ved ét valg, og et bogstav hopper til næste punkt, der begynder med det (uden søgefelt). Med søgefelt står fokus i feltet: man skriver for at søge, og pilene og Enter virker som i listen. Esc lukker og giver fokus tilbage til knappen. Tab og klik uden for lukker. ARIA: `aria-haspopup="listbox"`, `aria-expanded` og `aria-controls` på knappen; `role="listbox"` (med `aria-multiselectable="true"` ved flere valg) og `role="option"` med `aria-selected`.
+
+**Kræver af programmet:** Alle tekster som nøgler eller færdig tekst: `etiket`, punkternes navne, `alle`, `nValgt` (med `{v}`), søgefeltets `ph` og `ariaT`, og `ingen`. `Sprog.anvend(v.rod)` efter oprettelse og efter `saetPunkter`, og i `vedValg`, når knappen kan vise `nValgt`. Hvad et valg betyder (`vedValg`). `saetPunkter` og `saetValgt` kalder ikke `vedValg` (som at sætte `value` på et felt). Søgefelt fra omkring ti punkter. Vælgeren må ikke stå i et område, der selv ruller eller klipper (fx `.flade`); titellinjen, værktøjslinjen og båndet gør ikke.
+
+## Sidepanel
+
+**Klasser:** `.sidepanel`, `.over`, `.sp-top`, `.sp-luk`, `.sp-indhold`, `.midte`
+
+**Funktioner:** `Kit.sidepanel`
+
+**Formål:** Et panel i højre side af arbejdsfladen (fra 2.2.0) med overskrift, lukkeknap og indhold, der ruller. Til hjælp, detaljer om det valgte og lignende, der skal kunne ses ved siden af arbejdet.
+
+**Markup:** Programmet lægger et tomt `<aside>` sidst i `.midte` (efter `.arb`); funktionen bygger indholdet.
+
+```html
+<div class="midte">
+  <nav class="nav">…</nav>
+  <main class="arb">…</main>
+  <aside id="hjaelp"></aside>
+</div>
+<button type="button" class="rk" aria-controls="hjaelp" aria-expanded="false" data-t-aria="hjaelpAria">?</button>
+```
+
+```js
+const hjaelp = Kit.sidepanel(document.getElementById('hjaelp'), {
+  t: 'hjaelpH', lukAriaT: 'hjaelpLuk', indhold: byggetHjaelp,
+  overlaeg: false,                 // true: læg altid over arbejdsfladen
+  vedLuk: aarsag => {},            // 'knap', 'esc' eller 'kode'
+});
+knap.addEventListener('click', () => hjaelp.skift());
+hjaelp.aabn();   hjaelp.luk();   hjaelp.aaben;   hjaelp.overlagt;   hjaelp.indhold;
+```
+
+**Tilstande:** Lukket (`hidden`). Åbent og skubber: panelet er 320 px bredt og står i rækken, så arbejdsfladen bliver smallere. Åbent og lægger over (`.over`): panelet ligger oven på højre side af arbejdsfladen med skygge (`--shadow-pop`). Det lægger over, når vinduet er smallere end **1200 px** (grænsen; kan ændres med `graense`), eller når programmet beder om det (`overlaeg: true`). Grænsen tjekkes ved åbning og når vinduet ændrer størrelse. Knapper med `aria-controls` = panelets id får `aria-expanded`.
+
+**Tastatur:** Ved åbning går fokus til overskriften, så skærmlæsere hører den. Tab går videre til lukkeknappen og indholdet. Esc i panelet lukker; ligger panelet over, lukker Esc også fra resten af siden (medmindre en anden har brugt tasten, fx en åben vælger). Ved lukning går fokus tilbage til det, der åbnede panelet, hvis fokus var i panelet. Panelet er ikke en modal dialog: fokus fanges ikke, og resten af skærmen kan bruges. `role="complementary"` med navnet fra overskriften (`aria-labelledby`).
+
+**Kræver af programmet:** `<aside>` som sidste barn af `.midte`. Overskriften (`t` eller `tekst`) og lukkeknappens navn (`lukAriaT` eller `lukAria`). Indholdet. Knappen, der åbner, med `aria-controls`. `Sprog.anvend(panel.rod)`, når indholdet er bygget. `.midte` får `position: relative`, når den har et sidepanel.
+
+## Segmentknap
+
+**Klasser:** `.seg`, `.seg-v`
+
+**Funktioner:** `Kit.segment`
+
+**Formål:** To til fem valg, hvor præcis ét er valgt (fra 2.2.0), fx "7 dage / 30 dage / År". Står i båndet (i en gruppe, se CommandBar) og i værktøjslinjen. Til få, korte valg, der skal kunne ses alle på én gang; flere eller lange valg hører til i en vælger.
+
+**Markup:** Bygges af funktionen.
+
+```js
+const periode = Kit.segment({
+  ariaT: 'periodeAria',
+  valg: [{ id: '7', t: 'p7' }, { id: '30', t: 'p30' }, { id: 'aar', t: 'pAar' }],
+  valgt: '7',
+  vedValg: id => hent(id),          // kun når valget ændres
+});
+vaerktoejslinje.appendChild(periode.rod);
+periode.vaelg('30');   periode.valgt;
+```
+
+```html
+<div class="seg" role="radiogroup" aria-label="Periode">
+  <button type="button" class="seg-v" role="radio" aria-checked="true" tabindex="0">7 dage</button>
+  <button type="button" class="seg-v" role="radio" aria-checked="false" tabindex="-1">30 dage</button>
+</div>
+```
+
+**Tilstande:** Valgt (`aria-checked="true"`): blød accentflade, fed skrift og en streg i accent forneden, så valget ikke hviler på farven alene. Hover. Færre end to eller flere end fem valg giver en fejl.
+
+**Tastatur:** Tab går ind på det valgte og ud igen (hele segmentknappen er ét stop). Pilene (venstre/højre og op/ned) flytter og vælger og går rundt; Home og End vælger første og sidste. Enter og mellemrum vælger det punkt, der har fokus. `role="radiogroup"` med `role="radio"` og `aria-checked`.
+
+**Kræver af programmet:** Gruppens navn (`ariaT` eller `aria`) og valgenes tekster. Hvad et valg betyder (`vedValg`). `vaelg(id)` kalder ikke `vedValg`.
+
 ## Ikoner
 
 **Funktioner:** `Kit.ikon`, `Kit.registrerIkoner`, `Kit.IKONER`
@@ -450,9 +599,9 @@ Disse er ikke i kittet som kode. Nogle findes som forhåndsvisning i `../compone
 | StatusTile | Kun forhåndsvisning |
 | Cover | Kun forhåndsvisning |
 | Dialog | Mangler. Programmerne bruger `<dialog>` med egen CSS |
-| Menu | Mangler |
+| Menu | Mangler. Vælgeren (2.2.0) er til at vælge en værdi, ikke til kommandoer |
 | Værktøjstip | Mangler. Kittet bruger `title` |
 | Tom tilstand | Mangler |
 | Fremdrift | Mangler |
-| Afkrydsning, kontakt (til/fra), valgliste | Mangler. `.felt` former `select`, men kittet har ingen egen valgliste |
+| Afkrydsning, kontakt (til/fra), valgliste | Mangler. `.felt` former `select`, men kittet har ingen egen valgliste. Vælgeren og segmentknappen (2.2.0) er til filtre og valg for hele skærmen, ikke til formularer |
 | Komponenter til WPF | Mangler. Kun tokens (`tokens/Tokens.xaml`) |

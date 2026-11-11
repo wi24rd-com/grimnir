@@ -57,6 +57,17 @@
         hSkrift: 'Skrift', pSkrift: 'Inter til alt, JetBrains Mono til værdier. Begge ligger i pakken.',
         hLuft: 'Luft, radier og skygger', pLuft: 'Luft i trin på 4 px; små radier; kanter frem for skygger.',
         pSkygge: 'shadow-pop: til dialoger og menuer over siden.', eksempelTekst: 'Ro, klarhed og ét tydeligt næste skridt',
+        hBaandEnkel: 'Bånd med én fane', pBaandEnkel: 'Fra 2.2.0. Et program, man ser i, har få kommandoer: ingen fanerække (udenFaner), og en gruppe kan rumme en segmentknap eller en vælger.',
+        gData: 'Data', gPeriode: 'Periode', gDomaene: 'Domæne', gHjaelp: 'Hjælp', kOpdater: 'Opdatér', kEksport: 'Eksportér', kHjaelp: 'Hjælp',
+        navOtteH: 'Otte visninger', vOverblik: 'Overblik', vSiden: 'Siden sidst', vAngreb: 'Angreb', vRobotter: 'Robotter', vLogin: 'Login', vLand: 'Land lige nu', vBesoeg: 'Besøgende', vTek: 'Teknologi',
+        pSidepanel: 'Fra 2.2.0. Et panel i højre side med overskrift, lukkeknap og indhold, der ruller. I brede vinduer skubber det arbejdsfladen; under 1200 px lægger det sig over. Esc lukker, og fokus går tilbage.',
+        spAabn: 'Åbn hjælpen', spH: 'Hjælp', spLuk: 'Luk hjælpen', spArb: 'Arbejdsfladen. Den bliver smallere, når panelet skubber.', spTekst: 'Her står forklaringen til den visning, du ser. Panelet er ikke en dialog: resten af skærmen kan stadig bruges.',
+        spLukket: 'Panelet blev lukket ({v}).',
+        hVaelger: 'Vælger', pVaelger: 'Fra 2.2.0. En knap med den aktuelle værdi og en liste. Ét valg i titellinjen; flere valg med søgefelt og "Alle" i værktøjslinjen. Pil ned åbner, Esc lukker.',
+        vlgLand: 'Land', vlgDomaener: 'Domæner', landDk: 'Danmark', landSe: 'Sverige', landNo: 'Norge', landDe: 'Tyskland', landFi: 'Finland',
+        alleDomaener: 'Alle domæner', nValgt: '{v} valgt', soegDomaene: 'Søg i domænerne', soegDomaenePh: 'Søg', ingenFundet: 'Ingen domæner passer',
+        hSegment: 'Segmentknap', pSegment: 'Fra 2.2.0. To til fem valg, præcis ét valgt. Tab går ind og ud som én kontrol; pilene flytter og vælger.',
+        periodeAria: 'Periode', p7: '7 dage', p30: '30 dage', pAar: 'År',
       },
       en: {
         dokTitel: 'Wi24rd UI Kit 2 — demo', appNavn: 'Wi24rd UI Kit 2', undertitel: 'Demo · package {v}',
@@ -106,6 +117,17 @@
         hSkrift: 'Type', pSkrift: 'Inter for everything, JetBrains Mono for values. Both are in the package.',
         hLuft: 'Spacing, radii and shadows', pLuft: 'Spacing in steps of 4 px; small radii; borders rather than shadows.',
         pSkygge: 'shadow-pop: for dialogs and menus above the page.', eksempelTekst: 'Calm, clarity and one clear next step',
+        hBaandEnkel: 'Command bar with one tab', pBaandEnkel: 'From 2.2.0. A program you look at has few commands: no tab row (udenFaner), and a group can hold a segmented button or a picker.',
+        gData: 'Data', gPeriode: 'Period', gDomaene: 'Domain', gHjaelp: 'Help', kOpdater: 'Refresh', kEksport: 'Export', kHjaelp: 'Help',
+        navOtteH: 'Eight views', vOverblik: 'Overview', vSiden: 'Since last time', vAngreb: 'Attacks', vRobotter: 'Robots', vLogin: 'Login', vLand: 'Country now', vBesoeg: 'Visitors', vTek: 'Technology',
+        pSidepanel: 'From 2.2.0. A panel on the right with a heading, a close button and content that scrolls. In wide windows it pushes the work area; below 1200 px it lies on top. Esc closes, and focus goes back.',
+        spAabn: 'Open help', spH: 'Help', spLuk: 'Close help', spArb: 'The work area. It gets narrower when the panel pushes.', spTekst: 'This is where the explanation of the view you see goes. The panel is not a dialog: the rest of the screen can still be used.',
+        spLukket: 'The panel was closed ({v}).',
+        hVaelger: 'Picker', pVaelger: 'From 2.2.0. A button with the current value and a list. One choice in the title bar; several choices with a search field and "All" in the toolbar. Down arrow opens, Esc closes.',
+        vlgLand: 'Country', vlgDomaener: 'Domains', landDk: 'Denmark', landSe: 'Sweden', landNo: 'Norway', landDe: 'Germany', landFi: 'Finland',
+        alleDomaener: 'All domains', nValgt: '{v} selected', soegDomaene: 'Search the domains', soegDomaenePh: 'Search', ingenFundet: 'No domains match',
+        hSegment: 'Segmented button', pSegment: 'From 2.2.0. Two to five choices, exactly one selected. Tab goes in and out as one control; the arrow keys move and select.',
+        periodeAria: 'Period', p7: '7 days', p30: '30 days', pAar: 'Year',
       },
     },
   });
@@ -307,6 +329,56 @@
     d.appendChild(n);
     $('demo-ikoner').appendChild(d);
   }
+
+  /* ── 2.2.0: otte visninger, bånd med én fane, vælger, sidepanel og segmentknap ── */
+  K.visningsskift($('demo-skift-otte'), [
+    ['overblik', 'vOverblik', 'mappe'], ['siden', 'vSiden', 'kalender'], ['angreb', 'vAngreb', 'skjold'], ['robotter', 'vRobotter', 'filter'],
+    ['login', 'vLogin', 'laas'], ['land', 'vLand', 'sprog'], ['besoeg', 'vBesoeg', 'oeje'], ['tek', 'vTek', 'tandhjul'],
+  ].map(([id, t, ikon], i) => ({ id, t, ikon, genvej: String(i + 1) })), { ariaT: 'visninger' }).markér('overblik');
+
+  const DOMAENER = [{ id: 'z1', tekst: 'eksempel.dk', antal: 412 }, { id: 'z2', tekst: 'shop.eksempel.dk', antal: 87 }, { id: 'z3', tekst: 'blog.eksempel.dk', antal: 9 },
+    { id: 'z4', tekst: 'api.eksempel.dk', antal: 1530 }, { id: 'z5', tekst: 'intra.eksempel.dk', antal: 0 }];
+  const navneAf = ids => ids.map(id => DOMAENER.find(z => z.id === id).tekst).join(', ') || '–';
+
+  const periode = K.segment({ ariaT: 'periodeAria', valgt: '7', valg: [{ id: '7', t: 'p7' }, { id: '30', t: 'p30' }, { id: 'aar', t: 'pAar' }], vedValg: id => meld('segment-valgt', { 7: 'p7', 30: 'p30', aar: 'pAar' }[id]) });
+  $('demo-segment').appendChild(periode.rod);
+
+  const baandPeriode = K.segment({ ariaT: 'periodeAria', valgt: '30', valg: [{ id: '7', t: 'p7' }, { id: '30', t: 'p30' }, { id: 'aar', t: 'pAar' }], vedValg: id => meld('baand-enkel-valgt', { 7: 'p7', 30: 'p30', aar: 'pAar' }[id]) });
+  const baandDomaene = K.vaelger({ etiket: { t: 'gDomaene' }, punkter: DOMAENER.slice(0, 3), valgt: 'z1', vedValg: id => meld('baand-enkel-valgt', null, navneAf([id])) });
+  K.commandBar($('demo-baand-enkel'), {
+    ariaT: 'cmdAria', udenFaner: true,
+    faner: [{ id: 'start', t: 'faneStart', grupper: [
+      { t: 'gData', knapper: [
+        { id: 'opdater', t: 'kOpdater', ikon: 'afspil', pri: true, ved: () => meld('baand-enkel-valgt', 'kOpdater') },
+        { id: 'eksport', t: 'kEksport', ikon: 'eksport', ved: () => meld('baand-enkel-valgt', 'kEksport') },
+      ] },
+      { t: 'gPeriode', knapper: [{ id: 'periode', element: baandPeriode.rod }] },
+      { t: 'gDomaene', knapper: [{ id: 'domaene', element: baandDomaene.rod }] },
+      { t: 'gHjaelp', knapper: [{ id: 'hjaelp', t: 'kHjaelp', ikon: 'bog', ved: () => meld('baand-enkel-valgt', 'kHjaelp') }] },
+    ] }],
+  });
+
+  const land = K.vaelger({
+    etiket: { t: 'vlgLand' }, valgt: 'dk',
+    punkter: [{ id: 'dk', t: 'landDk', antal: 12 }, { id: 'se', t: 'landSe', antal: 4 }, { id: 'no', t: 'landNo', antal: 3 }, { id: 'de', t: 'landDe', antal: 2 }, { id: 'fi', t: 'landFi' }],
+    vedValg: id => meld('vaelger-valgt', { dk: 'landDk', se: 'landSe', no: 'landNo', de: 'landDe', fi: 'landFi' }[id]),
+  });
+  $('demo-vaelger-hoejre').appendChild(land.rod);
+  const domaener = K.vaelger({
+    etiket: { t: 'vlgDomaener' }, flere: true, alle: { t: 'alleDomaener' }, nValgt: { t: 'nValgt' },
+    soeg: { ph: 'soegDomaenePh', ariaT: 'soegDomaene' }, ingen: { t: 'ingenFundet' },
+    punkter: DOMAENER, valgt: DOMAENER.map(z => z.id),
+    vedValg: ids => { S.anvend(domaener.rod); meld('vaelger-valgt', null, navneAf(ids)); },
+  });
+  $('demo-vaelger-vl').appendChild(domaener.rod);
+
+  const spIndhold = document.createElement('p');
+  spIndhold.setAttribute('data-t', 'spTekst');
+  const panel = K.sidepanel($('demo-sidepanel'), {
+    t: 'spH', lukAriaT: 'spLuk', indhold: spIndhold,
+    vedLuk: aarsag => { const p = $('sp-valgt'); p.setAttribute('data-t', 'spLukket'); p.setAttribute('data-v', aarsag); S.anvend(p); },
+  });
+  $('demo-sp-aabn').addEventListener('click', () => panel.skift());
 
   /* ── Tokens-visningen. Navnene er dem i tokens.json (testen holder dem ens). ── */
   const FARVER = ['bg', 'surface', 'surface-raised', 'rail', 'rail-text', 'rail-strong', 'rail-active', 'accent-on-rail', 'border', 'border-strong', 'text', 'text-muted', 'accent', 'accent-hover', 'on-accent', 'accent-soft', 'ok', 'ok-soft', 'info', 'info-soft', 'warn', 'warn-soft', 'danger', 'danger-soft', 'ok-mark', 'warn-mark', 'danger-mark', 'info-mark', 'none-mark', 'data-1', 'data-2', 'data-3', 'data-4', 'data-5', 'data-6', 'data-axis', 'data-grid', 'data-label', 'seq-1', 'seq-2', 'seq-3', 'seq-4', 'seq-5', 'map-sea', 'map-land', 'map-border', 'map-ring', 'map-arc'];

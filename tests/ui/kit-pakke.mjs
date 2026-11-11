@@ -48,7 +48,7 @@ const VERSION = pakkeVersion();
   const mangler = skal.filter(f => !fs.existsSync(path.join(PAKKE, f)));
   tjek('pakken har alle sine filer', mangler.length === 0, mangler.join(', '));
   // V-KVIT.1 N4: pakken er 2.0.1 (kun dokumenter: licensteksten, beslutningen om Huginn and Muninn, noten om Sandbox).
-  tjek('VERSION er 2.1.0', VERSION === '2.1.0' && pk('VERSION') === '2.1.0\n', JSON.stringify(pk('VERSION')));
+  tjek('VERSION er 2.2.0', VERSION === '2.2.0' && pk('VERSION') === '2.2.0\n', JSON.stringify(pk('VERSION')));
   const log = pk('CHANGELOG.md');
   const foerste = /^## (\d+\.\d+\.\d+) — (\d{4}-\d{2}-\d{2})$/m.exec(log);
   tjek('CHANGELOG: første post er pakkens version med en dato', Boolean(foerste) && foerste[1] === VERSION, foerste ? foerste[0] : 'ingen post');
@@ -135,10 +135,10 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
   tjek('demo: indlæses uden fejl', fejlListe.length === 0 && Boolean(w.Kit && w.Tema && w.KitSprog && w.Sprog), fejlListe.join(' | ').slice(0, 300));
   const pakkeUrl = pathToFileURL(PAKKE).href;
   tjek('demo: alt, siden hentede, ligger i pakken (2 stilark og 4 scripts; skrifterne henter jsdom ikke)', hentet.length === 6 && hentet.every(u => u.startsWith(pakkeUrl + '/')), hentet.map(u => u.replace(pakkeUrl, '')).join(', '));
-  const KOMPONENT = { AppShell: '.vindue > .titel', CommandBar: '#demo-baand.cmd .cb', NavPane: '#demo-trae.trae .tr', Visningsskift: '#demo-skift.skift .vs', StatusFooter: '.demo-ramme > .fodl', DataTable: '#demo-tabel table.tabel tbody tr', StatusChip: '#demo-chips .chip', Banner: '#demo-bannere .ban', Wizard: '#demo-guide.wiz .trin .t', Button: '#demo-knapper .btn', TextField: '#demo-felter .felt input', Ikoner: '#demo-ikoner svg', Fletbaand: '#demo-flet svg.flet', Grundlag: '.skjult-tekst' };
+  const KOMPONENT = { AppShell: '.vindue > .titel', CommandBar: '#demo-baand.cmd .cb', NavPane: '#demo-trae.trae .tr', Visningsskift: '#demo-skift.skift .vs', StatusFooter: '.demo-ramme > .fodl', DataTable: '#demo-tabel table.tabel tbody tr', StatusChip: '#demo-chips .chip', Banner: '#demo-bannere .ban', Wizard: '#demo-guide.wiz .trin .t', Button: '#demo-knapper .btn', TextField: '#demo-felter .felt input', Ikoner: '#demo-ikoner svg', Fletbaand: '#demo-flet svg.flet', Grundlag: '.skjult-tekst', Vælger: '#demo-vaelger-titel .vlg .vlg-knap', Sidepanel: '#demo-sidepanel.sidepanel .sp-top h2', Segmentknap: '#demo-segment .seg .seg-v', BaandUdenFaner: '#demo-baand-enkel.cmd.enkel .baand-el .seg', OtteVisninger: '#demo-skift-otte.skift.taet .vs' };
   const tomme = Object.entries(KOMPONENT).filter(([, v]) => !d.querySelector(v)).map(([k]) => k);
   tjek('demo: hver komponent er på siden, bygget af kittet', tomme.length === 0, tomme.join(', '));
-  tjek('demo: hver sektion på Komponenter-visningen har en komponent fra KOMPONENTER.md', [...d.querySelectorAll('#v-komponenter .demo-sektion')].length === 13);
+  tjek('demo: hver sektion på Komponenter-visningen har en komponent fra KOMPONENTER.md', [...d.querySelectorAll('#v-komponenter .demo-sektion')].length === 16);
   tjek('demo: alle fem chips, fire bannere, fire knapvarianter og tre felter', d.querySelectorAll('#demo-chips .chip').length === 5 && d.querySelectorAll('#demo-bannere .ban').length === 4 && ['primary', 'danger', 'ghost'].every(v => d.querySelector(`#demo-knapper .btn.${v}`)) && d.querySelectorAll('#demo-knapper .btn').length === 4 && d.querySelectorAll('#demo-felter .felt').length === 3 && d.querySelector('#demo-felter [aria-invalid="true"]'));
   tjek('demo: alle kittets ikoner vises', d.querySelectorAll('#demo-ikoner .demo-ikon').length === Object.keys(w.Kit.IKONER).length && Object.keys(w.Kit.IKONER).length === 27, String(Object.keys(w.Kit.IKONER).length));
 
@@ -165,22 +165,22 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
   tjek('demo: ingen nøgle på siden mangler i et af sprogene', ukendte().length === 0, [...new Set(ukendte())].join(', '));
   const tomt = () => [...d.querySelectorAll('[data-t]')].filter(e => !e.textContent.trim()).map(e => e.getAttribute('data-t'));
   tjek('demo (dansk): intet element med data-t står tomt', tomt().length === 0 && d.documentElement.lang === 'da' && d.title === 'Wi24rd UI Kit 2 — demo', tomt().join(', '));
-  tjek('demo (dansk): ental og flertal (13 komponenter vises)', d.getElementById('fod-antal').textContent === '13 komponenter vises' && d.querySelector('#status-chip .ord').textContent === '13 komponenter');
+  tjek('demo (dansk): ental og flertal (16 komponenter vises)', d.getElementById('fod-antal').textContent === '16 komponenter vises' && d.querySelector('#status-chip .ord').textContent === '16 komponenter');
   d.getElementById('skift-sprog').click();
-  tjek('demo (English): sproget skifter uden genindlæsning', d.documentElement.lang === 'en' && w.Sprog.lang === 'en' && d.getElementById('fod-antal').textContent === '13 components shown' && d.querySelector('#demo-knapper .btn.primary span').textContent === 'Save and mask');
+  tjek('demo (English): sproget skifter uden genindlæsning', d.documentElement.lang === 'en' && w.Sprog.lang === 'en' && d.getElementById('fod-antal').textContent === '16 components shown' && d.querySelector('#demo-knapper .btn.primary span').textContent === 'Save and mask');
   tjek('demo (English): intet element med data-t står tomt', tomt().length === 0, tomt().join(', '));
 
   // Kittets opførsel på siden: træet filtrerer, søgningen filtrerer, tabellen vælger, guiden går frem.
   const punkt = id => d.querySelector(`#trae [data-punkt="${id}"]`);
   punkt('kontroller').click();
   const synlige = () => [...d.querySelectorAll('#v-komponenter .demo-sektion')].filter(s => !s.hidden).map(s => s.dataset.navn);
-  tjek('demo: træet filtrerer arbejdsfladen (Controls: Button og TextField)', JSON.stringify(synlige()) === JSON.stringify(['Button', 'TextField']) && d.getElementById('fod-antal').textContent === '2 components shown');
+  tjek('demo: træet filtrerer arbejdsfladen (Controls: Vælger, Segmentknap, Button og TextField)', JSON.stringify(synlige()) === JSON.stringify(['Vælger', 'Segmentknap', 'Button', 'TextField']) && d.getElementById('fod-antal').textContent === '4 components shown', JSON.stringify(synlige()));
   d.getElementById('ryd').click();
   d.getElementById('soeg').value = 'chip';
   d.getElementById('soeg').dispatchEvent(new w.Event('input', { bubbles: true }));
   tjek('demo: søgefeltet filtrerer (chip → StatusChip, ental)', JSON.stringify(synlige()) === JSON.stringify(['StatusChip']) && d.getElementById('fod-antal').textContent === '1 component shown');
   d.getElementById('ryd').click();
-  tjek('demo: Ryd filter viser alle igen', synlige().length === 13);
+  tjek('demo: Ryd filter viser alle igen', synlige().length === 16);
   const raekker = [...d.querySelectorAll('#demo-tabel tbody tr:not(.gruppe)')];
   raekker[0].click();
   raekker[0].dispatchEvent(new w.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
@@ -281,7 +281,7 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
   const afsnit = md.split(/^## /m).slice(1).map(a => ({ navn: a.slice(0, a.indexOf('\n')).trim(), tekst: a })).filter(a => a.navn !== 'Findes ikke endnu');
   const klasserI = a => { const m = /^\*\*Klasser:\*\* (.*)$/m.exec(a.tekst); return m ? [...m[1].matchAll(/`\.([a-z][a-z0-9-]*)`/g)].map(x => x[1]) : []; };
   const funktionerI = a => { const m = /^\*\*Funktioner:\*\* (.*)$/m.exec(a.tekst); return m ? [...m[1].matchAll(/`(Kit|Tema|KitSprog)\.([A-Za-zé]+)`/g)].map(x => x[1] + '.' + x[2]) : []; };
-  tjek('KOMPONENTER.md: 15 komponenter', afsnit.length === 15, afsnit.map(a => a.navn).join(', '));
+  tjek('KOMPONENTER.md: 18 komponenter', afsnit.length === 18, afsnit.map(a => a.navn).join(', '));
   const DELE = ['**Formål:**', '**Markup:**', '**Tilstande:**', '**Tastatur:**', '**Kræver af programmet:**'];
   const ufuldstaendige = afsnit.filter(a => !DELE.every(d => a.tekst.includes(d))).map(a => a.navn);
   tjek('KOMPONENTER.md: hver komponent har formål, markup, tilstande, tastatur og hvad den kræver', ufuldstaendige.length === 0, ufuldstaendige.join(', '));
@@ -295,8 +295,8 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
   for (const f of ['tema.js', 'sprogmotor.js', 'kit.js']) dom.window.eval(pk('web/' + f));
   const w = dom.window;
   const kodeFunktioner = new Set([...Object.keys(w.Kit).map(k => 'Kit.' + k), ...Object.keys(w.Tema).map(k => 'Tema.' + k), ...Object.keys(w.KitSprog).map(k => 'KitSprog.' + k)]);
-  tjek('kittet stiller Kit (14 navne), Tema (3) og KitSprog (1) til rådighed', Object.keys(w.Kit).length === 14 && Object.keys(w.Tema).length === 3 && Object.keys(w.KitSprog).length === 1, [...kodeFunktioner].join(', '));
-  tjek('kit.css har 65 klasser i sine vælgere (kontrol af læsningen)', cssKlasser.size === 65 && cssKlasser.has('btn') && cssKlasser.has('skjult-tekst') && !cssKlasser.has('woff2'), String(cssKlasser.size));
+  tjek('kittet stiller Kit (17 navne), Tema (3) og KitSprog (1) til rådighed', Object.keys(w.Kit).length === 17 && Object.keys(w.Tema).length === 3 && Object.keys(w.KitSprog).length === 1, [...kodeFunktioner].join(', '));
+  tjek('kit.css har 90 klasser i sine vælgere (kontrol af læsningen)', cssKlasser.size === 90 && cssKlasser.has('btn') && cssKlasser.has('skjult-tekst') && !cssKlasser.has('woff2'), String(cssKlasser.size));
 
   const uden = afsnit.filter(a => klasserI(a).length + funktionerI(a).length === 0).map(a => a.navn);
   tjek('hver komponent i KOMPONENTER.md nævner mindst én klasse eller funktion', uden.length === 0, uden.join(', '));
@@ -310,9 +310,9 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
   const udokFunktioner = [...kodeFunktioner].filter(f => !dokFunktioner.has(f));
   tjek('omvendt: hver funktion i Kit, Tema og KitSprog står under en komponent i KOMPONENTER.md', udokFunktioner.length === 0, udokFunktioner.join(', '));
   // Hver komponentoverskrift i kit.css (/* ── Navn ── */) har et afsnit, og omvendt for dem, der har CSS.
-  const cssAfsnit = [...pk('web/kit.css').matchAll(/\/\* ── ([A-Za-z]+) ──/g)].map(m => m[1]).filter(n => n !== 'Skrifter');
+  const cssAfsnit = [...pk('web/kit.css').matchAll(/\/\* ── ([A-Za-zÆØÅæøå]+) ──/g)].map(m => m[1]).filter(n => n !== 'Skrifter');
   const navne = afsnit.map(a => a.navn);
-  tjek('hvert afsnit i kit.css er en komponent i KOMPONENTER.md', cssAfsnit.length === 12 && cssAfsnit.every(n => navne.includes(n)), cssAfsnit.filter(n => !navne.includes(n)).join(', '));
+  tjek('hvert afsnit i kit.css er en komponent i KOMPONENTER.md', cssAfsnit.length === 15 && cssAfsnit.every(n => navne.includes(n)), cssAfsnit.filter(n => !navne.includes(n)).join(', '));
   const ikoner = Object.keys(w.Kit.IKONER);
   const ikonAfsnit = afsnit.find(a => a.navn === 'Ikoner').tekst;
   const ikonLinje = /^Kittets ikoner: (.*)$/m.exec(ikonAfsnit);
@@ -392,6 +392,319 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
   const kort = d.querySelector('#demo-kort svg');
   tjek('demo 2.1.0: kortet er tegnet med kortets tokens (hav, land, grænse, trin, ring og bue)', Boolean(kort) && ['--map-sea', '--map-land', '--map-border', '--seq-3', '--seq-5', '--map-ring', '--map-arc'].every(t => kort.outerHTML.includes(`var(${t})`)));
   tjek('demo 2.1.0: sektionen har overskrift og tekst i begge sprog', d.querySelector('#demo-maerker-sektion h2').textContent === 'Mærker, data, skala og kort' && d.querySelector('#demo-maerker-sektion p').textContent.startsWith('Fra 2.1.0') && w.Sprog.TEKST.en.hMaerker === 'Marks, data, scale and map');
+  w.close();
+}
+
+// ── Pakke 2.2.0 (K5–K9): skallen. Flere visninger, vælger, regel for træet, sidepanel, bånd uden faner og segmentknap ──
+{
+  // Intet er omdøbt eller fjernet i forhold til 2.0.0: listerne er læst fra 2.0.0 (git show 64c0cce:design/ui-kit-2/pakke/web/kit.css
+  // og kit.js, tema.js, sprogmotor.js) og står her som faste lister. V200_UDSEENDE er det, 2.0.0's kit.js byggede af de
+  // tre eksempler i bygEksempler herunder (et bånd med to faner, seks visninger, et træ).
+  const V200_KLASSER = ["ant","arb","ban","btn","cap","cb","chip","cmd","danger","done","fejl","fejltekst","felt","fl","flade","flet","fod","fodl","ghost","grp","gruppe","grupper","gv","h","hj","hoejre","ik","indhold","info","kn","label","luft","midte","mono","mrk","muted","n","nav","none","now","ok","on","ord","pri","primary","r","rk","s","sel","skift","skjult-tekst","soeg","t","tab","tabel","tabs","titel","tr","trae","trin","vindue","vl","vs","warn","wiz"];
+  const V200_FUNKTIONER = ["Kit.IKONER","Kit.ikon","Kit.registrerIkoner","Kit.chip","Kit.knap","Kit.felt","Kit.banner","Kit.tabel","Kit.commandBar","Kit.navTrae","Kit.visningsskift","Kit.guide","Kit.fletbaand","Kit.SYMBOL","Tema.VALG","Tema.valg","Tema.saet","KitSprog.opret"];
+  const V200_IKONER = ["indsaet","fil","soeg","skjold","kopier","oeje","mappe","bog","gem","plus","aabn","eksport","import","slet","afspil","sol","maane","skaerm","sprog","laas","tandhjul","ned","hoejre","filter","luk","rediger","kalender"];
+  const V200_UDSEENDE = {"baand":"<div class=\"cmd\"><div class=\"tabs\" role=\"tablist\" data-t-aria=\"cmdAria\"><button class=\"tab\" data-t=\"faneStart\" type=\"button\" id=\"kit-cb1-fane-start\" role=\"tab\" aria-controls=\"kit-cb1-panel-start\" data-fane=\"start\" aria-selected=\"false\" tabindex=\"-1\"></button><button class=\"tab on\" data-t=\"faneVis\" type=\"button\" id=\"kit-cb1-fane-vis\" role=\"tab\" aria-controls=\"kit-cb1-panel-vis\" data-fane=\"vis\" aria-selected=\"true\" tabindex=\"0\"></button></div><div class=\"grupper\" id=\"kit-cb1-panel-start\" role=\"tabpanel\" aria-labelledby=\"kit-cb1-fane-start\" data-fane=\"start\" hidden=\"\"><div class=\"grp\" role=\"group\" aria-labelledby=\"kit-cb1-grp-1\"><div class=\"kn\"><button class=\"cb pri\" type=\"button\" data-kommando=\"aabn\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M6 3h8l4 4v14H6z\"></path><path d=\"M14 3v4h4\"></path></svg><span data-t=\"kAabn\"></span></button><button class=\"cb\" type=\"button\" data-kommando=\"kopier\" aria-disabled=\"true\" data-t-title=\"hvorfor\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><rect x=\"8\" y=\"8\" width=\"12\" height=\"12\" rx=\"2\"></rect><path d=\"M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2\"></path></svg><span data-t=\"kKopier\"></span></button></div><span class=\"cap\" data-t=\"gFil\" id=\"kit-cb1-grp-1\"></span></div></div><div class=\"grupper\" id=\"kit-cb1-panel-vis\" role=\"tabpanel\" aria-labelledby=\"kit-cb1-fane-vis\" data-fane=\"vis\"><div class=\"grp\" role=\"group\" aria-labelledby=\"kit-cb1-grp-2\"><div class=\"kn\"><button class=\"cb\" type=\"button\" data-kommando=\"lys\" aria-pressed=\"true\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"4\"></circle><path d=\"M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4\"></path></svg><span data-t=\"kLys\"></span></button><button class=\"cb\" type=\"button\" data-kommando=\"moerk\" aria-pressed=\"false\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z\"></path></svg><span data-t=\"kMoerk\"></span></button></div><span class=\"cap\" data-t=\"gTema\" id=\"kit-cb1-grp-2\"></span></div></div></div>","skift":"<div class=\"skift\" role=\"group\" data-t-aria=\"visninger\"><a class=\"vs\" href=\"#v1\" data-visning=\"v1\" aria-keyshortcuts=\"Meta+1\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 7h6l2 2h10v10H3z\"></path></svg><span data-t=\"v1\"></span><kbd aria-hidden=\"true\">⌘1</kbd></a><a class=\"vs on\" href=\"#v2\" data-visning=\"v2\" aria-keyshortcuts=\"Meta+2\" aria-current=\"page\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 7h6l2 2h10v10H3z\"></path></svg><span data-t=\"v2\"></span><kbd aria-hidden=\"true\">⌘2</kbd></a><a class=\"vs\" href=\"#v3\" data-visning=\"v3\" aria-keyshortcuts=\"Meta+3\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 7h6l2 2h10v10H3z\"></path></svg><span data-t=\"v3\"></span><kbd aria-hidden=\"true\">⌘3</kbd></a><a class=\"vs\" href=\"#v4\" data-visning=\"v4\" aria-keyshortcuts=\"Meta+4\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 7h6l2 2h10v10H3z\"></path></svg><span data-t=\"v4\"></span><kbd aria-hidden=\"true\">⌘4</kbd></a><a class=\"vs\" href=\"#v5\" data-visning=\"v5\" aria-keyshortcuts=\"Meta+5\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 7h6l2 2h10v10H3z\"></path></svg><span data-t=\"v5\"></span><kbd aria-hidden=\"true\">⌘5</kbd></a><a class=\"vs\" href=\"#v6\" data-visning=\"v6\" aria-keyshortcuts=\"Meta+6\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 7h6l2 2h10v10H3z\"></path></svg><span data-t=\"v6\"></span><kbd aria-hidden=\"true\">⌘6</kbd></a></div>","trae":"<ul class=\"trae\" role=\"tree\" data-t-aria=\"traeAria\"><li role=\"none\"><button class=\"tr\" type=\"button\" data-punkt=\"alle\" role=\"treeitem\" aria-level=\"1\" tabindex=\"-1\" aria-expanded=\"true\" aria-selected=\"false\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M6 9l6 6 6-6\"></path></svg><span data-t=\"tAlle\"></span><span class=\"ant\">3</span></button><ul role=\"group\"><li role=\"none\"><button class=\"tr on\" type=\"button\" data-punkt=\"a\" role=\"treeitem\" aria-level=\"2\" tabindex=\"0\" aria-current=\"true\" aria-selected=\"true\"><span data-t=\"tA\"></span><span class=\"ant\">1</span></button></li></ul></li></ul>"};
+  const css = pk('web/kit.css'), kitJs = pk('web/kit.js');
+  const cssUden = css.replace(/\/\*[\s\S]*?\*\//g, '').replace(/@font-face\s*\{[^}]*\}/g, '').replace(/\{[^}]*\}/g, ' ');
+  const cssKlasser = new Set([...cssUden.matchAll(/\.([a-z][a-z0-9-]*)/g)].map(m => m[1]));
+  const ny = () => {
+    const dom = new JSDOM('<!doctype html><html data-kit-praefiks="proeve"><body></body></html>', { runScripts: 'outside-only', url: 'http://kit.invalid/', pretendToBeVisual: true });
+    for (const f of ['tema.js', 'sprogmotor.js', 'kit.js']) dom.window.eval(pk('web/' + f));
+    return dom.window;
+  };
+  const w = ny(), d = w.document, K = w.Kit;
+  const fn = [...Object.keys(w.Kit).map(k => 'Kit.' + k), ...Object.keys(w.Tema).map(k => 'Tema.' + k), ...Object.keys(w.KitSprog).map(k => 'KitSprog.' + k)];
+  const mKl = V200_KLASSER.filter(k => !cssKlasser.has(k)), mFn = V200_FUNKTIONER.filter(f => !fn.includes(f)), mIk = V200_IKONER.filter(i => !(i in K.IKONER));
+  tjek('2.2.0: hver klasse i kit.css fra 2.0.0 findes stadig (65)', V200_KLASSER.length === 65 && mKl.length === 0, mKl.join(', '));
+  tjek('2.2.0: hver funktion i Kit, Tema og KitSprog fra 2.0.0 findes stadig (18)', V200_FUNKTIONER.length === 18 && mFn.length === 0, mFn.join(', '));
+  tjek('2.2.0: hvert ikon fra 2.0.0 findes stadig (27), og der er ingen nye', V200_IKONER.length === 27 && mIk.length === 0 && JSON.stringify(Object.keys(K.IKONER)) === JSON.stringify(V200_IKONER), mIk.join(', '));
+  tjek('2.2.0: de nye navne er Kit.vaelger, Kit.sidepanel og Kit.segment', JSON.stringify(fn.filter(f => !V200_FUNKTIONER.includes(f))) === JSON.stringify(['Kit.vaelger', 'Kit.sidepanel', 'Kit.segment']));
+  const nyeKl = ['enkel', 'baand-el', 'taet', 'vlg', 'vlg-knap', 'vlg-vaerdi', 'vlg-pop', 'op', 'hoejre-kant', 'vlg-soeg', 'vlg-liste', 'vlg-p', 'aktiv', 'vlg-mark', 'vlg-boks', 'vlg-alle', 'vlg-navn', 'vlg-ingen', 'sidepanel', 'over', 'sp-top', 'sp-luk', 'sp-indhold', 'seg', 'seg-v'];
+  tjek('2.2.0: kit.css har de 25 nye klasser og ingen andre nye', JSON.stringify([...cssKlasser].filter(k => !V200_KLASSER.includes(k)).sort()) === JSON.stringify([...nyeKl].sort()), [...cssKlasser].filter(k => !V200_KLASSER.includes(k)).join(', '));
+  function bygEksempler(K2, d2) {
+    const b = d2.createElement('div');
+    K2.commandBar(b, { ariaT: 'cmdAria', valgt: 'vis', faner: [
+      { id: 'start', t: 'faneStart', grupper: [{ t: 'gFil', knapper: [{ id: 'aabn', t: 'kAabn', ikon: 'fil', pri: true }, { id: 'kopier', t: 'kKopier', ikon: 'kopier', deaktiveret: true, hvorfor: 'hvorfor' }] }] },
+      { id: 'vis', t: 'faneVis', grupper: [{ t: 'gTema', knapper: [{ id: 'lys', t: 'kLys', ikon: 'sol', trykket: true }, { id: 'moerk', t: 'kMoerk', ikon: 'maane', trykket: false }] }] },
+    ] });
+    const s = d2.createElement('div');
+    K2.visningsskift(s, [1, 2, 3, 4, 5, 6].map(i => ({ id: 'v' + i, t: 'v' + i, ikon: 'mappe', genvej: '⌘' + i, genvejAria: 'Meta+' + i })), { ariaT: 'visninger' }).markér('v2');
+    const t = d2.createElement('ul');
+    K2.navTrae(t, [{ id: 'alle', t: 'tAlle', antal: 3, boern: [{ id: 'a', t: 'tA', antal: 1 }] }], { ariaT: 'traeAria', valgt: 'a' });
+    return { baand: b.outerHTML, skift: s.outerHTML, trae: t.outerHTML };
+  }
+  const w2 = ny(), nu = bygEksempler(w2.Kit, w2.document);
+  tjek('2.2.0 (K9): et bånd med to faner bygges præcis som i 2.0.0 (samme markup, byte for byte; Grimnirs bånd har to faner)', nu.baand === V200_UDSEENDE.baand);
+  tjek('2.2.0 (K5): seks visninger bygges præcis som i 2.0.0 (ingen taet)', nu.skift === V200_UDSEENDE.skift && !/taet/.test(nu.skift));
+  tjek('2.2.0 (K7): træet bygges præcis som i 2.0.0', nu.trae === V200_UDSEENDE.trae);
+  tjek('2.2.0: kittet sætter ingen inline-stil (Grimnirs CSP er style-src \'self\', og dets UI-test forbyder .style.)', !/\.style\.|setAttribute\(\s*['"]style['"]|\.cssText/.test(kitJs));
+
+  // ── K5: op til otte visninger ──
+  const vis = n => Array.from({ length: n }, (_, i) => ({ id: 'v' + i, tekst: 'Visning ' + (i + 1), ikon: 'mappe', genvej: String(i + 1) }));
+  const s7 = d.createElement('div'), s8 = d.createElement('div'), s9 = d.createElement('div');
+  K.visningsskift(s7, vis(7));
+  const skift8 = K.visningsskift(s8, vis(8));
+  skift8.markér('v7');
+  let fejl9 = '';
+  try { K.visningsskift(s9, vis(9)); } catch (e) { fejl9 = String(e.message); }
+  tjek('K5: syv og otte visninger virker og får klassen taet; otte links med aria-current på den aktive', s7.classList.contains('taet') && s8.className === 'skift taet' && s8.querySelectorAll('a.vs').length === 8 && s8.querySelector('[aria-current="page"]').dataset.visning === 'v7');
+  tjek('K5: ni afvises tydeligt med en fejl (som et ukendt ikon), og elementet røres ikke', /højst otte visninger \(fik 9\)/.test(fejl9) && s9.outerHTML === '<div></div>', fejl9);
+  tjek('K5: et skift, der bygges om fra otte til seks, mister taet', (() => { K.visningsskift(s8, vis(6)); return !s8.classList.contains('taet') && s8.classList.contains('skift'); })());
+  // Det mindste vindue, kittet lover (.vindue), og målene i kit.css og tokens.css. Regnet her; jsdom tegner ikke.
+  const tcss = pk('tokens/tokens.css');
+  const tok = n => Number((new RegExp(`--${n}: (\\d+)px;`).exec(tcss) || [])[1]);
+  const regel = (vaelger, egenskab) => {
+    const m = new RegExp('(?:^|\\n)' + vaelger.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ' \\{([^}]*)\\}').exec(css);
+    const v = m && new RegExp('(?:^|[;\\s])' + egenskab + ': ([^;]+);').exec(m[1]);
+    if (!v) return NaN;
+    const x = v[1].trim(), t = /^var\(--([a-z0-9-]+)\)$/.exec(x);
+    return t ? tok(t[1]) : parseFloat(x);
+  };
+  const vindue = /\.vindue \{[^}]*min-width: (\d+)px; min-height: (\d+)px;/.exec(css);
+  const [minB, minH] = [Number(vindue[1]), Number(vindue[2])];
+  const titel = regel('.titel', 'height');
+  const baand = regel('.tab', 'height') + 1 + tok('space-2') + tok('space-1') + regel('.cb', 'height') + 2 + 14 + 1;
+  const h3 = tok('space-3') + tok('space-2') + tok('h3-line');
+  const vsTaet = regel('.skift.taet .vs', 'height');
+  const skiftH = 1 + 2 * tok('space-1') + 8 * vsTaet + 7 * 1;
+  const traeH = minH - titel - baand - h3 - skiftH;
+  const tretr = 3 * regel('.tr', 'height') + 2 * 1 + tok('space-3');
+  tjek(`K5: ved det mindste vindue (${minB} × ${minH}) er der plads til otte visninger og mindst tre punkter i træet (titel ${titel} + bånd ${baand} + overskrift ${h3} + skift ${skiftH}; træet får ${traeH} px, tre punkter kræver ${tretr})`,
+    minB === 900 && minH === 560 && titel === 34 && baand === 116 && h3 === 40 && vsTaet === 30 && skiftH === 256 && traeH === 114 && traeH >= tretr, [titel, baand, h3, vsTaet, skiftH, traeH, tretr].join('/'));
+  tjek('K5: seks visninger er stadig 38 px (uændret), og 30 px er over WCAG 2.5.8 (24 px)', regel('.vs', 'height') === 38 && vsTaet >= 24);
+  const navB = Number(/\.nav \{[^}]*width: (\d+)px;/.exec(css)[1]);
+  const tekstB = navB - 1 - 2 * tok('space-1') - 2 * tok('space-3') - 18 - tok('space-3') - tok('space-3') - Math.ceil(2 * 11 * 0.6);
+  const tegn = Math.floor(tekstB / (13 * 0.62));
+  tjek(`K5: navnet har ${tekstB} px i bredden, det er ${tegn} tegn à 0,62 em i 13 px; et længere navn afkortes med … (ingen ombrydning ud af punktet)`, tekstB === 143 && tegn === 17 && /\.skift\.taet \.vs > span \{[^}]*text-overflow: ellipsis;[^}]*white-space: nowrap;/.test(css));
+  tjek('K5: kontrol: de længste navne i Huginn and Muninns visningsskift kan stå uafkortet (Indstillinger, Since last time, Land lige nu)', ['Indstillinger', 'Since last time', 'Land lige nu', 'Besøgende', 'Technology'].every(n => n.length <= tegn));
+  const md = pk('KOMPONENTER.md');
+  const afsnitAf = navn => { const i = md.indexOf('\n## ' + navn + '\n'); return md.slice(i, md.indexOf('\n## ', i + 1)); };
+  const navpane = afsnitAf('NavPane');
+  tjek('K5: KOMPONENTER.md: reglen er højst otte (ikke seks), ni giver en fejl, og anbefalingen (Indstillinger i titellinjen, opsætningsguide i Wizard) og det mindste vindue står der', /Højst otte visninger/.test(navpane) && !/Højst seks visninger/.test(navpane) && /Ni eller flere giver en fejl/.test(navpane) && /Indstillinger hører til i titellinjen/.test(navpane) && /opsætningsguide hører til i Wizard/.test(navpane) && /900 × 560 px/.test(navpane) && /17 tegn/.test(navpane) && /\(højst otte, altid samme rækkefølge\)/.test(kitJs));
+
+  // ── K7: træet vælger ét punkt ──
+  tjek('K7: reglen står under NavPane og under Vælger: træet vælger ét punkt, "et, flere eller alle" hører til i vælgeren', /Træet vælger ét punkt/.test(navpane) && /"Et, flere eller alle"/.test(navpane) && /hører til i en vælger med flere valg/.test(navpane) && /Det er ikke en valgliste i en formular/.test(afsnitAf('Vælger')) && /flere valg/.test(afsnitAf('Vælger')));
+  tjek('K7: navTrae er uændret i koden (ingen afkrydsning, ét valgt punkt)', (() => {
+    const ul = d.createElement('ul');
+    const t = K.navTrae(ul, [{ id: 'a', tekst: 'A' }, { id: 'b', tekst: 'B' }]);
+    t.vaelg('b');
+    return ul.querySelectorAll('[aria-selected="true"]').length === 1 && !ul.querySelector('input,[role="checkbox"],[aria-checked]') && !ul.hasAttribute('aria-multiselectable');
+  })());
+
+  // ── K6: vælger ──
+  const tast = (el, key, x = {}) => el.dispatchEvent(new w.KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...x }));
+  const mus = (el, type) => el.dispatchEvent(new w.MouseEvent(type, { bubbles: true, cancelable: true }));
+  const aktivt = v => d.getElementById(v.liste.getAttribute('aria-activedescendant'));
+  const navn = li => li.querySelector('.vlg-navn').textContent;
+  const PUNKTER = [{ id: 'dk', tekst: 'Danmark', antal: 12 }, { id: 'se', tekst: 'Sverige' }, { id: 'no', tekst: 'Norge' }, { id: 'de', tekst: 'Tyskland' }, { id: 'fi', tekst: 'Finland' }];
+  const kald = [];
+  const v1 = K.vaelger({ etiket: 'Land', punkter: PUNKTER, valgt: 'se', vedValg: x => kald.push(x) });
+  d.body.appendChild(v1.rod);
+  tjek('K6: knappen har aria-haspopup="listbox", aria-expanded="false" og aria-controls til listen, og viser etiket og den aktuelle værdi', v1.knap.getAttribute('aria-haspopup') === 'listbox' && v1.knap.getAttribute('aria-expanded') === 'false' && v1.knap.getAttribute('aria-controls') === v1.liste.id && v1.knap.querySelector('.skjult-tekst').textContent === 'Land' && v1.knap.querySelector('.vlg-vaerdi').textContent === 'Sverige' && v1.knap.type === 'button');
+  tjek('K6 (ét valg): listen er role="listbox" uden aria-multiselectable, navngivet af etiketten; punkterne er role="option" med aria-selected', v1.liste.getAttribute('role') === 'listbox' && !v1.liste.hasAttribute('aria-multiselectable') && v1.liste.getAttribute('aria-labelledby') === v1.knap.querySelector('.skjult-tekst').id && [...v1.liste.children].every(li => li.getAttribute('role') === 'option') && [...v1.liste.children].map(li => li.getAttribute('aria-selected')).join() === 'false,true,false,false,false' && v1.liste.querySelector('.ant').textContent === '12');
+  tast(v1.knap, 'ArrowDown');
+  tjek('K6: pil ned på knappen åbner; fokus går til listen, og det valgte punkt er aktivt (aria-activedescendant, .aktiv)', v1.aaben && v1.knap.getAttribute('aria-expanded') === 'true' && d.activeElement === v1.liste && navn(aktivt(v1)) === 'Sverige' && aktivt(v1).classList.contains('aktiv'));
+  tast(v1.liste, 'ArrowDown'); tast(v1.liste, 'ArrowDown');
+  const efterPile = navn(aktivt(v1));
+  tast(v1.liste, 'End'); const efterEnd = navn(aktivt(v1));
+  tast(v1.liste, 'Home'); const efterHome = navn(aktivt(v1));
+  tast(v1.liste, 'ArrowUp'); const vedToppen = navn(aktivt(v1));
+  tjek('K6: pilene flytter (og stopper ved enderne), Home og End går til første og sidste', efterPile === 'Tyskland' && efterEnd === 'Finland' && efterHome === 'Danmark' && vedToppen === 'Danmark' && kald.length === 0);
+  tast(v1.liste, 't');
+  const efterT = navn(aktivt(v1));
+  tast(v1.liste, 'n');
+  tjek('K6: et bogstav hopper til næste punkt, der begynder med det', efterT === 'Tyskland' && navn(aktivt(v1)) === 'Norge');
+  tast(v1.liste, 'Enter');
+  tjek('K6 (ét valg): Enter vælger, listen lukker, fokus går tilbage til knappen, og vedValg får id', !v1.aaben && v1.knap.getAttribute('aria-expanded') === 'false' && d.activeElement === v1.knap && v1.valgt === 'no' && JSON.stringify(kald) === '["no"]' && v1.knap.querySelector('.vlg-vaerdi').textContent === 'Norge');
+  tast(v1.knap, 'ArrowDown'); tast(v1.liste, 'ArrowDown'); tast(v1.liste, 'Escape');
+  tjek('K6: Esc lukker uden at vælge og giver fokus tilbage til knappen', !v1.aaben && d.activeElement === v1.knap && v1.valgt === 'no' && kald.length === 1);
+  v1.knap.click();
+  const aabnetMedKlik = v1.aaben;
+  tast(v1.liste, ' ');
+  tjek('K6: klik åbner, og mellemrum vælger ved ét valg (samme punkt igen: ingen vedValg)', aabnetMedKlik && !v1.aaben && kald.length === 1);
+  v1.knap.click();
+  v1.liste.children[0].click();
+  tjek('K6: klik på et punkt vælger det', v1.valgt === 'dk' && !v1.aaben && JSON.stringify(kald) === '["no","dk"]');
+  v1.knap.click(); mus(v1.knap, 'mousedown'); v1.knap.click();
+  tjek('K6: klik på knappen lukker en åben liste (også hvor knappen ikke får fokus ved klik)', !v1.aaben);
+  v1.knap.click();
+  const ude = d.createElement('button'); d.body.appendChild(ude);
+  mus(ude, 'mousedown');
+  tjek('K6: et klik uden for lukker listen', !v1.aaben);
+  v1.knap.click();
+  v1.liste.dispatchEvent(new w.FocusEvent('focusout', { bubbles: true, relatedTarget: ude }));
+  tjek('K6: når fokus går uden for (Tab), lukker listen', !v1.aaben);
+  v1.saetPunkter([{ id: 'x', tekst: 'Xland' }, { id: 'y', tekst: 'Yland' }], 'y');
+  v1.saetValgt('x');
+  tjek('K6: saetPunkter og saetValgt sætter værdier og valg udefra uden at kalde vedValg; et ukendt valg giver første punkt', v1.liste.children.length === 2 && v1.valgt === 'x' && v1.knap.querySelector('.vlg-vaerdi').textContent === 'Xland' && kald.length === 2 && (v1.saetValgt('findes-ikke'), v1.valgt === 'x'));
+  // Tekster som nøgler: knappen arver punktets data-t, så sprogskift udfylder den.
+  const vt = K.vaelger({ etiket: { t: 'eti' }, punkter: [{ id: 'a', t: 'pA' }], valgt: 'a' });
+  tjek('K6: nøgler giver data-t på etiket, punkter og knappens værdi (kittet har ingen tekster)', vt.knap.querySelector('.skjult-tekst').getAttribute('data-t') === 'eti' && vt.liste.querySelector('.vlg-navn').getAttribute('data-t') === 'pA' && vt.knap.querySelector('.vlg-vaerdi').getAttribute('data-t') === 'pA');
+
+  const kaldF = [];
+  const v2 = K.vaelger({ etiket: 'Domæner', flere: true, alle: 'Alle domæner', nValgt: { t: 'nValgt' }, soeg: { ph: 'soegPh', aria: 'Søg i domænerne' }, ingen: 'Ingen passer',
+    punkter: [{ id: 'a', tekst: 'eksempel.dk' }, { id: 'b', tekst: 'shop.eksempel.dk' }, { id: 'c', tekst: 'blog.eksempel.dk' }], valgt: ['a', 'b', 'c'], vedValg: x => kaldF.push(x) });
+  d.body.appendChild(v2.rod);
+  const alle = v2.liste.querySelector('.vlg-alle'), felt = v2.rod.querySelector('.vlg-soeg input');
+  tjek('K6 (flere valg): aria-multiselectable, "Alle" øverst og valgt, afkrydsningsbokse, og knappen viser alle-teksten', v2.liste.getAttribute('aria-multiselectable') === 'true' && v2.liste.firstElementChild === alle && alle.getAttribute('aria-selected') === 'true' && v2.liste.querySelectorAll('.vlg-boks').length === 4 && v2.knap.querySelector('.vlg-vaerdi').textContent === 'Alle domæner');
+  v2.knap.click();
+  tjek('K6: med søgefelt går fokus til feltet ved åbning; feltet styrer listen (aria-controls, aria-activedescendant) og har programmets tekster', d.activeElement === felt && felt.getAttribute('aria-controls') === v2.liste.id && felt.getAttribute('aria-activedescendant') === aktivt(v2).id && felt.getAttribute('data-t-ph') === 'soegPh' && felt.getAttribute('aria-label') === 'Søg i domænerne' && felt.spellcheck === false);
+  tast(felt, 'ArrowDown'); tast(felt, 'Enter');
+  tjek('K6 (flere valg): Enter krydser af, listen bliver åben, vedValg får listen af id, og knappen viser "N valgt" (nøgle med data-v)', v2.aaben && JSON.stringify(kaldF.at(-1)) === '["a","c"]' && alle.getAttribute('aria-selected') === 'false' && v2.knap.querySelector('.vlg-vaerdi').getAttribute('data-t') === 'nValgt' && v2.knap.querySelector('.vlg-vaerdi').getAttribute('data-v') === '2');
+  tast(felt, ' ');
+  tjek('K6: mellemrum i søgefeltet skrives (krydser ikke af)', kaldF.length === 1);
+  v2.liste.focus(); tast(v2.liste, ' ');
+  tjek('K6 (flere valg): mellemrum i listen krydser af', JSON.stringify(kaldF.at(-1)) === '["a","b","c"]' && alle.getAttribute('aria-selected') === 'true' && v2.aaben);
+  alle.click();
+  tjek('K6 (flere valg): "Alle" fravælger alle, når alle er valgt, og vælger alle ellers', JSON.stringify(kaldF.at(-1)) === '[]' && (alle.click(), JSON.stringify(kaldF.at(-1)) === '["a","b","c"]'));
+  v2.liste.children[2].click(); v2.liste.children[3].click();
+  tjek('K6 (flere valg): ét valgt viser det ene navn', JSON.stringify(v2.valgt) === '["a"]' && v2.knap.querySelector('.vlg-vaerdi').textContent === 'eksempel.dk' && !v2.knap.querySelector('.vlg-vaerdi').hasAttribute('data-t'));
+  felt.value = 'shop'; felt.dispatchEvent(new w.Event('input', { bubbles: true }));
+  const synligeP = () => [...v2.liste.children].filter(li => !li.hidden).map(navn);
+  const ingenP = v2.rod.querySelector('.vlg-ingen');
+  tjek('K6: søgefeltet filtrerer, skjuler "Alle" under søgning og gør det første synlige punkt aktivt', JSON.stringify(synligeP()) === '["shop.eksempel.dk"]' && alle.hidden && navn(aktivt(v2)) === 'shop.eksempel.dk' && ingenP.hidden);
+  felt.value = 'zzz'; felt.dispatchEvent(new w.Event('input', { bubbles: true }));
+  tjek('K6: når intet passer, vises programmets tekst for ingen, og intet er aktivt', synligeP().length === 0 && !ingenP.hidden && !v2.liste.hasAttribute('aria-activedescendant'));
+  tast(felt, 'Escape');
+  tjek('K6: Esc lukker også fra søgefeltet, og feltet er tomt næste gang', !v2.aaben && d.activeElement === v2.knap && (v2.knap.click(), felt.value === '' && synligeP().length === 4));
+  v2.luk();
+  // Placering: listen åbner opad og står ved knappens højre kant, når der ikke er plads; kun klasser (ingen inline-stil).
+  const placer = (k, p, vb, vh) => {
+    Object.defineProperty(w, 'innerWidth', { value: vb, configurable: true });
+    Object.defineProperty(w, 'innerHeight', { value: vh, configurable: true });
+    v1.knap.getBoundingClientRect = () => ({ left: k[0], top: k[1], right: k[0] + k[2], bottom: k[1] + 26, width: k[2], height: 26 });
+    v1.rod.querySelector('.vlg-pop').getBoundingClientRect = () => ({ left: 0, top: 0, right: p[0], bottom: p[1], width: p[0], height: p[1] });
+    v1.knap.click();
+    const pop = v1.rod.querySelector('.vlg-pop'), ud = [pop.classList.contains('op'), pop.classList.contains('hoejre-kant'), pop.hasAttribute('style')];
+    v1.luk();
+    return ud.join();
+  };
+  tjek('K6: i titellinjen til højre (900 × 560): listen står under knappen og ved dens højre kant, så vinduets kant ikke klipper den', placer([800, 4, 90], [240, 220], 900, 560) === 'false,true,false');
+  tjek('K6: til venstre øverst: under og ved knappens venstre kant', placer([20, 4, 120], [240, 220], 900, 560) === 'false,false,false');
+  tjek('K6: nederst i vinduet: listen åbner opad', placer([20, 500, 120], [240, 220], 900, 560) === 'true,false,false');
+  tjek('K6 (CSS): listen ligger over siden (absolute, z-index) under knappen, opad med .op, ved højre kant med .hoejre-kant, højst 360 px og et halvt vindue minus 48 px, og rulles', /\.vlg \{ position: relative;/.test(css) && /\.vlg-pop \{\s*position: absolute; top: calc\(100% \+ 4px\); left: 0; z-index: 20;[^}]*max-height: min\(360px, calc\(50vh - 48px\)\);/.test(css) && /\.vlg-pop\.op \{ top: auto; bottom: calc\(100% \+ 4px\); \}/.test(css) && /\.vlg-pop\.hoejre-kant \{ left: auto; right: 0; \}/.test(css) && /\.vlg-liste \{[^}]*min-height: 0; overflow: auto;/.test(css));
+  tjek('K6 (CSS): titellinjen, værktøjslinjen og båndet klipper ikke listen (ingen overflow i .titel, .hoejre, .vl, .cmd, .grupper, .grp, .kn, .baand-el)', ['.titel', '.titel .hoejre', '.vl', '.cmd', '.grupper', '.grp', '.grp .kn', '.baand-el'].every(v => { const m = new RegExp('(?:^|\\n)' + v.replace(/\./g, '\\.') + ' \\{([^}]*)\\}').exec(css); return m && !/overflow/.test(m[1]); }));
+  tjek('K6 (CSS): udseendet følger fladen: lys knap med kant (surface, border-strong) og mørk på titellinjen (rail, rail-text; hover rail-active, rail-strong)', /\.vlg-knap \{[^}]*border: 1px solid var\(--border-strong\);[^}]*background: var\(--surface\); color: var\(--text\);/.test(css) && /\.titel \.vlg-knap \{[^}]*border-color: var\(--rail-text\); background: var\(--rail\); color: var\(--rail-text\);/.test(css) && /\.titel \.vlg-knap:hover, \.titel \.vlg-knap\[aria-expanded="true"\] \{ background: var\(--rail-active\); color: var\(--rail-strong\); \}/.test(css));
+  tjek('K6 (CSS): valgt er aldrig farve alene (flueben og fed skrift; afkrydset boks), og det aktive punkt har fokusringen i info', /\.vlg-p\[aria-selected="true"\] \{ font-weight: 600; \}/.test(css) && /\.vlg-p\[aria-selected="true"\] \.vlg-mark \{ visibility: visible; \}/.test(css) && /\.vlg-p\[aria-selected="true"\] \.vlg-boks \{ background: var\(--accent\); border-color: var\(--accent\); color: var\(--on-accent\); \}/.test(css) && /\.vlg-pop:focus-within \.vlg-p\.aktiv \{ outline: 2px solid var\(--info\);/.test(css));
+
+  // ── K8: sidepanel ──
+  const midte = d.createElement('div');
+  midte.className = 'midte';
+  midte.innerHTML = '<main class="arb"><button id="sp-aabner" aria-controls="sp-proeve" aria-expanded="false">?</button><button id="sp-andet">x</button></main><aside id="sp-proeve"></aside>';
+  d.body.appendChild(midte);
+  const spLuk = [];
+  const aside = d.getElementById('sp-proeve'), aabner = d.getElementById('sp-aabner');
+  const sp = K.sidepanel(aside, { tekst: 'Hjælp', lukAria: 'Luk hjælpen', indhold: d.createTextNode('Forklaring'), vedLuk: a => spLuk.push(a) });
+  const h = aside.querySelector('.sp-top h2'), lukK = aside.querySelector('.sp-luk');
+  tjek('K8: role="complementary" med navn fra overskriften, lukkeknap med navn, indhold, og lukket fra start', aside.getAttribute('role') === 'complementary' && aside.getAttribute('aria-labelledby') === h.id && h.textContent === 'Hjælp' && lukK.getAttribute('aria-label') === 'Luk hjælpen' && lukK.type === 'button' && sp.indhold.textContent === 'Forklaring' && aside.hidden && !sp.aaben && !aside.hasAttribute('aria-modal'));
+  const bredde = b => Object.defineProperty(w, 'innerWidth', { value: b, configurable: true });
+  bredde(1400); aabner.focus(); sp.aabn();
+  tjek('K8: åbnes ved bredt vindue (1400 px): skubber (ingen .over), fokus på overskriften, aria-expanded="true" på knappen, der styrer det', sp.aaben && !sp.overlagt && !aside.classList.contains('over') && d.activeElement === h && aabner.getAttribute('aria-expanded') === 'true');
+  bredde(1000); w.dispatchEvent(new w.Event('resize'));
+  tjek('K8: under grænsen (1000 < 1200 px) lægger det sig over (.over), også når vinduet ændres, mens det er åbent', sp.overlagt && aside.classList.contains('over'));
+  bredde(1200); w.dispatchEvent(new w.Event('resize'));
+  tjek('K8: grænsen er 1200 px: ved præcis 1200 skubber det', !sp.overlagt);
+  tast(h, 'Escape');
+  tjek('K8: Esc i panelet lukker; fokus går tilbage til det, der åbnede; vedLuk("esc"); aria-expanded="false"', !sp.aaben && aside.hidden && d.activeElement === aabner && spLuk.join() === 'esc' && aabner.getAttribute('aria-expanded') === 'false');
+  aabner.focus(); sp.aabn(); lukK.focus(); lukK.click();
+  tjek('K8: lukkeknappen lukker, og fokus går tilbage (vedLuk("knap"))', !sp.aaben && d.activeElement === aabner && spLuk.at(-1) === 'knap');
+  bredde(1400); sp.aabn(); d.getElementById('sp-andet').focus();
+  tast(d.getElementById('sp-andet'), 'Escape');
+  tjek('K8: ikke modalt: når panelet skubber, kan resten bruges, og Esc uden for panelet lukker det ikke', sp.aaben && d.activeElement === d.getElementById('sp-andet'));
+  sp.luk();
+  tjek('K8: luk() fra koden flytter ikke fokus, når fokus ikke var i panelet (vedLuk("kode"))', !sp.aaben && d.activeElement === d.getElementById('sp-andet') && spLuk.at(-1) === 'kode');
+  bredde(1000); sp.aabn(); d.getElementById('sp-andet').focus();
+  tjek('K8: når panelet ligger over, fanges fokus ikke (fokus kan gå uden for)', sp.aaben && sp.overlagt && d.activeElement === d.getElementById('sp-andet'));
+  tast(d.getElementById('sp-andet'), 'Escape');
+  tjek('K8: når panelet ligger over, lukker Esc også uden for panelet', !sp.aaben && spLuk.at(-1) === 'esc');
+  const aside2 = d.createElement('aside'); midte.appendChild(aside2);
+  const sp2 = K.sidepanel(aside2, { tekst: 'Detaljer', lukAria: 'Luk', overlaeg: true });
+  bredde(1600); sp2.aabn();
+  tjek('K8: overlaeg: true lægger altid over (også ved 1600 px); id gives, hvis elementet ikke har et', sp2.overlagt && /^kit-sp\d+$/.test(aside2.id) && (sp2.skift(), !sp2.aaben));
+  tjek('K8 (CSS): 320 px i rækken (skubber); .over ligger over med skygge; .midte bliver positioneret kun med et sidepanel (Grimnirs .midte er uændret); indholdet ruller', /\.sidepanel \{[^}]*width: 320px;[^}]*flex: none;/.test(css) && /\.sidepanel\.over \{ position: absolute; top: 0; right: 0; bottom: 0; z-index: 10; box-shadow: var\(--shadow-pop\); \}/.test(css) && /\.midte:has\(> \.sidepanel\) \{ position: relative; \}/.test(css) && /(?:^|\n)\.midte \{ display: flex; flex: 1; min-height: 0; \}/.test(css) && /\.sp-indhold \{[^}]*min-height: 0; overflow: auto;/.test(css));
+  tjek('K8: grænsen 1200 px står i koden og i KOMPONENTER.md', /const SP_GRAENSE = 1200;/.test(kitJs) && /smallere end \*\*1200 px\*\*/.test(afsnitAf('Sidepanel')));
+
+  // ── K9: bånd uden faner og segmentknap ──
+  const seg = K.segment({ aria: 'Periode', valg: [{ id: '7', tekst: '7 dage' }, { id: '30', tekst: '30 dage' }, { id: 'aar', tekst: 'År' }], valgt: '30', vedValg: x => kald.push('seg:' + x) });
+  const vb = K.vaelger({ etiket: 'Domæne', punkter: [{ id: 'a', tekst: 'eksempel.dk' }] });
+  const enkelt = d.createElement('div');
+  const be = K.commandBar(enkelt, { ariaT: 'cmdAria', udenFaner: true, faner: [{ id: 'start', t: 'faneStart', grupper: [
+    { t: 'gData', knapper: [{ id: 'opdater', t: 'kOpdater', ikon: 'afspil', pri: true }] },
+    { t: 'gPeriode', knapper: [{ id: 'periode', element: seg.rod }] },
+    { t: 'gDomaene', knapper: [{ id: 'domaene', element: vb.rod }] },
+  ] }] });
+  tjek('K9: udenFaner: ingen fanerække, ingen tab/tabpanel; båndet er en navngiven gruppe (.cmd.enkel, role="group", data-t-aria)', enkelt.className === 'cmd enkel' && !enkelt.querySelector('.tabs,[role="tab"],[role="tablist"],[role="tabpanel"]') && enkelt.getAttribute('role') === 'group' && enkelt.getAttribute('data-t-aria') === 'cmdAria' && enkelt.querySelectorAll('.grupper').length === 1);
+  tjek('K9: grupper og gruppenavne som i dag; en vælger og en segmentknap står i båndet (.baand-el), og knap(id) giver elementet', enkelt.querySelectorAll('.grp[role="group"] .cap').length === 3 && enkelt.querySelector('.cb.pri') && enkelt.querySelectorAll('.baand-el').length === 2 && be.knap('periode') === seg.rod && be.knap('domaene') === vb.rod && seg.rod.parentElement.className === 'baand-el');
+  let fejlTo = '';
+  try { K.commandBar(d.createElement('div'), { udenFaner: true, faner: [{ id: 'a', t: 'a', grupper: [] }, { id: 'b', t: 'b', grupper: [] }] }); } catch (e) { fejlTo = String(e.message); }
+  tjek('K9: udenFaner med to faner giver en fejl', /udenFaner kræver præcis én fane \(fik 2\)/.test(fejlTo), fejlTo);
+  const enFane = d.createElement('div');
+  K.commandBar(enFane, { faner: [{ id: 'a', t: 'a', grupper: [] }] });
+  tjek('K9: et bånd med én fane uden indstillingen har stadig fanerækken (som i 2.0.0)', enFane.querySelector('.tabs [role="tab"]') && !enFane.classList.contains('enkel'));
+  tjek('K9: segmentknappen er role="radiogroup" med navn og role="radio" med aria-checked; kun den valgte kan nås med Tab', seg.rod.getAttribute('role') === 'radiogroup' && seg.rod.getAttribute('aria-label') === 'Periode' && seg.knapper.every(b => b.getAttribute('role') === 'radio' && b.type === 'button') && seg.knapper.map(b => b.getAttribute('aria-checked') + b.tabIndex).join() === 'false-1,true0,false-1' && seg.valgt === '30');
+  d.body.appendChild(enkelt);
+  seg.knapper[1].focus(); tast(seg.knapper[1], 'ArrowRight');
+  tjek('K9: pil højre flytter og vælger; fokus følger; vedValg får id', seg.valgt === 'aar' && d.activeElement === seg.knapper[2] && kald.at(-1) === 'seg:aar' && seg.knapper[2].tabIndex === 0 && seg.knapper[1].tabIndex === -1);
+  tast(seg.knapper[2], 'ArrowRight');
+  const rundt = seg.valgt;
+  tast(seg.knapper[0], 'ArrowUp');
+  tjek('K9: pilene går rundt (højre fra sidste til første, op fra første til sidste)', rundt === '7' && seg.valgt === 'aar');
+  tast(seg.knapper[2], 'Home'); const home = seg.valgt; tast(seg.knapper[0], 'End');
+  tjek('K9: Home og End vælger første og sidste', home === '7' && seg.valgt === 'aar');
+  seg.knapper[1].click();
+  const n = kald.length;
+  seg.knapper[1].click(); seg.vaelg('7');
+  tjek('K9: klik vælger; samme valg igen kalder ikke vedValg; vaelg(id) udefra kalder den ikke', kald[n - 1] === 'seg:30' && kald.length === n && seg.valgt === '7' && seg.knapper[0].getAttribute('aria-checked') === 'true');
+  const forMange = [1, 6].map(antal => { try { K.segment({ valg: Array.from({ length: antal }, (_, i) => ({ id: String(i), tekst: String(i) })) }); return ''; } catch (e) { return String(e.message); } });
+  tjek('K9: færre end to eller flere end fem valg giver en fejl', forMange.every(f => /to til fem valg/.test(f)), forMange.join(' | '));
+  tjek('K9 (CSS): valgt har flade, fed skrift og streg (ikke farve alene); fokusring i info; et bånd uden faner har luft foroven og forneden', /\.seg-v\[aria-checked="true"\] \{ background: var\(--accent-soft\); font-weight: 600; box-shadow: inset 0 -2px 0 var\(--accent\); \}/.test(css) && /\.seg-v:focus-visible \{ outline: 2px solid var\(--info\);/.test(css) && /\.cmd\.enkel \.grupper \{ padding: var\(--space-2\) var\(--space-3\); \}/.test(css) && /\.baand-el \{[^}]*height: 54px;/.test(css));
+  const cb = afsnitAf('CommandBar');
+  tjek('K9: KOMPONENTER.md (CommandBar): reglen for et bånd med få kommandoer, valget af indstilling frem for automatik med begrundelse, og element i en gruppe', /### Bånd til programmer med få kommandoer/.test(cb) && /udenFaner: true/.test(cb) && /Valgt som indstilling/.test(cb) && /præcis som i 2\.0\.0, også med én fane/.test(cb) && /\{ id, element \}/.test(cb));
+  w.close(); w2.close();
+
+  // ── Dokumenterne ──
+  const DELE = ['**Klasser:**', '**Funktioner:**', '**Formål:**', '**Markup:**', '**Tilstande:**', '**Tastatur:**', '**Kræver af programmet:**'];
+  const mangler = ['Vælger', 'Sidepanel', 'Segmentknap'].flatMap(nv => DELE.filter(x => !afsnitAf(nv).includes(x)).map(x => nv + ': ' + x));
+  tjek('KOMPONENTER.md: Vælger, Sidepanel og Segmentknap har alle syv dele', mangler.length === 0, mangler.join(', '));
+  tjek('KOMPONENTER.md: Vælger nævner tastaturet og ARIA, som prompten kræver', ['Enter', 'mellemrum', 'pil ned', 'Esc', 'et bogstav', 'aria-haspopup="listbox"', 'aria-expanded', 'role="listbox"', 'role="option"', 'aria-multiselectable', 'aria-selected'].every(o => afsnitAf('Vælger').includes(o)));
+  const findes = md.slice(md.indexOf('## Findes ikke endnu'));
+  tjek('KOMPONENTER.md: "Findes ikke endnu" er rettet (vælgeren og segmentknappen nævnt ved menu og valgliste)', /Vælgeren \(2\.2\.0\)/.test(findes) && /segmentknappen \(2\.2\.0\)/.test(findes));
+  const log = pk('CHANGELOG.md');
+  const post = log.slice(log.indexOf('## 2.2.0'), log.indexOf('\n## ', log.indexOf('## 2.2.0') + 1));
+  tjek('CHANGELOG 2.2.0: første post, kun dato, nævner K5–K9, de nye funktioner, og at intet er omdøbt eller fjernet', log.indexOf('## 2.2.0 — 2026-11-11') > 0 && log.indexOf('## 2.2.0') < log.indexOf('## 2.1.0') && ['(K5)', '(K6)', '(K7)', '(K8)', '(K9)', 'Kit.vaelger', 'Kit.sidepanel', 'Kit.segment', 'udenFaner', 'Intet er omdøbt eller fjernet'].every(o => post.includes(o)));
+  const readme = pk('README.md');
+  tjek('README: indholdslisten og "Hvad pakken ikke indeholder" passer med 2.2.0', /Kit\.vaelger`, `Kit\.sidepanel` og `Kit\.segment` fra 2\.2\.0/.test(readme) && /Vælgeren, sidepanelet og segmentknappen findes fra 2\.2\.0/.test(readme) && /\*\*Flervalg i træet\.\*\*/.test(readme));
+  const hm = pk('flytning/HUGINN-MUNINN.md');
+  tjek('flytning/HUGINN-MUNINN.md: K5–K9 står som opfyldt i 2.2.0 med hvad de afløser, og hjælpeskuffen og vælgerne står ikke længere som umulige at flytte', ['K5', 'K6', 'K7', 'K8', 'K9'].every(k => new RegExp('\\| ' + k + ' [^|]*\\| 2\\.2\\.0 \\|[^\\n]*Afløser').test(hm)) && !/\| Hjælpeskuffen, dialoger/.test(hm) && !/højst seks visninger/.test(hm) && /Kit\.vaelger/.test(hm) && /Kit\.sidepanel/.test(hm));
+}
+{
+  // Demoen 2.2.0 med pakkens rigtige filer: sektionerne, båndet med én fane og de otte visninger, i begge sprog.
+  const dom = await JSDOM.fromFile(demoFil, { runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true, virtualConsole: new VirtualConsole() });
+  const w = dom.window, d = w.document;
+  await new Promise(r => (d.readyState === 'complete' ? r() : w.addEventListener('load', r)));
+  await vent(20);
+  const sektion = n => d.querySelector(`#v-komponenter .demo-sektion[data-navn="${n}"]`);
+  tjek('demo 2.2.0: en sektion for Vælger, Sidepanel og Segmentknap, med overskrift og tekst', ['Vælger', 'Sidepanel', 'Segmentknap'].every(n => sektion(n) && sektion(n).querySelector('h2').textContent && sektion(n).querySelector('p').textContent.startsWith('Fra 2.2.0')));
+  tjek('demo 2.2.0: et bånd med én fane, en vælger og en segmentknap (og ingen fanerække)', Boolean(d.querySelector('#demo-baand-enkel.cmd.enkel .baand-el .vlg') && d.querySelector('#demo-baand-enkel .baand-el .seg')) && !d.querySelector('#demo-baand-enkel .tabs'));
+  tjek('demo 2.2.0: visningsskift med otte punkter (taet)', d.querySelectorAll('#demo-skift-otte.taet .vs').length === 8);
+  tjek('demo 2.2.0: en vælger i titellinjen (ét valg) og en i værktøjslinjen (flere valg med søgefelt)', Boolean(d.querySelector('#demo-vaelger-titel .hoejre .vlg .vlg-knap') && d.querySelector('#demo-vaelger-vl .vlg [aria-multiselectable="true"]') && d.querySelector('#demo-vaelger-vl .vlg-soeg input')));
+  const knapLand = d.querySelector('#demo-vaelger-titel .vlg-knap');
+  knapLand.click();
+  d.activeElement.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+  d.activeElement.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+  tjek('demo 2.2.0: vælgeren vælger og melder valget (dansk)', d.getElementById('vaelger-valgt').textContent === 'Valgt: Sverige' && knapLand.querySelector('.vlg-vaerdi').textContent === 'Sverige');
+  d.getElementById('demo-sp-aabn').focus();
+  d.getElementById('demo-sp-aabn').click();
+  tjek('demo 2.2.0: sidepanelet åbner, får fokus og navn, og knappen får aria-expanded', !d.getElementById('demo-sidepanel').hidden && d.activeElement === d.querySelector('#demo-sidepanel h2') && d.querySelector('#demo-sidepanel h2').textContent === 'Hjælp' && d.getElementById('demo-sp-aabn').getAttribute('aria-expanded') === 'true');
+  d.activeElement.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+  tjek('demo 2.2.0: Esc lukker sidepanelet og fokus går tilbage', d.getElementById('demo-sidepanel').hidden && d.activeElement === d.getElementById('demo-sp-aabn') && d.getElementById('sp-valgt').textContent === 'Panelet blev lukket (esc).');
+  d.querySelector('#demo-segment .seg-v[aria-checked="false"]').click();
+  tjek('demo 2.2.0: segmentknappen vælger og melder valget', /^Valgt: (30 dage|År)$/.test(d.getElementById('segment-valgt').textContent));
+  w.Sprog.saet('en');
+  const tomme = [...d.querySelectorAll('#demo-baand-enkel [data-t], #v-komponenter [data-navn="Vælger"] [data-t], #v-komponenter [data-navn="Sidepanel"] [data-t], #v-komponenter [data-navn="Segmentknap"] [data-t], #demo-skift-otte [data-t]')].filter(e => !e.textContent.trim()).map(e => e.getAttribute('data-t'));
+  tjek('demo 2.2.0 (English): de nye dele har tekst, og vælgerens knap følger sproget', tomme.length === 0 && knapLand.querySelector('.vlg-vaerdi').textContent === 'Sweden' && d.querySelector('#demo-sidepanel h2').textContent === 'Help' && d.querySelector('#demo-segment .seg-v').textContent === '7 days', tomme.join(', '));
+  w.Tema.saet('moerk');
+  tjek('demo 2.2.0: mørkt tema sættes på siden med de nye komponenter (kun tokens i kit.css, se farvetjekket)', d.documentElement.getAttribute('data-tema') === 'moerk');
   w.close();
 }
 

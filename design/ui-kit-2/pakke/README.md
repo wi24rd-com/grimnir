@@ -14,8 +14,8 @@ Tankerne bag kittet (principper, farvernes betydning, sprogtone) står i `../REA
 | `tokens/wi24rd-ui-kit-2.tokens.json` | Kilden til alle tokens: farver i lyst og mørkt tema (også ok, mærker, dataserier, skala og kort fra 2.1.0), skrift, luft, radier, skygger |
 | `tokens/tokens.css` | Samme tokens som CSS-variabler (genereret) |
 | `tokens/Tokens.xaml` | Samme tokens som WPF-ressourcer (genereret) |
-| `web/kit.css` | Komponenternes udseende |
-| `web/kit.js` | Komponenternes opførsel (`window.Kit`) |
+| `web/kit.css` | Komponenternes udseende (fra 2.2.0 også vælger, sidepanel og segmentknap) |
+| `web/kit.js` | Komponenternes opførsel (`window.Kit`), også `Kit.vaelger`, `Kit.sidepanel` og `Kit.segment` fra 2.2.0 |
 | `web/tema.js` | Lyst, mørkt eller som systemet (`window.Tema`) |
 | `web/sprogmotor.js` | Sprogets mekanik: opslag, ental og flertal, sprogskift (`window.KitSprog`) |
 | `web/fonts/` | Inter og JetBrains Mono (woff2) med deres OFL-licenser |
@@ -96,14 +96,14 @@ Har programmet allerede sit eget sprogmodul, kan det beholde det. Kittet kræver
 
 ### 5. Byg skærmen
 
-Start med skallen i `KOMPONENTER.md` (AppShell) og fyld den med `Kit.commandBar`, `Kit.navTrae`, `Kit.visningsskift` og `Kit.tabel`. Demoens `demo/index.html` og `demo/demo.js` er et lille, komplet eksempel.
+Start med skallen i `KOMPONENTER.md` (AppShell) og fyld den med `Kit.commandBar`, `Kit.navTrae`, `Kit.visningsskift` og `Kit.tabel`. Til valg for hele skærmen er der `Kit.vaelger` (titellinje, værktøjslinje, bånd) og `Kit.segment`; til hjælp og detaljer ved siden af arbejdet `Kit.sidepanel`. Et program med få kommandoer bruger båndet uden faner (`udenFaner: true`). Demoens `demo/index.html` og `demo/demo.js` er et lille, komplet eksempel.
 
 Det, kittet forventer af programmet:
 
 - Programmet ejer visningsskiftet (hvad der vises for `#id`), hvad kommandoerne gør, og alle data.
 - Programmets egne ikoner lægges til med `Kit.registrerIkoner({ navn: [[element, attributter], …] })`, før de bruges.
 - Titellinjen er programmets: mærke, navn og det, der står til højre (`.hoejre`). Har vinduet styresystemets knapper oven på titellinjen (fx macOS med overlejret titellinje), giver programmet selv plads til dem i sin egen CSS.
-- Mindste vindue er 900 × 560 px.
+- Mindste vindue er 900 × 560 px. Dér er der plads til otte visninger i visningsskiftet (se NavPane i `KOMPONENTER.md`).
 - Alt, der kan aktiveres, skal have synlig hover, kunne nås med Tab og have en `aria-label`, der siger, hvad der sker.
 
 ## Sådan tager et WPF-program tokens i brug
@@ -193,7 +193,8 @@ I kilde-repoet laves programmets kopier af et script (`npm run kit`), og `npm ru
 - **Skrifter til WPF** (TTF eller OTF). Kun woff2 til web.
 - **Logo og app-ikoner.** De hører til det enkelte program.
 - **Et fuldt ikonsæt.** `kit.js` har de almene stregikoner, kittets egne komponenter og de første programmer har brugt. Programmet lægger sine egne til.
-- **Dialog, menu, værktøjstip, tom tilstand, fremdrift, afkrydsning, kontakt (til/fra), valgliste og StatusTile.** De findes ikke som kode i kittet endnu. Et program, der har brug for dem, tegner dem selv med kittets tokens.
+- **Dialog, menu, værktøjstip, tom tilstand, fremdrift, afkrydsning, kontakt (til/fra), valgliste og StatusTile.** De findes ikke som kode i kittet endnu. Et program, der har brug for dem, tegner dem selv med kittets tokens. Vælgeren, sidepanelet og segmentknappen findes fra 2.2.0; vælgeren er til valg for hele skærmen, ikke en valgliste i en formular.
+- **Flervalg i træet.** Træet vælger ét punkt; flere valg hører til i vælgeren (se `KOMPONENTER.md`).
 - **Tekster.** Kittet har ingen tekster; alle tekster er programmets.
 - **Tekststørrelse eller tæthed som valg.** Kittet har én størrelse.
 - **Byggeværktøjet.** `tokens.css` og `Tokens.xaml` laves fra JSON-filen af `design/build-tokens.mjs` i kilde-repoet. Pakken har de færdige filer.
