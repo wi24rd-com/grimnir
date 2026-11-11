@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-laas-status"
+description = "Enables the laas_status command without any pre-configured scope."
+commands.allow = ["laas_status"]
+
+[[permission]]
+identifier = "deny-laas-status"
+description = "Denies the laas_status command without any pre-configured scope."
+commands.deny = ["laas_status"]

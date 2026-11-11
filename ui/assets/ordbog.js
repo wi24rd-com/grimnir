@@ -414,6 +414,7 @@
   document.addEventListener('grimnir-sprog', () => tegn());
 
   tegn();
-  const klar = opdater();
+  // V-LAAS.2: ordbogen hentes først, når Grimnir er låst op (laas.js).
+  const klar = (window.GrimnirLaas ? window.GrimnirLaas.klar : Promise.resolve()).then(opdater);
   window.GrimnirOrdbog = { st, klar, opdater, tilfoej, fraMasker, kan, fejlTekst, aabnPost, aabnProev };
 })();

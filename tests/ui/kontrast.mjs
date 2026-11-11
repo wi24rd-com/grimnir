@@ -105,6 +105,18 @@ export const PAR = [
   // V-RET.1: rullebjælken i tekstpanelerne (altid synlig) og Altid/Aldrig som ikonknapper.
   ['text-muted', 'surface-raised', KANT, 'Tekstpanel: rullebjælkens greb på sporet'],
   ['info', 'surface', KANT, 'Maskér: ikonet i Altid og Aldrig'],
+  // V-LAAS.2: låseskærmen og banneret "Grimnir er ikke låst". Knapperne, overskriften og sætningen bruger kittets par
+  // ovenfor; her står de, der er nye for låsen. Det nedtonede bånd og NavPane er inaktive kontroller (WCAG 1.4.3 undtager
+  // dem) og står derfor ikke her.
+  ['on-accent', 'accent', TEKST, 'Låseskærm: bogstavet i mærket'],
+  ['accent', 'surface', KANT, 'Låseskærm: mærket mod arbejdsfladen'],
+  ['text', 'surface', TEKST, 'Låseskærm: overskriften Grimnir er låst'],
+  ['text-muted', 'surface', TEKST, 'Låseskærm: sætningen og beskeden under knapperne'],
+  ['danger', 'surface', TEKST, 'Låseskærm: beskeden, når oplåsningen mislykkedes'],
+  ['info', 'surface', KANT, 'Låseskærm: fokusringen om Lås op'],
+  ['on-accent', 'accent', TEKST, 'Låseskærm: Lås op (primær knap)'],
+  ['text', 'info-soft', TEKST, 'Banner: Grimnir er ikke låst'],
+  ['surface', 'info', TEKST, 'Banner: symbolet i Grimnir er ikke låst'],
 ];
 
 function lin(c) {

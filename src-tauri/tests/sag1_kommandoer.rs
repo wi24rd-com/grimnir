@@ -59,7 +59,7 @@ fn programmet_starter_med_en_midlertidig_sag() {
     let m = Mappe::ny();
     let lager = Arc::new(HukommelsesLager::ny());
     let t = program(&m, &lager);
-    let s = sag_status(&t);
+    let s = sag_status(&t).unwrap();
     assert_eq!((s.poster, s.id, s.navn), (0, None, None));
     assert!(sag_liste(&t).unwrap().is_empty());
     assert!(!t.skal_spoerge_ved_luk(), "en tom midlertidig sag spørger ikke");
@@ -76,7 +76,7 @@ fn gem_luk_programmet_aabn_igen_og_demasker_bytepraecist() {
         let t = program(&m, &lager);
         maskeret1 = masker(&t, TEKST).unwrap();
         assert!(t.skal_spoerge_ved_luk(), "midlertidig sag med poster");
-        let poster = sag_status(&t).poster;
+        let poster = sag_status(&t).unwrap().poster;
         let s = sag_ny(&t, "Supportsag 0042", Some("2027-01-31")).unwrap();
         assert_eq!(
             (s.poster, s.navn.as_deref(), s.udloeb.as_deref()),
@@ -84,11 +84,11 @@ fn gem_luk_programmet_aabn_igen_og_demasker_bytepraecist() {
         );
         assert!(!t.skal_spoerge_ved_luk(), "en navngiven sag spørger ikke");
         maskeret2 = masker(&t, TEKST2).unwrap();
-        assert!(sag_status(&t).poster > poster);
+        assert!(sag_status(&t).unwrap().poster > poster);
     }
     // I morgen: et nyt program, samme mappe og nøglering.
     let t = program(&m, &lager);
-    assert_eq!(sag_status(&t).poster, 0);
+    assert_eq!(sag_status(&t).unwrap().poster, 0);
     let liste = sag_liste(&t).unwrap();
     assert_eq!(liste.len(), 1);
     assert_eq!(liste[0].navn.as_deref(), Some("Supportsag 0042"));
@@ -163,7 +163,7 @@ fn fejler_skrivningen_udleveres_ingen_maskeret_tekst() {
         ),
         "{r:?}"
     );
-    assert_eq!(sag_status(&t).poster, 0, "sagen i hukommelsen er uændret");
+    assert_eq!(sag_status(&t).unwrap().poster, 0, "sagen i hukommelsen er uændret");
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -208,11 +208,11 @@ fn omdoeb_udloeb_og_liste_med_sag_der_ikke_kan_aabnes() {
     let t = program(&m, &lager);
     sag_ny(&t, "Første", None).unwrap();
     masker(&t, TEKST).unwrap();
-    let a = sag_status(&t).id.unwrap();
+    let a = sag_status(&t).unwrap().id.unwrap();
     sag_ny(&t, "Anden", Some("2026-12-24")).unwrap();
-    let b = sag_status(&t).id.unwrap();
+    let b = sag_status(&t).unwrap().id.unwrap();
     assert_ne!(a, b);
-    assert_eq!(sag_status(&t).poster, 0, "en ny sag fra en navngiven starter tom");
+    assert_eq!(sag_status(&t).unwrap().poster, 0, "en ny sag fra en navngiven starter tom");
     // Omdøb og udløb: den åbne (b) og en, der ikke er åben (a).
     sag_omdoeb(&t, &b, "  Anden sag  ").unwrap();
     sag_omdoeb(&t, &a, "Første sag").unwrap();
@@ -231,7 +231,7 @@ fn omdoeb_udloeb_og_liste_med_sag_der_ikke_kan_aabnes() {
         })
     ));
     assert!(matches!(sag_aabn(&t, "../../etc"), Err(UiFejl::Sag { fejl: SagFejl::UgyldigtId })));
-    assert_eq!(sag_status(&t).navn.as_deref(), Some("Anden sag"));
+    assert_eq!(sag_status(&t).unwrap().navn.as_deref(), Some("Anden sag"));
     let liste = sag_liste(&t).unwrap();
     let post = |id: &str| liste.iter().find(|p| p.id == id).unwrap().clone();
     assert_eq!(
@@ -263,9 +263,9 @@ fn slet_og_luk() {
     let t = program(&m, &lager);
     masker(&t, TEKST).unwrap();
     sag_ny(&t, "Slettes", None).unwrap();
-    let id = sag_status(&t).id.unwrap();
+    let id = sag_status(&t).unwrap().id.unwrap();
     // Luk: filen bliver, sagen i hukommelsen er tom og midlertidig.
-    let s = sag_luk(&t);
+    let s = sag_luk(&t).unwrap();
     assert_eq!((s.poster, s.id), (0, None));
     assert_eq!(sag_liste(&t).unwrap().len(), 1);
     // Åbn og slet: fil og nøgle er væk, og den åbne sag er lukket.

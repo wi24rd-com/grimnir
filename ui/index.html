@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="da" data-tema="system">
+<html lang="da" data-tema="system" data-laast>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,6 +11,7 @@
 <script src="assets/sprog.js" defer></script>
 <script src="assets/kit.js" defer></script>
 <script src="assets/app.js" defer></script>
+<script src="assets/laas.js" defer></script>
 <script src="assets/maskering.js" defer></script>
 <script src="assets/sager.js" defer></script>
 <script src="assets/ordbog.js" defer></script>
@@ -29,6 +30,8 @@
     </span>
   </header>
 
+  <div class="laas-banner" id="laas-banner"></div>
+
   <div id="baand"></div>
 
   <div class="midte">
@@ -36,7 +39,18 @@
       <div class="navdele" id="navdele"></div>
       <div id="skift"></div>
     </nav>
-    <main class="arb" id="arb"></main>
+    <main class="arb" id="arb">
+      <section class="laasskaerm" id="laas" aria-labelledby="laas-h" aria-describedby="laas-p">
+        <span class="laas-mrk" aria-hidden="true">G</span>
+        <h2 id="laas-h" data-t="laasH">Grimnir er låst</h2>
+        <p id="laas-p" data-t="laasP"></p>
+        <div class="laas-knapper">
+          <button type="button" class="btn" id="laas-afslut" data-t="kAfslut" data-t-aria="ariaAfslut">Afslut</button>
+          <button type="button" class="btn primary" id="laas-op" data-t="kLaasOp" data-t-aria="ariaLaasOp">Lås op</button>
+        </div>
+        <p class="laas-besked" id="laas-besked" role="status" aria-live="polite"></p>
+      </section>
+    </main>
   </div>
 
   <footer class="fodl">
@@ -77,6 +91,11 @@
           <option value="90" data-t="udloeb90">90 dage</option>
         </select>
       </div>
+    </fieldset>
+    <fieldset class="valg lodret">
+      <legend class="label" data-t="indstLaas">Lås</legend>
+      <label class="afkryds"><input type="checkbox" id="indst-laas" data-t-aria="kLaasVedStart" aria-describedby="indst-laas-hj"> <span data-t="kLaasVedStart">Lås Grimnir ved start</span></label>
+      <span class="hj" id="indst-laas-hj" data-t="hjLaasVedStart"></span>
     </fieldset>
     <fieldset class="valg lodret">
       <legend class="label" data-t="indstGuide">Første start</legend>

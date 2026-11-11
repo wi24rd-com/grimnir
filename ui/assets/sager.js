@@ -8,7 +8,7 @@
 
    Rust-kommandoer: sag_status, sag_liste, sag_ny, sag_aabn, sag_luk, sag_nulstil, sag_omdoeb, sag_udloeb, sag_slet,
    program_afslut og (V-ORDBOG.1) sag_valg: sagens valg for fremmede adresser (D4) og sidste oktet (D5) i titellinjens
-   dialog. Ny sag foreslår standardudløbet fra indstillingerne (indstillinger.js). Hændelsen 'menu' med "afslut" kommer, når programmet lukkes med en midlertidig sag med poster. */
+   dialog. V-LAAS.2: intet hentes, før Grimnir er låst op (window.GrimnirLaas.klar). Ny sag foreslår standardudløbet fra indstillingerne (indstillinger.js). Hændelsen 'menu' med "afslut" kommer, når programmet lukkes med en midlertidig sag med poster. */
 (function () {
   'use strict';
   const G = window.Grimnir, K = window.Kit, S = window.Sprog, GM = window.GrimnirMaskering;
@@ -414,14 +414,17 @@
     st.filter = e.detail.id === 'sager' ? 'alle' : e.detail.id;
     tegnTabel();
   });
-  document.addEventListener('grimnir-visning', e => { if (e.detail === 'sager') { opdater(); tegnFod(); } });
+  document.addEventListener('grimnir-visning', e => { if (e.detail === 'sager' && !G.laast) { opdater(); tegnFod(); } });
   document.addEventListener('grimnir-sprog', () => { tegnTabel(); tegnTitel(); });
   if (G.tauri && G.tauri.event && G.tauri.event.listen) {
     G.tauri.event.listen('menu', e => { if (e.payload === 'afslut') visKasser('afslut'); });
   }
 
   tegn();
-  invoke('sag_status').then(s => anvend(s, false)).catch(() => anvend({ poster: 0 }, false));
-  opdater();
+  // V-LAAS.2: sagens status og listen hentes først, når Grimnir er låst op (laas.js); låst står intet fra sagerne her.
+  (window.GrimnirLaas ? window.GrimnirLaas.klar : Promise.resolve()).then(() => {
+    invoke('sag_status').then(s => anvend(s, false)).catch(() => anvend({ poster: 0 }, false));
+    opdater();
+  });
   window.GrimnirSager = { st, aabnIgen, opdater, get status() { return status; }, statusFor, dageTil };
 })();

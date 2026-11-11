@@ -1115,7 +1115,7 @@
   /* ⌘V (og menuens Indsæt) i Maskér og Demaskér: teksten fra clipboardData, uændret. I søgefeltet og i en erstatning
      virker indsæt som normalt. */
   document.addEventListener('paste', e => {
-    if (fokusIFelt(e) || document.querySelector('dialog[open]')) return;
+    if (G.laast || fokusIFelt(e) || document.querySelector('dialog[open]')) return;
     const v = G.aktiv;
     if (v !== 'masker' && v !== 'demasker') return;
     const s = e.clipboardData ? e.clipboardData.getData('text/plain') : '';
@@ -1126,7 +1126,7 @@
   /* Genveje: ⌘↵ Analysér og derefter Gem og maskér (Demaskér i Demaskér); ⇧⌘C kopiér resultatet. Ctrl på Windows. */
   document.addEventListener('keydown', e => {
     const modTast = G.mac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey;
-    if (!modTast || e.altKey || document.querySelector('dialog[open]')) return;
+    if (!modTast || e.altKey || G.laast || document.querySelector('dialog[open]')) return;
     const v = G.aktiv;
     if (v !== 'masker' && v !== 'demasker') return;
     // Ctrl+O og Ctrl+S på Windows (på macOS fanger programmenuen ⌘O og ⌘S og sender hændelsen 'menu').
@@ -1159,14 +1159,16 @@
     for (const v of ['masker', 'demasker']) G.dele[v].flade.toggleAttribute('data-traek', on && G.aktiv === v);
   }
   if (G.tauri && G.tauri.event && G.tauri.event.listen) {
+    // V-LAAS.2: låst gør Åbn og Gem fra menuen og træk og slip intet (Rust svarer også `laast`).
     G.tauri.event.listen('menu', e => {
-      if (document.querySelector('dialog[open]')) return;
+      if (G.laast || document.querySelector('dialog[open]')) return;
       if (e.payload === 'aabn') maalVisning().aabnFil();
       else if (e.payload === 'gem') { if (G.aktiv === 'masker') M.gemFil(false); else if (G.aktiv === 'demasker') D.gemFil(); }
     });
-    G.tauri.event.listen('fil-traek', e => traek(e.payload === true));
+    G.tauri.event.listen('fil-traek', e => traek(e.payload === true && !G.laast));
     G.tauri.event.listen('fil-sluppet', e => {
       traek(false);
+      if (G.laast) return;
       const p = e.payload || {};
       const X = maalVisning();
       if (p.fejl) { if (p.fejl !== 'ingen') X.slipAfvist(p.fejl); return; }

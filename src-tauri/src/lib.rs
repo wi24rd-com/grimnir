@@ -4,7 +4,14 @@
 //! `sag_luk`, `sag_omdoeb`, `sag_udloeb`, `sag_slet` og `program_afslut`; ordbogen og indstillingerne (V-ORDBOG.1):
 //! `ordbog_hent`, `ordbog_tilfoej`, `ordbog_ret`, `ordbog_fjern`, `ordbog_proev`, `indstillinger_hent`,
 //! `indstillinger_gem` og `sag_valg`; filerne (V-FIL.1): `fil_aabn`, `fil_aabn_sluppet`, `fil_luk`, `fil_analyser`,
-//! `fil_raekker`, `fil_gem_og_masker`, `fil_demasker`, `fil_kopi`, `fil_gem` og `ordbog_start_forfra`.
+//! `fil_raekker`, `fil_gem_og_masker`, `fil_demasker`, `fil_kopi`, `fil_gem` og `ordbog_start_forfra`; låsen (V-LAAS.2):
+//! `laas_status`, `laas_op` og `laas_ved_start`.
+//!
+//! **Låsen (V-LAAS.2).** Grimnir starter låst, når "Lås Grimnir ved start" er til ([`Tilstand::ved_start`]). UI'et kalder
+//! `laas_op` én gang ved start; døren ([`laas::platformens`]: Touch ID med adgangskoden som reserve på macOS) svarer i
+//! en blok på en anden tråd, og kommandoen er `async`, så hovedtråden aldrig venter. Mens der er låst, svarer hver
+//! kommando, der bruger sager, ordbog, filer eller nøgler, med fejlen `laast`, og Åbn fil viser ikke engang dialogen.
+//! Døren beskytter mod en person ved en ulåst maskine, ikke mod et andet program, der kører som brugeren ([`laas`]).
 //!
 //! **Filer (V-FIL.1).** Åbn- og Gem-dialogerne er styresystemets egne, åbnet herfra med `rfd` (ikke
 //! `tauri-plugin-dialog`/`-fs`); webvisningen får ingen fil-rettigheder og ser aldrig en sti, kun filnavnet. Træk og
@@ -17,11 +24,14 @@
 //! i `<app-data>/ordbog.grimnir` ([`ordbog`]); nøglerne i Keychain/Credential Manager. Indstillingerne står i klartekst i
 //! `<app-data>/indstillinger.json` ([`indstillinger`]; intet følsomt). Mens en fil gemmes i brugerens mappe, står den
 //! midlertidige fils sti i `<app-data>/igang.json` ([`igang`]; kun stier, kun de igangværende).
-#![forbid(unsafe_code)]
+// V-LAAS.2: `deny` i stedet for `forbid`, fordi macOS-døren (`laas::mac`) skal kalde LocalAuthentication, og alle de
+// kald er `unsafe`. Kun dét modul har `allow(unsafe_code)`; resten af skallen er uændret uden `unsafe`.
+#![deny(unsafe_code)]
 
 pub mod fil;
 pub mod igang;
 pub mod indstillinger;
+pub mod laas;
 pub mod maskering;
 pub mod ordbog;
 pub mod sager;
@@ -32,10 +42,11 @@ mod programmenu;
 
 use indstillinger::Indstillinger;
 use maskering::{
-    Analyse, Demaskering, FilAnalyse, FilDemaskering, FilInfo, FilMaskering, Maskering, OrdbogUd, Proeve, RaekkeSide, Rettelse,
-    SagListePost, SagStatus, SideValg, StartForfra, Tilstand, UiFejl, Visning,
+    Analyse, Demaskering, FilAnalyse, FilDemaskering, FilInfo, FilMaskering, LaasStatus, LaasSvar, Maskering, OrdbogUd, Proeve, RaekkeSide,
+    Rettelse, SagListePost, SagStatus, SideValg, StartForfra, Tilstand, UiFejl, Visning,
 };
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::sync::Mutex;
 use tauri::{Emitter, Manager, State};
 
@@ -80,7 +91,7 @@ fn demasker(tilstand: State<'_, Tilstand>, tekst: String) -> Result<Demaskering,
 /// Antal poster i sagen. V-FIL.1: `async` (ikke på hovedtråden), fordi sagens lås kan være optaget af en lang
 /// maskering af en stor fil; vinduet må ikke fryse imens.
 #[tauri::command(async)]
-fn sag_status(tilstand: State<'_, Tilstand>) -> SagStatus {
+fn sag_status(tilstand: State<'_, Tilstand>) -> Result<SagStatus, UiFejl> {
     maskering::sag_status(&tilstand)
 }
 
@@ -101,7 +112,7 @@ fn menu_sprog(app: tauri::AppHandle, valgt: State<'_, Sprogvalg>, sprog: String)
 
 /// Tømmer sagen (UI'et beder om bekræftelse først). `async` som `sag_status`.
 #[tauri::command(async)]
-fn sag_nulstil(tilstand: State<'_, Tilstand>) -> SagStatus {
+fn sag_nulstil(tilstand: State<'_, Tilstand>) -> Result<SagStatus, UiFejl> {
     maskering::sag_nulstil(&tilstand)
 }
 
@@ -125,7 +136,7 @@ fn sag_aabn(tilstand: State<'_, Tilstand>, id: String) -> Result<SagStatus, UiFe
 
 /// Lukker sagen (en ny, tom midlertidig sag starter). `async` som `sag_status`.
 #[tauri::command(async)]
-fn sag_luk(tilstand: State<'_, Tilstand>) -> SagStatus {
+fn sag_luk(tilstand: State<'_, Tilstand>) -> Result<SagStatus, UiFejl> {
     maskering::sag_luk(&tilstand)
 }
 
@@ -155,7 +166,7 @@ fn sag_valg(tilstand: State<'_, Tilstand>, masker_fremmede: bool, bevar_sidste_o
 
 /// Ordbogen (posterne, og fejlen, hvis filen ikke kunne åbnes).
 #[tauri::command(async)]
-fn ordbog_hent(tilstand: State<'_, Tilstand>) -> OrdbogUd {
+fn ordbog_hent(tilstand: State<'_, Tilstand>) -> Result<OrdbogUd, UiFejl> {
     maskering::ordbog_hent(&tilstand)
 }
 
@@ -195,6 +206,28 @@ fn indstillinger_gem(tilstand: State<'_, Tilstand>, indstillinger: Indstillinger
     maskering::indstillinger_gem(&tilstand, indstillinger)
 }
 
+/// V-LAAS.2: låsens tilstand (låst, "Lås ved start", og om Grimnir er låst op uden bekræftelse).
+#[tauri::command]
+fn laas_status(tilstand: State<'_, Tilstand>) -> LaasStatus {
+    maskering::laas_status(&tilstand)
+}
+
+/// V-LAAS.2: platformens dør. Ligger som tilstand, så kommandoerne ikke selv vælger den.
+struct Doeren(Arc<dyn laas::Doer>);
+
+/// Låser op med døren (`sprog`: UI'ets sprog til dialogens tekst). `async`: døren venter på brugeren, og svaret kommer
+/// i en blok; hovedtråden venter aldrig.
+#[tauri::command(async)]
+fn laas_op(tilstand: State<'_, Tilstand>, doer: State<'_, Doeren>, sprog: String) -> LaasSvar {
+    maskering::laas_op(&tilstand, doer.0.as_ref(), &sprog)
+}
+
+/// Slår "Lås Grimnir ved start" til eller fra; fra kræver en oplåsning med døren. `async` som `laas_op`.
+#[tauri::command(async)]
+fn laas_ved_start(tilstand: State<'_, Tilstand>, doer: State<'_, Doeren>, til: bool, sprog: String) -> Result<LaasSvar, UiFejl> {
+    maskering::laas_ved_start(&tilstand, doer.0.as_ref(), til, &sprog)
+}
+
 /// UI'ets sprog i Rust: titlerne på filvalgsdialogerne.
 struct Sprogvalg(Mutex<&'static programmenu::Tekster>);
 
@@ -214,6 +247,8 @@ async fn fil_aabn(
     sprog: State<'_, Sprogvalg>,
     visning: Visning,
 ) -> Result<Option<FilInfo>, UiFejl> {
+    // V-LAAS.2: låst åbnes dialogen slet ikke.
+    tilstand.aaben()?;
     let valgt = rfd::AsyncFileDialog::new()
         .set_parent(&vindue)
         .set_title(titel(&sprog, |t| t.dlg_aabn))
@@ -237,7 +272,7 @@ fn fil_aabn_sluppet(tilstand: State<'_, Tilstand>, sluppet: State<'_, Sluppet>, 
 
 /// Slipper visningens fil (indsat tekst tager over).
 #[tauri::command(async)]
-fn fil_luk(tilstand: State<'_, Tilstand>, visning: Visning) {
+fn fil_luk(tilstand: State<'_, Tilstand>, visning: Visning) -> Result<(), UiFejl> {
     maskering::fil_luk(&tilstand, visning)
 }
 
@@ -357,12 +392,13 @@ fn anmod_afslut(app: &tauri::AppHandle) -> bool {
 }
 
 /// Programmets mappe `<app-data>` (macOS: `~/Library/Application Support/com.wi24rd.grimnir`) med `sager/`,
-/// `ordbog.grimnir` og `indstillinger.json`.
+/// `ordbog.grimnir` og `indstillinger.json`. V-LAAS.2: låst, når "Lås Grimnir ved start" er til.
 fn tilstand_for(app: &tauri::AppHandle) -> Tilstand {
     match app.path().app_data_dir() {
         Ok(d) => Tilstand::paa_disk(d, std::sync::Arc::new(sager::Noeglering)),
         Err(_) => Tilstand::ny(),
     }
+    .ved_start()
 }
 
 /// Bygger vinduet fra konfigurationen ("create": false i tauri.conf.json), så init-scriptet kan give siden platformen
@@ -419,7 +455,10 @@ pub fn run() {
             fil_demasker,
             fil_kopi,
             fil_gem,
-            ordbog_start_forfra
+            ordbog_start_forfra,
+            laas_status,
+            laas_op,
+            laas_ved_start
         ])
         .on_window_event(|vindue, ev| match ev {
             tauri::WindowEvent::CloseRequested { api, .. } => {
@@ -471,6 +510,7 @@ pub fn run() {
         })
         .setup(|app| {
             app.manage(tilstand_for(app.handle()));
+            app.manage(Doeren(laas::platformens()));
             app.manage(Sprogvalg(Mutex::new(&programmenu::DA)));
             app.manage(Sluppet::default());
             // Kun macOS: på Windows ville menuen blive en menubjælke i vinduet; dér fanger rammen Ctrl+, selv.

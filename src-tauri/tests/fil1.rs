@@ -403,7 +403,7 @@ fn sagen_gemmes_foer_filen() {
     std::fs::remove_dir_all(m.app().join("sager")).unwrap();
     let r = fil_gem_og_masker(&t, &a.fravalgt, &[]);
     assert!(matches!(r, Err(UiFejl::Sag { .. })), "{:?}", r.map(|x| x.poster));
-    assert_eq!(sag_status(&t).poster, 0, "sagen i hukommelsen er uændret");
+    assert_eq!(sag_status(&t).unwrap().poster, 0, "sagen i hukommelsen er uændret");
     // Intet resultat: ingen fil kan gemmes, og der er ingen fil.
     assert_eq!(fil_gem_forslag(&t, Visning::Masker, true), Err(UiFejl::IntetResultat));
     let ud = m.bruger("app.maskeret.log");
@@ -416,10 +416,10 @@ fn sagen_gemmes_foer_filen() {
         std::fs::set_permissions(m.app().join("sager"), std::fs::Permissions::from_mode(0o700)).unwrap();
         // Disken virker igen: sagen gemmes, så kan filen gemmes.
         fil_gem_og_masker(&t, &a.fravalgt, &[]).unwrap();
-        assert!(sag_status(&t).poster > 0);
+        assert!(sag_status(&t).unwrap().poster > 0);
         fil_gem_til(&t, Visning::Masker, &ud, false).unwrap();
         // Lukkes sagen, hører resultatet ikke til en åben sag længere.
-        sag_luk(&t);
+        sag_luk(&t).unwrap();
         assert_eq!(
             fil_gem_til(&t, Visning::Masker, &m.bruger("igen.log"), false),
             Err(UiFejl::Foraeldet)
@@ -454,7 +454,7 @@ fn demaskeret_fil_kraever_bekraeftelse() {
     // Kopiér: hele teksten med de rigtige værdier (under 5 MiB).
     assert_eq!(fil_kopi(&t, Visning::Demasker).unwrap(), tekst(Linjeskift::Lf));
     // Lukkes filen, er teksten og resultatet væk.
-    fil_luk(&t, Visning::Demasker);
+    fil_luk(&t, Visning::Demasker).unwrap();
     assert_eq!(fil_kopi(&t, Visning::Demasker), Err(UiFejl::IngenFil));
 }
 
@@ -587,7 +587,7 @@ fn ordbog_der_ikke_kan_aabnes_start_forfra() {
     *beskadiget.last_mut().unwrap() ^= 0xFF;
     std::fs::write(&fil, &beskadiget).unwrap();
     let t = Tilstand::paa_disk(m.app(), lager.clone());
-    assert!(ordbog_hent(&t).fejl.is_some());
+    assert!(ordbog_hent(&t).unwrap().fejl.is_some());
     assert!(matches!(ordbog_tilfoej(&t, "ord", "Uglebo", None), Err(UiFejl::OrdbogLaast { .. })));
     assert!(matches!(
         ordbog_start_forfra(&t, "10-11-2026"),
@@ -609,14 +609,14 @@ fn ordbog_der_ikke_kan_aabnes_start_forfra() {
     assert_eq!(poster[0].vaerdi, "Rugbrød");
     // Et nyt program læser den nye ordbog.
     let t2 = Tilstand::paa_disk(m.app(), lager.clone());
-    assert_eq!(ordbog_hent(&t2).poster.len(), 1);
+    assert_eq!(ordbog_hent(&t2).unwrap().poster.len(), 1);
     // Kan ordbogen åbnes, gør Start forfra intet.
     let s2 = ordbog_start_forfra(&t2, "2026-11-10").unwrap();
     assert_eq!((s2.flyttet_til, s2.ordbog.poster.len()), (None, 1));
     // Samme dato igen: -2.
     std::fs::write(&fil, b"igen beskadiget").unwrap();
     let t3 = Tilstand::paa_disk(m.app(), lager);
-    assert!(ordbog_hent(&t3).fejl.is_some());
+    assert!(ordbog_hent(&t3).unwrap().fejl.is_some());
     assert_eq!(
         ordbog_start_forfra(&t3, "2026-11-10").unwrap().flyttet_til.as_deref(),
         Some("ordbog.2026-11-10-2.ulaeselig")
@@ -661,7 +661,7 @@ fn andre_kommandoer_svarer_mens_en_stor_fil_arbejdes_paa() {
     std::thread::sleep(Duration::from_millis(50));
     while !traad.is_finished() {
         let s = Instant::now();
-        let _ = ordbog_hent(&t);
+        let _ = ordbog_hent(&t).unwrap();
         let _ = indstillinger_hent(&t);
         let _ = t.skal_spoerge_ved_luk();
         langsomst = langsomst.max(s.elapsed());

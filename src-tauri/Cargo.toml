@@ -24,3 +24,12 @@ zeroize = "1.9.1"
 # V-FIL.1: styresystemets egne Åbn- og Gem-dialoger, åbnet fra Rust (ikke tauri-plugin-dialog/-fs: webvisningen får
 # ingen fil-rettigheder). Uden standardfunktioner: de er kun Linux-bagender (xdg-portal, wayland), ikke Grimnirs mål.
 rfd = { version = "=0.18.0", default-features = false }
+
+# V-LAAS.2: døren ved start på macOS (LocalAuthentication, `LAContext`; src/laas.rs). Kun macOS. Den nye crate er
+# objc2-local-authentication; objc2, objc2-foundation og block2 står allerede i træet i præcis disse versioner (via tauri,
+# muda og rfd) og nævnes kun direkte, fordi bindingerne skal have `Bool`, `NSString`, `NSError` og `RcBlock`.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-local-authentication = { version = "=0.3.2", default-features = false, features = ["std", "LAContext", "LAError", "block2"] }
+objc2 = { version = "=0.6.5", default-features = false, features = ["std"] }
+objc2-foundation = { version = "=0.3.2", default-features = false, features = ["std", "NSString", "NSError"] }
+block2 = { version = "=0.6.2", default-features = false, features = ["std"] }

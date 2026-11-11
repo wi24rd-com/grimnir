@@ -29,11 +29,11 @@ fn fravalgt(a: &Analyse) -> Vec<usize> {
 fn rundtur_med_crlf_er_bytepraecis() {
     let t = Tilstand::ny();
     let a = analyser(&t, TEKST, None, &[]).unwrap();
-    assert_eq!(sag_status(&t).poster, 0, "analyser ændrer ikke sagen");
+    assert_eq!(sag_status(&t).unwrap().poster, 0, "analyser ændrer ikke sagen");
     let m = gem_og_masker(&t, TEKST, &fravalgt(&a), &[]).unwrap();
     assert_eq!(m.maskeret.matches("\r\n").count(), 4, "CRLF bevaret i det maskerede");
     assert!(!m.maskeret.contains("10.20.30.11") && !m.maskeret.contains(HEMMELIG) && !m.maskeret.contains("bruger060"));
-    assert!(m.poster > 0 && sag_status(&t).poster == m.poster);
+    assert!(m.poster > 0 && sag_status(&t).unwrap().poster == m.poster);
     let d = demasker(&t, &m.maskeret).unwrap();
     assert_eq!(d.tekst.as_bytes(), TEKST.as_bytes(), "rundturen er bytepræcis");
     assert_eq!(d.koder.len(), m.poster, "alle sagens koder er brugt");
@@ -133,7 +133,7 @@ fn rettelse_bruges_og_demaskeres() {
     assert!(a2.fejl.is_empty());
     let r2 = raekke(&a2, "Kunde_DB");
     assert_eq!((r2.koder[0].as_str(), r2.rettet), ("kundebase01", true));
-    assert_eq!(sag_status(&t).poster, 0, "en rettelse i analysen ændrer ikke sagen");
+    assert_eq!(sag_status(&t).unwrap().poster, 0, "en rettelse i analysen ændrer ikke sagen");
     let m = gem_og_masker(&t, TEKST, &fravalgt(&a), &ret).unwrap();
     assert!(m.maskeret.contains("Database=kundebase01;"));
     assert_eq!(demasker(&t, &m.maskeret).unwrap().tekst, TEKST);
@@ -160,7 +160,7 @@ fn afvist_rettelse_kommer_tilbage_paa_raekken_og_intet_gemmes() {
     assert_eq!(fejl.len(), 2);
     assert_eq!((fejl[0].id, fejl[0].fejl, fejl[0].kode.as_str()), (db, "kollision", "tunnel"));
     assert_eq!((fejl[1].id, fejl[1].fejl), (fw, "ugyldig"));
-    assert_eq!(sag_status(&t).poster, 0, "intet gemt");
+    assert_eq!(sag_status(&t).unwrap().poster, 0, "intet gemt");
     // To rækker med samme kode: den anden kolliderer.
     let to = [
         Rettelse {
@@ -202,8 +202,8 @@ fn nulstil_toemmer_sagen() {
     let t = Tilstand::ny();
     let a = analyser(&t, TEKST, None, &[]).unwrap();
     let m = gem_og_masker(&t, TEKST, &fravalgt(&a), &[]).unwrap();
-    assert!(sag_status(&t).poster > 0);
-    assert_eq!(sag_nulstil(&t).poster, 0);
+    assert!(sag_status(&t).unwrap().poster > 0);
+    assert_eq!(sag_nulstil(&t).unwrap().poster, 0);
     let d = demasker(&t, &m.maskeret).unwrap();
     assert_eq!(d.tekst, m.maskeret, "en tom sag sætter intet tilbage");
 }

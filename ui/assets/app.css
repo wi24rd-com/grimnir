@@ -213,3 +213,30 @@ html[lang="en"] .sagtabel { --k6: 160px; --tabel-min: 728px; }
 .arbejder[hidden] { display: none; }
 .tom .tom-aabn { margin-top: var(--space-2); }
 .flade[data-traek] { outline: 2px dashed var(--info); outline-offset: -6px; }
+
+/* ── Låseskærmen (V-LAAS.2, L4) ──
+   <html data-laast> står fra start (index.html), så siden er låst, før et script har kørt. Mens den står, dækker
+   låseskærmen arbejdsfladen, og visningerne vises ikke; båndet og NavPane er nedtonede (laas.js gør dem inert og sætter
+   forklaringen i title). Titellinjen er urørt. Mærket er titellinjens G i kittets accentpar: titellinjens eget par
+   (accent-on-rail/rail) har ikke 3:1 mod arbejdsfladen i begge temaer (målt i tests/ui/kontrast.mjs). */
+.laasskaerm { display: none; }
+html[data-laast] .arb > .visning { display: none; }
+html[data-laast] .laasskaerm {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2);
+  flex: 1; padding: var(--space-8) var(--space-6); text-align: center;
+}
+.laas-mrk {
+  display: grid; place-items: center; width: 48px; height: 48px; flex: none;
+  border-radius: var(--radius-md); background: var(--accent); color: var(--on-accent);
+  font-weight: 700; font-size: 24px;
+}
+.laasskaerm h2 { margin: var(--space-3) 0 0; font-size: var(--h2-size); line-height: var(--h2-line); font-weight: var(--h2-weight); }
+.laasskaerm > p { margin: 0; max-width: 440px; color: var(--text-muted); }
+.laas-knapper { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
+.laasskaerm > .laas-besked { min-height: var(--small-line); font-size: var(--small-size); line-height: var(--small-line); }
+.laasskaerm > .laas-besked.fejl { color: var(--danger); }
+/* Nedtonet: båndet og NavPane kan ikke bruges, mens der er låst (inaktive kontroller; forklaringen står i title). */
+html[data-laast] #baand, html[data-laast] .nav { opacity: .45; }
+/* L3: banneret, når maskinen ikke kan bekræfte brugeren. Vedvarende og afdæmpet (Oplysning). */
+.laas-banner { flex: none; padding: var(--space-2) var(--space-3); background: var(--surface); border-bottom: 1px solid var(--border); }
+.laas-banner:empty { display: none; }

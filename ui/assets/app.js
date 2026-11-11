@@ -3,6 +3,8 @@
    (#masker …) og skiftes med visningsskiftet eller ⌘1–⌘4 (Ctrl på Windows). Maskér og Demaskér (maskering.js), Sager
    (sager.js), Ordbog (ordbog.js) og Indstillinger (indstillinger.js) virker via window.Grimnir; resten af kommandoerne
    fra design/skaerme/ står nedtonet med en forklaring, til funktionen kommer (v2).
+   V-LAAS.2: mens <html data-laast> står (laas.js), er visningsskiftet og båndet nedtonede, og ⌘1–⌘4 gør intet;
+   Indstillinger (⌘, / Ctrl+,) og Om virker.
    Rust giver: kerne_version (fodlinjen), hændelsen 'menu' ("om" | "indstillinger" | "afslut"; "aabn" | "gem" håndteres
    af maskering.js), hændelsen 'fuldskaerm'
    (true | false) og platformen (<html data-platform>). */
@@ -100,6 +102,7 @@
   });
 
   const $ = id => document.getElementById(id);
+  const laast = () => document.documentElement.hasAttribute('data-laast');
   const baand = $('baand'), navdele = $('navdele'), arb = $('arb');
   const dele = {};
 
@@ -245,6 +248,7 @@
     if (!modTast || e.altKey || e.shiftKey) return;
     const tal = /^Digit([1-9])$/.exec(e.code || '') || /^([1-9])$/.exec(e.key || '');
     if (tal && Number(tal[1]) <= ID.length) {
+      if (laast()) return;
       e.preventDefault();
       gaaTil(ID[Number(tal[1]) - 1]);
     } else if (!mac && (e.key === ',' || e.code === 'Comma')) {
@@ -275,5 +279,5 @@
   opdaterVis();
   /* maskering.js: registrér en handling for en kommando (visning:id) og nå visningernes dele. */
   const haandter = (visning, id, fn) => { HANDLINGER[visning + ':' + id] = fn; };
-  window.Grimnir = { vis: gaaTil, get aktiv() { return aktivVisning; }, VISNINGER, dele, haandter, mac, mod, aabnDialog, tauri };
+  window.Grimnir = { vis: gaaTil, get aktiv() { return aktivVisning; }, get laast() { return laast(); }, VISNINGER, dele, haandter, mac, mod, aabnDialog, tauri };
 })();

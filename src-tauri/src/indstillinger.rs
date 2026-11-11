@@ -1,4 +1,5 @@
-//! Indstillinger (V-ORDBOG.1 O6): standardvalg for nye sager, standardudløb og om guiden ved første start er vist.
+//! Indstillinger (V-ORDBOG.1 O6): standardvalg for nye sager, standardudløb og om guiden ved første start er vist; fra
+//! V-LAAS.2 også "Lås Grimnir ved start".
 //!
 //! Filen `<app-data>/indstillinger.json` er ikke følsom (kun sandhedsværdier og et tal) og står derfor i klartekst. Den
 //! skrives atomart med samme kode som sagerne ([`crate::sager::skriv_atomart`]). Tema og sprog bliver i webvisningens
@@ -30,6 +31,9 @@ pub struct Indstillinger {
     pub udloeb_dage: Option<u32>,
     /// Guiden ved første start er afsluttet eller sprunget over.
     pub guide_vist: bool,
+    /// V-LAAS.2 L3: "Lås Grimnir ved start" (standard: ja). Mangler feltet (en ældre fil), er låsen til. Ændres kun med
+    /// kommandoen `laas_ved_start`; at slå den fra kræver en oplåsning ([`crate::maskering::laas_ved_start`]).
+    pub laas_ved_start: bool,
 }
 
 impl Default for Indstillinger {
@@ -40,6 +44,7 @@ impl Default for Indstillinger {
             bevar_sidste_oktet: v.bevar_sidste_oktet,
             udloeb_dage: None,
             guide_vist: false,
+            laas_ved_start: true,
         }
     }
 }

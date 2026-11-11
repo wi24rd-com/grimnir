@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-laas-op"
+description = "Enables the laas_op command without any pre-configured scope."
+commands.allow = ["laas_op"]
+
+[[permission]]
+identifier = "deny-laas-op"
+description = "Denies the laas_op command without any pre-configured scope."
+commands.deny = ["laas_op"]

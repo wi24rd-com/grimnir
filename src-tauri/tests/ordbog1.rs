@@ -101,12 +101,12 @@ fn ordbogens_rundtur_paa_disk() {
     let (m, lager) = ny();
     let t = program(&m, &lager);
     assert!(
-        ordbog_hent(&t).poster.is_empty() && ordbog_hent(&t).fejl.is_none(),
+        ordbog_hent(&t).unwrap().poster.is_empty() && ordbog_hent(&t).unwrap().fejl.is_none(),
         "uden fil er ordbogen tom"
     );
     assert!(!m.0.join(ordbog::FILNAVN).exists(), "at læse en tom ordbog skriver intet");
     fyld(&t);
-    let foer = vaerdier(&ordbog_hent(&t).poster);
+    let foer = vaerdier(&ordbog_hent(&t).unwrap().poster);
     assert_eq!(foer.len(), 7);
     assert_eq!(
         foer[0],
@@ -117,7 +117,7 @@ fn ordbogens_rundtur_paa_disk() {
     // "Programmet lukkes og startes igen": en ny tilstand på samme mappe og nøglelager.
     drop(t);
     let t2 = program(&m, &lager);
-    let efter = ordbog_hent(&t2);
+    let efter = ordbog_hent(&t2).unwrap();
     assert!(efter.fejl.is_none());
     assert_eq!(vaerdier(&efter.poster), foer);
     let ider: Vec<u64> = efter.poster.iter().map(|p| p.id).collect();
@@ -126,7 +126,7 @@ fn ordbogens_rundtur_paa_disk() {
     ordbog_ret(&t2, 5, "Uglebo2", None).unwrap();
     ordbog_fjern(&t2, 6).unwrap();
     let t3 = program(&m, &lager);
-    let p = ordbog_hent(&t3).poster;
+    let p = ordbog_hent(&t3).unwrap().poster;
     assert_eq!(p.len(), 6);
     assert!(p.iter().any(|x| x.id == 5 && x.vaerdi == "Uglebo2" && x.note.is_none()));
     assert!(!p.iter().any(|x| x.id == 6));
@@ -244,7 +244,7 @@ fn beskadiget_ordbog_overskrives_ikke() {
         }
         let foer = std::fs::read(&fil).unwrap();
         let t = program(&m, &lager);
-        let ud = ordbog_hent(&t);
+        let ud = ordbog_hent(&t).unwrap();
         assert_eq!(
             ud.fejl,
             Some(forventet.clone()),
@@ -329,7 +329,7 @@ fn validering_pr_type() {
         afvist(ordbog_tilfoej(&t, "domaene", "kontor", Some("a\u{7}"))),
         vec![("vaerdi", "ugyldigt_domaene"), ("note", "styretegn")]
     );
-    assert_eq!(ordbog_hent(&t).poster.len(), gode.len());
+    assert_eq!(ordbog_hent(&t).unwrap().poster.len(), gode.len());
     // En tom note bliver ingen note.
     let p = tilfoej(&t, "ord", "Projekt7", Some("   "));
     assert!(p.last().unwrap().note.is_none());
@@ -365,7 +365,7 @@ fn dubletter_og_maskeraltid_mod_maskeraldrig() {
     let ud = ordbog_ret(&t, 1, "Kontor.Test", Some("nu med note")).unwrap();
     assert_eq!(ud.poster[0].vaerdi, "Kontor.Test");
     assert_eq!(afvist(ordbog_ret(&t, 2, "kontor.test", None)), vec![("vaerdi", "modstrid")]);
-    assert_eq!(ordbog_hent(&t).poster.len(), 2);
+    assert_eq!(ordbog_hent(&t).unwrap().poster.len(), 2);
 }
 
 // ------------------------------------------------------------------------------------------------------- analysen
@@ -415,7 +415,7 @@ fn analyser_med_ordbog_finder_moenster_og_ord_og_maskeraldrig_vinder() {
     assert_eq!(mk.maskeret.matches("\r\n").count(), 3);
 
     // Fjernes en værdi fra ordbogen, finder lækagetjekket den ikke længere som ordbogsværdi, men sagen kender den.
-    let id = ordbog_hent(&t).poster.iter().find(|p| p.vaerdi == "srv-069").unwrap().id;
+    let id = ordbog_hent(&t).unwrap().poster.iter().find(|p| p.vaerdi == "srv-069").unwrap().id;
     ordbog_fjern(&t, id).unwrap();
     let a2 = analyser(&t, FRI, None, &[]).unwrap();
     assert_eq!(har(&a2, "srv-069"), Some(("vaert", "ordbog", true)));
@@ -442,7 +442,7 @@ fn proev_paa_tekst_viser_det_ordbogen_fanger_og_roerer_ikke_sagen() {
         "fund, der ikke kommer fra ordbogen, står ikke som fanget"
     );
     assert!(p.i_alt > f.len());
-    assert_eq!(sag_status(&t).poster, 0, "sagen er ikke rørt");
+    assert_eq!(sag_status(&t).unwrap().poster, 0, "sagen er ikke rørt");
     assert_eq!(ordbog_proev(&t, "").err(), Some(UiFejl::TomTekst));
 }
 
@@ -451,17 +451,20 @@ fn konflikt_mellem_to_programmer_laeser_ordbogen_igen() {
     let (m, lager) = ny();
     let a = program(&m, &lager);
     let b = program(&m, &lager);
-    assert!(ordbog_hent(&b).poster.is_empty());
+    assert!(ordbog_hent(&b).unwrap().poster.is_empty());
     tilfoej(&a, "ord", "Uglebo", None);
     assert_eq!(
         ordbog_tilfoej(&b, "ord", "Projekt7", None).err(),
         Some(UiFejl::OrdbogFil { fejl: SagFejl::Konflikt })
     );
     // B har læst ordbogen igen og ser A's post; næste forsøg lykkes og overskriver intet.
-    assert_eq!(vaerdier(&ordbog_hent(&b).poster), vec![(PostType::Ord, "Uglebo".into(), None)]);
+    assert_eq!(
+        vaerdier(&ordbog_hent(&b).unwrap().poster),
+        vec![(PostType::Ord, "Uglebo".into(), None)]
+    );
     tilfoej(&b, "ord", "Projekt7", None);
     let c = program(&m, &lager);
-    assert_eq!(ordbog_hent(&c).poster.len(), 2);
+    assert_eq!(ordbog_hent(&c).unwrap().poster.len(), 2);
 }
 
 // ------------------------------------------------------------------------------------------------------- O7
@@ -674,7 +677,7 @@ fn indstillinger_gemmes_og_gaelder_en_ny_sag() {
     let (m, lager) = ny();
     let t = program(&m, &lager);
     assert_eq!(indstillinger_hent(&t), Indstillinger::default());
-    let s = sag_status(&t);
+    let s = sag_status(&t).unwrap();
     assert_eq!(
         (s.valg.masker_fremmede, s.valg.bevar_sidste_oktet),
         (false, true),
@@ -685,15 +688,16 @@ fn indstillinger_gemmes_og_gaelder_en_ny_sag() {
         bevar_sidste_oktet: false,
         udloeb_dage: Some(30),
         guide_vist: true,
+        laas_ved_start: true,
     };
     assert_eq!(indstillinger_gem(&t, ny_i), Ok(ny_i));
-    let s = sag_status(&t);
+    let s = sag_status(&t).unwrap();
     assert_eq!(
         (s.valg.masker_fremmede, s.valg.bevar_sidste_oktet),
         (false, true),
         "den åbne sag ændres ikke"
     );
-    let s = sag_luk(&t);
+    let s = sag_luk(&t).unwrap();
     assert_eq!(
         (s.valg.masker_fremmede, s.valg.bevar_sidste_oktet),
         (true, false),
@@ -707,7 +711,7 @@ fn indstillinger_gemmes_og_gaelder_en_ny_sag() {
     // Efter en genstart.
     let t2 = program(&m, &lager);
     assert_eq!(indstillinger_hent(&t2), ny_i);
-    assert!(sag_status(&t2).valg.masker_fremmede);
+    assert!(sag_status(&t2).unwrap().valg.masker_fremmede);
     // Ugyldigt udløb afvises; en beskadiget fil giver standardværdierne.
     let forkert = Indstillinger {
         udloeb_dage: Some(7),
@@ -765,7 +769,7 @@ fn valget_kan_aendres_for_den_aabne_sag_og_gaelder_nye_vaerdier() {
 fn tilstand_paa_disk_uden_filer_skriver_intet_ved_start() {
     let (m, lager) = ny();
     let t = program(&m, &lager);
-    assert!(ordbog_hent(&t).poster.is_empty());
+    assert!(ordbog_hent(&t).unwrap().poster.is_empty());
     let _ = analyser(&t, "srv-068\n", None, &[]).unwrap();
     assert_eq!(std::fs::read_dir(&m.0).unwrap().count(), 0, "ingen filer før brugeren gemmer noget");
     assert_eq!(lager.antal(), 0, "ingen nøgle før ordbogen gemmes");

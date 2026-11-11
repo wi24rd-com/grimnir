@@ -27,6 +27,15 @@
 //!
 //! **Indstillinger (V-ORDBOG.1 O6).** En ny sag (ved start, Luk sag, Nulstil, Slet og en ny navngiven sag oven på en
 //! navngiven) får valget fra indstillingerne ([`Tilstand::ny_sag`]). [`sag_valg`] ændrer valget for den åbne sag.
+//!
+//! **Låsen (V-LAAS.2).** Programmet starter låst ([`Tilstand::ved_start`]), når "Lås Grimnir ved start" er til. Mens det
+//! er låst, svarer hver kommando, der bruger sager, ordbog, filer eller nøgler, med [`UiFejl::Laast`], før den rører noget
+//! ([`Tilstand::aaben`]); også Maskér uden ordbog, fordi en maskering uden ordbog er en anden maskering. Nøglelageret
+//! ligger desuden bag en vagt, der afviser hvert opslag, mens der er låst, så ingen nøgle kan læses ad en vej, porten ikke
+//! dækker. Indstillinger, tema, sprog og Om virker. [`laas_op`] spørger døren ([`crate::laas::Doer`]) og låser op ved
+//! `Ok`; ved `IkkeTilgaengelig` låses op uden bekræftelse, og [`LaasStatus::uden_doer`] siger hvorfor (banneret).
+//! Døren beskytter mod en person ved en ulåst maskine, ikke mod et andet program, der kører som brugeren
+//! ([`crate::laas`]).
 
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -42,8 +51,9 @@ use serde::{Deserialize, Serialize};
 use crate::fil::{self, Fil, FilFejl, Linjeskift, Tegnsaet};
 use crate::igang::Igang;
 use crate::indstillinger::{self, Indstillinger};
+use crate::laas::{begrundelse, Doer, Grund, Svar};
 use crate::ordbog::{self as ob, FeltFejl, OrdbogPost, Ordbogsfil, PostType};
-use crate::sager::{nulstil, opret_mappe, rens_navn, ryd_midlertidige, tjek_dato, AabenSag, Arkiv, Noeglelager, SagFejl, SagsId};
+use crate::sager::{nulstil, opret_mappe, rens_navn, ryd_midlertidige, tjek_dato, AabenSag, Arkiv, Noegle, Noeglelager, SagFejl, SagsId};
 
 /// Største tekst, Maskér tager imod: 5 MiB (5 242 880 bytes). Større tekster kræver "Åbn fil" (B3b).
 pub const MAKS_BYTES: usize = 5 * 1024 * 1024;
@@ -88,7 +98,49 @@ impl OrdbogTilstand {
     }
 }
 
-/// Programmets tilstand: den aktuelle sag, arkivet med sagerne på disk, ordbogen og indstillingerne.
+/// V-LAAS.2: låsen. `laast` deles med vagten om nøglelageret ([`LaasVagt`]).
+#[derive(Default)]
+struct Laas {
+    laast: Arc<AtomicBool>,
+    /// Døren spørges højst én gang ad gangen (to tryk på "Lås op" giver ikke to dialoger).
+    doer: Mutex<()>,
+    /// Hvorfor Grimnir er låst op uden bekræftelse (`ingen_adgangskode` | `platform`); til banneret.
+    uden_doer: Mutex<Option<&'static str>>,
+}
+
+/// Nøglelageret bag låsen: mens Grimnir er låst, afvises hvert opslag ([`SagFejl::Noeglering`] `laast`), og det
+/// rigtige lager (Nøglering) bliver ikke spurgt.
+struct LaasVagt {
+    laast: Arc<AtomicBool>,
+    lager: Arc<dyn Noeglelager>,
+}
+
+impl LaasVagt {
+    fn tjek(&self) -> Result<(), SagFejl> {
+        if self.laast.load(Ordering::SeqCst) {
+            Err(SagFejl::Noeglering { hvad: "laast" })
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl Noeglelager for LaasVagt {
+    fn hent_konto(&self, konto: &str) -> Result<Noegle, SagFejl> {
+        self.tjek()?;
+        self.lager.hent_konto(konto)
+    }
+    fn gem_konto(&self, konto: &str, noegle: &Noegle) -> Result<(), SagFejl> {
+        self.tjek()?;
+        self.lager.gem_konto(konto, noegle)
+    }
+    fn slet_konto(&self, konto: &str) -> Result<(), SagFejl> {
+        self.tjek()?;
+        self.lager.slet_konto(konto)
+    }
+}
+
+/// Programmets tilstand: den aktuelle sag, arkivet med sagerne på disk, ordbogen, indstillingerne og låsen.
 #[derive(Default)]
 pub struct Tilstand {
     sag: Mutex<Aktuel>,
@@ -102,6 +154,8 @@ pub struct Tilstand {
     filer: [Mutex<Option<HoldtFil>>; 2],
     /// V-RET.1 R5: igangværende skrivninger i brugerens mapper (`<app-data>/igang.json`); kun på disk.
     igang: Option<Igang>,
+    /// V-LAAS.2: låsen. En ny tilstand er ulåst; [`Tilstand::ved_start`] låser efter indstillingen.
+    laas: Laas,
 }
 
 impl Tilstand {
@@ -132,6 +186,11 @@ impl Tilstand {
         ryd_midlertidige(&mappe.join("sager"), nu);
         let indst_fil = indstillinger::sti(&mappe);
         let indst = indstillinger::laes(&indst_fil);
+        let laas = Laas::default();
+        let lager: Arc<dyn Noeglelager> = Arc::new(LaasVagt {
+            laast: laas.laast.clone(),
+            lager,
+        });
         Tilstand {
             sag: Mutex::new(Aktuel {
                 sag: Sag::ny(indst.valg()),
@@ -146,7 +205,42 @@ impl Tilstand {
             afslut: AtomicBool::new(false),
             filer: Default::default(),
             igang: Some(igang),
+            laas,
         }
+    }
+
+    /// V-LAAS.2: tilstanden ved programmets start. Er "Lås Grimnir ved start" til (standard), er den låst; ellers ulåst.
+    pub fn ved_start(self) -> Self {
+        if self.indstillinger().laas_ved_start {
+            self.laas();
+        }
+        self
+    }
+
+    /// Låser Grimnir (ved start; V-LAAS.3 også ved dvale og stilstand).
+    pub fn laas(&self) {
+        self.laas.laast.store(true, Ordering::SeqCst);
+        *self.laas.uden_doer.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    }
+
+    /// Sand, mens Grimnir er låst.
+    pub fn er_laast(&self) -> bool {
+        self.laas.laast.load(Ordering::SeqCst)
+    }
+
+    /// Porten: [`UiFejl::Laast`], mens Grimnir er låst. Første linje i hver kommando, der bruger sager, ordbog, filer
+    /// eller nøgler (også før en filvalgsdialog åbnes).
+    pub fn aaben(&self) -> Result<(), UiFejl> {
+        if self.er_laast() {
+            Err(UiFejl::Laast)
+        } else {
+            Ok(())
+        }
+    }
+
+    fn laas_op_uden_doer(&self, hvorfor: Option<&'static str>) {
+        *self.laas.uden_doer.lock().unwrap_or_else(|e| e.into_inner()) = hvorfor;
+        self.laas.laast.store(false, Ordering::SeqCst);
     }
 
     /// Låsen til sagen. Sagen ændres kun ved at blive erstattet af en færdigregnet kopi, så en forgiftet lås (panik i
@@ -172,7 +266,8 @@ impl Tilstand {
     /// Ordbogen, læst fra disk første gang. Ordbogens lås holdes aldrig samtidig med sagens.
     fn ordbog(&self) -> MutexGuard<'_, Option<OrdbogTilstand>> {
         let mut g = self.ordbog.lock().unwrap_or_else(|e| e.into_inner());
-        if g.is_none() {
+        // V-LAAS.2: låst læses intet (og intet huskes), så ordbogen ikke får en fejl, der hænger ved efter oplåsningen.
+        if g.is_none() && !self.er_laast() {
             *g = Some(match &self.ordbogsfil {
                 None => OrdbogTilstand::default(),
                 Some(fil) => match fil.laes() {
@@ -304,6 +399,8 @@ pub enum UiFejl {
         /// Årsagen fra disken.
         fejl: Option<SagFejl>,
     },
+    /// V-LAAS.2: Grimnir er låst. Intet er læst eller ændret; lås op først.
+    Laast,
     /// V-FIL.1: en fil kunne ikke læses eller skrives.
     Fil {
         /// Årsagen (uden indhold og sti).
@@ -944,6 +1041,7 @@ fn beregn(sag: &Sag, tekst: &str, udvalg: Udvalg<'_>, rettelser: &[Rettelse], or
 
 /// Finder fundene og regner koderne ud på en kladde af sagen. Sagen ændres ikke.
 pub fn analyser(t: &Tilstand, tekst: &str, fravalgt: Option<&[usize]>, rettelser: &[Rettelse]) -> Result<Analyse, UiFejl> {
+    t.aaben()?;
     tjek_tekst(tekst)?;
     analyser_i(t, tekst, fravalgt.map_or(Udvalg::Standard, Udvalg::Fravalgt), rettelser)
 }
@@ -975,6 +1073,7 @@ fn analyser_i(t: &Tilstand, tekst: &str, udvalg: Udvalg<'_>, rettelser: &[Rettel
 /// Maskerer med brugerens valg og rettelser og gemmer sagen. Afvises en rettelse, gemmes intet. I en navngiven sag
 /// skrives sagen krypteret til disk, før svaret sendes; fejler det, er intet ændret, og der er ingen maskeret tekst.
 pub fn gem_og_masker(t: &Tilstand, tekst: &str, fravalgt: &[usize], rettelser: &[Rettelse]) -> Result<Maskering, UiFejl> {
+    t.aaben()?;
     tjek_tekst(tekst)?;
     gem_og_masker_i(t, tekst, fravalgt, rettelser).map(|(m, _)| m)
 }
@@ -1050,6 +1149,7 @@ fn gem_og_masker_i(t: &Tilstand, tekst: &str, fravalgt: &[usize], rettelser: &[R
 
 /// Sætter sagens originaler tilbage i en tekst.
 pub fn demasker(t: &Tilstand, tekst: &str) -> Result<Demaskering, UiFejl> {
+    t.aaben()?;
     tjek_tekst_op_til(tekst, MAKS_DEMASKER)?;
     demasker_i(t, tekst)
 }
@@ -1091,13 +1191,14 @@ fn status(a: &Aktuel) -> SagStatus {
     }
 }
 
-/// Den aktuelle sag: antal poster, og navn og id, hvis den er navngiven.
-pub fn sag_status(t: &Tilstand) -> SagStatus {
-    status(&t.sag())
+/// Den aktuelle sag: antal poster, og navn og id, hvis den er navngiven. V-LAAS.2: [`UiFejl::Laast`], mens der er låst.
+pub fn sag_status(t: &Tilstand) -> Result<SagStatus, UiFejl> {
+    t.aaben()?;
+    Ok(status(&t.sag()))
 }
 
 /// Tømmer sagen: en midlertidig sag kasseres; en navngiven lukkes (filen bliver). Som [`sag_luk`].
-pub fn sag_nulstil(t: &Tilstand) -> SagStatus {
+pub fn sag_nulstil(t: &Tilstand) -> Result<SagStatus, UiFejl> {
     sag_luk(t)
 }
 
@@ -1110,6 +1211,7 @@ fn id_af(id: &str) -> Result<SagsId, UiFejl> {
 /// Gør den aktuelle sag til en navngiven sag på disk. En midlertidig sag (også med poster) bliver den nye sag; er en
 /// navngiven sag åben, lukkes den (dens fil bliver), og den nye sag starter tom.
 pub fn sag_ny(t: &Tilstand, navn: &str, udloeb: Option<&str>) -> Result<SagStatus, UiFejl> {
+    t.aaben()?;
     let arkiv = t.arkiv()?;
     let ny = t.ny_sag();
     let mut a = t.sag();
@@ -1125,6 +1227,7 @@ pub fn sag_ny(t: &Tilstand, navn: &str, udloeb: Option<&str>) -> Result<SagStatu
 
 /// Sagerne på disk. En sag, der ikke kan åbnes, står med årsagen; intet slettes.
 pub fn sag_liste(t: &Tilstand) -> Result<Vec<SagListePost>, UiFejl> {
+    t.aaben()?;
     let arkiv = t.arkiv()?;
     let aaben_id = t.sag().aaben.as_ref().map(|x| x.id);
     let mut ud: Vec<SagListePost> = arkiv
@@ -1163,6 +1266,7 @@ pub fn sag_liste(t: &Tilstand) -> Result<Vec<SagListePost>, UiFejl> {
 /// Åbner en sag fra disk og gør den til den aktuelle. Den tidligere sag nulstilles i hukommelsen (UI'et spørger først,
 /// hvis den var midlertidig med poster). Er sagen allerede åben, læses den igen fra disk (efter en konflikt).
 pub fn sag_aabn(t: &Tilstand, id: &str) -> Result<SagStatus, UiFejl> {
+    t.aaben()?;
     let id = id_af(id)?;
     let (aaben, data) = t.arkiv()?.aabn(&id)?;
     let sag = Sag::fra_data(data).map_err(|_| UiFejl::from(SagFejl::Beskadiget))?;
@@ -1172,11 +1276,12 @@ pub fn sag_aabn(t: &Tilstand, id: &str) -> Result<SagStatus, UiFejl> {
 }
 
 /// Lukker sagen: den nulstilles i hukommelsen, og en ny, tom midlertidig sag starter. En navngiven sags fil bliver.
-pub fn sag_luk(t: &Tilstand) -> SagStatus {
+pub fn sag_luk(t: &Tilstand) -> Result<SagStatus, UiFejl> {
+    t.aaben()?;
     let ny = t.ny_sag();
     let mut a = t.sag();
     erstat(&mut a, ny, None);
-    status(&a)
+    Ok(status(&a))
 }
 
 /// Ændrer hovedet på en sag: den åbne (med kontrol af skrivetælleren) eller en anden på disk.
@@ -1200,6 +1305,7 @@ fn ret_hoved(t: &Tilstand, id: &SagsId, aendr: impl FnOnce(&mut crate::sager::Ho
 
 /// Omdøber en sag.
 pub fn sag_omdoeb(t: &Tilstand, id: &str, navn: &str) -> Result<(), UiFejl> {
+    t.aaben()?;
     let id = id_af(id)?;
     let navn = rens_navn(navn)?;
     ret_hoved(t, &id, |h| h.navn = navn)
@@ -1207,6 +1313,7 @@ pub fn sag_omdoeb(t: &Tilstand, id: &str, navn: &str) -> Result<(), UiFejl> {
 
 /// Sætter eller fjerner en sags udløbsdato (`ÅÅÅÅ-MM-DD`). En udløbet sag slettes ikke automatisk.
 pub fn sag_udloeb(t: &Tilstand, id: &str, dato: Option<&str>) -> Result<(), UiFejl> {
+    t.aaben()?;
     let id = id_af(id)?;
     if let Some(d) = dato {
         tjek_dato(d)?;
@@ -1217,6 +1324,7 @@ pub fn sag_udloeb(t: &Tilstand, id: &str, dato: Option<&str>) -> Result<(), UiFe
 
 /// Sletter en sags fil og nøgle (UI'et bekræfter med sagens navn først). Er sagen åben, lukkes den.
 pub fn sag_slet(t: &Tilstand, id: &str) -> Result<SagStatus, UiFejl> {
+    t.aaben()?;
     let id = id_af(id)?;
     t.arkiv()?.slet(&id)?;
     let ny = t.ny_sag();
@@ -1230,6 +1338,7 @@ pub fn sag_slet(t: &Tilstand, id: &str) -> Result<SagStatus, UiFejl> {
 /// Ændrer valget (D4, D5) for den åbne sag. Koderne for værdier, sagen allerede har, ændres ikke; valget gælder nye
 /// værdier. En navngiven sag gemmes (med kontrol af skrivetælleren).
 pub fn sag_valg(t: &Tilstand, masker_fremmede: bool, bevar_sidste_oktet: bool) -> Result<SagStatus, UiFejl> {
+    t.aaben()?;
     let mut a = t.sag();
     let mut d = a.sag.data().clone();
     d.valg = Valg {
@@ -1268,13 +1377,14 @@ fn ordbog_ud(o: &OrdbogTilstand) -> OrdbogUd {
     }
 }
 
-/// Ordbogen.
-pub fn ordbog_hent(t: &Tilstand) -> OrdbogUd {
+/// Ordbogen. V-LAAS.2: [`UiFejl::Laast`], mens der er låst (ordbogen læses ikke).
+pub fn ordbog_hent(t: &Tilstand) -> Result<OrdbogUd, UiFejl> {
+    t.aaben()?;
     let g = t.ordbog();
-    g.as_ref().map(ordbog_ud).unwrap_or(OrdbogUd {
+    Ok(g.as_ref().map(ordbog_ud).unwrap_or(OrdbogUd {
         poster: Vec::new(),
         fejl: None,
-    })
+    }))
 }
 
 /// Ændrer ordbogen: `aendr` får en kopi af posterne. Gemmes kopien, bliver den ordbogen; fejler noget, er intet ændret.
@@ -1323,6 +1433,7 @@ fn post_type(type_: &str) -> Result<PostType, UiFejl> {
 
 /// Tilføjer en post. Afvises den, er intet gemt, og fejlene står pr. felt.
 pub fn ordbog_tilfoej(t: &Tilstand, type_: &str, vaerdi: &str, note: Option<&str>) -> Result<OrdbogUd, UiFejl> {
+    t.aaben()?;
     let type_ = post_type(type_)?;
     aendr_ordbog(t, |poster| {
         let (vaerdi, note) = ob::valider(poster, type_, vaerdi, note, None).map_err(|fejl| UiFejl::Ordbog { fejl })?;
@@ -1346,6 +1457,7 @@ fn ukendt_post() -> UiFejl {
 
 /// Retter en posts værdi og note (typen bliver).
 pub fn ordbog_ret(t: &Tilstand, id: u64, vaerdi: &str, note: Option<&str>) -> Result<OrdbogUd, UiFejl> {
+    t.aaben()?;
     aendr_ordbog(t, |poster| {
         let i = poster.iter().position(|p| p.id == id).ok_or_else(ukendt_post)?;
         let (v, n) = ob::valider(poster, poster[i].type_, vaerdi, note, Some(id)).map_err(|fejl| UiFejl::Ordbog { fejl })?;
@@ -1362,6 +1474,7 @@ pub fn ordbog_ret(t: &Tilstand, id: u64, vaerdi: &str, note: Option<&str>) -> Re
 
 /// Fjerner en post.
 pub fn ordbog_fjern(t: &Tilstand, id: u64) -> Result<OrdbogUd, UiFejl> {
+    t.aaben()?;
     aendr_ordbog(t, |poster| {
         let i = poster.iter().position(|p| p.id == id).ok_or_else(ukendt_post)?;
         ob::nulstil(vec![poster.remove(i)]);
@@ -1396,6 +1509,7 @@ pub struct Proeve {
 /// Kører analysen med ordbogen på en tekst og svarer med det, ordbogen fanger, og det, "maskér aldrig" beskytter.
 /// Sagen røres ikke, og teksten gemmes ingen steder.
 pub fn ordbog_proev(t: &Tilstand, tekst: &str) -> Result<Proeve, UiFejl> {
+    t.aaben()?;
     tjek_tekst(tekst)?;
     let ordbog = t.kerne_ordbog();
     let med = kerne_analyser(tekst, &ordbog);
@@ -1442,12 +1556,21 @@ pub fn indstillinger_hent(t: &Tilstand) -> Indstillinger {
     t.indstillinger()
 }
 
-/// Gemmer indstillingerne. Uden mappe (tests) gælder de kun i hukommelsen.
-pub fn indstillinger_gem(t: &Tilstand, ny: Indstillinger) -> Result<Indstillinger, UiFejl> {
+/// Gemmer indstillingerne. Uden mappe (tests) gælder de kun i hukommelsen. Virker også, mens Grimnir er låst.
+///
+/// V-LAAS.2: "Lås Grimnir ved start" (`laas_ved_start`) ændres ikke her; feltet beholder sin værdi, uanset hvad der
+/// sendes. Det ændres kun med [`laas_ved_start`], der kræver en oplåsning for at slå det fra.
+pub fn indstillinger_gem(t: &Tilstand, mut ny: Indstillinger) -> Result<Indstillinger, UiFejl> {
     if !ny.gyldig() {
         return Err(UiFejl::Indstillinger { fejl: None });
     }
     let mut g = t.indst.lock().unwrap_or_else(|e| e.into_inner());
+    ny.laas_ved_start = g.laas_ved_start;
+    skriv_indstillinger(t, &mut g, ny)
+}
+
+/// Skriver indstillingerne (under låsen `g`) og gør dem gældende.
+fn skriv_indstillinger(t: &Tilstand, g: &mut Indstillinger, ny: Indstillinger) -> Result<Indstillinger, UiFejl> {
     if let Some(fil) = &t.indst_fil {
         if let Some(m) = fil.parent() {
             opret_mappe(m).map_err(|f| UiFejl::Indstillinger { fejl: Some(f) })?;
@@ -1456,6 +1579,93 @@ pub fn indstillinger_gem(t: &Tilstand, ny: Indstillinger) -> Result<Indstillinge
     }
     *g = ny;
     Ok(ny)
+}
+
+// ------------------------------------------------------------------------------------------------------- låsen (V-LAAS.2)
+
+/// Låsens tilstand til UI'et. Intet fra sagerne.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct LaasStatus {
+    /// Grimnir er låst.
+    pub laast: bool,
+    /// "Lås Grimnir ved start" er til.
+    pub ved_start: bool,
+    /// Grimnir er låst op uden bekræftelse, fordi maskinen ikke kan bekræfte brugeren: `ingen_adgangskode` |
+    /// `platform`. UI'et viser så et vedvarende banner ("Grimnir er ikke låst").
+    pub uden_doer: Option<&'static str>,
+}
+
+/// Svaret fra [`laas_op`] og [`laas_ved_start`]: dørens svar (`svar`, og `hvorfor` eller `kode`) og låsens tilstand
+/// bagefter.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct LaasSvar {
+    /// Dørens svar.
+    #[serde(flatten)]
+    pub svar: Svar,
+    /// Låsen bagefter.
+    pub status: LaasStatus,
+}
+
+/// Låsens tilstand. Virker altid.
+pub fn laas_status(t: &Tilstand) -> LaasStatus {
+    LaasStatus {
+        laast: t.er_laast(),
+        ved_start: t.indstillinger().laas_ved_start,
+        uden_doer: *t.laas.uden_doer.lock().unwrap_or_else(|e| e.into_inner()),
+    }
+}
+
+/// Lås op efter dørens svar: `Ok` låser op; `IkkeTilgaengelig` låser op uden bekræftelse (banneret); `Annulleret`,
+/// `Afvist` og `Fejl` lader Grimnir være låst.
+fn efter_svar(t: &Tilstand, svar: &Svar) {
+    match svar {
+        Svar::Ok => t.laas_op_uden_doer(None),
+        Svar::IkkeTilgaengelig { hvorfor } => t.laas_op_uden_doer(Some(hvorfor)),
+        Svar::Annulleret | Svar::Afvist | Svar::Fejl { .. } => {}
+    }
+}
+
+/// Låser op med døren (`sprog`: UI'ets sprog til dialogens tekst). Er Grimnir allerede låst op (fx af et andet tryk på
+/// "Lås op", der kom først), spørges døren ikke, og svaret er `Ok`. Døren spørges højst én gang ad gangen.
+pub fn laas_op(t: &Tilstand, doer: &dyn Doer, sprog: &str) -> LaasSvar {
+    let _en_ad_gangen = t.laas.doer.lock().unwrap_or_else(|e| e.into_inner());
+    let svar = if t.er_laast() {
+        let svar = doer.laas_op(&begrundelse(Grund::Start, sprog));
+        efter_svar(t, &svar);
+        svar
+    } else {
+        Svar::Ok
+    };
+    LaasSvar {
+        svar,
+        status: laas_status(t),
+    }
+}
+
+/// Slår "Lås Grimnir ved start" til eller fra. At slå den til kræver intet. At slå den fra kræver en oplåsning med døren
+/// (også når Grimnir allerede er låst op): kun ved `Ok` (eller `IkkeTilgaengelig`, hvor maskinen alligevel ikke kan
+/// bekræfte brugeren) gemmes valget; og er Grimnir låst, låses den samtidig op. Ved `Annulleret`, `Afvist` og `Fejl` er
+/// intet ændret. Virker også, mens Grimnir er låst (Indstillinger).
+pub fn laas_ved_start(t: &Tilstand, doer: &dyn Doer, til: bool, sprog: &str) -> Result<LaasSvar, UiFejl> {
+    let nu = t.indstillinger().laas_ved_start;
+    let svar = if til || !nu {
+        Svar::Ok
+    } else {
+        let _en_ad_gangen = t.laas.doer.lock().unwrap_or_else(|e| e.into_inner());
+        doer.laas_op(&begrundelse(Grund::SlaaFra, sprog))
+    };
+    if matches!(svar, Svar::Ok | Svar::IkkeTilgaengelig { .. }) && til != nu {
+        let mut g = t.indst.lock().unwrap_or_else(|e| e.into_inner());
+        let ny = Indstillinger { laas_ved_start: til, ..*g };
+        skriv_indstillinger(t, &mut g, ny)?;
+    }
+    if !til && nu {
+        efter_svar(t, &svar);
+    }
+    Ok(LaasSvar {
+        svar,
+        status: laas_status(t),
+    })
 }
 
 // ------------------------------------------------------------------------------------------------------- filer (V-FIL.1)
@@ -1555,6 +1765,7 @@ pub struct FilInfo {
 
 /// Åbner en fil i visningen. En tidligere fil i samme visning slippes (og nulstilles). Filen læses, før låsen tages.
 pub fn fil_aabn(t: &Tilstand, v: Visning, sti: &std::path::Path) -> Result<FilInfo, UiFejl> {
+    t.aaben()?;
     let f = fil::laes(sti)?;
     let (uddrag, ikke_vist) = fil::uddrag(&f.tekst);
     let info = FilInfo {
@@ -1578,9 +1789,11 @@ pub fn fil_aabn(t: &Tilstand, v: Visning, sti: &std::path::Path) -> Result<FilIn
 }
 
 /// Slipper visningens fil (brugeren har sat tekst ind i stedet). Teksten og resultatet nulstilles.
-pub fn fil_luk(t: &Tilstand, v: Visning) {
+pub fn fil_luk(t: &Tilstand, v: Visning) -> Result<(), UiFejl> {
+    t.aaben()?;
     let gammel = t.fil(v).take();
     drop(gammel);
+    Ok(())
 }
 
 /// Filter, søgning og sidestørrelse for rækkerne i en fil (som maskering.js gør det for indsat tekst).
@@ -1695,6 +1908,7 @@ pub fn fil_analyser(
     rettelser: &[Rettelse],
     side: &SideValg,
 ) -> Result<FilAnalyse, UiFejl> {
+    t.aaben()?;
     let mut g = t.fil(Visning::Masker);
     let h = g.as_mut().ok_or(UiFejl::IngenFil)?;
     h.resultat = None;
@@ -1720,6 +1934,7 @@ pub fn fil_analyser(
 
 /// En ny side rækker fra seneste analyse (filter, søgning, "Vis flere").
 pub fn fil_raekker(t: &Tilstand, side: &SideValg) -> Result<RaekkeSide, UiFejl> {
+    t.aaben()?;
     let g = t.fil(Visning::Masker);
     let h = g.as_ref().ok_or(UiFejl::IngenFil)?;
     Ok(side_af(&h.raekker, &h.fejl, side))
@@ -1747,6 +1962,7 @@ pub struct FilMaskering {
 /// `gem_og_masker` for den åbne fil i Maskér: sagen gemmes (i en navngiven sag krypteret på disken), og den maskerede
 /// tekst bliver i Rust til "Gem maskeret fil". Fejler gemningen, er der intet resultat, og ingen fil kan gemmes.
 pub fn fil_gem_og_masker(t: &Tilstand, fravalgt: &[usize], rettelser: &[Rettelse]) -> Result<FilMaskering, UiFejl> {
+    t.aaben()?;
     let mut g = t.fil(Visning::Masker);
     let h = g.as_mut().ok_or(UiFejl::IngenFil)?;
     h.resultat = None;
@@ -1789,6 +2005,7 @@ pub struct FilDemaskering {
 
 /// `demasker` for den åbne fil i Demaskér. Teksten med de rigtige værdier bliver i Rust til "Gem som fil".
 pub fn fil_demasker(t: &Tilstand) -> Result<FilDemaskering, UiFejl> {
+    t.aaben()?;
     let mut g = t.fil(Visning::Demasker);
     let h = g.as_mut().ok_or(UiFejl::IngenFil)?;
     h.resultat = None;
@@ -1812,6 +2029,7 @@ pub fn fil_demasker(t: &Tilstand) -> Result<FilDemaskering, UiFejl> {
 
 /// Hele resultatet til udklipsholderen (Kopiér), højst 5 MiB.
 pub fn fil_kopi(t: &Tilstand, v: Visning) -> Result<String, UiFejl> {
+    t.aaben()?;
     let g = t.fil(v);
     let r = g.as_ref().ok_or(UiFejl::IngenFil)?.resultat.as_ref().ok_or(UiFejl::IntetResultat)?;
     if r.tekst.len() > fil::MAKS_KOPI {
@@ -1857,6 +2075,7 @@ fn tjek_gem(t: &Tilstand, v: Visning, h: &HoldtFil, ok: bool) -> Result<(), UiFe
 /// Tjekker, at resultatet må gemmes, og foreslår mappe og navn: `<navn>.maskeret.<endelse>` (Maskér) eller
 /// `<navn>.demaskeret.<endelse>` (Demaskér). `ok`: "Gem alligevel" (Maskér) eller bekræftelsen (Demaskér).
 pub fn fil_gem_forslag(t: &Tilstand, v: Visning, ok: bool) -> Result<Forslag, UiFejl> {
+    t.aaben()?;
     let g = t.fil(v);
     let h = g.as_ref().ok_or(UiFejl::IngenFil)?;
     tjek_gem(t, v, h, ok)?;
@@ -1884,6 +2103,7 @@ pub fn fil_gem_til_med(
     ok: bool,
     foer_omdoeb: &mut dyn FnMut() -> std::io::Result<()>,
 ) -> Result<String, UiFejl> {
+    t.aaben()?;
     let aabne = t.aabne_stier();
     let g = t.fil(v);
     let h = g.as_ref().ok_or(UiFejl::IngenFil)?;
@@ -1906,6 +2126,7 @@ pub struct StartForfra {
 /// V-FIL.1 F5: en ordbog, der ikke kan åbnes, flyttes til side som `ordbog.<dato>.ulaeselig` (slettes ikke), og en tom
 /// ordbog tager over. Kan ordbogen åbnes, gør kommandoen intet. `dato`: i dag, `ÅÅÅÅ-MM-DD` (webvisningens kalender).
 pub fn ordbog_start_forfra(t: &Tilstand, dato: &str) -> Result<StartForfra, UiFejl> {
+    t.aaben()?;
     tjek_dato(dato)?;
     let mut g = t.ordbog();
     let o = g.get_or_insert_with(OrdbogTilstand::default);
