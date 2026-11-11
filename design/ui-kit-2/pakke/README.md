@@ -121,7 +121,7 @@ Det, kittet forventer af programmet:
 
 **Komponenterne findes ikke til WPF endnu.** Pakken har kun tokens til WPF: farver, skrift, luft, radier og skygger. Knapper, tabeller, bånd og resten skal programmet selv tegne som WPF-stilarter ud fra `KOMPONENTER.md` og demoen, indtil kittet får en WPF-udgave.
 
-`Tokens.xaml` er ikke bygget i et WPF-projekt endnu. Filen er kontrolleret som velformet XML, og nøgler og farver er sammenlignet med CSS-udgaven af en test, men den første, der fletter den ind, skal bekræfte, at den indlæses.
+`Tokens.xaml` bygger i et WPF-projekt, men er ikke indlæst af et kørende program endnu. WPF's XAML-oversætter i .NET 8 SDK gav 0 fejl og 0 advarsler i Wi24rd FTP's fase A (2026-11-11, bygget på Linux, hvor et WPF-program ikke kan startes). Nøgler og farver er sammenlignet med CSS-udgaven af en test. Om de to ordbøger kan hentes og skiftes, mens programmet kører, viser en prøve på Windows; indtil den er kørt, skal den første, der fletter filen ind, bekræfte, at den indlæses.
 
 ### Navneregel
 
@@ -174,6 +174,8 @@ public void SaetTema(bool moerk)
 }
 ```
 
+   Kald `SaetTema` i `OnStartup`, før det første vindue laves. **Ingen token findes før det**: nøglerne ligger inde i `Wi24rdLys` og `Wi24rdMoerk` og kommer først op på øverste niveau, når en af de to er flettet ind. Et `StaticResource` i `App.xaml` kan derfor ikke pege på en kit-nøgle: `App.xaml` læses, før `SaetTema` kører.
+
 4. Brug `DynamicResource` til alt fra kittet, så et temaskift slår igennem uden genstart:
 
 ```xml
@@ -187,7 +189,9 @@ public void SaetTema(bool moerk)
 
 ### Skrifterne i WPF
 
-`Wi24rdFontSans` er `Inter, Segoe UI`, og `Wi24rdFontMono` er `JetBrains Mono, Cascadia Mono, Menlo`. WPF bruger det første navn, der er installeret på maskinen, så uden videre falder et WPF-program tilbage til Segoe UI og Cascadia Mono. Pakken har kun skrifterne som woff2, og det kan WPF ikke læse. Skal programmet vise Inter og JetBrains Mono, skal skrifterne lægges ind som TTF eller OTF i projektet. Det er et hul i pakken (se nederst).
+`Wi24rdFontSans` er `Inter, Segoe UI`, og `Wi24rdFontMono` er `JetBrains Mono, Cascadia Mono, Menlo`. WPF bruger det første navn, der er installeret på maskinen, så uden videre falder et WPF-program tilbage til Segoe UI og Cascadia Mono. Pakken har kun skrifterne som woff2, og det kan WPF ikke læse. Filerne er desuden variable skrifter (én fil med alle vægte, `…-wght-normal.woff2`); WPF skal have statiske filer, én pr. vægt.
+
+Skal programmet vise Inter og JetBrains Mono, skal det selv hente dem som statiske TTF-filer (fx Regular og SemiBold) og lægge dem i projektet med byggehandlingen `Resource`. Skriften nævnes så med en `pack://`-sti til mappen foran navnet, fx `pack://application:,,,/Fonts/#Inter`. Et navn alene finder kun en skrift, der er installeret på maskinen, og sådan er `Wi24rdFontSans` og `Wi24rdFontMono` skrevet. Programmet sætter derfor sin egen `FontFamily` med stien først og kittets navne som reserve, indtil pakken har skrifterne til WPF. Det er et hul i pakken (se nederst).
 
 ## Sådan opdaterer du til en ny version
 
@@ -198,10 +202,12 @@ public void SaetTema(bool moerk)
 
 I kilde-repoet laves programmets kopier af et script (`npm run kit`), og `npm run kit -- --check` fejler, hvis en kopi ikke er byte for byte som pakken. Et program, der vil have samme sikkerhed, kan sammenligne sine kopier med pakken på samme måde.
 
+Ligger programmet i git, skal kit-kopierne have `-text` i programmets `.gitattributes`, fx `Tokens/Tokens.xaml -text`. Git på Windows kan lave linjeskift om ved udtjekning (`core.autocrlf`), og så er kopien ikke længere byte for byte som pakken, selv om ingen har rettet i den. Pakkens filer har linjeskiftet LF.
+
 ## Hvad pakken ikke indeholder
 
 - **Komponenter til WPF.** Kun tokens.
-- **Skrifter til WPF** (TTF eller OTF). Kun woff2 til web.
+- **Skrifter til WPF** (statiske TTF-filer). Kun variable woff2 til web.
 - **Logo og app-ikoner.** De hører til det enkelte program.
 - **Et fuldt ikonsæt.** `kit.js` har de almene stregikoner, kittets egne komponenter og de første programmer har brugt. Programmet lægger sine egne til.
 - **Menu, Cover og en egen listeboks.** De findes ikke som kode i kittet. Et program, der har brug for dem, tegner dem selv med kittets tokens. Vælgeren, sidepanelet og segmentknappen findes fra 2.2.0; dialog, afkrydsning, kontakt, radiogruppe, valgliste, StatusTile, kasse, tom tilstand, fremdrift, værktøjstip og filterchip fra 2.3.0. Vælgeren er til valg for hele skærmen; i en formular bruges valglisten.

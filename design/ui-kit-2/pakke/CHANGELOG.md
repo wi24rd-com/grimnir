@@ -2,6 +2,16 @@
 
 Første tal stiger, når et program skal ændre noget for at følge med. Andet tal ved nyt. Tredje tal ved rettelser.
 
+## Ikke udgivet endnu
+
+Kun dokumenter, rettet 2026-11-11 efter Wi24rd FTP's fase A. Ingen kode, tokens eller komponenter er ændret, og `Tokens.xaml` er byte for byte som i 2.3.0. Rettelserne får deres versionsnummer, når prøven af `Tokens.xaml` på Windows er set: pakkens version står i første linje af de genererede filer, så et nyt nummer ændrer også `Tokens.xaml`.
+
+- `flytning/WI24RD-FTP.md`: det gamle trin 2 (lad de gamle `Brush.*`-nøgler pege på kittet) er udgået. Kittets nøgler findes først på øverste niveau, når `SaetTema` har kørt, så penslerne skiftes direkte til `DynamicResource` (99 steder i XAML) og `SetResourceReference` (13 steder i koden). Tabellen er rettet: `Brush.Ok` er `Wi24rdOkBrush`, og statusprikkerne er `Wi24rdOkMarkBrush`, `Wi24rdWarnMarkBrush`, `Wi24rdNoneMarkBrush` og `Wi24rdDangerMarkBrush`. Nyt under "Hvad programmet har i dag": de 13 opslag i koden, to stilarter uden navn, 6 ubrugte pensler, 9 `MessageBox`, ingen `.gitattributes`, og at titellinjen ikke bliver mørk af sig selv. Cyklusserne er rettet til det.
+- `README.md`, WPF: `Tokens.xaml` bygger (0 fejl, 0 advarsler), men er ikke indlæst af et kørende program endnu. `SaetTema` skal kaldes i `OnStartup`, før det første vindue laves, og ingen token findes før det.
+- `README.md`, "Skrifterne i WPF": pakkens woff2 er variable skrifter; WPF skal have statiske TTF-filer og en `pack://`-sti.
+- `README.md`, "Sådan opdaterer du til en ny version": kit-kopier skal have `-text` i programmets `.gitattributes`.
+- `flytning/WI24RD-FTP.md`: to valg er skrevet ind. En farlig handling som Stop må være fyldt rød (udgaven bygges i en ny pakke), og knap med kun ikon får ikke sin egen beskrivelse.
+
 ## 2.3.0 — 2026-11-11
 
 Komponenterne: dialog, afkrydsning, kontakt, radiogruppe, valgliste, StatusTile, kasse (kittets kort), tom tilstand, fremdrift, værktøjstip, filterchip, tabellens sortering, to hovedrækker og sideskift, og tekststørrelse i tre trin. Intet er omdøbt eller fjernet; et program, der bruger 2.2.0, kan skifte filerne ud uden at ændre noget. Uden de nye funktioner og indstillinger ser alt ud og virker som før: tabellen er byte for byte som i 2.0.0, og uden et valg af tekststørrelse sætter `tema.js` ingen ny attribut.
