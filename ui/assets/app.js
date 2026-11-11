@@ -40,8 +40,8 @@
       grupper: [
         { t: 'gTekst', knapper: [aktiv('masker', 'indsaet', 'kIndsaet', 'indsaet', false, true), aktiv('masker', 'aabn-fil', 'kAabnFil', 'fil', false, true)] },
         { t: 'gMaskering', knapper: [aktiv('masker', 'analyser', 'kAnalyser', 'soeg'), aktiv('masker', 'gem-masker', 'kGemMasker', 'skjold', true), aktiv('masker', 'foer-efter', 'kFoerEfter', 'foerefter')] },
-        // V-FIL.1: Gem maskeret fil ved siden af Kopiér; Kvittering er stadig v2.
-        { t: 'gResultat', knapper: [aktiv('masker', 'kopier', 'kKopier', 'kopier'), aktiv('masker', 'gem-fil', 'kGemMaskeretFil', 'gem'), senere('kvittering', 'kKvittering', 'kvittering')] },
+        // V-FIL.1: Gem maskeret fil ved siden af Kopiér. V-KVIT.1: Kopiér kvittering (aktiv, når der er et maskeret resultat).
+        { t: 'gResultat', knapper: [aktiv('masker', 'kopier', 'kKopier', 'kopier'), aktiv('masker', 'gem-fil', 'kGemMaskeretFil', 'gem'), aktiv('masker', 'kvittering', 'kKvittering', 'kvittering')] },
       ],
       trae: [
         { id: 'denne', t: 'tDenneTekst', boern: [{ id: 'alle', t: 'tAlleFund', antal: 0 }, { id: 'tjek', t: 'tSkalTjekkes', antal: 0 }, { id: 'hemmelig', t: 'tHemmeligheder', antal: 0 }] },

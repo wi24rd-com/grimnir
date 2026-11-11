@@ -134,7 +134,7 @@ const VIS = ['masker', 'demasker', 'sager', 'ordbog'];
     tjek(`${id}: træets valgte punkt har aria-current`, d.querySelectorAll(`.navdel[data-visning="${id}"] .tr[aria-current="true"]`).length === 1);
     tjek(`${id}: ${i + 1}. visning`, links[i].classList.contains('on'));
   }
-  const kommandoer = { masker: ['Indsæt', 'Åbn fil', 'Analysér', 'Gem og maskér', 'Før og efter', 'Kopiér', 'Gem maskeret fil', 'Kvittering'], demasker: ['Indsæt', 'Åbn fil', 'Demaskér', 'Næste advarsel', 'Kopiér resultat', 'Gem som fil'], sager: ['Ny sag', 'Åbn i Maskér', 'Omdøb', 'Udløb', 'Eksportér', 'Importér', 'Slet sag'], ordbog: ['Tilføj post', 'Ret', 'Prøv på tekst', 'Importér', 'Eksportér', 'Fjern post'] };
+  const kommandoer = { masker: ['Indsæt', 'Åbn fil', 'Analysér', 'Gem og maskér', 'Før og efter', 'Kopiér', 'Gem maskeret fil', 'Kopiér kvittering'], demasker: ['Indsæt', 'Åbn fil', 'Demaskér', 'Næste advarsel', 'Kopiér resultat', 'Gem som fil'], sager: ['Ny sag', 'Åbn i Maskér', 'Omdøb', 'Udløb', 'Eksportér', 'Importér', 'Slet sag'], ordbog: ['Tilføj post', 'Ret', 'Prøv på tekst', 'Importér', 'Eksportér', 'Fjern post'] };
   for (const [id, liste] of Object.entries(kommandoer)) {
     const ord = [...d.querySelectorAll(`#baand > [data-visning="${id}"] .grupper[data-fane="start"] .cb`)].map(b => b.textContent.trim());
     tjek(`${id}: kommandoerne fra design/skaerme/`, JSON.stringify(ord) === JSON.stringify(liste), JSON.stringify(ord));
@@ -241,7 +241,7 @@ const VIS = ['masker', 'demasker', 'sager', 'ordbog'];
   tjek('English: lang="en"', d.documentElement.lang === 'en');
   tjek('English: visningerne', [...d.querySelectorAll('.vs span')].map(x => x.textContent).join() === 'Mask,Unmask,Cases,Dictionary');
   tjek('English: kommandoer og grupper', bar.querySelector('[data-kommando="gem-masker"]').textContent.trim() === 'Save and mask' && bar.querySelector('.cap').textContent === 'Text');
-  tjek('English: aria-label og title følger med', d.getElementById('aabn-indst').getAttribute('aria-label') === 'Open settings' && bar.querySelector('[data-kommando="analyser"]').title === 'Paste a text first' && bar.querySelector('[data-kommando="kvittering"]').title === 'Coming in a later version of Grimnir');
+  tjek('English: aria-label og title følger med', d.getElementById('aabn-indst').getAttribute('aria-label') === 'Open settings' && bar.querySelector('[data-kommando="analyser"]').title === 'Paste a text first' && bar.querySelector('[data-kommando="kvittering"]').title === 'Save and mask first');
   tjek('English: placeholder følger med', d.querySelector('section[data-visning="masker"] input').placeholder === 'Search the findings');
   tjek('English: fodlinjen og kernen', d.getElementById('fod-lokalt').textContent.trim() === 'Only on this machine' && /^Core /.test(d.getElementById('fod-kerne').textContent));
   tjek('English: gemt', s.w.localStorage.getItem('grimnir-sprog') === 'en');
@@ -372,6 +372,8 @@ function falskRust({ rester = [], afvis = null } = {}) {
     sag_status: () => ({ poster }),
     sag_nulstil: () => { poster = 0; koder = {}; return { poster: 0 }; },
     menu_sprog: () => null,
+    // V-KVIT.1: teksten bygges i Rust; den efterlignede siger kun, hvad den blev bedt om.
+    kvittering: ({ fil, sprog }) => `KVITTERING ${sprog} ${fil ? 'fil' : 'tekst'}\n`,
   };
 }
 /* Indsæt som WKWebView gør det: en paste-hændelse med clipboardData på det fokuserede element. */
@@ -529,11 +531,26 @@ const raekkeMed = (d, id) => d.querySelector(`section[data-visning="masker"] .fu
   await vent(5);
   tjek('⇧⌘C kopierer også', skrevet.length === 2 && skrevet[1] === forventet);
   tjek('V-LAAS.4: Kopiér i Maskér melder intet til Rust (udklip_kopieret)', !s.kald.some(k => k[0] === 'udklip_kopieret'));
+  // V-KVIT.1: Kopiér kvittering er aktiv, når der er et maskeret resultat; teksten kommer fra Rust og kopieres.
+  const kv = knapI(d, 'masker', 'kvittering');
+  tjek('V-KVIT.1: Kopiér kvittering er aktiv efter maskeringen, i gruppen Resultat', kommandoAktiv(d, 'masker', 'kvittering') && kv.textContent.trim() === 'Kopiér kvittering' && !kv.title && kv.parentElement.textContent.includes('Gem maskeret fil') && kv.previousElementSibling === knapI(d, 'masker', 'gem-fil'), kv.parentElement.outerHTML.slice(0, 300));
+  kv.click();
+  await vent(5);
+  const kvKald = s.kald.filter(k => k[0] === 'kvittering');
+  tjek('V-KVIT.1: kvitteringen hentes fra Rust (indsat tekst: fil false) på UI-sproget', kvKald.length === 1 && JSON.stringify(kvKald[0][1]) === '{"fil":false,"sprog":"da"}', JSON.stringify(kvKald));
+  tjek('V-KVIT.1: kvitteringen kopieres, som Rust gav den', skrevet.length === 3 && skrevet[2] === 'KVITTERING da tekst\n', JSON.stringify(skrevet[2]));
+  tjek('V-KVIT.1: bekræftelsen står i statuslinjen', sek.querySelector('.besked').textContent === 'Kvitteringen er kopieret. Den indeholder ingen originale værdier.' && sek.querySelector('.besked').getAttribute('role') === 'status');
+  tjek('V-KVIT.1: kvitteringen meldes ikke til Rust (udklip_kopieret)', !s.kald.some(k => k[0] === 'udklip_kopieret'));
+  tjek('V-KVIT.1: resultatet er urørt (Kopiér er stadig aktiv, den maskerede tekst vises)', kommandoAktiv(d, 'masker', 'kopier') && G.M.st.resultat.maskeret === forventet && pre.textContent === forventet);
   // Ændres et valg efter maskeringen, forsvinder resultatet.
   const cb2 = raekkeMed(d, 45).querySelector('input[type="checkbox"]');
   cb2.checked = false;
   cb2.dispatchEvent(new w.Event('change', { bubbles: true }));
   tjek('ændret valg efter maskering: resultat væk, Kopiér nedtonet, besked', !G.M.st.resultat && !kommandoAktiv(d, 'masker', 'kopier') && sek.textContent.includes('Valgene er ændret'));
+  tjek('V-KVIT.1: ændret valg efter maskering: Kopiér kvittering er nedtonet igen, med forklaring', !kommandoAktiv(d, 'masker', 'kvittering') && knapI(d, 'masker', 'kvittering').title === 'Gem og maskér først');
+  knapI(d, 'masker', 'kvittering').click();
+  await vent(5);
+  tjek('V-KVIT.1: en nedtonet Kopiér kvittering gør intet', s.kald.filter(k => k[0] === 'kvittering').length === 1 && skrevet.length === 3);
   await vent(450);
 
   // Demaskér med den sag, der nu findes
@@ -1474,7 +1491,7 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   tjek('Maskér: Åbn fil er aktiv fra start, med genvejen ⌘O', kommandoAktiv(d, 'masker', 'aabn-fil') && knapI(d, 'masker', 'aabn-fil').title === 'Genvej: ⌘O');
   tjek('Maskér: den tomme tilstand har knappen Åbn fil', [...sek.querySelectorAll('.tom button')].some(b => b.textContent.trim() === 'Åbn fil'));
   tjek('Maskér: Gem maskeret fil er nedtonet uden fil, med forklaring', !kommandoAktiv(d, 'masker', 'gem-fil') && knapI(d, 'masker', 'gem-fil').title === 'Åbn en fil først; en indsat tekst kopieres med Kopiér');
-  tjek('Maskér: Kvittering er stadig nedtonet (v2)', !kommandoAktiv(d, 'masker', 'kvittering') && knapI(d, 'masker', 'kvittering').title === 'Kommer i en senere version af Grimnir');
+  tjek('V-KVIT.1: Maskér: Kopiér kvittering er nedtonet før en maskering, med forklaring', !kommandoAktiv(d, 'masker', 'kvittering') && knapI(d, 'masker', 'kvittering').title === 'Gem og maskér først');
   s.emit('menu', 'aabn');
   await vent(10);
   tjek('Arkiv → Åbn… (⌘O): fil_aabn for Maskér', s.kald.some(k => k[0] === 'fil_aabn' && k[1].visning === 'masker') && G.M.st.fil && G.M.st.fil.navn === 'app.log');
@@ -1525,6 +1542,12 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   await vent(10);
   tjek('Kopiér: hele resultatet hentes fra Rust (fil_kopi) og kopieres', s.kald.some(k => k[0] === 'fil_kopi' && k[1].visning === 'masker') && skrevet.pop() === 'MASKERET-HELE-FILEN');
   tjek('V-LAAS.4: Kopiér af en maskeret fil melder intet til Rust', !s.kald.some(k => k[0] === 'udklip_kopieret'));
+  // V-KVIT.1: kvitteringen for en fil.
+  tjek('V-KVIT.1: en maskeret fil: Kopiér kvittering er aktiv', kommandoAktiv(d, 'masker', 'kvittering'));
+  knapI(d, 'masker', 'kvittering').click();
+  await vent(10);
+  tjek('V-KVIT.1: en maskeret fil: kvitteringen hentes med fil true og kopieres', JSON.stringify(s.kald.filter(k => k[0] === 'kvittering').map(k => k[1])) === '[{"fil":true,"sprog":"da"}]' && skrevet.pop() === 'KVITTERING da fil\n' && sek.querySelector('.besked').textContent.startsWith('Kvitteringen er kopieret.'));
+  tjek('V-KVIT.1: en maskeret fil: kvitteringen meldes ikke til Rust, og filens resultat hentes ikke (fil_kopi kun én gang)', !s.kald.some(k => k[0] === 'udklip_kopieret') && s.kald.filter(k => k[0] === 'fil_kopi').length === 1);
   s.emit('menu', 'gem');
   await vent(10);
   tjek('Arkiv → Gem… (⌘S): fil_gem for Maskér uden "alligevel"', rust.fil.gemt.length === 1 && rust.fil.gemt[0].join() === 'masker,false' && sek.querySelector('.besked').textContent === 'Gemt som app.maskeret.log.');
@@ -2279,6 +2302,7 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
   const kode = udenKommentarer(ui('index.html') + ['app.js', 'laas.js', 'maskering.js', 'sager.js', 'ordbog.js', 'indstillinger.js', 'kit.js', 'sprogmotor.js', 'sprog.js', 'tema.js'].map(f => ui('assets/' + f)).join('\n'));
   tjek('V-LAAS.4: webvisningen læser aldrig udklipsholderen (ingen readText/read())', kode.length > 50000 && !/readText|clipboard\.read\(/.test(kode));
   tjek('V-LAAS.4: udklip_kopieret kaldes ét sted (Kopiér i Demaskér)', (kode.match(/invoke\('udklip_kopieret'/g) || []).length === 1);
+  tjek('V-KVIT.1: kvittering kaldes ét sted (Kopiér kvittering i Maskér), og dér meldes intet til udklip_kopieret', (kode.match(/invoke\('kvittering'/g) || []).length === 1 && !/udklip_kopieret/.test(kode.slice(kode.indexOf('async function kopierKvittering'), kode.indexOf("document.addEventListener('grimnir-ordbog'"))));
   tjek('V-LAAS.4: den gamle besked "blev lukket" er væk', !/bMidlertidigLukket|blev lukket, da Grimnir|was closed when Grimnir/.test(kode));
 }
 // V-LAAS.5 N2: navnet har sekunder (TT.MM.SS); beskeden er ellers uændret.
@@ -2525,6 +2549,91 @@ for (const lang of ['da', 'en']) {
   const m = ui('assets/maskering.js');
   const raekkerFn = m.slice(m.indexOf('function raekker() {', m.indexOf('Demaskér ═')), m.indexOf('function tegnTabel()', m.indexOf('Demaskér ═')));
   tjek('V-PUDS.1 N4: webvisningen tæller ikke selv (rækkerne bygges af tilbage fra Rust)', /st\.resultat\.tilbage/.test(raekkerFn) && !/split\(|indexOf\(|match\(/.test(raekkerFn) && /tilbage: r\.tilbage/.test(m));
+}
+
+// ══════════════════════════ V-KVIT.1: Kopiér kvittering ══════════════════════════
+// Engelsk, uden ClipboardItem (teksten hentes og kopieres med writeText), nedtonet mens Grimnir arbejder, fejl fra Rust,
+// en kopi, der fejler, og Nulstil. Den efterlignede Rust svarer som src-tauri/src/maskering.rs (en tekst eller en fejl).
+{
+  const skrevet = [];
+  const s = side({ rust: falskRust(), lager: { 'grimnir-sprog': 'en' }, foer: w => Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async t => { skrevet.push(t); } }, configurable: true }) });
+  const { d, w } = s;
+  await vent(5);
+  const sek = d.querySelector('section[data-visning="masker"]');
+  const kv = knapI(d, 'masker', 'kvittering');
+  tjek('V-KVIT.1: English: Copy receipt, nedtonet fra start med forklaring', kv.textContent.trim() === 'Copy receipt' && !kommandoAktiv(d, 'masker', 'kvittering') && kv.title === 'Save and mask first');
+  indsaet(w, sek.querySelector('.tom'), TEKST);
+  s.tast('Enter', { metaKey: true }); await vent(5);
+  tjek('V-KVIT.1: efter analysen alene er Copy receipt stadig nedtonet', !kommandoAktiv(d, 'masker', 'kvittering') && kv.title === 'Save and mask first');
+  s.tast('Enter', { metaKey: true }); await vent(5);
+  tjek('V-KVIT.1: English: aktiv efter maskeringen', kommandoAktiv(d, 'masker', 'kvittering') && !kv.title);
+  kv.click(); await vent(5);
+  tjek('V-KVIT.1: English: Rust får sproget en, og teksten kopieres', JSON.stringify(s.kald.filter(k => k[0] === 'kvittering').map(k => k[1])) === '[{"fil":false,"sprog":"en"}]' && skrevet.join('|') === 'KVITTERING en tekst\n');
+  tjek('V-KVIT.1: English: bekræftelsen', sek.querySelector('.besked').textContent === 'The receipt is copied. It contains no original values.');
+  tjek('V-KVIT.1: English: intet meldes til udklip_kopieret', !s.kald.some(k => k[0] === 'udklip_kopieret'));
+  // Kan fokuseres og aktiveres med tastaturet som de andre kommandoer (en knap).
+  tjek('V-KVIT.1: knappen er en <button> med ikon', kv.tagName === 'BUTTON' && Boolean(kv.querySelector('svg')));
+  // Nulstil sagen: resultatet er væk, og knappen er nedtonet.
+  w.GrimnirMaskering.M.nulstilt();
+  tjek('V-KVIT.1: efter Nulstil er Copy receipt nedtonet', !kommandoAktiv(d, 'masker', 'kvittering') && kv.title === 'Save and mask first');
+  kv.click(); await vent(5);
+  tjek('V-KVIT.1: efter Nulstil hentes ingen kvittering', s.kald.filter(k => k[0] === 'kvittering').length === 1 && skrevet.length === 1);
+}
+{
+  // Rust svarer med en fejl (intet resultat, eller låst imens): et banner, ingen bekræftelse og intet kopieret.
+  const skrevet = [];
+  const rust = { ...falskRust(), kvittering: () => { throw { art: 'intet_resultat' }; } };
+  const s = side({ rust, foer: w => Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async t => { skrevet.push(t); } }, configurable: true }) });
+  const { d, w } = s;
+  await vent(5);
+  const sek = d.querySelector('section[data-visning="masker"]');
+  indsaet(w, sek.querySelector('.tom'), TEKST);
+  s.tast('Enter', { metaKey: true }); await vent(5);
+  s.tast('Enter', { metaKey: true }); await vent(5);
+  knapI(d, 'masker', 'kvittering').click(); await vent(5);
+  tjek('V-KVIT.1: fejl fra Rust: banner, ingen bekræftelse, intet kopieret', Boolean(sek.querySelector('.arbejde .bannere .ban.danger')) && sek.querySelector('.besked').textContent === '' && skrevet.length === 0, sek.querySelector('.besked').textContent);
+}
+{
+  // Udklipsholderen afviser: fejlbanner med kvitteringens egen tekst, ingen bekræftelse.
+  const s = side({ rust: falskRust(), foer: w => Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async () => { throw new Error('nægtet'); } }, configurable: true }) });
+  const { d, w } = s;
+  await vent(5);
+  const sek = d.querySelector('section[data-visning="masker"]');
+  indsaet(w, sek.querySelector('.tom'), TEKST);
+  s.tast('Enter', { metaKey: true }); await vent(5);
+  s.tast('Enter', { metaKey: true }); await vent(5);
+  knapI(d, 'masker', 'kvittering').click(); await vent(5);
+  tjek('V-KVIT.1: en kopi, der fejler: "Grimnir kunne ikke kopiere kvitteringen."', [...sek.querySelectorAll('.arbejde .bannere .ban.danger')].some(b => b.textContent.includes('Grimnir kunne ikke kopiere kvitteringen.')) && sek.querySelector('.besked').textContent === '');
+  tjek('V-KVIT.1: en kopi, der fejler, meldes heller ikke til Rust', !s.kald.some(k => k[0] === 'udklip_kopieret'));
+}
+{
+  // Med ClipboardItem (WebKit): teksten gives som et løfte i selve klikket, som for Kopiér af et filresultat.
+  const skrevet = [];
+  const s = side({
+    rust: falskRust(),
+    foer: w => {
+      w.ClipboardItem = function (x) { this.x = x; };
+      Object.defineProperty(w.navigator, 'clipboard', { value: { write: async items => { const b = await items[0].x['text/plain']; skrevet.push(await new Promise(r => { const fr = new w.FileReader(); fr.onload = () => r(fr.result); fr.readAsText(b); })); }, writeText: async () => { throw new Error('ikke denne vej'); } }, configurable: true });
+    },
+  });
+  const { d, w } = s;
+  await vent(5);
+  const sek = d.querySelector('section[data-visning="masker"]');
+  indsaet(w, sek.querySelector('.tom'), TEKST);
+  s.tast('Enter', { metaKey: true }); await vent(5);
+  s.tast('Enter', { metaKey: true }); await vent(5);
+  knapI(d, 'masker', 'kvittering').click(); await vent(10);
+  tjek('V-KVIT.1: med ClipboardItem: kvitteringen skrives i klikket (samme vej som Kopiér af en fil)', skrevet.join('|') === 'KVITTERING da tekst\n' && s.kald.filter(k => k[0] === 'kvittering').length === 1 && sek.querySelector('.besked').textContent.startsWith('Kvitteringen er kopieret.'), JSON.stringify(skrevet));
+}
+{
+  // Statisk: kommandoen står i Rust tre steder (generate_handler!, build.rs, capabilities), og teksterne findes på begge sprog.
+  const rd = f => fs.readFileSync(path.join(repo, 'src-tauri', f), 'utf8');
+  const lib = rd('src/lib.rs');
+  tjek('V-KVIT.1: kvittering står i generate_handler!, build.rs og capabilities', /generate_handler!\[[^\]]*\bkvittering\b/.test(lib) && /"kvittering",/.test(rd('build.rs')) && JSON.parse(rd('capabilities/default.json')).permissions.includes('allow-kvittering'));
+  const { w } = side();
+  const T = w.Sprog.TEKST;
+  tjek('V-KVIT.1: teksterne findes på dansk og engelsk', ['kKvittering', 'bKvitteringKopieret', 'bKvitteringFejl'].every(k => T.da[k] && T.en[k] && T.da[k] !== T.en[k]));
+  tjek('V-KVIT.1: ingen gem-som-fil for kvitteringen (kun kopiering)', !/kvittering[^\n]*fil_gem|gem-kvittering/.test(ui('assets/maskering.js') + ui('assets/app.js')));
 }
 
 console.log(`\n${ok + fejl} tjek: ${ok} ok, ${fejl} fejl`);

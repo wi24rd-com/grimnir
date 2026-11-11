@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Hovedvinduet: kernens standardrettigheder minus core:tray:default og core:menu:default (webvisningen kan hverken lave menulinjeikoner eller erstatte programmenuen; menuen bygges i Rust), plus core:window:allow-start-dragging (titellinjen er vinduets trækbare linje, titleBarStyle Overlay) og appens egne kommandoer (kerne_version, analyser, gem_og_masker, demasker, sag_status, sag_nulstil, menu_sprog; V-SAG.1: sag_ny, sag_liste, sag_aabn, sag_luk, sag_omdoeb, sag_udloeb, sag_slet, program_afslut; V-ORDBOG.1: sag_valg, ordbog_hent, ordbog_tilfoej, ordbog_ret, ordbog_fjern, ordbog_proev, indstillinger_hent, indstillinger_gem; V-FIL.1: fil_aabn, fil_aabn_sluppet, fil_luk, fil_analyser, fil_raekker, fil_gem_og_masker, fil_demasker, fil_kopi, fil_gem, ordbog_start_forfra; V-LAAS.2: laas_status, laas_op; V-LAAS.3: aktivitet; laas_ved_start er fjernet). Ingen plugins og ingen fil-rettigheder: filvalgsdialogerne åbnes fra Rust, og webvisningen ser kun filnavnet.",
+  "description": "Hovedvinduet: kernens standardrettigheder minus core:tray:default og core:menu:default (webvisningen kan hverken lave menulinjeikoner eller erstatte programmenuen; menuen bygges i Rust), plus core:window:allow-start-dragging (titellinjen er vinduets trækbare linje, titleBarStyle Overlay) og appens egne kommandoer (kerne_version, analyser, gem_og_masker, demasker, sag_status, sag_nulstil, menu_sprog; V-SAG.1: sag_ny, sag_liste, sag_aabn, sag_luk, sag_omdoeb, sag_udloeb, sag_slet, program_afslut; V-ORDBOG.1: sag_valg, ordbog_hent, ordbog_tilfoej, ordbog_ret, ordbog_fjern, ordbog_proev, indstillinger_hent, indstillinger_gem; V-FIL.1: fil_aabn, fil_aabn_sluppet, fil_luk, fil_analyser, fil_raekker, fil_gem_og_masker, fil_demasker, fil_kopi, fil_gem, ordbog_start_forfra; V-LAAS.2: laas_status, laas_op; V-LAAS.3: aktivitet; laas_ved_start er fjernet; V-LAAS.4: udklip_kopieret; V-KVIT.1: kvittering). Ingen plugins og ingen fil-rettigheder: filvalgsdialogerne åbnes fra Rust, og webvisningen ser kun filnavnet.",
   "windows": ["main"],
   "permissions": [
     "core:path:default",
@@ -48,6 +48,7 @@
     "allow-laas-status",
     "allow-laas-op",
     "allow-aktivitet",
-    "allow-udklip-kopieret"
+    "allow-udklip-kopieret",
+    "allow-kvittering"
   ]
 }

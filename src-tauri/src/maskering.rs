@@ -59,6 +59,11 @@
 //! **Beskeden efter en lås overlever en afslutning (V-PUDS.1 N1).** Gemmer [`laas_igen`] en midlertidig sag, skrives
 //! navnet i samme fil ([`husk_gemt_navn`]); afsluttes programmet fra låseskærmen, siges det efter oplåsningen ved næste
 //! start. Oplåses der i samme kørsel, siges det dér, og filen slettes. Fejlbeskederne skrives ikke til disk.
+//!
+//! **Kvitteringen (V-KVIT.1).** Hver gennemført maskering efterlader tallene til en kvittering ([`crate::kvittering`]):
+//! for indsat tekst i tilstanden, for en fil sammen med filens resultat. [`kvittering`] bygger teksten af dem. Tallene er
+//! kun tal og typenøgler; de findes, så længe resultatet gør (en ny analyse, Nulstil, en anden sag og en lås fjerner dem).
+//! Kvitteringen er ikke demaskeret tekst: den meldes ikke til [`udklip_kopieret`] og ryddes ikke fra udklipsholderen.
 
 use std::collections::{HashMap, HashSet};
 use std::hash::{BuildHasher, RandomState};
@@ -77,6 +82,7 @@ use crate::fil::{self, Fil, FilFejl, Linjeskift, Tegnsaet};
 use crate::igang::Igang;
 use crate::indstillinger::{self, Indstillinger};
 use crate::klokke::{self, Klokke, SystemKlokke};
+use crate::kvittering::{self as kvit, Kilde, Tal, TypeTal};
 use crate::laas::{begrundelse, Doer, Grund, Svar, Udloeser};
 use crate::ordbog::{self as ob, FeltFejl, OrdbogPost, Ordbogsfil, PostType};
 use crate::sager::{nulstil, opret_mappe, rens_navn, ryd_midlertidige, tjek_dato, AabenSag, Arkiv, Noegle, Noeglelager, SagFejl, SagsId};
@@ -276,6 +282,9 @@ pub struct Tilstand {
     /// V-LAAS.6 N2: `<app-data>/gemt-ved-afslut.json` med navnet på en midlertidig sag, der blev gemt, da programmet
     /// afsluttede ([`ved_afslut`]) eller (V-PUDS.1 N1) låste ([`laas_igen`]); `None` uden mappe (tests i hukommelsen).
     gemt_fil: Option<PathBuf>,
+    /// V-KVIT.1: tallene til kvitteringen for seneste maskering af indsat tekst, og sagens nummer efter gemningen (en
+    /// fils tal ligger i filens [`Resultat`]). Kun tal. Låsen tages aldrig, mens sagens holdes.
+    kvit_tekst: Mutex<Option<(u64, Tal)>>,
 }
 
 impl Tilstand {
@@ -363,6 +372,10 @@ impl Tilstand {
     /// V-LAAS.4: vægurets tid ([`SystemKlokke`], hvis ingen er givet).
     fn klokke(&self) -> &dyn Klokke {
         self.klokke.as_deref().unwrap_or(&SystemKlokke)
+    }
+
+    fn kvit_tekst(&self) -> MutexGuard<'_, Option<(u64, Tal)>> {
+        self.kvit_tekst.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     fn udklip_husk(&self) -> MutexGuard<'_, UdklipHusk> {
@@ -984,6 +997,8 @@ struct Beregning {
     /// Alle fravalgte værdier med små bogstaver: lækagetjekkets rester sorteres mod dem.
     fravalgte: HashSet<String>,
     linjer: Linjer,
+    /// V-KVIT.1: spændene for analysens fund (med brugerens ordbog), i tekstens rækkefølge.
+    fund_spaend: Vec<(usize, usize)>,
 }
 
 /// Hvilke rækker der maskeres.
@@ -1241,7 +1256,74 @@ fn beregn(sag: &Sag, tekst: &str, udvalg: Udvalg<'_>, rettelser: &[Rettelse], or
         aldrig,
         fravalgte,
         linjer,
+        fund_spaend: fund.iter().map(|f| (f.start, f.slut)).collect(),
     })
+}
+
+// ------------------------------------------------------------------------------------------------------- kvitteringen
+
+/// V-KVIT.1: tallene pr. type for de rækker, der maskeres: antal rækker (værdier) og antal steder, i typeordenen
+/// ([`kvit::ARTER`]). Summen af stederne er antallet af erstatninger.
+fn typer_af(raekker: &[Raekke]) -> Vec<TypeTal> {
+    let mut ud: Vec<TypeTal> = Vec::new();
+    for r in raekker.iter().filter(|r| r.valgt) {
+        match ud.iter_mut().find(|t| t.art == r.art) {
+            Some(t) => {
+                t.vaerdier += 1;
+                t.steder += r.antal;
+            }
+            None => ud.push(TypeTal {
+                art: r.art,
+                vaerdier: 1,
+                steder: r.antal,
+            }),
+        }
+    }
+    ud.sort_by_key(|t| kvit::plads(t.art));
+    ud
+}
+
+/// V-KVIT.1: antal forskellige værdier (uafhængigt af store/små bogstaver) på "maskér aldrig", som analysen mødte i
+/// teksten: fund, analysen gør uden listen, på steder, hvor den med listen intet finder (`med`: fundenes spænd med
+/// brugerens ordbog). En tom liste koster intet; ellers ét gennemløb mere. Værdierne nulstilles; kun tallet kommer ud.
+fn aldrig_moedt(tekst: &str, ordbog: &Ordbog, med: &[(usize, usize)]) -> usize {
+    if ordbog.aldrig.is_empty() {
+        return 0;
+    }
+    let mut uden = ordbog.clone();
+    for a in uden.aldrig.iter_mut() {
+        zeroize::Zeroize::zeroize(a);
+    }
+    uden.aldrig.clear();
+    let fund = kerne_analyser(tekst, &uden);
+    ob::nulstil_kerne(uden);
+    // Spændene efter start, og den største slutning til og med hvert spænd: et fund overlapper et af dem, hvis et
+    // spænd, der begynder før fundets slutning, slutter efter fundets begyndelse.
+    let mut spaend = med.to_vec();
+    spaend.sort_unstable();
+    let mut stoerste = 0;
+    let slut_til: Vec<usize> = spaend
+        .iter()
+        .map(|s| {
+            stoerste = stoerste.max(s.1);
+            stoerste
+        })
+        .collect();
+    let mut set: HashSet<String> = HashSet::new();
+    for f in &fund {
+        let i = spaend.partition_point(|s| s.0 < f.slut);
+        if i > 0 && slut_til[i - 1] > f.start {
+            continue;
+        }
+        if let Some(v) = tekst.get(f.start..f.slut) {
+            set.insert(v.to_lowercase());
+        }
+    }
+    let n = set.len();
+    for mut v in set {
+        zeroize::Zeroize::zeroize(&mut v);
+    }
+    n
 }
 
 // ------------------------------------------------------------------------------------------------------- handlingerne
@@ -1249,6 +1331,8 @@ fn beregn(sag: &Sag, tekst: &str, udvalg: Udvalg<'_>, rettelser: &[Rettelse], or
 /// Finder fundene og regner koderne ud på en kladde af sagen. Sagen ændres ikke.
 pub fn analyser(t: &Tilstand, tekst: &str, fravalgt: Option<&[usize]>, rettelser: &[Rettelse]) -> Result<Analyse, UiFejl> {
     t.aaben()?;
+    // V-KVIT.1: en ny analyse af indsat tekst: kvitteringen for det gamle resultat findes ikke længere.
+    *t.kvit_tekst() = None;
     tjek_tekst(tekst)?;
     analyser_i(t, tekst, fravalgt.map_or(Udvalg::Standard, Udvalg::Fravalgt), rettelser)
 }
@@ -1281,12 +1365,21 @@ fn analyser_i(t: &Tilstand, tekst: &str, udvalg: Udvalg<'_>, rettelser: &[Rettel
 /// skrives sagen krypteret til disk, før svaret sendes; fejler det, er intet ændret, og der er ingen maskeret tekst.
 pub fn gem_og_masker(t: &Tilstand, tekst: &str, fravalgt: &[usize], rettelser: &[Rettelse]) -> Result<Maskering, UiFejl> {
     t.aaben()?;
+    *t.kvit_tekst() = None;
     tjek_tekst(tekst)?;
-    gem_og_masker_i(t, tekst, fravalgt, rettelser).map(|(m, _)| m)
+    let (m, nr, tal) = gem_og_masker_i(t, tekst, fravalgt, rettelser)?;
+    // V-KVIT.1: tallene til kvitteringen huskes. Porten tjekkes igen under låsen, så intet huskes efter [`laas_igen`].
+    let mut k = t.kvit_tekst();
+    if !t.er_laast() {
+        *k = Some((nr, tal));
+    }
+    drop(k);
+    Ok(m)
 }
 
-/// [`gem_og_masker`] uden tekstens grænse. Svarer også med sagens nummer efter gemningen.
-fn gem_og_masker_i(t: &Tilstand, tekst: &str, fravalgt: &[usize], rettelser: &[Rettelse]) -> Result<(Maskering, u64), UiFejl> {
+/// [`gem_og_masker`] uden tekstens grænse. Svarer også med sagens nummer efter gemningen og (V-KVIT.1) tallene til
+/// kvitteringen.
+fn gem_og_masker_i(t: &Tilstand, tekst: &str, fravalgt: &[usize], rettelser: &[Rettelse]) -> Result<(Maskering, u64, Tal), UiFejl> {
     let ordbog = t.kerne_ordbog();
     let mut a = match t.sag_aaben() {
         Ok(a) => a,
@@ -1296,11 +1389,17 @@ fn gem_og_masker_i(t: &Tilstand, tekst: &str, fravalgt: &[usize], rettelser: &[R
         }
     };
     let b = beregn(&a.sag, tekst, Udvalg::Fravalgt(fravalgt), rettelser, &ordbog);
+    // V-KVIT.1: tallet regnes kun, når maskeringen gennemføres (ingen afvist rettelse).
+    let aldrig = match &b {
+        Ok(b) if b.fejl.is_empty() => aldrig_moedt(tekst, &ordbog, &b.fund_spaend),
+        _ => 0,
+    };
     ob::nulstil_kerne(ordbog);
     let b = b?;
     if !b.fejl.is_empty() {
         return Err(UiFejl::Raekker { fejl: b.fejl });
     }
+    let (ms, forskel) = t.klokke().nu();
     let maskeret = masker(tekst, &b.erstatninger);
     let ud_linjer = Linjer::ny(&maskeret);
     let mut rester: Vec<RestUd> = Vec::new();
@@ -1349,6 +1448,17 @@ fn gem_og_masker_i(t: &Tilstand, tekst: &str, fravalgt: &[usize], rettelser: &[R
     let aaben = aktuel.aaben.take();
     ob::nulstil_kerne(b.aldrig);
     erstat(aktuel, b.kladde, aaben);
+    let tal = Tal {
+        ms,
+        forskel,
+        linjer: fil::antal_linjer(&maskeret),
+        tegn: maskeret.chars().count(),
+        typer: typer_af(&b.raekker),
+        rester: rester.iter().map(|r| r.antal).sum(),
+        fravalgt: b.raekker.iter().filter(|r| !r.valgt && r.standard).count(),
+        ikke_foreslaaet: b.raekker.iter().filter(|r| !r.valgt && !r.standard).count(),
+        aldrig,
+    };
     Ok((
         Maskering {
             maskeret,
@@ -1357,6 +1467,7 @@ fn gem_og_masker_i(t: &Tilstand, tekst: &str, fravalgt: &[usize], rettelser: &[R
             poster,
         },
         aktuel.nr,
+        tal,
     ))
 }
 
@@ -1958,11 +2069,12 @@ pub fn laas_igen(t: &Tilstand, grund: Udloeser) -> bool {
     *t.laas.igen.lock().unwrap_or_else(|e| e.into_inner()) = Some(grund);
     // 2. Udklipsholderen.
     ryd_udklip(t);
-    // 3. Filerne.
+    // 3. Filerne, og (V-KVIT.1) tallene til kvitteringen for indsat tekst.
     for v in [Visning::Masker, Visning::Demasker] {
         let gammel = t.fil(v).take();
         drop(gammel);
     }
+    *t.kvit_tekst() = None;
     // 4. Sagen.
     let ny = t.ny_sag();
     let indst = t.indstillinger();
@@ -2288,6 +2400,8 @@ struct Resultat {
     rester: usize,
     /// Sagens nummer, da teksten blev maskeret (Maskér; `None` under Demaskér).
     sag_nr: Option<u64>,
+    /// V-KVIT.1: tallene til kvitteringen (Maskér; `None` under Demaskér).
+    kvit: Option<Tal>,
 }
 
 impl Drop for Resultat {
@@ -2562,7 +2676,7 @@ pub fn fil_gem_og_masker(t: &Tilstand, fravalgt: &[usize], rettelser: &[Rettelse
     let mut g = t.fil(Visning::Masker);
     let h = g.as_mut().ok_or(UiFejl::IngenFil)?;
     h.resultat = None;
-    let (m, nr) = gem_og_masker_i(t, &h.fil.tekst, fravalgt, rettelser)?;
+    let (m, nr, tal) = gem_og_masker_i(t, &h.fil.tekst, fravalgt, rettelser)?;
     let (uddrag, ikke_vist) = fil::uddrag(&m.maskeret);
     let bytes = m.maskeret.len();
     let rester = m.rester.iter().map(|r| r.antal).sum();
@@ -2570,6 +2684,7 @@ pub fn fil_gem_og_masker(t: &Tilstand, fravalgt: &[usize], rettelser: &[Rettelse
         tekst: m.maskeret,
         rester,
         sag_nr: Some(nr),
+        kvit: Some(tal),
     });
     Ok(FilMaskering {
         uddrag,
@@ -2619,6 +2734,7 @@ pub fn fil_demasker(t: &Tilstand) -> Result<FilDemaskering, UiFejl> {
         tekst: d.tekst,
         rester: 0,
         sag_nr: None,
+        kvit: None,
     });
     Ok(FilDemaskering {
         uddrag,
@@ -2643,6 +2759,48 @@ pub fn fil_kopi(t: &Tilstand, v: Visning) -> Result<String, UiFejl> {
         });
     }
     Ok(r.tekst.clone())
+}
+
+/// V-KVIT.1: kvitteringen for seneste maskering i Maskér som ren tekst på UI'ets sprog (`sprog`: `da` | `en`); `fil`: den
+/// åbne fils resultat, ellers den indsatte teksts. Teksten bygges af tallene fra maskeringen ([`Tal`]) og sagens navn;
+/// ingen original, kode eller sti, og heller ikke filens navn ([`crate::kvittering`]).
+///
+/// [`UiFejl::Laast`], mens der er låst. [`UiFejl::IntetResultat`], når der ikke er et maskeret resultat: før en
+/// maskering, efter en ny analyse, og når sagen er en anden end den, der maskerede (Nulstil, Luk, en anden sag åbnet,
+/// sagens valg ændret). [`UiFejl::IngenFil`], hvis `fil` er sat, og ingen fil er åben. Sagen og udklipsholderen røres
+/// ikke, og intet meldes til [`udklip_kopieret`]: kvitteringen er lavet til at blive delt.
+pub fn kvittering(t: &Tilstand, fil: bool, sprog: &str) -> Result<String, UiFejl> {
+    t.aaben()?;
+    let engelsk = sprog == "en";
+    // Sagens navn nu, hvis sagen stadig er den, der maskerede (en midlertidig sag, der siden er gemt som sag, har fået
+    // sit navn). Sagens lås tages efter filens eller tallenes, som ellers.
+    let navn_for = |nr: Option<u64>| -> Result<Option<String>, UiFejl> {
+        let a = t.sag();
+        if nr != Some(a.nr) {
+            return Err(UiFejl::IntetResultat);
+        }
+        Ok(a.aaben.as_ref().map(|x| x.hoved.navn.clone()))
+    };
+    if fil {
+        let g = t.fil(Visning::Masker);
+        let r = g.as_ref().ok_or(UiFejl::IngenFil)?.resultat.as_ref().ok_or(UiFejl::IntetResultat)?;
+        let tal = r.kvit.as_ref().ok_or(UiFejl::IntetResultat)?;
+        let navn = navn_for(r.sag_nr)?;
+        Ok(kvit::tekst(tal, navn.as_deref(), Kilde::Fil, engelsk))
+    } else {
+        let mut g = t.kvit_tekst();
+        let Some((nr, tal)) = g.as_ref() else {
+            return Err(UiFejl::IntetResultat);
+        };
+        match navn_for(Some(*nr)) {
+            Ok(navn) => Ok(kvit::tekst(tal, navn.as_deref(), Kilde::Tekst, engelsk)),
+            Err(f) => {
+                // Sagen er en anden: tallene hører til et resultat, der ikke findes længere.
+                *g = None;
+                Err(f)
+            }
+        }
+    }
 }
 
 /// Forslaget til Gem-dialogen: mappen (den åbne fils) og filnavnet. Bliver i Rust.

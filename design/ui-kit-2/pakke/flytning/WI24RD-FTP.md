@@ -90,5 +90,5 @@ Læs pakkens `README.md` (afsnittet om WPF) først. Det vigtigste at vide: **pak
 - Om `Tokens.xaml` kan indlæses af WPF (se ovenfor).
 - `MainWindow.xaml.cs` (581 linjer): om koden sætter farver eller stilarter selv ud over det, XAML'en gør. En søgning efter farvekoder i `.cs`-filerne gav ingen.
 - `Scripts/Wi24rdFtp.ps1`, `Services/` og `installer/`: de er ikke læst for udseende.
-- Wi24rd Sandbox, som er nævnt sammen med FTP i planen for kittet: det er ikke fundet i dette repo og er ikke undersøgt.
+- Wi24rd Sandbox, som er nævnt sammen med FTP i planen for kittet: det er ikke fundet i dette repo og er ikke undersøgt. Se `WI24RD-SANDBOX.md`.
 - Byggeforløbet i `.github/workflows/`: om en ny XAML-fil kræver ændringer dér.

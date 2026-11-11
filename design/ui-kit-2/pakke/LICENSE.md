@@ -1,6 +1,6 @@
 # Licens
 
-Wi24rd UI Kit 2 (alt i denne mappe undtagen skrifterne) er under **Apache License 2.0**, samme licens som det repo, pakken ligger i. Den fulde licenstekst står i filen `LICENSE` i repoets rod. Kopierer du pakken til et andet repo, så sørg for, at Apache-2.0-teksten også findes dér.
+Wi24rd UI Kit 2 (alt i denne mappe undtagen skrifterne) er under **Apache License 2.0**, samme licens som det repo, pakken ligger i. Den fulde licenstekst står i filen `LICENSE` i denne mappe (den samme tekst som `LICENSE` i repoets rod), så den følger med, når pakken kopieres til et andet repo. Lad den blive liggende sammen med pakken.
 
 Skrifterne i `web/fonts/` har deres egen licens, **SIL Open Font License 1.1**:
 

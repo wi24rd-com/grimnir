@@ -5,7 +5,8 @@
 //! `ordbog_hent`, `ordbog_tilfoej`, `ordbog_ret`, `ordbog_fjern`, `ordbog_proev`, `indstillinger_hent`,
 //! `indstillinger_gem` og `sag_valg`; filerne (V-FIL.1): `fil_aabn`, `fil_aabn_sluppet`, `fil_luk`, `fil_analyser`,
 //! `fil_raekker`, `fil_gem_og_masker`, `fil_demasker`, `fil_kopi`, `fil_gem` og `ordbog_start_forfra`; låsen (V-LAAS.2,
-//! V-LAAS.3): `laas_status`, `laas_op` og `aktivitet`; udklipsholderen (V-LAAS.4): `udklip_kopieret`.
+//! V-LAAS.3): `laas_status`, `laas_op` og `aktivitet`; udklipsholderen (V-LAAS.4): `udklip_kopieret`; kvitteringen
+//! (V-KVIT.1): `kvittering`.
 //!
 //! **Låsen (V-LAAS.2).** Grimnir starter altid låst ([`Tilstand::ved_start`]; V-LAAS.3 N1, ADR D20). UI'et kalder
 //! `laas_op` én gang ved start; døren ([`laas::platformens`]: Touch ID med adgangskoden som reserve på macOS) svarer i
@@ -47,6 +48,7 @@ pub mod fil;
 pub mod igang;
 pub mod indstillinger;
 pub mod klokke;
+pub mod kvittering;
 pub mod laas;
 pub mod maskering;
 #[cfg(target_os = "macos")]
@@ -263,6 +265,14 @@ fn aktivitet() {}
 #[tauri::command(async)]
 fn udklip_kopieret(tilstand: State<'_, Tilstand>, fil: bool) -> Result<bool, UiFejl> {
     maskering::udklip_kopieret(&tilstand, fil)
+}
+
+/// V-KVIT.1: kvitteringen for seneste maskering i Maskér som ren tekst (`fil`: den åbne fils resultat; `sprog`: UI'ets
+/// sprog). Kun tal, typenavne og sagens navn; ingen original, kode, sti eller filnavn ([`maskering::kvittering`]).
+/// Webvisningen kopierer teksten og melder den ikke til `udklip_kopieret`.
+#[tauri::command(async)]
+fn kvittering(tilstand: State<'_, Tilstand>, fil: bool, sprog: String) -> Result<String, UiFejl> {
+    maskering::kvittering(&tilstand, fil, &sprog)
 }
 
 /// V-LAAS.3: låser igen ([`maskering::laas_igen`]) og fortæller webvisningen det (hændelsen `laast`; webvisningen
@@ -568,6 +578,7 @@ pub fn run() {
         laas_status,
         laas_op,
         aktivitet,
+        kvittering,
         udklip_kopieret
     ]);
     tauri::Builder::default()

@@ -21,6 +21,8 @@ use grimnir_lib::maskering::{
     ordbog_ret, ordbog_start_forfra, ordbog_tilfoej, sag_aabn, sag_liste, sag_luk, sag_nulstil, sag_ny, sag_omdoeb, sag_slet, sag_status,
     sag_udloeb, sag_valg, udklip_kopieret, LaasStatus, SideValg, Tilstand, UiFejl, Visning,
 };
+// V-KVIT.1: den nye kommando `kvittering` står i listen over kommandoer, der svarer `laast` (`alle_kommandoer`).
+use grimnir_lib::maskering::kvittering;
 use grimnir_lib::sager::{HukommelsesLager, Noegle, Noeglelager, SagFejl, SagsId};
 
 /// En midlertidig mappe, der slettes igen.
@@ -141,6 +143,8 @@ fn alle_kommandoer(t: &Tilstand, fil: &std::path::Path, id: &str) -> Vec<(&'stat
         ("sag_slet", j(sag_slet(t, id).map(|x| v(&x)))),
         // V-LAAS.4.
         ("udklip_kopieret", j(udklip_kopieret(t, false).map(|x| v(&x)))),
+        // V-KVIT.1.
+        ("kvittering", j(kvittering(t, false, "da").map(|x| v(&x)))),
     ]
 }
 

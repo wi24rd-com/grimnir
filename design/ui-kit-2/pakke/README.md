@@ -22,7 +22,7 @@ Tankerne bag kittet (principper, farvernes betydning, sprogtone) står i `../REA
 | `demo/index.html` | Demoside med hver komponent; åbnes direkte fra disken |
 | `KOMPONENTER.md` | Hver komponent: formål, markup, tilstande, tastatur, hvad den kræver |
 | `flytning/` | Vejledninger til de programmer, der skal over på kittet |
-| `LICENSE.md` | Licens |
+| `LICENSE.md`, `LICENSE` | Licens, og hele Apache-2.0-teksten |
 
 Se demoen ved at dobbeltklikke på `demo/index.html`. Den henter intet udefra. Skift tema og sprog i titellinjen eller på fanen Vis.
 
@@ -201,4 +201,4 @@ I kilde-repoet laves programmets kopier af et script (`npm run kit`), og `npm ru
 
 ## Licens
 
-Se `LICENSE.md`: Apache-2.0 som resten af kilde-repoet. Skrifterne i `web/fonts/` er under SIL Open Font License 1.1.
+Se `LICENSE.md`: Apache-2.0 som resten af kilde-repoet; hele licensteksten ligger i `LICENSE` her i pakken. Skrifterne i `web/fonts/` er under SIL Open Font License 1.1.

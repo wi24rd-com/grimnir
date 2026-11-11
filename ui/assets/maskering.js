@@ -18,7 +18,8 @@
    rester kræver "Gem alligevel", og den demaskerede fil kræver en bekræftelse. Stien ser webvisningen aldrig.
 
    Rust-kommandoer: analyser, gem_og_masker, demasker, menu_sprog; fil_aabn, fil_aabn_sluppet, fil_luk, fil_analyser,
-   fil_raekker, fil_gem_og_masker, fil_demasker, fil_kopi, fil_gem; udklip_kopieret (V-LAAS.4, efter Kopiér i Demaskér).
+   fil_raekker, fil_gem_og_masker, fil_demasker, fil_kopi, fil_gem; udklip_kopieret (V-LAAS.4, efter Kopiér i Demaskér);
+   kvittering (V-KVIT.1: Kopiér kvittering i Maskér; teksten bygges i Rust og meldes ikke til udklip_kopieret).
    Hændelser fra Rust: menu ("aabn" | "gem"), fil-traek,
    fil-sluppet (kun filnavnet). */
 (function () {
@@ -782,6 +783,8 @@
       // En fil over 5 MB kan ikke kopieres (F3): Kopiér er nedtonet med en forklaring.
       kommando(v, 'kopier', Boolean(res) && !t && (!res.fil || res.kopierbar), !res ? 'hvorforMaskerFoerst' : t ? 'hvorforVent' : 'hvorforForStorTilKopi', GV.kopier());
       kommando(v, 'gem-fil', Boolean(st.fil && res) && !t, !st.fil ? 'hvorforKunFil' : t ? 'hvorforVent' : 'hvorforMaskerFoerst', GV.gem());
+      // V-KVIT.1: Kopiér kvittering, når der er et maskeret resultat (indsat tekst eller fil).
+      kommando(v, 'kvittering', Boolean(res) && !t, res ? 'hvorforVent' : 'hvorforMaskerFoerst');
       arbejder(f, t);
     }
     function tegnChip() {
@@ -816,6 +819,7 @@
     G.haandter('masker', 'indsaet', () => indsaetVia(st.tekst ? tv.pre : d.tom, f));
     G.haandter('masker', 'aabn-fil', () => aabnFil());
     G.haandter('masker', 'gem-fil', () => gemFil(false));
+    G.haandter('masker', 'kvittering', () => kopierKvittering());
     f.vedAabn = () => aabnFil();
     d.soeg.addEventListener('input', () => { st.soeg = d.soeg.value; st.side = SIDE; if (st.fil) hentSide(); else tegnTabel(); });
     async function kopierResultat() {
@@ -826,10 +830,21 @@
       if (ok === false) banner(f.bannere, 'danger', 'bKopiFejl');
     }
 
+    /* V-KVIT.1: Kopiér kvittering. Teksten bygges i Rust af tallene fra maskeringen (ingen originaler, koder eller
+       filnavn) og kopieres ad samme vej som Kopiér af et filresultat. Den meldes ikke til Rust bagefter
+       (udklip_kopieret): en kvittering er lavet til at blive delt og ryddes ikke ved lås eller afslutning. */
+    async function kopierKvittering() {
+      if (!st.resultat || st.travl) return;
+      const hent = () => invoke('kvittering', { fil: Boolean(st.resultat.fil), sprog: S.lang });
+      const ok = await kopierFraRust('masker', e => { fejl(e); tegnBannere(); }, hent);
+      besked(f, ok ? 'bKvitteringKopieret' : null);
+      if (ok === false) banner(f.bannere, 'danger', 'bKvitteringFejl');
+    }
+
     document.addEventListener('grimnir-ordbog', () => analyserIgen());
 
     return {
-      st, modtag, analyser, analyserIgen, gem, kopierResultat, tegn, tegnFod, tegnTabel,
+      st, modtag, analyser, analyserIgen, gem, kopierResultat, kopierKvittering, tegn, tegnFod, tegnTabel,
       genvejEnter() { return st.analyse ? gem() : analyser(); },
       filter(id) { st.filter = id === 'denne' ? 'alle' : id; st.visRester = false; st.side = SIDE; if (st.fil) hentSide(); else tegnTabel(); tegnBannere(); },
       aabnFil, gemFil, modtagFil,
@@ -1087,9 +1102,10 @@
 
   /* Kopiér et filresultat (højst 5 MiB) fra Rust. WebKit vil have, at udklipsholderen skrives i selve klikket: med
      ClipboardItem gives teksten som et løfte, der først opfyldes, når Rust har svaret. Uden ClipboardItem hentes teksten
-     først og kopieres som en indsat tekst. Svar: true | false | null (fejlen er vist med vedFejl). */
-  async function kopierFraRust(visning, vedFejl) {
-    const hent = () => invoke('fil_kopi', { visning });
+     først og kopieres som en indsat tekst. Svar: true | false | null (fejlen er vist med vedFejl).
+     V-KVIT.1: `hent` er kaldet til Rust, der giver teksten (udeladt: fil_kopi for visningen). */
+  async function kopierFraRust(visning, vedFejl, hent) {
+    hent = hent || (() => invoke('fil_kopi', { visning }));
     if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
       try {
         const blob = hent().then(t => new Blob([t], { type: 'text/plain' }));

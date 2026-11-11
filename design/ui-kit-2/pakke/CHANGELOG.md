@@ -2,6 +2,14 @@
 
 Første tal stiger, når et program skal ændre noget for at følge med. Andet tal ved nyt. Tredje tal ved rettelser.
 
+## 2.0.1 — 2026-11-11
+
+Kun dokumenter. Ingen kode, tokens eller komponenter er ændret, og et program på 2.0.0 skal ikke ændre noget.
+
+- `LICENSE`: hele Apache-2.0-teksten ligger nu i pakken, så den følger med, når pakken kopieres til et andet repo. `LICENSE.md` peger på den.
+- `flytning/HUGINN-MUNINN.md`: beslutningen er taget. Wi24rd Huginn and Muninn får hele Kit 2-skallen (mørk titellinje, handlingsbånd, træ og fodlinje). Rækkefølgen og opdelingen i cyklusser er skrevet om til det.
+- `flytning/WI24RD-SANDBOX.md`: ny, kort note. Wi24rd Sandbox bliver kun et Windows-program, venter og er ikke undersøgt. Det følger samme vej som Wi24rd FTP (XAML), når det går i gang.
+
 ## 2.0.0 — 2026-11-11
 
 Første pakkede udgave. Kittet er udskilt fra Wi24rd Grimnir, som var det første program på det, og kan nu kopieres til andre programmer.

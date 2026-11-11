@@ -44,10 +44,11 @@ const VERSION = pakkeVersion();
 {
   const skal = ['VERSION', 'CHANGELOG.md', 'README.md', 'KOMPONENTER.md', 'LICENSE.md', 'tokens/wi24rd-ui-kit-2.tokens.json', 'tokens/tokens.css', 'tokens/Tokens.xaml',
     'web/kit.css', 'web/kit.js', 'web/tema.js', 'web/sprogmotor.js', 'web/fonts/OFL-Inter.txt', 'web/fonts/OFL-JetBrainsMono.txt', 'demo/index.html', 'demo/demo.js',
-    'flytning/HUGINN-MUNINN.md', 'flytning/WI24RD-FTP.md'];
+    'flytning/HUGINN-MUNINN.md', 'flytning/WI24RD-FTP.md', 'LICENSE', 'flytning/WI24RD-SANDBOX.md'];
   const mangler = skal.filter(f => !fs.existsSync(path.join(PAKKE, f)));
   tjek('pakken har alle sine filer', mangler.length === 0, mangler.join(', '));
-  tjek('VERSION er 2.0.0', VERSION === '2.0.0' && pk('VERSION') === '2.0.0\n', JSON.stringify(pk('VERSION')));
+  // V-KVIT.1 N4: pakken er 2.0.1 (kun dokumenter: licensteksten, beslutningen om Huginn and Muninn, noten om Sandbox).
+  tjek('VERSION er 2.0.1', VERSION === '2.0.1' && pk('VERSION') === '2.0.1\n', JSON.stringify(pk('VERSION')));
   const log = pk('CHANGELOG.md');
   const foerste = /^## (\d+\.\d+\.\d+) — (\d{4}-\d{2}-\d{2})$/m.exec(log);
   tjek('CHANGELOG: første post er pakkens version med en dato', Boolean(foerste) && foerste[1] === VERSION, foerste ? foerste[0] : 'ingen post');
@@ -55,6 +56,8 @@ const VERSION = pakkeVersion();
   tjek('fire skriftfiler (woff2) ligger i pakken', fs.readdirSync(path.join(PAKKE, 'web', 'fonts')).filter(f => f.endsWith('.woff2')).length === 4);
   tjek('begge OFL-licenser nævner SIL Open Font License', ['OFL-Inter.txt', 'OFL-JetBrainsMono.txt'].every(f => /SIL OPEN FONT LICENSE/i.test(pk('web/fonts/' + f))));
   const lic = pk('LICENSE.md'), readme = pk('README.md');
+  tjek('V-KVIT.1: CHANGELOG har posterne 2.0.1 og 2.0.0, nyeste først, og 2.0.1 nævner de tre tilføjelser', log.indexOf('## 2.0.1 — ') > 0 && log.indexOf('## 2.0.1 — ') < log.indexOf('## 2.0.0 — ') && ['`LICENSE`', 'HUGINN-MUNINN.md', 'WI24RD-SANDBOX.md'].every(o => log.slice(log.indexOf('## 2.0.1'), log.indexOf('## 2.0.0')).includes(o)));
+  tjek('V-KVIT.1: hele Apache-2.0-teksten ligger i pakken (LICENSE, byte for byte som repoets), og LICENSE.md og README peger på den', pk('LICENSE') === fs.readFileSync(path.join(repo, 'LICENSE'), 'utf8') && /Apache License\s+Version 2\.0, January 2004/.test(pk('LICENSE')) && /END OF TERMS AND CONDITIONS/.test(pk('LICENSE')) && /`LICENSE` i denne mappe/.test(lic) && /`LICENSE`/.test(readme));
   tjek('LICENSE.md: Apache-2.0 som repoet, skrifterne under OFL', /Apache License 2\.0/.test(lic) && /SIL Open Font License 1\.1/.test(lic) && /Apache License/.test(fs.readFileSync(path.join(repo, 'LICENSE'), 'utf8')));
   tjek('README: web (rækkefølge, tema, sprog), WPF (flet ind, ingen komponenter), opdatering og hvad der mangler', ['## Sådan tager et webbaseret program kittet i brug', 'data-kit-praefiks', 'Tema.saet(', 'KitSprog.opret(', '## Sådan tager et WPF-program tokens i brug', 'Komponenterne findes ikke til WPF endnu', 'MergedDictionaries', 'DynamicResource', '## Sådan opdaterer du til en ny version', '## Hvad pakken ikke indeholder'].every(s => readme.includes(s)));
   tjek('README: navnereglen for XAML står der (Wi24rd + PascalCase, fx Wi24rdAccentBrush)', /`Wi24rd` \+ tokenets navn i PascalCase/.test(readme) && readme.includes('Wi24rdAccentBrush'));
@@ -355,6 +358,17 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
     const mangler = DELE.filter(d => !t.includes(d));
     tjek(`${fil}: har alle afsnit`, mangler.length === 0 && ord.every(o => t.includes(o)), mangler.join(', '));
   }
+}
+
+// ── V-KVIT.1 N4: beslutningen om Huginn and Muninn og noten om Sandbox ──
+{
+  const hm = pk('flytning/HUGINN-MUNINN.md');
+  tjek('V-KVIT.1: HUGINN-MUNINN.md: beslutningen (hele Kit 2-skallen, 2026-11-11) står der, og valget er ikke længere åbent', /## Beslutning: hele skallen/.test(hm) && /Jan har besluttet 2026-11-11/.test(hm) && /hele Kit 2-skallen/.test(hm) && ['mørk titellinje', 'handlingsbånd', 'træ', 'fodlinje'].every(o => hm.includes(o)) && !/kun hvis Jan vælger|kun ved hele skallen|Jan vælger: hele skallen eller/.test(hm));
+  const cyk = hm.slice(hm.indexOf('## Forslag til cyklusser'), hm.indexOf('## Ikke undersøgt'));
+  tjek('V-KVIT.1: HUGINN-MUNINN.md: cyklusserne er dem for hele skallen (A, B1–B6; skallen i B3 og B4)', ['| A (undersøgelse) |', '| B1 |', '| B2 |', '| B3 |', '| B4 |', '| B5 |', '| B6 |'].every(o => cyk.includes(o)) && !cyk.includes('| B7 |') && /\| B3 \| Trin 7, rammen/.test(cyk) && /\| B4 \| Trin 7, visningerne/.test(cyk));
+  const sb = pk('flytning/WI24RD-SANDBOX.md');
+  tjek('V-KVIT.1: WI24RD-SANDBOX.md: kun Windows, venter, ikke undersøgt, samme vej som FTP (XAML)', /kun et Windows-program/.test(sb) && /ligger og venter/.test(sb) && /ikke undersøgt/.test(sb) && /samme vej som Wi24rd FTP/.test(sb) && sb.includes('XAML') && sb.includes('WI24RD-FTP.md') && sb.length < 2000);
+  tjek('V-KVIT.1: WI24RD-FTP.md peger på noten om Sandbox', pk('flytning/WI24RD-FTP.md').includes('WI24RD-SANDBOX.md'));
 }
 
 console.log(`\n${ok + fejl} tjek: ${ok} ok, ${fejl} fejl`);
