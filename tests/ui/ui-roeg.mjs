@@ -364,7 +364,10 @@ function falskRust({ rester = [], afvis = null } = {}) {
       for (const [k, o] of Object.entries(koder)) t = t.split(k).join(o);
       // linjer: som fil::antal_linjer i Rust (V-RET.1 R3): linjeskift (LF, CRLF, enligt CR) + 1 uden afsluttende linjeskift.
       const linjer = a.tekst === '' ? 0 : (a.tekst.match(/\r\n|\r|\n/g) || []).length + (/[\r\n]$/.test(a.tekst) ? 0 : 1);
-      return { tekst: t, linjer, koder: Object.keys(koder).slice(1), advarsler: [{ art: 'ukendt_kode', kode: 'h0099', antal: 1, linje: 1 }, { art: 'ikke_brugt', kode: Object.keys(koder)[0], antal: 1, linje: 0 }] };
+      // V-PUDS.1 N4: antal og første linje pr. kode, som Rust svarer (tilbage); den falske Rust tæller, webvisningen ikke.
+      const brugt = Object.keys(koder).slice(1);
+      const tilbage = brugt.map(k => ({ kode: k, antal: a.tekst.split(k).length - 1, linje: a.tekst.includes(k) ? (a.tekst.slice(0, a.tekst.indexOf(k)).match(/\r\n|\r|\n/g) || []).length + 1 : 0 }));
+      return { tekst: t, linjer, koder: brugt, tilbage, advarsler: [{ art: 'ukendt_kode', kode: 'h0099', antal: 1, linje: 1 }, { art: 'ikke_brugt', kode: Object.keys(koder)[0], antal: 1, linje: 0 }] };
     },
     sag_status: () => ({ poster }),
     sag_nulstil: () => { poster = 0; koder = {}; return { poster: 0 }; },
@@ -1422,7 +1425,7 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
       await pause();
       return { uddrag: 'Password=GRIMNIR_SECRET_0001;\r\nsrcip=198.18.0.2 msg=ok\r\n', ikke_vist: 1234000, rester, advarsler: [], poster: antal, bytes: kopierbar ? 1000 : 6 * 1048576, kopierbar };
     },
-    fil_demasker: async () => { await pause(); return { uddrag: 'Password=Sommer2026!;\r\n', ikke_vist: 99, advarsler: [], koder: ['198.18.0.2'], bytes: kopierbar ? 1000 : 6 * 1048576, kopierbar }; },
+    fil_demasker: async () => { await pause(); return { uddrag: 'Password=Sommer2026!;\r\n', ikke_vist: 99, advarsler: [], koder: ['198.18.0.2'], tilbage: [{ kode: '198.18.0.2', antal: 3, linje: 2 }], bytes: kopierbar ? 1000 : 6 * 1048576, kopierbar }; },
     fil_kopi: ({ visning }) => (visning === 'masker' ? 'MASKERET-HELE-FILEN' : 'RIGTIGE-HELE-FILEN'),
     fil_gem: ({ visning, ok }) => {
       if (visning === 'masker' && rester.length && !ok) throw { art: 'rester', antal: rester.length };
@@ -1621,6 +1624,12 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   s.tast('Enter', { metaKey: true });
   await vent(10);
   tjek('Demaskér: fil_demasker uden tekst; de rigtige værdier i uddrag', s.kald.some(k => k[0] === 'fil_demasker' && !('tekst' in k[1])) && sek.querySelectorAll('pre.tekst')[1].textContent === 'Password=Sommer2026!;\r\n');
+  {
+    // V-PUDS.1 N4: en fil: Antal og Linje i rækken "Sat tilbage" kommer fra Rust (fil_demasker → tilbage).
+    const tr = [...sek.querySelectorAll('.advtabel tbody tr')].find(x => x.textContent.includes('Sat tilbage'));
+    const c = tr ? [...tr.querySelectorAll('td')].map(x => x.textContent) : [];
+    tjek('V-PUDS.1 N4: fil: Sat tilbage viser Antal 3 og Linje 2 fra Rust', c[1] === '198.18.0.2' && c[2] === '3' && c[3] === '2', c.join(' | '));
+  }
   tjek('Demaskér: Gem som fil er aktiv (⌘S)', kommandoAktiv(d, 'demasker', 'gem-fil') && knapI(d, 'demasker', 'gem-fil').title === 'Genvej: ⌘S');
   knapI(d, 'demasker', 'gem-fil').click();
   await vent(5);
@@ -2436,6 +2445,85 @@ for (const lang of ['da', 'en']) {
   const s2 = side({ rust, lager: { 'grimnir-sprog': lang } });
   await vent(30);
   tjek(`V-LAAS.6 (${lang}): ved start efter det kommer beskeden ikke igen`, !laaseskaerm(s2.d) && rust.st.opKald.length === 2 && !s2.d.querySelector('#laas-banner .ban[data-efter]'));
+}
+
+// ── V-PUDS.1: småting efter låsecyklerne og vinduesprøven. N2: teksten i sagspanelet (begge sprog, ental og flertal).
+// N3: Altid/Aldrig har ordet i knappen; app.css viser det fra 1200 px (jsdom anvender ikke @media, så reglerne læses som i
+// kolonner.mjs; bredderne regnes i kolonner.mjs). N4: Demaskér-tabellen viser Antal og Linje fra Rust. Kun opdigtede data. ──
+{
+  const SAGP = {
+    da: [[1, 'Sagen husker 1 værdi i hukommelsen. Gem som sag gemmer den krypteret på denne maskine. Låser eller afsluttes Grimnir, gemmes sagen automatisk under et dato-navn, medmindre du kasserer den. Nulstil glemmer den, og et svar med den kode kan derefter ikke demaskeres.'],
+      [2, 'Sagen husker 2 værdier i hukommelsen. Gem som sag gemmer den krypteret på denne maskine. Låser eller afsluttes Grimnir, gemmes sagen automatisk under et dato-navn, medmindre du kasserer den. Nulstil glemmer dem, og et svar med de koder kan derefter ikke demaskeres.']],
+    en: [[1, 'The case remembers 1 value in memory. Save as case stores it encrypted on this machine. If Grimnir locks or quits, the case is saved automatically under a date name, unless you discard it. Reset forgets it, and a reply with that code can no longer be unmasked.'],
+      [2, 'The case remembers 2 values in memory. Save as case stores it encrypted on this machine. If Grimnir locks or quits, the case is saved automatically under a date name, unless you discard it. Reset forgets them, and a reply with those codes can no longer be unmasked.']],
+  };
+  for (const lang of ['da', 'en']) {
+    const s = side({ rust: falskRust(), lager: { 'grimnir-sprog': lang } });
+    const { d, w } = s;
+    await vent(5);
+    for (const [n, ventet] of SAGP[lang]) {
+      w.GrimnirMaskering.saetSag(n);
+      d.getElementById('sag-knap').click();
+      const p = d.getElementById('dlg-sag-p').textContent;
+      tjek(`V-PUDS.1 N2 (${lang}, ${n}): sagspanelet siger, at sagen gemmes ved lås og afslutning`, d.getElementById('dlg-sag').hasAttribute('open') && p === ventet, p);
+      d.querySelector('#dlg-sag [data-luk]').click();
+    }
+  }
+  const T = side().w.Sprog.TEKST;
+  tjek('V-PUDS.1 N2: ingen tekst siger længere "til Grimnir lukkes" / "until Grimnir closes"', !Object.values(T.da).some(x => /til Grimnir lukkes/.test(x)) && !Object.values(T.en).some(x => /until Grimnir closes/.test(x)));
+}
+{
+  // N3: knapperne i begge sprog: ikon + ordet (det skjulte ord, som CSS'en viser ved brede tabeller); title og aria-label uændrede.
+  for (const lang of ['da', 'en']) {
+    const rust = falskOrdbogRust({ poster: ORDBOG(), sager: SAGER(), indst: { guide_vist: true } });
+    const s = side({ rust, lager: { 'grimnir-sprog': lang } });
+    const { d, w } = s;
+    await vent(20);
+    const sek = d.querySelector('section[data-visning="masker"]');
+    indsaet(w, sek.querySelector('.tom'), TEKST);
+    s.tast('Enter', { metaKey: true });
+    await vent(10);
+    const [altid, aldrig] = [...raekkeMed(d, 24).querySelectorAll('.ordbogknapper button')];
+    const ord = b => b.querySelector('.skjult-tekst') && b.querySelector('.skjult-tekst').textContent;
+    const V = lang === 'da'
+      ? { ord: ['Altid', 'Aldrig'], title: ['Maskér altid: læg værdien i ordbogen', 'Maskér aldrig: læg værdien i ordbogen'], kol: 'Ordbog' }
+      : { ord: ['Always', 'Never'], title: ['Always mask: add the value to the dictionary', 'Never mask: add the value to the dictionary'], kol: 'Dictionary' };
+    tjek(`V-PUDS.1 N3 (${lang}): Altid/Aldrig har ikonet og ordet i knappen (${V.ord.join('/')})`, [altid, aldrig].every(b => b.classList.contains('ikonknap') && b.firstElementChild.matches('svg.ik')) && ord(altid) === V.ord[0] && ord(aldrig) === V.ord[1]);
+    tjek(`V-PUDS.1 N3 (${lang}): title og aria-label er de samme som før`, altid.title === V.title[0] && aldrig.title === V.title[1] && altid.getAttribute('aria-label') === w.Sprog.TEKST[lang].ariaAltid.replace('{v}', 'bruger060') && aldrig.getAttribute('aria-label') === w.Sprog.TEKST[lang].ariaAldrig.replace('{v}', 'bruger060'), altid.getAttribute('aria-label'));
+    const th = [...sek.querySelectorAll('.fundtabel thead th')].map(x => x.textContent);
+    tjek(`V-PUDS.1 N3 (${lang}): kolonnens overskrift er "${V.kol}" (kolOrdbog)`, th[6] === V.kol, th.join(' | '));
+  }
+  // CSS'en: ordet vises af @media-regler; 900 px rammer ingen af dem, 1200 px gør.
+  const css = ui('assets/app.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  const blokke = [...css.matchAll(/@media ([^{]+)\{((?:[^{}]*\{[^}]*\})*)\s*\}/g)].map(m => ({ hvor: m[1], indhold: m[2] }));
+  const viser = blokke.filter(b => /\.fundtabel \.ordbogknapper \.skjult-tekst \{[^}]*position: static/.test(b.indhold));
+  const passer = (hvor, W) => { const mn = hvor.match(/min-width:\s*(\d+)px/), mx = hvor.match(/max-width:\s*(\d+)px/); return (!mn || W >= +mn[1]) && (!mx || W <= +mx[1]); };
+  tjek('V-PUDS.1 N3: ordet vises kun i @media-regler (uden for dem er det skjult som før)', viser.length >= 1 && !/^\s*\.fundtabel \.ordbogknapper \.skjult-tekst/m.test(css.replace(/@media[^{]+\{(?:[^{}]*\{[^}]*\})*\s*\}/g, '')));
+  tjek('V-PUDS.1 N3: ved 900 px kun ikonet', !viser.some(b => passer(b.hvor, 900)));
+  tjek('V-PUDS.1 N3: ved 1200 px ikon og ord, med plads i Ordbog-kolonnen (--k7) i begge sprog', viser.some(b => passer(b.hvor, 1200) && /\.fundtabel \{[^}]*--k7:/.test(b.indhold) && /html\[lang="en"\] \.fundtabel \{[^}]*--k7:/.test(b.indhold)));
+}
+{
+  // N4: indsat tekst: Antal og Linje for hver kode, der er sat tilbage, fra Rust (tilbage); CRLF og to gange på én linje.
+  const s = side({ rust: falskRust() });
+  const { d, w } = s;
+  await vent(5);
+  indsaet(w, d.querySelector('section[data-visning="masker"] .tom'), TEKST);
+  s.tast('Enter', { metaKey: true }); await vent(5);
+  s.tast('Enter', { metaKey: true }); await vent(5);
+  w.location.hash = 'demasker';
+  await vent(5);
+  const dsek = d.querySelector('section[data-visning="demasker"]');
+  indsaet(w, dsek.querySelector('.tom'), 'Svar fra leverandøren\r\nuser0001 og user0001 igen\r\nGRIMNIR_SECRET_0001\r\n');
+  s.tast('Enter', { metaKey: true }); await vent(5);
+  const raekke = kode => { const tr = [...dsek.querySelectorAll('.advtabel tbody tr')].find(x => x.children[1] && x.children[1].textContent === kode && x.textContent.includes('Sat tilbage')); return tr ? [...tr.children].map(c => c.textContent) : []; };
+  const u = raekke('user0001'), g = raekke('GRIMNIR_SECRET_0001');
+  tjek('V-PUDS.1 N4: indsat tekst: user0001 sat tilbage 2 steder, første på linje 2', u[2] === '2' && u[3] === '2', u.join(' | '));
+  tjek('V-PUDS.1 N4: indsat tekst: GRIMNIR_SECRET_0001 sat tilbage 1 sted, linje 3', g[2] === '1' && g[3] === '3', g.join(' | '));
+  const th = [...dsek.querySelectorAll('.advtabel thead th')].map(x => x.textContent);
+  tjek('V-PUDS.1 N4: Demaskér-tabellen har kolonnerne Hvad, Kode, Antal, Linje', th.join() === 'Hvad,Kode,Antal,Linje', th.join());
+  const m = ui('assets/maskering.js');
+  const raekkerFn = m.slice(m.indexOf('function raekker() {', m.indexOf('Demaskér ═')), m.indexOf('function tegnTabel()', m.indexOf('Demaskér ═')));
+  tjek('V-PUDS.1 N4: webvisningen tæller ikke selv (rækkerne bygges af tilbage fra Rust)', /st\.resultat\.tilbage/.test(raekkerFn) && !/split\(|indexOf\(|match\(/.test(raekkerFn) && /tilbage: r\.tilbage/.test(m));
 }
 
 console.log(`\n${ok + fejl} tjek: ${ok} ok, ${fejl} fejl`);

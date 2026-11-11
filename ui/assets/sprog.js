@@ -57,7 +57,7 @@
       // V-SKAL.2: Maskér og Demaskér
       midlertidigSag: 'Midlertidig sag · {v} {v:værdi|værdier}', ariaSagKnap: 'Midlertidig sag, {v} {v:værdi|værdier}: gem som sag eller nulstil',
       sagH: 'Midlertidig sag',
-      sagP: 'Sagen husker {v} {v:værdi|værdier} i hukommelsen, til Grimnir lukkes. Gem som sag gemmer den krypteret på denne maskine. Nulstil glemmer {v:den|dem}, og et svar med {v:den kode|de koder} kan derefter ikke demaskeres.',
+      sagP: 'Sagen husker {v} {v:værdi|værdier} i hukommelsen. Gem som sag gemmer den krypteret på denne maskine. Låser eller afsluttes Grimnir, gemmes sagen automatisk under et dato-navn, medmindre du kasserer den. Nulstil glemmer {v:den|dem}, og et svar med {v:den kode|de koder} kan derefter ikke demaskeres.',
       nulstilSag: 'Nulstil sagen',
       hvorforIndsaetFoerst: 'Indsæt en tekst først', hvorforVent: 'Vent, Grimnir arbejder', hvorforAnalyserFoerst: 'Analysér teksten først',
       hvorforMaskerFoerst: 'Gem og maskér først', hvorforMaskerFoerstSag: 'Maskér en tekst i denne session først',
@@ -312,7 +312,7 @@
       // V-SKAL.2: Mask and Unmask
       midlertidigSag: 'Temporary case · {v} {v:value|values}', ariaSagKnap: 'Temporary case, {v} {v:value|values}: save as case or reset',
       sagH: 'Temporary case',
-      sagP: 'The case remembers {v} {v:value|values} in memory until Grimnir closes. Save as case stores it encrypted on this machine. Reset forgets {v:it|them}, and a reply with {v:that code|those codes} can no longer be unmasked.',
+      sagP: 'The case remembers {v} {v:value|values} in memory. Save as case stores it encrypted on this machine. If Grimnir locks or quits, the case is saved automatically under a date name, unless you discard it. Reset forgets {v:it|them}, and a reply with {v:that code|those codes} can no longer be unmasked.',
       nulstilSag: 'Reset the case',
       hvorforIndsaetFoerst: 'Paste a text first', hvorforVent: 'Wait, Grimnir is working', hvorforAnalyserFoerst: 'Analyse the text first',
       hvorforMaskerFoerst: 'Save and mask first', hvorforMaskerFoerstSag: 'Mask a text in this session first',

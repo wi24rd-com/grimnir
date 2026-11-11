@@ -327,7 +327,11 @@ fn laast_grimnir_gemmer_intet() {
     ved_afslut(&t);
     assert_eq!(lager.tag(), Vec::<String>::new());
     assert_eq!(m.sager().len(), 1);
-    assert!(!m.gemt().exists(), "låsen skriver ingen fil (se sidefund i HANDOFF)");
+    // V-PUDS.1 N1: låsen har skrevet navnet (så beskeden overlever afslutningen); afslutningen rører det ikke.
+    assert_eq!(
+        std::fs::read_to_string(m.gemt()).unwrap(),
+        format!("{{\"midlertidig_gemt\":\"{NAVN}\"}}\n")
+    );
     // Låst fra start og aldrig låst op.
     let m = Mappe::ny();
     let t = start(&m, &lager);
@@ -557,10 +561,18 @@ fn en_funktion_gemmer_og_nulstiller() {
     let i = m.find("fn gem_og_nulstil_sag(").unwrap();
     let krop = &m[i..i + m[i..].find("\n}\n").unwrap()];
     assert!(krop.contains("gem_midlertidig(") && krop.contains("Undtagelse::ny("));
-    // Navnet skrives kun i ved_afslut, og kun efter en vellykket gemning.
+    // Navnet skrives ét sted (husk_gemt_navn, V-PUDS.1 N1), kun efter en vellykket gemning: i ved_afslut og i laas_igen.
     assert_eq!(m.matches("gem_gemt_navn(").count(), 1);
+    assert_eq!(
+        m.matches("husk_gemt_navn(").count(),
+        3,
+        "defineret og kaldt fra ved_afslut og laas_igen"
+    );
     let i = m.find("pub fn ved_afslut(").unwrap();
     let ved = &m[i..i + m[i..].find("\n}\n").unwrap()];
-    assert!(ved.contains("if let (Some(Ok(navn)), Some(f)) = (gemt.midlertidig, &t.gemt_fil)"));
+    assert!(ved.contains("if let Some(Ok(navn)) = &gemt.midlertidig {") && ved.contains("husk_gemt_navn(t, navn)"));
+    let i = m.find("pub fn laas_igen(").unwrap();
+    let laas = &m[i..i + m[i..].find("\n}\n").unwrap()];
+    assert!(laas.contains("if let Some(Ok(navn)) = &midlertidig {") && laas.contains("husk_gemt_navn(t, navn)"));
     assert!(ved.find(".swap(true") < ved.find("t.sag_inden("), "låst før sagens lås");
 }

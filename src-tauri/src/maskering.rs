@@ -55,6 +55,10 @@
 //! midlertidige sag (Afslut fra Dock, log ud, genstart, sluk), gemmes den som ved lås ([`ved_afslut`], med samme
 //! funktion som [`laas_igen`]: [`gem_og_nulstil_sag`]). Navnet står i `<app-data>/gemt-ved-afslut.json`
 //! ([`crate::indstillinger::GEMT_FILNAVN`]) og siges efter næste oplåsning, én gang.
+//!
+//! **Beskeden efter en lås overlever en afslutning (V-PUDS.1 N1).** Gemmer [`laas_igen`] en midlertidig sag, skrives
+//! navnet i samme fil ([`husk_gemt_navn`]); afsluttes programmet fra låseskærmen, siges det efter oplåsningen ved næste
+//! start. Oplåses der i samme kørsel, siges det dér, og filen slettes. Fejlbeskederne skrives ikke til disk.
 
 use std::collections::{HashMap, HashSet};
 use std::hash::{BuildHasher, RandomState};
@@ -64,8 +68,8 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::ThreadId;
 
 use grimnir_core::{
-    analyser as kerne_analyser, demasker as kerne_demasker, foreslaa_med_ordbog, laekagetjek, masker, Advarsel, AdvarselArt, AfledtArt,
-    Art, Erstatning, Fejl, Fund, Klasse, Ordbog, Pulje, RestArt, Sag, Sikkerhed, Valg,
+    analyser as kerne_analyser, demasker_med_steder as kerne_demasker, foreslaa_med_ordbog, laekagetjek, masker, Advarsel, AdvarselArt,
+    AfledtArt, Art, Erstatning, Fejl, Fund, Klasse, Ordbog, Pulje, RestArt, Sag, Sikkerhed, Valg,
 };
 use serde::{Deserialize, Serialize};
 
@@ -270,7 +274,7 @@ pub struct Tilstand {
     /// V-LAAS.4: det, Rust ved om udklipsholderen.
     udklip_husk: Mutex<UdklipHusk>,
     /// V-LAAS.6 N2: `<app-data>/gemt-ved-afslut.json` med navnet på en midlertidig sag, der blev gemt, da programmet
-    /// afsluttede ([`ved_afslut`]); `None` uden mappe (tests i hukommelsen).
+    /// afsluttede ([`ved_afslut`]) eller (V-PUDS.1 N1) låste ([`laas_igen`]); `None` uden mappe (tests i hukommelsen).
     gemt_fil: Option<PathBuf>,
 }
 
@@ -303,8 +307,8 @@ impl Tilstand {
         let indst_fil = indstillinger::sti(&mappe);
         let indst = indstillinger::laes(&indst_fil);
         let laas = Laas::default();
-        // V-LAAS.6 N2: en midlertidig sag, der blev gemt ved sidste afslutning, siges efter første oplåsning
-        // ([`efter_svar`] sletter filen, når beskeden er givet).
+        // V-LAAS.6 N2: en midlertidig sag, der blev gemt ved sidste afslutning eller (V-PUDS.1 N1) lås, siges efter
+        // første oplåsning ([`efter_svar`] sletter filen, når beskeden er givet).
         let gemt_fil = indstillinger::gemt_sti(&mappe);
         laas.efter.lock().unwrap_or_else(|e| e.into_inner()).midlertidig_gemt = indstillinger::laes_gemt_navn(&gemt_fil);
         let lager: Arc<dyn Noeglelager> = Arc::new(LaasVagt {
@@ -732,8 +736,24 @@ pub struct Demaskering {
     pub advarsler: Vec<AdvarselUd>,
     /// Sagens koder, der forekommer i teksten (koderne, ikke originalerne).
     pub koder: Vec<String>,
+    /// V-PUDS.1 N4: for hver kode i `koder`, i samme rækkefølge, hvor mange steder den blev sat tilbage, og linjen.
+    pub tilbage: Vec<TilbageUd>,
     /// Antal linjer i den indsatte tekst ([`fil::antal_linjer`]; V-RET.1 R3).
     pub linjer: usize,
+}
+
+/// V-PUDS.1 N4: én kode, der blev sat tilbage: koden (ikke originalen), antal steder i teksten og linjen for det første
+/// (1-baseret, som `linje` i Maskér; LF, CRLF og et enligt CR er hver ét linjeskift). Tallene kommer fra kernens
+/// gennemløb, der byggede resultatet ([`grimnir_core::demasker_med_steder`]): stederne er dem, der blev erstattet (koden,
+/// et alias eller koden med andre store/små bogstaver).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct TilbageUd {
+    /// Koden.
+    pub kode: String,
+    /// Antal steder.
+    pub antal: usize,
+    /// Linjen for det første sted.
+    pub linje: usize,
 }
 
 /// Svaret fra `sag_status` og kommandoerne, der skifter sag.
@@ -1367,25 +1387,39 @@ fn husk_demaskeret(t: &Tilstand, i: usize, tekst: &str) -> Result<(), UiFejl> {
 fn demasker_i(t: &Tilstand, tekst: &str) -> Result<Demaskering, UiFejl> {
     let a = t.sag();
     let sag = &a.sag;
-    let (ud, adv) = kerne_demasker(tekst, sag);
+    let (ud, adv, steder) = kerne_demasker(tekst, sag);
     let ikke_brugt: HashSet<&str> = adv
         .iter()
         .filter(|a| a.art == AdvarselArt::IkkeBrugt)
         .map(|a| a.kode.as_str())
         .collect();
-    let koder = sag
+    // V-PUDS.1 N4: antal og første sted pr. post, fra samme gennemløb.
+    let steder: HashMap<usize, (usize, usize)> = steder.iter().map(|s| (s.post, (s.antal, s.foerste))).collect();
+    let linjer = Linjer::ny(tekst);
+    let (koder, tilbage): (Vec<String>, Vec<TilbageUd>) = sag
         .data()
         .poster
         .iter()
-        .map(|p| p.kode.as_str())
-        .filter(|k| !ikke_brugt.contains(k))
-        .map(str::to_string)
-        .collect();
+        .enumerate()
+        .filter(|(_, p)| !ikke_brugt.contains(p.kode.as_str()))
+        .map(|(i, p)| {
+            let (antal, linje) = steder.get(&i).map_or((0, 0), |&(n, f)| (n, linjer.af(f)));
+            (
+                p.kode.clone(),
+                TilbageUd {
+                    kode: p.kode.clone(),
+                    antal,
+                    linje,
+                },
+            )
+        })
+        .unzip();
     drop(a);
     Ok(Demaskering {
-        advarsler: samlede_advarsler(&adv, &Linjer::ny(tekst)),
+        advarsler: samlede_advarsler(&adv, &linjer),
         tekst: ud,
         koder,
+        tilbage,
         linjer: fil::antal_linjer(tekst),
     })
 }
@@ -1905,6 +1939,9 @@ pub fn laas_op(t: &Tilstand, doer: &dyn Doer, sprog: &str) -> LaasSvar {
 ///    nulstilles, og `AabenSag` med sagens [`Noegle`] slippes (nøglen nulstilles).
 /// 5. Ordbogen slippes, og posterne og kernens kopi nulstilles. Den læses igen fra disk, første gang den bruges efter
 ///    oplåsningen (og nøglen med den).
+/// 6. V-PUDS.1 N1: blev en midlertidig sag gemt, skrives navnet også i `<app-data>/gemt-ved-afslut.json`
+///    ([`husk_gemt_navn`]), så beskeden kommer, selv om programmet afsluttes fra låseskærmen. Oplåsningen
+///    ([`efter_svar`]) siger det og sletter filen.
 ///
 /// Hvorfor ikke gemme først og låse bagefter: så stod porten åben for kommandoer fra webvisningen, mens nøglen blev
 /// oprettet (måske i lang tid, hvis Nøglering spørger). Hvorfor ikke slå vagten fra for alle et øjeblik: en kommando, der
@@ -1938,6 +1975,10 @@ pub fn laas_igen(t: &Tilstand, grund: Udloeser) -> bool {
             ob::nulstil(o.poster);
             ob::nulstil_kerne(o.kerne);
         }
+    }
+    // 6. V-PUDS.1 N1: navnet også på disk, så beskeden overlever en afslutning fra låseskærmen.
+    if let Some(Ok(navn)) = &midlertidig {
+        husk_gemt_navn(t, navn);
     }
     let mut efter = t.laas.efter.lock().unwrap_or_else(|e| e.into_inner());
     match midlertidig {
@@ -2055,7 +2096,7 @@ fn ryd_udklip(t: &Tilstand) {
 /// 4. Låst sættes, som i [`laas_igen`]: porten og vagten om nøglelageret afviser alle andre tråde herfra.
 /// 5. Sagens lås tages; en kommando, der holder den (fx en maskering), får højst [`AFSLUT_VENT`] til at blive færdig.
 ///    Derefter [`gem_og_nulstil_sag`] (vagtens undtagelse for denne tråd alene, mens sagens lås holdes).
-/// 6. Lykkedes gemningen af en midlertidig sag, skrives navnet ([`indstillinger::gem_gemt_navn`]).
+/// 6. Lykkedes gemningen af en midlertidig sag, skrives navnet ([`husk_gemt_navn`]).
 ///
 /// Fejler gemningen, afslutter programmet alligevel: fejlen vises ikke (der er ingen at vise den til) og skrives
 /// ingen steder; [`crate::sager::Arkiv::opret`] sletter den nye nøgle igen, hvis filen ikke kunne skrives.
@@ -2086,8 +2127,19 @@ pub fn ved_afslut(t: &Tilstand) {
     let gemt = gem_og_nulstil_sag(t, &mut a, ny, &indst, engelsk);
     drop(a);
     // 6. Navnet til næste start.
-    if let (Some(Ok(navn)), Some(f)) = (gemt.midlertidig, &t.gemt_fil) {
-        let _ = indstillinger::gem_gemt_navn(f, &navn);
+    if let Some(Ok(navn)) = &gemt.midlertidig {
+        husk_gemt_navn(t, navn);
+    }
+}
+
+/// V-LAAS.6 N2 og V-PUDS.1 N1: skriver navnet på en midlertidig sag, der lige er gemt (af [`ved_afslut`] eller
+/// [`laas_igen`]), i `<app-data>/gemt-ved-afslut.json` ([`indstillinger::gem_gemt_navn`]: kun Grimnirs eget navn).
+/// Næste oplåsning, i samme kørsel eller ved næste start, siger det og sletter filen ([`efter_svar`]); så gives beskeden
+/// én gang, også når programmet afsluttes fra låseskærmen. Fejl ved skrivningen ignoreres (så mangler kun beskeden ved
+/// næste start; sagen står i listen). Fejlbeskederne (`midlertidig_fejl`, `gem_fejl`) skrives ikke til disk.
+fn husk_gemt_navn(t: &Tilstand, navn: &str) {
+    if let Some(f) = &t.gemt_fil {
+        let _ = indstillinger::gem_gemt_navn(f, navn);
     }
 }
 
@@ -2541,6 +2593,8 @@ pub struct FilDemaskering {
     pub advarsler: Vec<AdvarselUd>,
     /// Sagens koder, der forekommer i teksten.
     pub koder: Vec<String>,
+    /// V-PUDS.1 N4: antal steder og første linje for hver kode i `koder` (som [`Demaskering::tilbage`]).
+    pub tilbage: Vec<TilbageUd>,
     /// Tekstens størrelse (UTF-8).
     pub bytes: usize,
     /// Kopiér kan bruges (højst 5 MiB).
@@ -2571,6 +2625,7 @@ pub fn fil_demasker(t: &Tilstand) -> Result<FilDemaskering, UiFejl> {
         ikke_vist,
         advarsler: d.advarsler,
         koder: d.koder,
+        tilbage: d.tilbage,
         bytes,
         kopierbar: bytes <= fil::MAKS_KOPI,
     })

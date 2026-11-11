@@ -39,7 +39,7 @@ mod sag;
 mod typer;
 
 pub use analyse::analyser;
-pub use demasker::demasker;
+pub use demasker::{demasker, demasker_med_steder, SatTilbage};
 pub use foreslaa::{foreslaa, foreslaa_med_ordbog, masker};
 pub use graense::{graense_efter, graense_foer, ved_graense, Moenster};
 pub use laekage::laekagetjek;

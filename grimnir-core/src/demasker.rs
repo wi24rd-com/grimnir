@@ -20,8 +20,27 @@ fn advarsel(art: AdvarselArt, start: usize, slut: usize, kode: &str, forslag: Op
     }
 }
 
+/// Hvor en af sagens poster blev sat tilbage (V-PUDS.1 N4): antal steder i teksten og byte-positionen for det første.
+/// Kun postens nummer og tal; ingen original.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SatTilbage {
+    /// Postens nummer i [`crate::SagData::poster`].
+    pub post: usize,
+    /// Antal steder, hvor posten blev sat tilbage (koden, et alias eller koden med andre store/små bogstaver).
+    pub antal: usize,
+    /// Byte-positionen i teksten for det første sted.
+    pub foerste: usize,
+}
+
 /// Sætter originalerne tilbage for alle sagens koder i teksten og melder alt, der ser forkert ud.
 pub fn demasker(tekst: &str, sag: &Sag) -> (String, Vec<Advarsel>) {
+    let (ud, advarsler, _) = demasker_med_steder(tekst, sag);
+    (ud, advarsler)
+}
+
+/// [`demasker`], og for hver post, der blev sat tilbage, antal steder og det første ([`SatTilbage`], i postens
+/// rækkefølge). Stederne tælles i samme gennemløb, der bygger resultatet, så de er præcis dem, der blev erstattet.
+pub fn demasker_med_steder(tekst: &str, sag: &Sag) -> (String, Vec<Advarsel>, Vec<SatTilbage>) {
     let t = tekst.as_bytes();
     let traef = sag.find_koder(t);
     let mut advarsler = Vec::new();
@@ -63,7 +82,7 @@ pub fn demasker(tekst: &str, sag: &Sag) -> (String, Vec<Advarsel>) {
     }
 
     // Kodeformer, der ikke er sagens koder
-    let mut ekstra: Vec<(usize, usize, String)> = Vec::new();
+    let mut ekstra: Vec<(usize, usize, String, usize)> = Vec::new();
     let mut ukendte = 0usize;
     // En kode, hvis bogstaver er ændret efter maskeringen (F4): opslag uafhængigt af store/små.
     // Navne og adresser får originalen i samme bogstavform som koden; hemmeligheder og andre
@@ -87,7 +106,7 @@ pub fn demasker(tekst: &str, sag: &Sag) -> (String, Vec<Advarsel>) {
         };
         brugt[p] = true;
         advarsler.push(advarsel(AdvarselArt::AfledtForm(AfledtArt::AndenStavemaade), s, e, kode, None));
-        ekstra.push((s, e, ny));
+        ekstra.push((s, e, ny, p));
         true
     };
     find_kodeformer(t, |s, e, form| {
@@ -136,20 +155,28 @@ pub fn demasker(tekst: &str, sag: &Sag) -> (String, Vec<Advarsel>) {
     }
 
     // Byg resultatet i ét gennemløb
-    let mut alle: Vec<(usize, usize, &str)> = traef.iter().map(|&(s, e, p)| (s, e, sag.post(p).original.som_tekst())).collect();
-    alle.extend(ekstra.iter().map(|(s, e, o)| (*s, *e, o.as_str())));
+    let mut alle: Vec<(usize, usize, &str, usize)> = traef.iter().map(|&(s, e, p)| (s, e, sag.post(p).original.som_tekst(), p)).collect();
+    alle.extend(ekstra.iter().map(|(s, e, o, p)| (*s, *e, o.as_str(), *p)));
     alle.sort_by_key(|x| x.0);
     let mut ud = String::with_capacity(tekst.len());
     let mut pos = 0;
-    for (s, e, o) in alle {
+    let mut steder: Vec<Option<SatTilbage>> = vec![None; sag.antal_poster()];
+    for (s, e, o, p) in alle {
         if s < pos {
             continue;
         }
         ud.push_str(&tekst[pos..s]);
         ud.push_str(o);
         pos = e;
+        // Stederne kommer i tekstens rækkefølge; det første sted er det første, der tælles.
+        let st = steder[p].get_or_insert(SatTilbage {
+            post: p,
+            antal: 0,
+            foerste: s,
+        });
+        st.antal += 1;
     }
     ud.push_str(&tekst[pos..]);
     advarsler.sort_by_key(|a| (a.start, a.slut));
-    (ud, advarsler)
+    (ud, advarsler, steder.into_iter().flatten().collect())
 }

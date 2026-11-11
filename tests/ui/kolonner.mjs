@@ -27,11 +27,16 @@ const tjek = (navn, betingelse, detalje = '') => {
 const MAALT_TH = { '✓': 11, 'Type': 32, 'Fundet værdi': 92, 'Fundet': 49, 'værdi': 40, 'Erstatning': 77, 'Antal': 41, 'Status': 47, 'Hvad': 34, 'Tekst': 40, 'Linje': 34, 'Kode': 34, 'Navn': 35, 'Værdier': 55, 'Oprettet': 64, 'Sidst brugt': 81, 'Sidst': 36, 'brugt': 41, 'Udløber': 57, 'Ordbog': 52, 'Værdi eller mønster': 143, 'Værdi': 40, 'eller': 37, 'mønster': 60, 'Note': 34, 'Value found': 86, 'Value': 40, 'found': 43, 'Replacement': 90, 'Count': 44, 'What': 37, 'Text': 32, 'Line': 27, 'Code': 34, 'Name': 36, 'Values': 48, 'Created': 56, 'Last used': 68, 'Last': 32, 'used': 33, 'Expires': 51, 'Dictionary': 76, 'Value or pattern': 118, 'or': 17, 'pattern': 55 };
 const MAALT_CHIP = { 'Sikker': 69, 'Fra ordbog': 89, 'Sandsynlig': 91, 'Tjek selv': 81, 'Version': 75, 'Original står tilbage': 140, 'Ligner følsom værdi': 142, 'Sat tilbage': 95, 'Ukendt adresse i sagens net': 193, 'Ukendt kode': 102, 'Andre store/små bogstaver': 185, 'Maskine uden domæne': 162, 'Domæne alene': 113, 'Escaped skråstreg': 134, 'URL-kodet': 87, 'Ikke i svaret': 100, 'Ligner en anden sag': 146, 'Pulje løb over: egne net': 162, 'Pulje løb over: offentlige adresser': 221, 'Pulje løb over: MAC-adresser': 196, 'Pulje løb over: IPv6': 137, 'Åben': 64, 'Udløber snart': 106, 'Udløbet': 75, 'Kan ikke åbnes': 117, 'Certain': 76, 'From dictionary': 117, 'Probable': 78, 'Check yourself': 117, 'Original left behind': 136, 'Looks sensitive': 116, 'Put back': 84, 'Unknown address in the case network': 250, 'Unknown code': 116, 'Different upper/lower case': 181, 'Machine without domain': 169, 'Domain alone': 105, 'Escaped backslash': 138, 'URL-encoded': 105, 'Not in the reply': 119, 'Looks like another case': 166, 'Pool ran out: own networks': 184, 'Pool ran out: public addresses': 201, 'Pool ran out: MAC addresses': 194, 'Pool ran out: IPv6': 128, 'Open': 64, 'Expiring soon': 105, 'Expired': 73, 'Cannot be opened': 135 };
 const MAALT_ORD = { 'IPv4, eget net': 34, 'IPv4, offentlig': 55, 'IPv6, eget net': 33, 'IPv6, offentlig': 55, 'MAC-adresse': 53, 'Maskine': 56, 'Domæne': 61, 'NetBIOS-domæne': 63, 'Bruger': 45, 'Person': 47, 'Database': 63, 'Ord': 25, 'Hemmelighed': 92, 'SID': 23, 'GUID': 35, 'Serienummer': 89, 'CPR-nummer': 55, 'Lang tilfældig streng': 54, 'Ligner en kode': 42, 'IPv4, own network': 54, 'IPv4, public': 41, 'IPv6, own network': 54, 'IPv6, public': 41, 'MAC address': 53, 'Machine': 57, 'Domain': 51, 'NetBIOS domain': 56, 'User': 32, 'Word': 36, 'Secret': 43, 'Serial number': 51, 'CPR number': 51, 'Long random string': 51, 'Looks like a code': 40 };
+/* V-PUDS.1 N3: ordene i knapperne Altid og Aldrig (12 px, vægt 600, Inter), målt i en WKWebView (macOS 26.6) med
+   ui/assets/*.css og de pakkede skrifter og rundet op, som tallene ovenfor (samme måling gav Ordbog 51,5 → 52,
+   Antal 40,2 → 41, Erstatning 76,1 → 77). */
+const MAALT_KNAPORD = { 'Altid': 27, 'Aldrig': 35, 'Always': 43, 'Never': 35 };
 
 const VAERDI_MIN = 140;
 // V-LAAS.4 N3: 1920 er med som bred skærm; overgangene er de brudpunkter, CSS'en har (1100, 1200 og 1720; 1200 står i BREDDER).
 const BREDDER = [900, 1200, 1600, 1920];
-const OVERGANGE = [1099, 1100, 1199, 1719, 1720];
+// V-PUDS.1 N3: 1839/1840, hvor ordet i Altid/Aldrig kommer igen, når fundene står side om side.
+const OVERGANGE = [1099, 1100, 1199, 1719, 1720, 1839, 1840];
 /* V-LAAS.4 N3: fra 1200 px skal Erstatning kunne vise 24 tegn i feltets skrift, og Fundet værdi skal have mindst 240 px.
    Feltets skrift er JetBrains Mono (pakket med). Fremføringen er målt i ui/assets/fonts/jetbrains-mono-latin-wght-normal.woff2
    (hhea/hmtx/cmap efter brotli-udpakning): alle 95 tegn fra U+0020 til U+007E har 600 enheder ved unitsPerEm 1000, altså
@@ -157,6 +162,34 @@ for (const tb of TABELLER) {
   tjek(`${tb.klasse}: kolonnerne i testen er dem i ${path.basename(tb.fil)}, og tabellen får klassen`, lister.includes(tb.kol.join()) && kilde.includes(`classList.add('${tb.klasse}')`));
 }
 
+/* V-PUDS.1 N3: står ordet ved ikonet i Altid/Aldrig ved W? (en @media-regel gør det skjulte ord synligt i fundtabellen).
+   Knappens bredde læses fra CSS'en: kant fra .mini, polstring og mellemrum fra reglen i @media (ellers 24 px uden ord),
+   ikonet fra .mini.ikonknap svg, afstanden mellem knapperne fra .ordbogknapper. */
+const ORD_VAELG = '.fundtabel .ordbogknapper .skjult-tekst', KNAP_VAELG = '.fundtabel .ordbogknapper .mini.ikonknap';
+const ordVises = W => APP.some(r => r.media && mediaPasser(r.media, W) && r.valg.includes(ORD_VAELG) && r.decl.position === 'static');
+const knapRegel = W => APP.filter(r => r.media && mediaPasser(r.media, W) && r.valg.includes(KNAP_VAELG)).pop();
+const MINI_KANT = Number((decl(APP, '.mini', 'border') || '').match(/^(\d+)px/)?.[1]);
+const IKON = px(decl(APP, '.mini.ikonknap svg', 'width'));
+const IKONKNAP = px(decl(APP, '.mini.ikonknap', 'width'));
+const KNAP_AFSTAND = px(decl(APP, '.ordbogknapper', 'gap'));
+function ordbogBredde(sprog, W) {
+  if (!ordVises(W)) return 2 * IKONKNAP + KNAP_AFSTAND;
+  const k = knapRegel(W);
+  const pol = (k.decl.padding || '').split(/\s+/).map(px);
+  const mellem = px(k.decl.gap);
+  return ['kAltid', 'kAldrig'].reduce((a, n) => a + 2 * MINI_KANT + 2 * (pol[1] ?? pol[0]) + IKON + mellem + MAALT_KNAPORD[S.TEKST[sprog][n]], 0) + KNAP_AFSTAND;
+}
+tjek('V-PUDS.1 N3: knappernes mål læst fra CSS\'en (kant 1, ikon 14, ikonknap 24, afstand 4 px)', MINI_KANT === 1 && IKON === 14 && IKONKNAP === 24 && KNAP_AFSTAND === 4, [MINI_KANT, IKON, IKONKNAP, KNAP_AFSTAND].join());
+tjek('V-PUDS.1 N3: ordene i Altid/Aldrig er målt i begge sprog', ['da', 'en'].every(sp => ['kAltid', 'kAldrig'].every(n => S.TEKST[sp][n] in MAALT_KNAPORD)));
+for (const W of [900, 1099, 1100, 1199]) tjek(`V-PUDS.1 N3: ${W} px: kun ikonet i Altid/Aldrig (under 1200 px)`, !ordVises(W));
+for (const W of [1200, 1600, 1719, 1840, 1920]) tjek(`V-PUDS.1 N3: ${W} px: ordet står ved ikonet i Altid/Aldrig`, ordVises(W) && knapRegel(W));
+tjek('V-PUDS.1 N3: 1720 px (side om side, smal tabel): kun ikonet', !ordVises(1720) && !ordVises(1839));
+// V-PUDS.1 N4: Demaskér-tabellens Antal og Linje har faste bredder i begge sprog ved alle bredder.
+for (const sprog of ['da', 'en']) for (const W of [...BREDDER, ...OVERGANGE]) {
+  const v = variabler('advtabel', sprog, W);
+  if (W === 900 || W === 1920) tjek(`V-PUDS.1 N4: advtabel ${sprog} ${W} px: Antal (${v['--k3']}) og Linje (${v['--k4']}) har faste bredder`, px(v['--k3']) >= 64 && px(v['--k4']) >= 56);
+}
+
 const rapport = [];
 for (const tb of TABELLER) {
   const n = tb.kol.length;
@@ -209,6 +242,11 @@ for (const tb of TABELLER) {
         const felt = a.kol[3] - 2 * celle - FELT_EKSTRA;
         tjek(`${navn}: Erstatning viser ${ERSTATNING_TEGN} tegn (${Math.round(felt * 10) / 10} px ≥ ${ERSTATNING_TEGN} × ${TEGN_PX} px)`, felt >= ERSTATNING_TEGN * TEGN_PX, String(felt));
         tjek(`${navn}: Fundet værdi har mindst ${VAERDI_BRED} px (${Math.round(a.kol[2])})`, a.kol[2] >= VAERDI_BRED);
+      }
+      if (tb.klasse === 'fundtabel') {
+        // V-PUDS.1 N3: Altid og Aldrig (med eller uden ord) kan være i Ordbog (kolonne 7).
+        const kn = ordbogBredde(sprog, W);
+        tjek(`${navn}: Altid og Aldrig${ordVises(W) ? ' med ord' : ''} kan være i Ordbog (${Math.round(kn * 10) / 10} ≤ ${Math.round(indhold(6))} px)`, kn <= indhold(6));
       }
       if (tb.klasse === 'fundtabel' && W === 900) tjek(`${navn}: V-LAAS.4: ingen vandret rulning ved 900 px (Erstatning er først bredere fra 1200 px)`, !a.rul);
       tjek(`${navn}: overskrifter, chips og typer kan være i deres kolonne`, for_brede.length === 0, for_brede.join('; '));

@@ -647,6 +647,7 @@
       const GO = window.GrimnirOrdbog;
       for (const hvad of ['altid', 'aldrig']) {
         // V-RET.1 R1: små ikonknapper (maske: maskér altid, øje: maskér aldrig); ordet står skjult i knappen og i title.
+        // V-PUDS.1 N3: ved brede tabeller gør app.css ordet synligt ved ikonet (kun CSS; title og aria-label er de samme).
         const b = el('button', 'mini ikonknap');
         b.type = 'button';
         b.append(K.ikon(hvad === 'altid' ? 'maske' : 'oeje', 'ik'), el('span', 'skjult-tekst', hvad === 'altid' ? 'kAltid' : 'kAldrig'));
@@ -889,7 +890,7 @@
       tegnKommandoer();
       tegnChip();
       const kald = st.fil
-        ? invoke('fil_demasker').then(r => ({ tekst: r.uddrag, ikkeVist: r.ikke_vist, advarsler: r.advarsler, koder: r.koder, bytes: r.bytes, kopierbar: r.kopierbar, fil: true }))
+        ? invoke('fil_demasker').then(r => ({ tekst: r.uddrag, ikkeVist: r.ikke_vist, advarsler: r.advarsler, koder: r.koder, tilbage: r.tilbage, bytes: r.bytes, kopierbar: r.kopierbar, fil: true }))
         : invoke('demasker', { tekst: st.tekst });
       return kald.then(r => {
         if (nr !== st.nr) return;
@@ -988,7 +989,8 @@
     function raekker() {
       if (!st.resultat) return [];
       let r = [];
-      if (st.filter === 'alle') r = st.resultat.koder.map(k => ({ art: 'sat_tilbage', kode: k, antal: null, linje: 0 })).concat(st.resultat.advarsler);
+      // V-PUDS.1 N4: antal steder og første linje pr. kode kommer fra Rust (tilbage); webvisningen tæller intet selv.
+      if (st.filter === 'alle') r = (st.resultat.tilbage || []).map(k => ({ art: 'sat_tilbage', kode: k.kode, antal: k.antal, linje: k.linje })).concat(st.resultat.advarsler);
       else if (st.filter === 'advarsler') r = advarsler();
       else if (st.filter === 'ikke-brugt') r = ikkeBrugt();
       const q = st.soeg.trim().toLowerCase();

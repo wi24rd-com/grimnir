@@ -84,7 +84,8 @@
 .tabel td .chip { max-width: 100%; }
 .tabel td .chip .ord { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .tabel td .kort { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Maskér: ✓, Type, Fundet værdi (resten), Erstatning, Antal, Status, Ordbog. Tæt polstring; Altid/Aldrig er ikonknapper. */
+/* Maskér: ✓, Type, Fundet værdi (resten), Erstatning, Antal, Status, Ordbog. Tæt polstring; Altid/Aldrig er ikonknapper
+   (V-PUDS.1 N3: med ordet ved ikonet ved brede tabeller, se nedenfor). */
 .fundtabel { --celle: var(--space-2); --k1: 28px; --k2: 108px; --k4: 106px; --k5: 60px; --k6: 108px; --k7: 68px; --tabel-min: 618px; }
 html[lang="en"] .fundtabel { --k2: 80px; --k6: 134px; --k7: 92px; --tabel-min: 640px; }
 /* V-LAAS.4 N3: fra 1200 px har Erstatning plads til 24 tegn i feltets skrift (JetBrains Mono 13 px: 600/1000 em = 7,8 px
@@ -93,6 +94,23 @@ html[lang="en"] .fundtabel { --k2: 80px; --k6: 134px; --k7: 92px; --tabel-min: 6
 @media (min-width: 1200px) {
   .fundtabel { --k4: 224px; --tabel-min: 736px; }
   html[lang="en"] .fundtabel { --tabel-min: 758px; }
+}
+/* V-PUDS.1 N3: ved brede tabeller står ordet (Altid/Aldrig) ved ikonet; title og aria-label er de samme. Ordet er det
+   skjulte ord i knappen, som her bliver synligt. Knappen: kant 1 + polstring 6 + ikon 14 + mellemrum 4 + ordet + 6 + 1 px
+   (ordene målt i WebKit, 12 px/600: Altid 26,9, Aldrig 34,9, Always 42,3, Never 34,7 px; tests/ui/kolonner.mjs). Ordbog
+   får to knapper + 4 px + cellens 2 × 8 px. Fra 1200 px, mens fundene står under teksten, og igen fra 1840 px, hvor de
+   står side om side og tabellen er bred nok til, at Fundet værdi stadig har mindst 240 px (1720–1839 px: kun ikonet). */
+@media (min-width: 1200px) and (max-width: 1719px) {
+  .fundtabel { --k7: 148px; --tabel-min: 816px; }
+  html[lang="en"] .fundtabel { --k7: 164px; --tabel-min: 830px; }
+  .fundtabel .ordbogknapper .mini.ikonknap { width: auto; padding: 0 6px; gap: 4px; }
+  .fundtabel .ordbogknapper .skjult-tekst { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; }
+}
+@media (min-width: 1840px) {
+  .fundtabel { --k7: 148px; --tabel-min: 816px; }
+  html[lang="en"] .fundtabel { --k7: 164px; --tabel-min: 830px; }
+  .fundtabel .ordbogknapper .mini.ikonknap { width: auto; padding: 0 6px; gap: 4px; }
+  .fundtabel .ordbogknapper .skjult-tekst { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; }
 }
 .fundtabel th:first-child, .fundtabel td:first-child { padding-right: var(--space-1); }
 /* Lækagetjekkets rester: Hvad, Type, Tekst (resten), Antal, Linje. */

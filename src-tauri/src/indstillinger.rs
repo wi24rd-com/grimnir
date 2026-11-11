@@ -96,7 +96,8 @@ pub fn gem(fil: &Path, i: &Indstillinger) -> Result<(), SagFejl> {
 // ------------------------------------------------------------------------------------------------------- V-LAAS.6 N2
 
 /// V-LAAS.6 N2: filen i `<app-data>` med navnet på en midlertidig sag, Grimnir gemte, da programmet afsluttede uden at
-/// spørge (Afslut fra Dock, log ud, genstart, sluk). Ved næste start siges navnet efter oplåsningen, og filen slettes.
+/// spørge (Afslut fra Dock, log ud, genstart, sluk), eller (V-PUDS.1 N1) da den låste. Ved næste oplåsning (i samme
+/// kørsel eller ved næste start) siges navnet, og filen slettes.
 ///
 /// Filen har ét felt, `midlertidig_gemt`, og kun et navn, Grimnir selv giver (`Midlertidig ÅÅÅÅ-MM-DD TT.MM.SS` /
 /// `Temporary …`, [`er_midlertidigt_navn`]): et tidsstempel, intet om sagens indhold. Den står derfor i klartekst, som
