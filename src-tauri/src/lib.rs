@@ -22,6 +22,10 @@
 //! **Ved lås mistes intet (V-LAAS.4).** En midlertidig sag med poster gemmes ved låsen under et dato-navn, og
 //! udklipsholderen ryddes, hvis den stadig har den demaskerede tekst, Grimnir kopierede ([`udklip`]; kun macOS).
 //!
+//! **Afslut (V-LAAS.5).** Hver vej ud af programmet ender i Tauris `RunEvent::Exit`, og dér, ét sted
+//! ([`ved_programslut`]), ryddes udklipsholderen på samme betingelse som ved lås ([`maskering::ved_afslut`]). Grimnirs
+//! egne veje kalder [`afslut`]; se dokumentationen dér for listen.
+//!
 //! **Filer (V-FIL.1).** Åbn- og Gem-dialogerne er styresystemets egne, åbnet herfra med `rfd` (ikke
 //! `tauri-plugin-dialog`/`-fs`); webvisningen får ingen fil-rettigheder og ser aldrig en sti, kun filnavnet. Træk og
 //! slip: Tauri giver stien til Rust i vinduets hændelse `DragDrop`; Rust husker den og sender kun filnavnet videre
@@ -444,7 +448,32 @@ fn sluppet(stier: &[PathBuf]) -> Result<PathBuf, &'static str> {
 #[tauri::command]
 fn program_afslut(app: tauri::AppHandle, tilstand: State<'_, Tilstand>) {
     tilstand.tillad_afslut();
+    afslut(&app);
+}
+
+/// V-LAAS.5 N1: Grimnirs egen vej ud (`program_afslut` og menuens Afslut ⌘Q, når der ikke skal spørges). Det eneste sted,
+/// Grimnir selv kalder `app.exit`. Rydningen sker ikke her, men i [`ved_programslut`], som alle veje ender i:
+///
+/// - `program_afslut` (efter spørgsmålet om den midlertidige sag) og menuens Afslut / ⌘Q: her → `app.exit(0)` →
+///   `RunEvent::ExitRequested` → `RunEvent::Exit`;
+/// - lukkeknappen og Vindue → Luk vindue (⌘W) på det sidste vindue: `CloseRequested` (spørger evt. først) → vinduet
+///   lukkes → Tauri: ingen vinduer tilbage → `ExitRequested` → `Exit`;
+/// - Afslut fra Dock, log ud, genstart og sluk: macOS sender `terminate:` → tao's `applicationWillTerminate` →
+///   `Exit` (tao 0.37.2 `app_delegate.rs:130` → `AppState::exit`; tauri-runtime-wry 2.12.3 `LoopDestroyed` →
+///   `RunEvent::Exit`). Disse veje spørger ikke om den midlertidige sag (som før).
+///
+/// Uden for Grimnirs rækkevidde: tvungen afslutning (Tving til at slutte, `kill -9`), et nedbrud, strømsvigt, og en
+/// nedlukning, der dræber programmet, før det når at afslutte.
+fn afslut(app: &tauri::AppHandle) {
     app.exit(0);
+}
+
+/// V-LAAS.5 N1: programmet afslutter (Tauris `RunEvent::Exit`, som hver vej ud ender i; se [`afslut`]). Udklipsholderen
+/// ryddes på samme betingelse som ved lås ([`maskering::ved_afslut`]). Venter ikke på andet og giver ingen dialog.
+fn ved_programslut(app: &tauri::AppHandle) {
+    if let Some(t) = app.try_state::<Tilstand>() {
+        maskering::ved_afslut(&t);
+    }
 }
 
 /// Afslut fra menuen (⌘Q) eller vinduets lukkeknap: med en midlertidig sag, der har poster, spørger webvisningen først
@@ -581,7 +610,7 @@ pub fn run() {
             if let Some(handling) = programmenu::handling(ev.id().as_ref()) {
                 if handling == "afslut" {
                     if !anmod_afslut(app) {
-                        app.exit(0);
+                        afslut(app);
                     }
                     return;
                 }
@@ -615,8 +644,14 @@ pub fn run() {
             aabn_vindue(app.handle())?;
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("Grimnir kunne ikke starte");
+        .build(tauri::generate_context!())
+        .expect("Grimnir kunne ikke starte")
+        // V-LAAS.5 N1: hver vej ud af programmet ender her.
+        .run(|app, ev| {
+            if let tauri::RunEvent::Exit = ev {
+                ved_programslut(app);
+            }
+        });
 }
 
 #[cfg(test)]

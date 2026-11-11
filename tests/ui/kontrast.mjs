@@ -117,6 +117,10 @@ export const PAR = [
   ['on-accent', 'accent', TEKST, 'Låseskærm: Lås op (primær knap)'],
   ['text', 'info-soft', TEKST, 'Banner: Grimnir er ikke låst'],
   ['surface', 'info', TEKST, 'Banner: symbolet i Grimnir er ikke låst'],
+  // V-LAAS.5 N3: sloganet står nedtonet ved navnet på titellinjen, og under navnet i Om-dialogen og guidens første skærm.
+  ['rail-text', 'rail', TEKST, 'Titellinjen: sloganet (nedtonet) ved navnet'],
+  ['text-muted', 'surface', TEKST, 'Om-dialogen og guiden: sloganet under navnet'],
+  ['text', 'surface', TEKST, 'Om-dialogen og guiden: navnet og beskrivelsen'],
 ];
 
 function lin(c) {

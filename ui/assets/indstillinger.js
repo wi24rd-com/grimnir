@@ -146,6 +146,9 @@
   const hj3 = tekst('p', 'hj', 'hjMoenster');
   trin3.append(tilfoejFelt('guide-net', 'feltEgetNet', () => 'eget_net'), tilfoejFelt('guide-moenster', 'feltNavnemoenster', () => 'navnemoenster'), hj3, liste(['eget_net', 'navnemoenster'], 'guideIngenNet'));
 
+  // V-LAAS.5 N3 (ADR D22): navn, slogan og beskrivelse (ens på dansk og engelsk; teksterne står i sprog.js).
+  const identitet = tekst('div', 'identitet');
+  identitet.append(tekst('p', 'id-navn', 'appNavn'), tekst('p', 'id-slogan', 'slogan'), tekst('p', 'id-beskrivelse', 'beskrivelse'));
   // vedSkift kaldes også, mens guiden bygges; derfor let og en kontrol.
   let wiz = null;
   wiz = K.guide($('guide'), {
@@ -158,8 +161,10 @@
     naeste: { t: 'naeste' }, tilbage: { t: 'tilbage' }, slut: { t: 'faerdig' }, spring: { t: 'springOver' },
     vedSlut: () => afslut(),
     vedSpring: () => afslut(),
-    vedSkift: () => { tegnLister(); S.anvend($('guide')); if (wiz) wiz.overskrift.focus(); },
+    vedSkift: i => { identitet.hidden = i !== 0; tegnLister(); S.anvend($('guide')); if (wiz) wiz.overskrift.focus(); },
   });
+  // V-LAAS.5 N3: guidens første skærm har navnet, sloganet og beskrivelsen øverst (som Om-dialogen), over overskriften.
+  wiz.overskrift.before(identitet);
   function visGuide() {
     wiz.gaaTil(0);
     G.aabnDialog('dlg-guide');

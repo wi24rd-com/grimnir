@@ -1,7 +1,8 @@
 //! V-LAAS.4 N4 (skallen uden vindue): ved lås mistes ingen data, og originaler bliver ikke liggende i udklipsholderen.
 //!
-//! - N1: en midlertidig sag med poster gemmes ved lås under `Midlertidig ÅÅÅÅ-MM-DD TT.MM` (uret styres af testen);
-//!   navnesammenfald giver ` (2)` og ` (3)`; engelsk UI giver `Temporary …`; standardudløbet gælder; sagen kan åbnes efter
+//! - N1: en midlertidig sag med poster gemmes ved lås under `Midlertidig ÅÅÅÅ-MM-DD TT.MM.SS` (uret styres af testen;
+//!   sekunderne fra V-LAAS.5); et navnesammenfald giver to sager med samme navn (V-LAAS.5: ` (2)` bortfaldt); engelsk UI
+//!   giver `Temporary …`; standardudløbet gælder; sagen kan åbnes efter
 //!   oplåsningen og demaskere; fejl ved gemningen (nøglelager og disk) låser alligevel og vises uden indhold; en tom
 //!   midlertidig sag gemmes ikke; en kommando midt i låsen svarer `laast`, og vagten om nøglelageret afviser andre tråde;
 //!   intet er levende efter låsen.
@@ -82,10 +83,10 @@ impl Noeglelager for Kroglager {
 
 const TEKST: &str = "srv-web01.kontor.test 10.20.0.5 bruger=anders.eksempel\n";
 const HEMMELIGE: [&str; 3] = ["kontor.test", "10.20.0.5", "anders"];
-/// 2026-11-11 08:05:30 UTC (målt med `date -u -r 1794384330`); i Danmark (UTC+1) er klokken 09.05.
+/// 2026-11-11 08:05:30 UTC (målt med `date -u -r 1794384330`); i Danmark (UTC+1) er klokken 09.05.30.
 const NU_MS: u64 = 1_794_384_330_000;
 const DK: i32 = 3600;
-const NAVN: &str = "Midlertidig 2026-11-11 09.05";
+const NAVN: &str = "Midlertidig 2026-11-11 09.05.30";
 
 /// Programmet ved start med uret styret, låst op med døren.
 fn startet(m: &Mappe, lager: &Arc<Kroglager>, klokke: &Arc<StyretKlokke>) -> Tilstand {
@@ -182,12 +183,12 @@ fn navnesammenfald_engelsk_og_standardudloeb() {
     laas_igen(&t, Udloeser::SkaermSlukket);
     assert_eq!(oplaas(&t, "da"), None, "en navngiven sag uden ændringer: intet at sige");
     let mut forventet = vec![NAVN.to_string()];
-    for n in [2, 3] {
+    // V-LAAS.5 N2: to låse i samme sekund (og brugerens sag med samme navn) giver sager med samme navn; ingen " (2)".
+    for _ in 0..2 {
         masker(&t);
         laas_igen(&t, Udloeser::Stilstand);
-        let navn = format!("{NAVN} ({n})");
-        assert_eq!(oplaas(&t, "da"), gemt(&navn));
-        forventet.push(navn);
+        assert_eq!(oplaas(&t, "da"), gemt(NAVN));
+        forventet.push(NAVN.to_string());
     }
     // Engelsk UI (sproget kommer med laas_op og menu_sprog). En lås uden poster gemmer intet.
     laas_igen(&t, Udloeser::Brugerskift);
@@ -195,17 +196,17 @@ fn navnesammenfald_engelsk_og_standardudloeb() {
     klokke.stil(NU_MS + 60_000, DK);
     masker(&t);
     laas_igen(&t, Udloeser::Dvale);
-    assert_eq!(oplaas(&t, "en"), gemt("Temporary 2026-11-11 09.06"));
-    forventet.push("Temporary 2026-11-11 09.06".to_string());
+    assert_eq!(oplaas(&t, "en"), gemt("Temporary 2026-11-11 09.06.30"));
+    forventet.push("Temporary 2026-11-11 09.06.30".to_string());
     let mut navne: Vec<(String, Option<String>)> = sag_liste(&t).unwrap().into_iter().map(|p| (p.navn.unwrap(), p.udloeb)).collect();
     navne.sort();
     forventet.sort();
     assert_eq!(navne.iter().map(|x| x.0.clone()).collect::<Vec<_>>(), forventet);
-    // Standardudløbet (30 dage) gælder de gemte midlertidige sager, ikke sagen, brugeren selv oprettede uden udløb.
-    for (navn, udloeb) in &navne {
-        let ventet = if navn == NAVN { None } else { Some("2026-12-11") };
-        assert_eq!(udloeb.as_deref(), ventet, "{navn}");
-    }
+    // Standardudløbet (30 dage) gælder de gemte midlertidige sager, ikke sagen, brugeren selv oprettede uden udløb (den
+    // ene af de tre med navnet NAVN).
+    let udloeb: Vec<Option<&str>> = navne.iter().map(|x| x.1.as_deref()).collect();
+    let ventet = [None, Some("2026-12-11"), Some("2026-12-11"), Some("2026-12-11")];
+    assert_eq!(udloeb, ventet, "{navne:?}");
 }
 
 #[test]

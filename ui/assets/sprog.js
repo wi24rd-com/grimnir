@@ -10,9 +10,15 @@
 (function () {
   'use strict';
   const NOEGLE = 'grimnir-sprog';
+  /* V-LAAS.5 N3 (ADR D22): programmets navn, slogan og beskrivelse. Ens på dansk og engelsk (oversættes ikke) og står kun
+     her; begge tabeller får dem herfra. Vinduets titel er navnet og sloganet med en tankestreg (U+2014) imellem; samme
+     titel står i tauri.conf.json og i index.html's <title>, før siden er indlæst (UI-testen holder dem ens). Dock,
+     programmenu og productName hedder fortsat "Grimnir". */
+  const NAVN = 'Wi24rd Grimnir', SLOGAN = 'Mask. Share. Restore.', BESKRIVELSE = 'Sensitive data masking tool for logs and scripts';
+  const FAELLES = Object.freeze({ appNavn: NAVN, slogan: SLOGAN, beskrivelse: BESKRIVELSE, dokTitel: `${NAVN} \u2014 ${SLOGAN}` });
   const TEKST = {
     da: {
-      dokTitel: 'Wi24rd Grimnir', appNavn: 'Grimnir', wi24rd: 'Wi24rd',
+      ...FAELLES,
       ingenSag: 'Ingen sag åben', aabnIndst: 'Åbn indstillinger', aabnIndstTitel: 'Indstillinger ({v})',
       cmdAria: 'Handlingsbånd', faneStart: 'Start', faneVis: 'Vis',
       navAria: 'Navigation', visninger: 'Visninger', traeAria: 'Filtrér arbejdsfladen',
@@ -215,7 +221,7 @@
       hvorforLaast: 'Grimnir er låst. Lås op for at bruge visningerne og kommandoerne.',
       indstLaas: 'Lås', kLaasEfter: 'Lås efter stilstand',
       stilstand5: '5 minutter', stilstand15: '15 minutter', stilstand30: '30 minutter', stilstand60: '60 minutter',
-      hjLaas: 'Grimnir låser altid, når den starter, og du låser op med Touch ID eller din adgangskode. Grimnir låser igen, når Mac\'en går i dvale, når skærmen slukker, når du skifter bruger, og når Grimnir har stået stille i den valgte tid; så lukker Grimnir dine sager og din ordbog. Har du kopieret en demaskeret tekst med Kopiér resultat, fjerner Grimnir den fra udklipsholderen, når den låser, hvis den stadig ligger der. Låsen er for en person, der sætter sig ved din ulåste Mac og åbner Grimnir; den beskytter ikke mod andre programmer på din Mac.',
+      hjLaas: 'Grimnir låser altid, når den starter, og du låser op med Touch ID eller din adgangskode. Grimnir låser igen, når Mac\'en går i dvale, når skærmen slukker, når du skifter bruger, og når Grimnir har stået stille i den valgte tid; så lukker Grimnir dine sager og din ordbog. Har du kopieret en demaskeret tekst med Kopiér resultat, fjerner Grimnir den fra udklipsholderen, når den låser eller afsluttes, hvis den stadig ligger der. Låsen er for en person, der sætter sig ved din ulåste Mac og åbner Grimnir; den beskytter ikke mod andre programmer på din Mac.',
       hjLaasIngen: 'Denne maskine kan endnu ikke bekræfte, hvem du er, så Grimnir starter ikke låst her. Har Grimnir stået stille i den valgte tid, lukker den dog dine sager og din ordbog, og du trykker Lås op for at fortsætte.',
       laasIgen: 'Grimnir låste, mens du var væk. Tryk Lås op for at fortsætte.',
       bMidlertidigGemt: 'Den midlertidige sag blev gemt som «{v}».',
@@ -267,7 +273,7 @@
       advAdgangskode: 'Ligner en adgangskode. Hemmeligheder hører ikke hjemme i ordbogen.',
     },
     en: {
-      dokTitel: 'Wi24rd Grimnir', appNavn: 'Grimnir', wi24rd: 'Wi24rd',
+      ...FAELLES,
       ingenSag: 'No case open', aabnIndst: 'Open settings', aabnIndstTitel: 'Settings ({v})',
       cmdAria: 'Command bar', faneStart: 'Home', faneVis: 'View',
       navAria: 'Navigation', visninger: 'Views', traeAria: 'Filter the workspace',
@@ -468,7 +474,7 @@
       hvorforLaast: 'Grimnir is locked. Unlock to use the views and commands.',
       indstLaas: 'Lock', kLaasEfter: 'Lock after inactivity',
       stilstand5: '5 minutes', stilstand15: '15 minutes', stilstand30: '30 minutes', stilstand60: '60 minutes',
-      hjLaas: 'Grimnir always locks when it starts, and you unlock with Touch ID or your password. Grimnir locks again when your Mac goes to sleep, when the display turns off, when you switch user, and when Grimnir has been idle for the chosen time; Grimnir then closes your cases and your dictionary. If you copied unmasked text with Copy result, Grimnir removes it from the clipboard when it locks, if it is still there. The lock is for someone who sits down at your unlocked Mac and opens Grimnir; it does not protect against other apps on your Mac.',
+      hjLaas: 'Grimnir always locks when it starts, and you unlock with Touch ID or your password. Grimnir locks again when your Mac goes to sleep, when the display turns off, when you switch user, and when Grimnir has been idle for the chosen time; Grimnir then closes your cases and your dictionary. If you copied unmasked text with Copy result, Grimnir removes it from the clipboard when it locks or quits, if it is still there. The lock is for someone who sits down at your unlocked Mac and opens Grimnir; it does not protect against other apps on your Mac.',
       hjLaasIngen: 'This machine cannot confirm who you are yet, so Grimnir does not start locked here. When Grimnir has been idle for the chosen time, it still closes your cases and your dictionary, and you press Unlock to continue.',
       laasIgen: 'Grimnir locked while you were away. Press Unlock to continue.',
       bMidlertidigGemt: 'The temporary case was saved as "{v}".',
@@ -565,5 +571,5 @@
     document.dispatchEvent(new CustomEvent('grimnir-sprog'));
   }
 
-  window.Sprog = { TEKST, get lang() { return lang; }, t, anvend, saet };
+  window.Sprog = { TEKST, FAELLES, get lang() { return lang; }, t, anvend, saet };
 })();

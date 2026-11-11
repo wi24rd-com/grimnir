@@ -128,6 +128,25 @@ html[lang="en"] .resttabel { --k2: 80px; --tabel-min: 498px; }
 .mini:hover, .btn.mini:hover { background: var(--surface-raised); }
 /* Titellinjens sag: knap, når der er en sag. */
 .titel #sag-knap { font-size: 13px; }
+/* V-LAAS.5 N3 (ADR D22): navnet fremhævet og sloganet nedtonet, på én linje (nowrap). Navnet krymper aldrig (flex: none;
+   ingen afkortning). Sloganets plads giver først efter, når der mangler plads (flex-shrink 1000 mod sagens 1): så snart
+   den er smallere end sloganet, glider sloganet ned på en anden linje bag et usynligt startpunkt (::before) og skjules
+   af overflow, som er lige så høj som titellinjen. Sloganet forsvinder altså helt, før noget andet giver efter; det
+   ombrydes og afkortes aldrig. */
+.titel b { flex: none; white-space: nowrap; }
+.titel .slogan-plads {
+  display: flex; flex-wrap: wrap; align-content: flex-start;
+  flex: 0 1000 auto; min-width: 0; height: 34px; overflow: hidden;
+}
+.titel .slogan-plads::before { content: ''; flex: none; width: 0; height: 34px; }
+.titel .slogan { flex: none; white-space: nowrap; line-height: 34px; color: var(--rail-text); font-weight: 400; }
+/* Om-dialogen og guidens første skærm: navnet, sloganet og beskrivelsen (ens på dansk og engelsk). */
+.identitet { margin: 0 0 var(--space-4); }
+.identitet p { margin: 0; }
+.identitet .id-navn { font-weight: 600; color: var(--text); }
+.identitet .id-slogan { color: var(--text-muted); }
+.identitet .id-beskrivelse { color: var(--text); }
+.wiz .identitet { margin: 0; }
 
 /* ── Sager (V-SAG.1) ── */
 /* Fuldskærm på macOS: trafiklysene er skjult, så titellinjen holder ikke plads til dem (Rust melder "fuldskaerm"). */

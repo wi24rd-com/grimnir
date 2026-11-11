@@ -1,5 +1,5 @@
 //! V-LAAS.4 N1: vægur med lokal tid til navnet på en midlertidig sag, der gemmes, når Grimnir låser
-//! (`Midlertidig ÅÅÅÅ-MM-DD TT.MM`), og til dens standardudløb.
+//! (`Midlertidig ÅÅÅÅ-MM-DD TT.MM.SS`; sekunderne fra V-LAAS.5), og til dens standardudløb.
 //!
 //! [`Klokke`] er et trait, så testene styrer tiden ([`StyretKlokke`]). [`SystemKlokke`] tager tiden fra styresystemet og
 //! den lokale tidszones forskel fra UTC på det tidspunkt: på macOS fra `NSTimeZone.localTimeZone`
@@ -73,7 +73,7 @@ impl<T: Klokke + ?Sized> Klokke for std::sync::Arc<T> {
     }
 }
 
-/// En lokal dato og et klokkeslæt (til minuttet).
+/// En lokal dato og et klokkeslæt (til sekundet; V-LAAS.5).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Lokal {
     /// År.
@@ -86,6 +86,8 @@ pub struct Lokal {
     pub time: u32,
     /// Minut 0–59.
     pub min: u32,
+    /// Sekund 0–59 (V-LAAS.5).
+    pub sek: u32,
     /// Dage siden 1970-01-01 (lokalt).
     dage: i64,
 }
@@ -116,14 +118,18 @@ pub fn lokal(ms: u64, forskel: i32) -> Lokal {
         dag,
         time: (i_dag / 3600) as u32,
         min: ((i_dag % 3600) / 60) as u32,
+        sek: (i_dag % 60) as u32,
         dage,
     }
 }
 
 impl Lokal {
-    /// `ÅÅÅÅ-MM-DD TT.MM` (som i sagsnavnet).
+    /// `ÅÅÅÅ-MM-DD TT.MM.SS` (som i sagsnavnet; V-LAAS.5: med sekunder, så to låse i samme minut får hvert sit navn).
     pub fn tekst(&self) -> String {
-        format!("{:04}-{:02}-{:02} {:02}.{:02}", self.aar, self.md, self.dag, self.time, self.min)
+        format!(
+            "{:04}-{:02}-{:02} {:02}.{:02}.{:02}",
+            self.aar, self.md, self.dag, self.time, self.min, self.sek
+        )
     }
 
     /// Datoen `dage` dage senere som `ÅÅÅÅ-MM-DD` (standardudløbet).
@@ -141,15 +147,18 @@ mod tests {
     fn lokal_tid_og_datoer() {
         // 2026-11-11 08:05:30 UTC; Danmark er UTC+1 om vinteren.
         let ms = 1_794_384_330_000;
-        assert_eq!(lokal(ms, 0).tekst(), "2026-11-11 08.05");
-        assert_eq!(lokal(ms, 3600).tekst(), "2026-11-11 09.05");
+        assert_eq!(lokal(ms, 0).tekst(), "2026-11-11 08.05.30");
+        assert_eq!(lokal(ms, 3600).tekst(), "2026-11-11 09.05.30");
         // Over midnat og nytår, begge veje.
-        assert_eq!(lokal(1_798_761_540_000, 3600).tekst(), "2027-01-01 00.59");
-        assert_eq!(lokal(1_798_761_540_000, -3600).tekst(), "2026-12-31 22.59");
-        assert_eq!(lokal(0, 0).tekst(), "1970-01-01 00.00");
+        assert_eq!(lokal(1_798_761_540_000, 3600).tekst(), "2027-01-01 00.59.00");
+        assert_eq!(lokal(1_798_761_540_000, -3600).tekst(), "2026-12-31 22.59.00");
+        // Sekunderne: et sekund før midnat og nytår (lokalt), og millisekunderne skæres af (rundes ikke op).
+        assert_eq!(lokal(1_798_758_000_000 - 1, 3600).tekst(), "2026-12-31 23.59.59");
+        assert_eq!(lokal(1_794_384_330_999, 3600).tekst(), "2026-11-11 09.05.30");
+        assert_eq!(lokal(0, 0).tekst(), "1970-01-01 00.00.00");
         // Skudår og udløb.
         let l = lokal(1_835_136_000_000, 0);
-        assert_eq!(l.tekst(), "2028-02-26 00.00");
+        assert_eq!(l.tekst(), "2028-02-26 00.00.00");
         assert_eq!(l.dato_om(3), "2028-02-29");
         assert_eq!(l.dato_om(4), "2028-03-01");
         assert_eq!(lokal(ms, 3600).dato_om(30), "2026-12-11");

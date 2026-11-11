@@ -2158,7 +2158,7 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
   s.emit('menu', 'om');
   await vent(5);
   const opFoer = rust.st.opKald.length;
-  rust.laasIgen('dvale', { midlertidig_gemt: 'Midlertidig 2026-11-11 09.05', midlertidig_fejl: null, gem_fejl: null });
+  rust.laasIgen('dvale', { midlertidig_gemt: 'Midlertidig 2026-11-11 09.05.30', midlertidig_fejl: null, gem_fejl: null });
   s.emit('laast', 'dvale');
   await vent(10);
   tjek('V-LAAS.3: hændelsen laast genindlæser siden (location.reload)', s.jsdomFejl.some(m => /navigation/.test(m)), JSON.stringify(s.jsdomFejl));
@@ -2179,7 +2179,7 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
   await vent(30);
   tjek('V-LAAS.3: Lås op giver én dialog og låser op', rust.st.opKald.length === opFoer + 1 && !laaseskaerm(g.d));
   const b = g.d.querySelector('#laas-banner .ban[data-efter="bMidlertidigGemt"]');
-  tjek('V-LAAS.3/4: beskeden om den midlertidige sag efter oplåsningen (V-LAAS.4: gemt under navnet)', b && b.querySelector('.ord').textContent === 'Den midlertidige sag blev gemt som «Midlertidig 2026-11-11 09.05».' && b.getAttribute('role') === 'status', b && b.textContent);
+  tjek('V-LAAS.3/4: beskeden om den midlertidige sag efter oplåsningen (V-LAAS.4: gemt under navnet)', b && b.querySelector('.ord').textContent === 'Den midlertidige sag blev gemt som «Midlertidig 2026-11-11 09.05.30».' && b.getAttribute('role') === 'status', b && b.textContent);
   const luk = b && b.querySelector('button');
   tjek('V-LAAS.3: beskeden har en Luk-knap med aria-label', luk && luk.textContent.trim() === 'Luk' && luk.getAttribute('aria-label') === 'Luk beskeden');
   if (luk) luk.click();
@@ -2271,7 +2271,8 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
   tjek('V-LAAS.4: udklip_kopieret kaldes ét sted (Kopiér i Demaskér)', (kode.match(/invoke\('udklip_kopieret'/g) || []).length === 1);
   tjek('V-LAAS.4: den gamle besked "blev lukket" er væk', !/bMidlertidigLukket|blev lukket, da Grimnir|was closed when Grimnir/.test(kode));
 }
-const NAVN4 = { da: 'Midlertidig 2026-11-11 09.05', en: 'Temporary 2026-11-11 09.05' };
+// V-LAAS.5 N2: navnet har sekunder (TT.MM.SS); beskeden er ellers uændret.
+const NAVN4 = { da: 'Midlertidig 2026-11-11 09.05.30', en: 'Temporary 2026-11-11 09.05.30' };
 for (const lang of ['da', 'en']) {
   // Låst igen; den midlertidige sag er gemt. Lås op → beskeden med navnet (info, Luk-knap).
   const rust = falskLaasRust({ laast: true, igen: 'dvale', efter: { midlertidig_gemt: NAVN4[lang], midlertidig_fejl: null, gem_fejl: null } });
@@ -2312,8 +2313,9 @@ for (const lang of ['da', 'en']) {
   s.emit('menu', 'indstillinger');
   await vent(5);
   const hj = s.d.getElementById('indst-laas-hj').textContent;
-  const r = lang === 'da' ? /Har du kopieret en demaskeret tekst med Kopiér resultat, fjerner Grimnir den fra udklipsholderen, når den låser, hvis den stadig ligger der\./ : /If you copied unmasked text with Copy result, Grimnir removes it from the clipboard when it locks, if it is still there\./;
-  tjek(`V-LAAS.4 (${lang}): Indstillinger siger, at kopieret demaskeret tekst fjernes fra udklipsholderen ved lås`, r.test(hj), hj);
+  // V-LAAS.5 N1: "når den låser eller afsluttes" / "when it locks or quits".
+  const r = lang === 'da' ? /Har du kopieret en demaskeret tekst med Kopiér resultat, fjerner Grimnir den fra udklipsholderen, når den låser eller afsluttes, hvis den stadig ligger der\./ : /If you copied unmasked text with Copy result, Grimnir removes it from the clipboard when it locks or quits, if it is still there\./;
+  tjek(`V-LAAS.4/5 (${lang}): Indstillinger siger, at kopieret demaskeret tekst fjernes fra udklipsholderen ved lås og ved afslut`, r.test(hj), hj);
   const win = side({ platform: 'windows', lager: { 'grimnir-sprog': lang } });
   await vent(10);
   tjek(`V-LAAS.4 (${lang}, Windows): teksten lover ikke at rydde udklipsholderen`, !/udklipsholder|clipboard/i.test(win.d.getElementById('indst-laas-hj').textContent));
@@ -2331,6 +2333,84 @@ for (const lang of ['da', 'en']) {
   await vent(5);
   tjek('V-LAAS.4: kontrol: demaskeret, og Kopiér er prøvet', s.kald.some(k => k[0] === 'demasker') && d.querySelector('section[data-visning="demasker"] .ban.danger'));
   tjek('V-LAAS.4: en kopi, der fejlede, meldes ikke til Rust', !s.kald.some(k => k[0] === 'udklip_kopieret'));
+}
+
+// ── V-LAAS.5: udklipsholderen ved Afslut (teksten i Indstillinger; se også V-LAAS.4-blokken), navnet med sekunder i
+// beskeden (V-LAAS.4-blokken), og navn, slogan og beskrivelse (N3, ADR D22). Kun opdigtede navne. ──
+{
+  const NAVN = 'Wi24rd Grimnir', SLOGAN = 'Mask. Share. Restore.', BESKRIVELSE = 'Sensitive data masking tool for logs and scripts';
+  const TITEL = `${NAVN} — ${SLOGAN}`;
+  const { w } = side();
+  await vent(5);
+  const T = w.Sprog.TEKST;
+  tjek('V-LAAS.5: navn, slogan og beskrivelse står præcist som besluttet og ens i begge sprog', ['da', 'en'].every(l => T[l].appNavn === NAVN && T[l].slogan === SLOGAN && T[l].beskrivelse === BESKRIVELSE && T[l].dokTitel === TITEL), JSON.stringify([T.da.appNavn, T.en.slogan, T.en.dokTitel]));
+  tjek('V-LAAS.5: tankestregen i titlen er U+2014 med mellemrum om', TITEL.includes(' — ') && T.da.dokTitel.charCodeAt(NAVN.length + 1) === 0x2014);
+  const sprog = ui('assets/sprog.js');
+  const gange = x => sprog.split(`'${x}'`).length - 1;
+  tjek('V-LAAS.5: teksterne står ét sted i sprog.js (ikke i hver tabel)', gange(NAVN) === 1 && gange(SLOGAN) === 1 && gange(BESKRIVELSE) === 1 && (sprog.match(/\.\.\.FAELLES,/g) || []).length === 2 && !/appNavn: '|slogan: '|beskrivelse: '|dokTitel: '/.test(sprog), [gange(NAVN), gange(SLOGAN), gange(BESKRIVELSE)].join(','));
+  tjek('V-LAAS.5: den gamle nøgle wi24rd er væk', !('wi24rd' in T.da) && !('wi24rd' in T.en) && !/data-t="wi24rd"/.test(ui('index.html')));
+  const konf = JSON.parse(fs.readFileSync(path.join(repo, 'src-tauri', 'tauri.conf.json'), 'utf8'));
+  tjek('V-LAAS.5: vinduets titel i tauri.conf.json', konf.app.windows[0].title === TITEL, konf.app.windows[0].title);
+  tjek('V-LAAS.5: productName er fortsat Grimnir', konf.productName === 'Grimnir');
+  const html = ui('index.html');
+  tjek('V-LAAS.5: <title> i index.html (før siden er indlæst)', html.includes(`<title>${TITEL}</title>`));
+  const pm = fs.readFileSync(path.join(repo, 'src-tauri', 'src', 'programmenu.rs'), 'utf8');
+  tjek('V-LAAS.5: programmenuen hedder fortsat Grimnir (begge sprog)', (pm.match(/app: "Grimnir",/g) || []).length === 2 && pm.includes('om: "Om Grimnir",') && pm.includes('om: "About Grimnir",'));
+}
+for (const lang of ['da', 'en']) {
+  const s = side({ lager: { 'grimnir-sprog': lang } });
+  const { d } = s;
+  await vent(10);
+  tjek(`V-LAAS.5 (${lang}): dokumentets titel`, d.title === 'Wi24rd Grimnir — Mask. Share. Restore.', d.title);
+  // Titellinjen: navnet fremhævet (b), derefter sloganet nedtonet; Wi24rd står ikke længere for sig.
+  const titel = d.querySelector('header.titel');
+  const b = titel.querySelector('b'), sl = titel.querySelector('.slogan-plads > .slogan');
+  tjek(`V-LAAS.5 (${lang}): titellinjen har navnet fremhævet og sloganet efter`, b && b.textContent === 'Wi24rd Grimnir' && sl && sl.textContent === 'Mask. Share. Restore.' && b.nextElementSibling === sl.parentElement, titel.textContent.replace(/\s+/g, ' '));
+  tjek(`V-LAAS.5 (${lang}): titellinjen har ikke et ekstra "Wi24rd"`, (titel.textContent.match(/Wi24rd/g) || []).length === 1);
+  // Om-dialogen: overskriften uændret; navnet, sloganet og beskrivelsen; derunder den forklarende sætning på UI-sproget.
+  s.emit('menu', 'om');
+  await vent(5);
+  const om = d.getElementById('dlg-om');
+  const linjer = [...om.querySelectorAll('.identitet p')].map(p => p.textContent);
+  const omP = om.querySelector('p[data-t="omP"]');
+  tjek(`V-LAAS.5 (${lang}): Om-dialogens overskrift er uændret`, om.querySelector('h2').textContent === (lang === 'da' ? 'Om Grimnir' : 'About Grimnir'));
+  tjek(`V-LAAS.5 (${lang}): Om-dialogen har navn, slogan og beskrivelse i den rækkefølge`, JSON.stringify(linjer) === JSON.stringify(['Wi24rd Grimnir', 'Mask. Share. Restore.', 'Sensitive data masking tool for logs and scripts']), JSON.stringify(linjer));
+  tjek(`V-LAAS.5 (${lang}): den forklarende sætning står under dem på UI-sproget`, om.querySelector('.identitet').compareDocumentPosition(omP) === 4 && omP.textContent.startsWith(lang === 'da' ? 'Wi24rd Grimnir maskerer' : 'Wi24rd Grimnir masks'), omP.textContent);
+  om.querySelector('[data-luk]').click();
+}
+for (const lang of ['da', 'en']) {
+  // Guiden ved første start: de tre linjer øverst på første skærm (over overskriften), ikke på de næste.
+  const rust = falskOrdbogRust();
+  const s = side({ hash: '#masker', rust, lager: { 'grimnir-sprog': lang } });
+  const { d, w } = s;
+  await vent(20);
+  const dlg = d.getElementById('dlg-guide');
+  const id = dlg.querySelector('.indhold .identitet');
+  const linjer = id ? [...id.querySelectorAll('p')].map(p => p.textContent) : [];
+  tjek(`V-LAAS.5 (${lang}): guiden er åben på første skærm`, aaben(d, 'dlg-guide') && dlg.querySelector('.indhold h2').textContent === (lang === 'da' ? 'Sådan arbejder Grimnir' : 'How Grimnir works'));
+  tjek(`V-LAAS.5 (${lang}): guidens første skærm har navn, slogan og beskrivelse øverst`, id && !id.hidden && id === dlg.querySelector('.indhold').firstElementChild && JSON.stringify(linjer) === JSON.stringify(['Wi24rd Grimnir', 'Mask. Share. Restore.', 'Sensitive data masking tool for logs and scripts']), JSON.stringify(linjer));
+  tjek(`V-LAAS.5 (${lang}): fokus står stadig på overskriften`, d.activeElement === dlg.querySelector('.indhold h2'));
+  klik(w, [...dlg.querySelectorAll('.fod button')][2]);
+  await vent(5);
+  tjek(`V-LAAS.5 (${lang}): de tre linjer står ikke på næste skærm`, id && id.hidden);
+  klik(w, [...dlg.querySelectorAll('.fod button')][1]);
+  await vent(5);
+  tjek(`V-LAAS.5 (${lang}): tilbage på første skærm står de igen`, id && !id.hidden);
+}
+{
+  // Titellinjen i et smalt vindue (CSS; jsdom tegner ikke): navnet krymper aldrig, sloganet ombrydes ud af syne, før
+  // noget andet giver efter, og det afkortes ikke. Farven er rail-text (kontrast.mjs har parret).
+  const css = ui('assets/app.css');
+  const regel = sel => { const m = css.match(new RegExp(sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*\\{([^}]*)\\}')); return m ? m[1].replace(/\s+/g, ' ') : ''; };
+  tjek('V-LAAS.5: navnet krymper aldrig og ombrydes ikke', /flex: none;/.test(regel('.titel b')) && /white-space: nowrap;/.test(regel('.titel b')));
+  const plads = regel('.titel .slogan-plads');
+  tjek('V-LAAS.5: sloganets plads giver efter først og skjuler en anden linje', /flex-wrap: wrap;/.test(plads) && /flex: 0 1000 auto;/.test(plads) && /min-width: 0;/.test(plads) && /height: 34px;/.test(plads) && /overflow: hidden;/.test(plads) && /align-content: flex-start;/.test(plads), plads);
+  tjek('V-LAAS.5: titellinjen er 34 px høj (samme som pladsen)', /height: 34px;/.test(ui('assets/kit.css').match(/\.titel \{([^}]*)\}/)[1]));
+  tjek('V-LAAS.5: et usynligt startpunkt foran sloganet (så det kan glide ned)', /content: ''; flex: none; width: 0; height: 34px;/.test(regel('.titel .slogan-plads::before')));
+  const sl = regel('.titel .slogan');
+  tjek('V-LAAS.5: sloganet afkortes og ombrydes ikke, og er nedtonet (rail-text)', /white-space: nowrap;/.test(sl) && /flex: none;/.test(sl) && /color: var\(--rail-text\);/.test(sl) && !/ellipsis/.test(sl), sl);
+  const k = fs.readFileSync(path.join(repo, 'tests', 'ui', 'kontrast.mjs'), 'utf8');
+  tjek('V-LAAS.5: kontrast.mjs har sloganets par (titellinjen, Om og guiden)', /\['rail-text', 'rail', TEKST, 'Titellinjen: sloganet/.test(k) && /\['text-muted', 'surface', TEKST, 'Om-dialogen og guiden: sloganet/.test(k));
 }
 
 console.log(`\n${ok + fejl} tjek: ${ok} ok, ${fejl} fejl`);

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Wi24rd Grimnir</title>
+<title>Wi24rd Grimnir — Mask. Share. Restore.</title>
 <link rel="stylesheet" href="assets/tokens.css">
 <link rel="stylesheet" href="assets/kit.css">
 <link rel="stylesheet" href="assets/app.css">
@@ -21,8 +21,8 @@
 <div class="vindue" id="vindue">
   <header class="titel" data-tauri-drag-region="deep">
     <span class="mrk" aria-hidden="true">G</span>
-    <b data-t="appNavn">Grimnir</b>
-    <span data-t="wi24rd">Wi24rd</span>
+    <b data-t="appNavn">Wi24rd Grimnir</b>
+    <span class="slogan-plads"><span class="slogan" data-t="slogan">Mask. Share. Restore.</span></span>
     <span class="sag">
       <span id="sag" data-t="ingenSag">Ingen sag åben</span>
       <button type="button" class="rk" id="sag-knap" hidden data-t="midlertidigSag" data-v="0" data-t-aria="ariaSagKnap"></button>
@@ -118,6 +118,11 @@
 <dialog class="dlg" id="dlg-om" aria-labelledby="dlg-om-h">
   <div class="om-flet" id="om-flet"></div>
   <h2 id="dlg-om-h" data-t="omH">Om Grimnir</h2>
+  <div class="identitet">
+    <p class="id-navn" data-t="appNavn"></p>
+    <p class="id-slogan" data-t="slogan"></p>
+    <p class="id-beskrivelse" data-t="beskrivelse"></p>
+  </div>
   <p data-t="omP"></p>
   <ul class="om-tal">
     <li class="mono" id="om-version" data-t="version" data-v="…"></li>

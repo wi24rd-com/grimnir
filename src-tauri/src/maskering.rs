@@ -47,7 +47,7 @@
 //! [`crate::stilstand`].
 //!
 //! **Ved lås mistes intet (V-LAAS.4, ADR D21).** En midlertidig sag med poster gemmes ved [`laas_igen`] som en navngiven
-//! sag (`Midlertidig ÅÅÅÅ-MM-DD TT.MM`, uret i [`crate::klokke`]); efter oplåsningen siges navnet ([`EfterLaas`]).
+//! sag (`Midlertidig ÅÅÅÅ-MM-DD TT.MM.SS`, uret i [`crate::klokke`]); efter oplåsningen siges navnet ([`EfterLaas`]).
 //! Udklipsholderen ryddes, hvis den stadig har den demaskerede tekst, Grimnir lagde der ([`udklip_kopieret`],
 //! [`crate::udklip`]).
 
@@ -148,7 +148,7 @@ struct Laas {
 /// Grimnir selv gav den midlertidige sag, og fejl uden sti eller værdier.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
 pub struct EfterLaas {
-    /// V-LAAS.4: den midlertidige sag blev gemt under dette navn (`Midlertidig ÅÅÅÅ-MM-DD TT.MM`); den står i
+    /// V-LAAS.4: den midlertidige sag blev gemt under dette navn (`Midlertidig ÅÅÅÅ-MM-DD TT.MM.SS`); den står i
     /// sagslisten og åbnes ikke af sig selv.
     pub midlertidig_gemt: Option<String>,
     /// V-LAAS.4: den midlertidige sag kunne ikke gemmes (nøglelager eller disk) og er lukket.
@@ -1866,8 +1866,8 @@ pub fn laas_op(t: &Tilstand, doer: &dyn Doer, sprog: &str) -> LaasSvar {
 ///    Med sagens lås holdt åbner vagten om nøglelageret for **denne tråd alene** ([`Undtagelse`]):
 ///    - en navngiven sag, der er ændret uden at være gemt, gemmes med sin egen nøgle;
 ///    - en midlertidig sag med poster gemmes som navngiven sag ([`gem_midlertidig`]): navnet `Midlertidig ÅÅÅÅ-MM-DD
-///      TT.MM` (` (2)` osv. ved sammenfald, så de eksisterende navne læses), ny nøgle i nøglelageret og standardudløbet
-///      fra indstillingerne.
+///      TT.MM.SS`, ny nøgle i nøglelageret og standardudløbet fra indstillingerne. Andre sagers nøgler læses ikke
+///      (V-LAAS.5 N2: ingen navneliste).
 ///
 ///    Undtagelsen slippes, før sagen erstattes. Fejler en gemning (nøglelager eller disk), låses der alligevel, og fejlen
 ///    (uden indhold) vises efter oplåsningen. Sagen erstattes af en ny, tom midlertidig sag; den gamle sags strenge
@@ -1947,41 +1947,31 @@ pub fn laas_igen(t: &Tilstand, grund: Udloeser) -> bool {
 }
 
 /// V-LAAS.4 N1: gemmer en midlertidig sag som navngiven sag, som `sag_ny` gør det ([`Arkiv::opret`]: ny nøgle i
-/// nøglelageret og ny fil). Navnet er `Midlertidig ÅÅÅÅ-MM-DD TT.MM` (lokal tid fra [`Tilstand::klokke`]; `Temporary …`
-/// på engelsk), med ` (2)`, ` (3)` … hvis navnet findes; det står kun i sagens krypterede hoved. Udløbet er
-/// standardudløbet fra indstillingerne. Den åbnede sag slippes straks (nøglen nulstilles); den står i sagslisten.
+/// nøglelageret og ny fil). Navnet er `Midlertidig ÅÅÅÅ-MM-DD TT.MM.SS` (lokal tid fra [`Tilstand::klokke`]; `Temporary …`
+/// på engelsk); det står kun i sagens krypterede hoved. Udløbet er standardudløbet fra indstillingerne. Den åbnede sag
+/// slippes straks (nøglen nulstilles); den står i sagslisten.
 ///
-/// Kaldes kun fra [`laas_igen`], med sagens lås og vagtens undtagelse for denne tråd. En sag, der ikke kan læses, tæller
-/// ikke med i navnene (dens navn kendes ikke).
+/// V-LAAS.5 N2 (ADR D22): de eksisterende sagers navne læses ikke ([`Arkiv::liste`] ville hente hver sags nøgle i
+/// nøglelageret lige før dvale). Det eneste opslag i nøglelageret er oprettelsen af den nye sags nøgle. Sekunderne i
+/// navnet gør et sammenfald usandsynligt; sker det alligevel (to låse i samme sekund, eller en sag, brugeren selv har
+/// kaldt det samme), får de to sager samme navn, hvad der også er tilladt for navne, brugeren giver.
+///
+/// Kaldes kun fra [`laas_igen`], med sagens lås og vagtens undtagelse for denne tråd.
 fn gem_midlertidig(t: &Tilstand, sag: &Sag, indst: &Indstillinger, engelsk: bool) -> Result<String, SagFejl> {
     let ark = t.arkiv().map_err(|_| SagFejl::ManglerFil)?;
     let (ms, forskel) = t.klokke().nu();
     let tid = klokke::lokal(ms, forskel);
-    let grund = format!("{} {}", if engelsk { "Temporary" } else { "Midlertidig" }, tid.tekst());
-    let navne: HashSet<String> = ark
-        .liste()
-        .map(|l| l.into_iter().filter_map(|p| p.hoved.ok().map(|h| h.navn)).collect())
-        .unwrap_or_default();
-    let navn = ledigt_navn(&grund, &navne);
+    let navn = format!("{} {}", if engelsk { "Temporary" } else { "Midlertidig" }, tid.tekst());
     let udloeb = indst.udloeb_dage.map(|d| tid.dato_om(d));
     let aaben = ark.opret(&navn, udloeb, sag.data(), ms)?;
     drop(aaben);
     Ok(navn)
 }
 
-/// `grund`, eller `grund (2)`, `grund (3)` … det første, der ikke er brugt.
-fn ledigt_navn(grund: &str, brugt: &HashSet<String>) -> String {
-    if !brugt.contains(grund) {
-        return grund.to_string();
-    }
-    (2..)
-        .map(|n| format!("{grund} ({n})"))
-        .find(|n| !brugt.contains(n))
-        .unwrap_or_else(|| grund.to_string())
-}
-
-/// V-LAAS.4 N2, ved [`laas_igen`]: står udklipsholderens tæller stadig, hvor den stod lige efter et genkendt Kopiér i
-/// Demaskér, ryddes den. Ellers har nogen skrevet til den siden, og den røres ikke. Fingeraftrykkene glemmes.
+/// V-LAAS.4 N2, ved [`laas_igen`] og (V-LAAS.5 N1) [`ved_afslut`]: står udklipsholderens tæller stadig, hvor den stod
+/// lige efter et genkendt Kopiér i Demaskér, ryddes den. Ellers har nogen skrevet til den siden, og den røres ikke.
+/// Fingeraftrykkene glemmes. Kun tælleren læses og `clearContents` kaldes; teksten læses ikke (ingen dialog), og ingen
+/// anden lås end `udklip_husk` tages (den holdes kun om de korte kald til udklipsholderen).
 fn ryd_udklip(t: &Tilstand) {
     let mut h = t.udklip_husk();
     h.demaskeret = [None, None];
@@ -1990,6 +1980,19 @@ fn ryd_udklip(t: &Tilstand) {
             u.ryd();
         }
     }
+}
+
+/// V-LAAS.5 N1 (ADR D22): programmet afslutter. Udklipsholderen ryddes på samme betingelse som ved lås ([`ryd_udklip`]):
+/// kun efter Grimnirs egen melding om en demaskeret kopi ([`udklip_kopieret`]) og med uændret tæller. Maskeret tekst og
+/// andre programmers indhold røres ikke.
+///
+/// Kaldes ét sted: `lib.rs` ved Tauris `RunEvent::Exit`, som hver vej ud af programmet ender i (`program_afslut`, ⌘Q og
+/// menuens Afslut, lukkeknappen på det sidste vindue, Afslut fra Dock og log ud/sluk, der beder programmet afslutte).
+/// Blokerer ikke afslutningen: den venter hverken på låsen ([`laas_igen`], der kan stå og vente på Nøglering), sagen,
+/// filerne eller ordbogen, læser ikke udklipsholderens tekst og kan ikke give en dialog. Gør intet, hvis Grimnir er
+/// låst (låsen har allerede ryddet og glemt tælleren).
+pub fn ved_afslut(t: &Tilstand) {
+    ryd_udklip(t);
 }
 
 /// V-LAAS.4 N2: webvisningen har kopieret det demaskerede resultat (Kopiér i Demaskér; `fil`: filens resultat, ellers

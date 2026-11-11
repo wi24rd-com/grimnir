@@ -7,8 +7,9 @@
 //! 2. Rust læser udklipsholderens tæller (`changeCount`). Må teksten læses uden at brugeren får besked (se nedenfor),
 //!    sammenlignes den med et fingeraftryk af det demaskerede resultat, Rust selv lavede; er den anderledes, huskes
 //!    intet. Tælleren læses igen bagefter; har den flyttet sig, huskes intet. Ellers huskes tælleren.
-//! 3. Ved [`crate::maskering::laas_igen`]: står tælleren stadig på det tal, ryddes udklipsholderen (`clearContents`).
-//!    Har nogen skrevet til den siden (også Grimnir selv, fx Kopiér i Maskér), er tælleren en anden, og den røres ikke.
+//! 3. Ved [`crate::maskering::laas_igen`] og (V-LAAS.5 N1) når programmet afslutter ([`crate::maskering::ved_afslut`]):
+//!    står tælleren stadig på det tal, ryddes udklipsholderen (`clearContents`). Har nogen skrevet til den siden (også
+//!    Grimnir selv, fx Kopiér i Maskér), er tælleren en anden, og den røres ikke. Rydningen læser aldrig teksten.
 //!
 //! **Hvorfor teksten normalt ikke læses.** Fra macOS 15.4 er standarden for den generelle udklipsholder "to ask upon
 //! programmatic access" (`NSPasteboard.h`, `NSPasteboardAccessBehaviorDefault`, SDK 26/27): et program, der læser den
@@ -25,6 +26,7 @@
 //! `unsafe` står kun her (og i `laas.rs` og `notifikationer.rs`), hver gang med `SAFETY:`.
 #![allow(unsafe_code)]
 
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 
 use zeroize::Zeroizing;
@@ -67,6 +69,8 @@ impl<T: Udklip + ?Sized> Udklip for std::sync::Arc<T> {
 pub struct HukommelsesUdklip {
     indhold: Mutex<(isize, Option<String>)>,
     laesbar: bool,
+    /// V-LAAS.5: antal kald af [`Udklip::tekst`] (en læsning, der på macOS kan give en dialog).
+    laesninger: AtomicUsize,
 }
 
 impl HukommelsesUdklip {
@@ -75,6 +79,7 @@ impl HukommelsesUdklip {
         HukommelsesUdklip {
             indhold: Mutex::new((0, None)),
             laesbar,
+            laesninger: AtomicUsize::new(0),
         }
     }
 
@@ -98,6 +103,11 @@ impl HukommelsesUdklip {
     pub fn taeller_nu(&self) -> isize {
         self.laas().0
     }
+
+    /// V-LAAS.5: antal gange, Grimnir har bedt om teksten ([`Udklip::tekst`]), uanset om den måtte læses.
+    pub fn laesninger(&self) -> usize {
+        self.laesninger.load(Ordering::SeqCst)
+    }
 }
 
 impl Udklip for HukommelsesUdklip {
@@ -105,6 +115,7 @@ impl Udklip for HukommelsesUdklip {
         Some(self.laas().0)
     }
     fn tekst(&self) -> Indhold {
+        self.laesninger.fetch_add(1, Ordering::SeqCst);
         if !self.laesbar {
             return Indhold::MaaIkkeLaeses;
         }
