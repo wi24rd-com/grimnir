@@ -21,7 +21,7 @@
     da: {
       ...FAELLES,
       ingenSag: 'Ingen sag åben', aabnIndst: 'Åbn indstillinger', aabnIndstTitel: 'Indstillinger ({v})',
-      cmdAria: 'Handlingsbånd', faneStart: 'Start', faneVis: 'Vis',
+      cmdAria: 'Handlingsbånd',
       navAria: 'Navigation', visninger: 'Visninger', traeAria: 'Filtrér arbejdsfladen',
       vMasker: 'Maskér', vDemasker: 'Demaskér', vSager: 'Sager', vOrdbog: 'Ordbog',
       gTekst: 'Tekst', gMaskering: 'Maskering', gResultat: 'Resultat', gSvar: 'Svar', gDemaskering: 'Demaskering',
@@ -309,7 +309,7 @@
     en: {
       ...FAELLES,
       ingenSag: 'No case open', aabnIndst: 'Open settings', aabnIndstTitel: 'Settings ({v})',
-      cmdAria: 'Command bar', faneStart: 'Home', faneVis: 'View',
+      cmdAria: 'Command bar',
       navAria: 'Navigation', visninger: 'Views', traeAria: 'Filter the workspace',
       vMasker: 'Mask', vDemasker: 'Unmask', vSager: 'Cases', vOrdbog: 'Dictionary',
       gTekst: 'Text', gMaskering: 'Masking', gResultat: 'Result', gSvar: 'Reply', gDemaskering: 'Unmasking',

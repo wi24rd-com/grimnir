@@ -8,7 +8,10 @@
 
 /* Hver visning har sin del af NavPane og arbejdsfladen; kun den aktive vises (app.js sætter hidden). */
 .navdele { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.navdel { display: flex; flex-direction: column; min-height: 0; }
+/* V-FANER.1: venstre side er kun træet (visningerne står som faner øverst): den aktive visnings del fylder hele ruden, og
+   træet ruller selv helt ned til fodlinjen (som kittets regel for .nav uden .skift; her ligger træet i .navdel). */
+.navdel { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.navdel > .trae { flex: 1 1 auto; min-height: 0; }
 .visning { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 
 /* Om (kittets dialog). */
@@ -346,8 +349,8 @@ html[lang="en"] .fundtabel .typevalg .vliste svg { display: none; }
 
 /* ── Låseskærmen (V-LAAS.2, L4) ──
    <html data-laast> står fra start (index.html), så siden er låst, før et script har kørt. Mens den står, dækker
-   låseskærmen arbejdsfladen, og visningerne vises ikke; båndet og NavPane er nedtonede (laas.js gør dem inert og sætter
-   forklaringen i title). Titellinjen er urørt. Mærket er titellinjens G i kittets accentpar: titellinjens eget par
+   låseskærmen arbejdsfladen, og visningerne vises ikke; fanerne (V-FANER.1), båndet og NavPane er nedtonede (laas.js
+   gør dem inert og sætter forklaringen i title). Titellinjen er urørt. Mærket er titellinjens G i kittets accentpar: titellinjens eget par
    (accent-on-rail/rail) har ikke 3:1 mod arbejdsfladen i begge temaer (målt i tests/ui/kontrast.mjs). */
 .laasskaerm { display: none; }
 html[data-laast] .arb > .visning { display: none; }
@@ -365,11 +368,13 @@ html[data-laast] .laasskaerm {
 .laas-knapper { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
 .laasskaerm > .laas-besked { min-height: var(--small-line); font-size: var(--small-size); line-height: var(--small-line); }
 .laasskaerm > .laas-besked.fejl { color: var(--danger); }
-/* Nedtonet: båndet og NavPane kan ikke bruges, mens der er låst (inaktive kontroller; forklaringen står i title). */
-html[data-laast] #baand, html[data-laast] .nav { opacity: .45; }
+/* Nedtonet: fanerne, båndet og NavPane kan ikke bruges, mens der er låst (inaktive kontroller; forklaringen står i title). */
+html[data-laast] #faner, html[data-laast] #baand, html[data-laast] .nav { opacity: .45; }
 /* V-KITBRUG.2 N3 (G11): låst viser båndet intet værktøjstip (båndet er inert, så hverken mus eller Tab når det; denne regel
    gælder også i en WebKit uden inert). Forklaringen står i title på båndet ("Grimnir er låst"). */
 html[data-laast] #baand .tip { display: none; }
+/* V-FANER.1: det samme for fanerne øverst (genvejen i tippet hjælper ikke, mens fanerne ikke kan vælges). */
+html[data-laast] #faner .tip { display: none; }
 /* L3: banneret, når maskinen ikke kan bekræfte brugeren. Vedvarende og afdæmpet (Oplysning). */
 .laas-banner { flex: none; padding: var(--space-2) var(--space-3); background: var(--surface); border-bottom: 1px solid var(--border); }
 .laas-banner:empty { display: none; }

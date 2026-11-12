@@ -366,6 +366,18 @@ export const PAR = [
   ['info', 'surface-raised', TEKST, '2.5.0 flisens andet mål ved hover på flisen'],
   ['accent', 'accent-soft', KANT, '2.5.0 den stiplede kant om en tom flade, mens filer trækkes over'],
   ['danger', 'surface', TEKST, '2.5.0 dialogens fejlfelt'],
+  // 2.6.0: visningerne som faner øverst (.vfaner på surface). En fane slået fra er brødteksten med opacity .5 (mix 50 % over
+  // fladen); den valgte har stregen og ikonet i accent; en valgt tabelrække under musen viser valget (text på accent-soft,
+  // som en valgt række i forvejen).
+  ['text-muted', 'surface', TEKST, '2.6.0 fanerne øverst: navn og tal på en fane, der ikke er valgt'],
+  ['text', 'surface', TEKST, '2.6.0 fanerne øverst: den valgte fane og hover'],
+  ['text-muted', 'surface', KANT, '2.6.0 fanerne øverst: ikonet på en fane, der ikke er valgt'],
+  ['accent', 'surface', KANT, '2.6.0 fanerne øverst: stregen under den valgte fane og dens ikon'],
+  ['info', 'surface', KANT, '2.6.0 fanerne øverst: fokusringen'],
+  ['mix(text 50%, surface)', 'surface', KANT, '2.6.0 fanerne øverst: en fane slået fra (opacity .5)'],
+  ['danger', 'danger-soft', TEKST, '2.6.0 fanerne øverst: tallet, der kræver handling'],
+  ['danger', 'surface', KANT, '2.6.0 fanerne øverst: kanten om tallet, der kræver handling'],
+  ['text', 'accent-soft', TEKST, '2.6.0 en valgt tabelrække under musen (valget vinder over hover)'],
 ];
 
 /* En farve fra et tokennavn eller fra mix(A N%, B): A og B blandet i srgb, N % af A. */

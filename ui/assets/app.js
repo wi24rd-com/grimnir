@@ -1,16 +1,18 @@
 /* Grimnir — programskallen bygget af kittet (window.Kit). Fire visninger (Maskér, Demaskér, Sager, Ordbog), hver med sin
-   CommandBar (fanerne Start og Vis), sit træ i NavPane, sin værktøjslinje og en tom tilstand. Visningen står i adressen
-   (#masker …) og skiftes med visningsskiftet eller ⌘1–⌘4 (Ctrl på Windows). Maskér og Demaskér (maskering.js), Sager
+   CommandBar (V-FANER.1: uden egen fanerække, kun visningens kommandoer), sit træ i NavPane, sin værktøjslinje og en tom
+   tilstand. Visningen står i adressen (#masker …) og skiftes med fanerne øverst (V-FANER.1, D25: kittets visningsskift med
+   faner: true, under titellinjen) eller ⌘1–⌘4 (Ctrl på Windows). Fanen Vis er væk: tema og sprog står under tandhjulet
+   (Indstillinger), tekststørrelsen i Indstillinger og i menuen Vis. Maskér og Demaskér (maskering.js), Sager
    (sager.js), Ordbog (ordbog.js) og Indstillinger (indstillinger.js) virker via window.Grimnir; resten af kommandoerne
    fra design/skaerme/ står nedtonet med en forklaring, til funktionen kommer (v2).
-   V-LAAS.2: mens <html data-laast> står (laas.js), er visningsskiftet og båndet nedtonede, og ⌘1–⌘4 gør intet;
+   V-LAAS.2: mens <html data-laast> står (laas.js), er fanerne (før visningsskiftet) og båndet nedtonede, og ⌘1–⌘4 gør intet;
    Indstillinger (⌘, / Ctrl+,) og Om virker.
    Rust giver: kerne_version (fodlinjen), hændelsen 'menu' ("om" | "indstillinger" | "afslut"; "aabn" | "gem" håndteres
    af maskering.js; V-KITBRUG.2: "tekst-stoerre" | "tekst-mindre" | "tekst-normal" fra menuen Vis), hændelsen 'fuldskaerm'
    (true | false) og platformen (<html data-platform>). */
 (function () {
   'use strict';
-  const K = window.Kit, S = window.Sprog, T = window.Tema;
+  const K = window.Kit, S = window.Sprog;
   const tauri = window.__TAURI__ || null;
   const platform = window.__GRIMNIR_PLATFORM__ || document.documentElement.getAttribute('data-platform') || '';
   const mac = platform === 'macos';
@@ -101,22 +103,6 @@
   ];
   const ID = VISNINGER.map(v => v.id);
 
-  /* Vis-fanen er ens i alle visninger: tema og sprog. */
-  const visFane = () => ({
-    id: 'vis', t: 'faneVis',
-    grupper: [
-      { t: 'gTema', knapper: [
-        { id: 'tema-lys', t: 'kLys', ikon: 'sol', trykket: T.valg === 'lys', ved: () => T.saet('lys') },
-        { id: 'tema-moerk', t: 'kMoerk', ikon: 'maane', trykket: T.valg === 'moerk', ved: () => T.saet('moerk') },
-        { id: 'tema-system', t: 'kSystem', ikon: 'skaerm', trykket: T.valg === 'system', ved: () => T.saet('system') },
-      ] },
-      { t: 'gSprog', knapper: [
-        { id: 'sprog-da', t: 'kDansk', ikon: 'sprog', trykket: S.lang === 'da', ved: () => S.saet('da') },
-        { id: 'sprog-en', t: 'kEngelsk', ikon: 'sprog', trykket: S.lang === 'en', ved: () => S.saet('en') },
-      ] },
-    ],
-  });
-
   const $ = id => document.getElementById(id);
   const laast = () => document.documentElement.hasAttribute('data-laast');
   const baand = $('baand'), navdele = $('navdele'), arb = $('arb');
@@ -128,7 +114,8 @@
     cmd.dataset.visning = v.id;
     baand.appendChild(cmd);
     // V-KITBRUG.2 N3 (G11): "hvorfor" en kommando er slået fra, står i kittets værktøjstip (mus og tastatur), ikke i title.
-    const bar = K.commandBar(cmd, { ariaT: 'cmdAria', hvorforTip: true, faner: [{ id: 'start', t: 'faneStart', grupper: v.grupper }, visFane()] });
+    // V-FANER.1: båndet har kun visningens kommandoer (udenFaner: ingen fanerække; fanerne øverst skifter visning).
+    const bar = K.commandBar(cmd, { ariaT: 'cmdAria', hvorforTip: true, udenFaner: true, faner: [{ id: 'start', grupper: v.grupper }] });
 
     // NavPane: overskrift og træ
     const nd = document.createElement('div');
@@ -143,6 +130,9 @@
     // Arbejdsfladen: værktøjslinje (søgning, filter, status) og tom tilstand
     const sek = document.createElement('section');
     sek.className = 'visning';
+    sek.id = 'visning-' + v.id;
+    // V-FANER.1: arbejdsfladen er det panel, visningens fane viser (fanen har aria-controls hertil); navnet er visningens.
+    sek.setAttribute('role', 'tabpanel');
     sek.dataset.visning = v.id;
     sek.setAttribute('data-t-aria', v.t);
     const vl = document.createElement('div');
@@ -208,10 +198,17 @@
     dele[v.id] = { cmd, bar, nd, sek, trae, flTekst, soeg: inp, hoejre, flade, tom, tomP: p };
   }
 
-  // Visningsskiftet nederst i NavPane
-  const skift = K.visningsskift($('skift'), VISNINGER.map((v, i) => ({
-    id: v.id, t: v.t, ikon: v.ikon, genvej: mod + (i + 1), genvejAria: (mac ? 'Meta+' : 'Control+') + (i + 1),
-  })), { ariaT: 'visninger' });
+  /* V-FANER.1 (D25): visningerne som faner øverst (kittets visningsskift med faner: true): ikon og navn, genvejen ⌘1–⌘4
+     (Ctrl på Windows) som hjælpetekst i fanens værktøjstip, aria-controls til visningens arbejdsflade. Et klik og
+     piletasterne (kittet klikker fanen) går via adressen som før. Mens Grimnir er låst, er rækken inert og nedtonet
+     (laas.js, app.css); med en dialog åben dækker dialogen siden. Begge dele holdes også her: et klik på en fane gør intet,
+     mens der er låst, eller en dialog er åben (som ⌘1–⌘4). */
+  const skift = K.visningsskift($('faner'), VISNINGER.map((v, i) => ({
+    id: v.id, t: v.t, ikon: v.ikon, genvej: mod + (i + 1), genvejAria: (mac ? 'Meta+' : 'Control+') + (i + 1), panel: 'visning-' + v.id,
+  })), { ariaT: 'visninger', faner: true });
+  $('faner').addEventListener('click', e => {
+    if (e.target.closest('.vf') && (laast() || document.querySelector('dialog[open]'))) e.preventDefault();
+  }, true);
 
   const fodVenstre = $('fod-venstre');
   let aktivVisning = null;
@@ -235,17 +232,6 @@
     if (location.hash !== '#' + id) location.hash = id;
     else vis(id);
   }
-
-  /* Tryk-tilstand på Vis-fanens knapper i alle fire bånd. */
-  function opdaterVis() {
-    for (const v of VISNINGER) {
-      for (const [id, on] of [['tema-lys', T.valg === 'lys'], ['tema-moerk', T.valg === 'moerk'], ['tema-system', T.valg === 'system'], ['sprog-da', S.lang === 'da'], ['sprog-en', S.lang === 'en']]) {
-        dele[v.id].bar.knap(id).setAttribute('aria-pressed', String(on));
-      }
-    }
-  }
-  document.addEventListener('grimnir-tema', opdaterVis);
-  document.addEventListener('grimnir-sprog', opdaterVis);
 
   // Titellinjen: indstillinger
   const indstKnap = $('aabn-indst');
@@ -371,7 +357,6 @@
 
   fraAdresse();
   S.anvend(document);
-  opdaterVis();
   /* maskering.js: registrér en handling for en kommando (visning:id) og nå visningernes dele. */
   const haandter = (visning, id, fn) => { HANDLINGER[visning + ':' + id] = fn; };
   window.Grimnir = { vis: gaaTil, get aktiv() { return aktivVisning; }, get laast() { return laast(); }, VISNINGER, dele, haandter, mac, mod, aabnDialog, kitDialog, bekraeft, tauri };

@@ -118,7 +118,7 @@ Fra 2.4.0 (ønskerne K18–K21 fra Huginn and Muninn):
 
 **Tilstande:** `.rk` (knap på titellinjen) har hover. `.fl` og søgefeltet kan være `disabled`; `.fl` kan også have `aria-disabled="true"`. `.soeg` får fokusringen, når feltet i den har fokus.
 
-**Tastatur:** Tab går gennem titellinjens knapper, båndet, navigationsruden og arbejdsfladen i den rækkefølge.
+**Tastatur:** Tab går gennem titellinjens knapper, båndet, navigationsruden og arbejdsfladen i den rækkefølge. Står visningerne som faner øverst (fra 2.6.0), kommer fanerne efter titellinjen og før båndet.
 
 **Kræver af programmet:** Mindste vindue 900 × 560 px. Titellinjens indhold (mærke, navn, det til højre). Har vinduet styresystemets knapper oven på titellinjen, giver programmet selv plads i sin egen CSS (fx `padding-left` på `.titel`). Skal titellinjen kunne trækkes, sætter programmet det selv (i Tauri: `data-tauri-drag-region`).
 
@@ -135,6 +135,21 @@ I stedet for bogstavet i `.mrk` kan titellinjen vise programmets eget mærke, 20
 ```
 
 Mærket er pynt ved siden af programmets navn: `aria-hidden="true"` eller `alt=""`.
+
+### Visningerne som faner øverst (fra 2.6.0)
+
+Et program kan stille sine visninger som faner i en række lige under titellinjen i stedet for nederst i navigationsruden. Så skifter fanen øverst arbejdsområdet, båndet under viser kun den valgte visnings kommandoer (uden egen fanerække, `udenFaner`), og navigationsruden har kun træet. Rækken er `Kit.visningsskift` med `faner: true` (se NavPane):
+
+```html
+<div class="vindue">
+  <header class="titel">…</header>
+  <div id="faner"></div>                         <!-- Kit.visningsskift(…, { faner: true }) -->
+  <div id="baand"></div>                         <!-- Kit.commandBar(…, { udenFaner: true }), ét pr. visning -->
+  <div class="midte"><nav class="nav">…træet…</nav><main class="arb">…</main></div>
+</div>
+```
+
+Titellinjen er uændret: fanerne står i deres egen række og kan aldrig skubbe titellinjens indhold ud. Rækken er 29 px høj (fane 28 px og kant 1 px). Båndet uden faner har 4 px mere luft forneden end båndet med faner (`.cmd.enkel`, fra 2.2.0), så fanerne øverst og båndet under fylder tilsammen præcis det samme som båndet med sin fanerække på 33 px før (målt i WebKit i alle tre tekststørrelser).
 
 ### Titellinjeknap, der er slået fra eller aktiv (fra 2.5.0, K23)
 
@@ -216,7 +231,7 @@ Kit.commandBar(document.getElementById('baand'), {
 
 ## NavPane
 
-**Klasser:** `.nav`, `.trae`, `.tr`, `.ant`, `.skift`, `.vs`, `.taet`, `.ant-kraever`
+**Klasser:** `.nav`, `.trae`, `.tr`, `.ant`, `.skift`, `.vs`, `.taet`, `.ant-kraever`, `.vfaner`, `.vf`, `.vf-navn`
 
 **Funktioner:** `Kit.navTrae`, `Kit.visningsskift`
 
@@ -282,6 +297,30 @@ Sprog.anvend(rod);
 - **`deaktiveret` og `hvorfor`** som i båndet: punktet har `aria-disabled="true"`, står nedtonet uden hover, kan stadig nås med Tab, og et klik gør intet. `hvorfor` (en nøgle) står i et værktøjstip (`Kit.vaerktoejstip`), ikke i `title`, så det kan læses med tastaturet.
 - **`antal`** som i træet (`.ant`, til højre før genvejen). **`kraever: true`** ("kræver handling") gør tallet til en fyldt pille med kant og fed skrift i `danger` (`.ant-kraever`): formen og vægten skiller det fra et almindeligt tal, ikke kun farven. **`antalAriaT`/`antalAria`** er det, en skærmlæser hører i stedet for tallet (fx "3 kræver handling", med `data-v`); giv det altid ved `kraever`, for tallet alene siger ikke, at noget venter.
 - **`saetPunkt(id, { … })`** ændrer de samme felter udefra uden at bygge skiftet om. Et punkt uden de nye felter er præcis som i 2.0.0.
+
+### Visningerne som faner øverst (fra 2.6.0)
+
+```js
+const faner = Kit.visningsskift(document.getElementById('faner'), [
+  { id: 'filer', t: 'vFiler', ikon: 'mappe', genvej: '⌘1', genvejAria: 'Meta+1', panel: 'visning-filer' },
+  { id: 'log', t: 'vLog', ikon: 'bog', genvej: '⌘2', genvejAria: 'Meta+2', antal: 3, kraever: true, antalAriaT: 'kraeverHandling' },
+  { id: 'angreb', t: 'vAngreb', ikon: 'skjold', deaktiveret: true, hvorfor: 'hvorforIngenToken' },
+], { ariaT: 'visninger', faner: true });
+faner.markér('filer');                         // programmet ejer skiftet, som før
+faner.saetPunkt('angreb', { deaktiveret: false });
+Sprog.anvend(document.getElementById('faner'));
+```
+
+- **`faner: true`** er programmets valg; uden den er visningsskiftet præcis som før (nederst i navigationsruden). Felterne er de samme: navn, `ikon`, `genvej`/`genvejAria`, `antal`, `kraever`/`antalAriaT`, `deaktiveret`/`hvorfor`, og `saetPunkt` og `markér` virker som før. Nyt felt: **`panel`**, id'et på det element, fanen viser; det giver `aria-controls`, og programmet giver selv elementet `role="tabpanel"`.
+- **Roller: `tablist` og `tab`.** Rækken er `role="tablist"` med navnet fra `ariaT`; hver fane er stadig et link til `#id` (adressen virker som før), men med `role="tab"`, et id (`kit-vf<nr>-<id>`, til `aria-labelledby` på panelet) og `aria-selected="true"` på den valgte. Valgt frem for navigation med `aria-current`, fordi rækken har piletaster: med fanernes roller fortæller skærmlæseren selv, at det er faner, hvor mange der er, og hvilken der er valgt, og at piletasterne virker; en række links med piletaster ville ingen skærmlæser forklare. En skærmlæser siger fx "Visninger, faneliste. Filer, fane, valgt, 1 af 3" og derefter genvejen (tippet er beskrivelsen); VoiceOver og NVDA er ikke prøvet.
+- **Tastatur:** Kun den valgte fane er i Tab-rækkefølgen (`tabindex` 0, de andre −1). Venstre og højre pil (rundt), Home og End flytter fokus og vælger fanen (et klik på linket, så programmet skifter som før); Enter og mellemrum vælger. En fane slået fra kan få fokus med piletasterne (så hvorfor kan læses), men vælges ikke. Et tryk med ⌘, Ctrl eller Alt gør intet i rækken.
+- **Valgt** er markeret med en streg på 2 px forneden i accent, fed skrift og ikonet i accent (form og vægt, ikke kun farve). Fokus har kittets ring inden for fanen.
+- **Genvejen er hjælpetekst:** den står ikke som tekst i fanen men i et værktøjstip (`Kit.vaerktoejstip`) under fanen, ved hover og ved Tab; `aria-keyshortcuts` som før. For en fane slået fra står `hvorfor` i tippet i stedet.
+- **Smalt vindue:** fanerne krymper med rækken, og et navn, der ikke kan være der, afkortes med … (ikonet, tallet og luften bliver). Rækken bliver aldrig bredere end vinduet, og titellinjen står i sin egen række. Ved syv og otte faner er luften mindre (`.vfaner.taet`). Målt i WebKit (WKWebView) i det mindste vindue, 900 px: fire faner og otte faner med navne på højst 11 tegn (fx "Siden sidst", "Besøgende", "Teknologi") står hele i alle tre tekststørrelser (otte fylder ved stor 860 af 900 px). Otte navne på 11–13 tegn afkortes alle med … ved normal og stor i 900 px (rækken krymper alle fanerne), og står hele fra 1200 px. Rækken ruller aldrig vandret, og titellinjen er den samme. Hold navnet på højst 11 tegn.
+
+### NavPane uden visningsskift (fra 2.6.0)
+
+Står visningerne som faner øverst, har navigationsruden kun overskriften og træet. Et `.trae` direkte i `.nav`, når ruden ikke har et `.skift` (kittet ser det selv med `:has`), fylder så resten af ruden og ruller selv helt ned til fodlinjen; der står ingen tom flade nederst, hvor skiftet var. Med et visningsskift i ruden er alt som før.
 
 ## StatusFooter
 
@@ -367,7 +406,7 @@ tabel.vaelg(0);              // vælg første række fra koden
 
 En celle er tekst, et tal eller et element (fx en chip eller et felt). `mono` er numrene på de celler, der står i mono.
 
-**Tilstande:** Hover på rækken. Valgt række (`.sel`, `aria-selected="true"`). Grupperækker (`tr.gruppe`) kan ikke vælges. Fra 2.3.0: sorteret kolonne (`aria-sort`, pil ▲ eller ▼), kolonne, der kan sorteres (pil ↕), gruppeoverskrift (`.kolgruppe`), og i sideskiftet første og sidste side (`aria-disabled`).
+**Tilstande:** Hover på rækken. Valgt række (`.sel`, `aria-selected="true"`); fra 2.6.0 viser en valgt række under musen valget, ikke hover-fladen. Grupperækker (`tr.gruppe`) kan ikke vælges. Fra 2.3.0: sorteret kolonne (`aria-sort`, pil ▲ eller ▼), kolonne, der kan sorteres (pil ↕), gruppeoverskrift (`.kolgruppe`), og i sideskiftet første og sidste side (`aria-disabled`).
 
 **Tastatur:** Tab går til den valgte række (ellers den første). Op og ned vælger forrige og næste, Home og End første og sidste. Fra 2.3.0: sorteringsknapperne i hovedet nås med Tab før rækkerne og sorterer med Enter og mellemrum; sideskiftets knapper og antal pr. side nås med Tab efter tabellen.
 

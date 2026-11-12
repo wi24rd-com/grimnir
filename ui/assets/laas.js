@@ -11,7 +11,8 @@
                          Grimnir låses op, og et vedvarende, afdæmpet banner siger, at Grimnir ikke er låst.
      fejl              → som annulleret, med fejlkoden.
    Mens der er låst, står intet fra sagerne eller ordbogen i DOM'en: de hentes først efter oplåsningen, og Rust svarer
-   `laast` på hver kommando, der bruger dem. Visningsskiftet og båndet er nedtonede (inert) med en forklaring i title;
+   `laast` på hver kommando, der bruger dem. Fanerne øverst (V-FANER.1; før visningsskiftet) og båndet er nedtonede (inert)
+   med en forklaring i title;
    titellinjen, menuen, Indstillinger og Om virker. Fokus står på "Lås op"; Enter låser op.
 
    V-LAAS.3, lås igen: når Rust låser (dvale, skærmen slukker, brugerskift, stilstand), kommer hændelsen `laast`, og
@@ -45,8 +46,8 @@
   let venter = false;
 
   const knapOp = $('laas-op'), knapAfslut = $('laas-afslut'), besked = $('laas-besked'), bannerRod = $('laas-banner');
-  const nedtonet = () => [...$('baand').children, $('navdele'), $('skift')];
-  const forklaret = () => [$('baand'), document.querySelector('nav.nav')];
+  const nedtonet = () => [...$('baand').children, $('navdele'), $('faner')];
+  const forklaret = () => [$('faner'), $('baand'), document.querySelector('nav.nav')];
 
   /* Beskeden under knapperne: en nøgle (og et tal) eller ingen. */
   function saetBesked(t, v, fejl) {

@@ -92,6 +92,8 @@ Programmet får hele Kit 2's skal (se beslutningen øverst). Trin 1–6 lægger 
 
 **Alle ønsker fra Huginn and Muninn er opfyldt med 2.5.0**, undtagen **K27** (præfiks på kittets klasser), der kræver 3.0.0 og ikke er planlagt. Navne, der afviger fra ønskerne: `Kit.fodstatus` (K25), `kunBrugerValg` (K26: en indstilling, ikke ny standard), `.ant-kraever` (K24), `.sflise-to`/`.sflise-maal`/`.sflise-under-maal` (K33) og `.fchip-fjern` (K34).
 
+**Fra 2.6.0 kan visningerne stå som faner øverst** (`Kit.visningsskift(…, { faner: true })` under titellinjen, båndet under med `udenFaner` og navigationsruden kun med træet; se AppShell og NavPane i `KOMPONENTER.md`). Det er en mulighed, programmet selv vælger: Huginn and Muninns opsætning (otte visninger nederst i navigationsruden med `Kit.visningsskift` uden `faner`, båndet med `udenFaner`) er uændret og bygger præcis det samme som med 2.5.0 (en test sammenligner). Det eneste, der ser anderledes ud, er en valgt tabelrække under musen: den viser nu valget, ikke hover-fladen.
+
 Det af `--board-*`, der ikke har en modpart i kittet, bliver programmets eget og peger på kittets flader og tekstfarver.
 
 ## Det, der ikke kan flyttes endnu

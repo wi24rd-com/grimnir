@@ -104,6 +104,7 @@
         svagTekst: 'Tekst på svag flade', kortAngreb: 'Angreb (danger-mark)', kortBue: 'Bue uden betydning (map-arc)',
         kasseSager: 'Seneste sager', kasseNet: 'Egne net', visAlle: 'Vis alle', kasseFod: 'Opdateret for 2 minutter siden', sag1: 'Supportsag 0042', sag2: 'Leverandør 0007', sag3: 'Test 0001', netTekst: 'Adresser i 192.0.2.0/24 og 2001:db8::/32 maskeres altid.',
         h250Titel: 'Mærke og titellinjeknapper (fra 2.5.0)', p250Titel: 'Mærket er programmets eget (her en maske af striber i titellinjens mærkefarve). Frem er slået fra, tandhjulet peger på det viste (streg forneden), og hjælp har sit panel åbent (ring); klik på hjælp for at skifte.', ariaFrem: 'Frem', ariaIndst: 'Indstillinger', ariaHjaelp: 'Hjælp', hjaelpAaben: 'Hjælp: panelet er åbent', hjaelpLukket: 'Hjælp: panelet er lukket', h250Hvorfor: 'Hvorfor i et værktøjstip (fra 2.5.0)', p250Hvorfor: 'Med hvorforTip: true står forklaringen i et værktøjstip, der vises ved Tab og læses op. Knappen under slår Kopiér til og fra.', kSlaaTil: 'Slå Kopiér til eller fra', h250Nav: 'Træ, der bygges om, og visningsskift med tal (fra 2.5.0)', p250Nav: 'Byg om skifter domænerne uden at miste valg, foldning eller fokus (og uden at kalde vedValg). Siden sidst har et tal, der kræver handling; Angreb er slået fra og siger hvorfor i et værktøjstip.', tSamlet: 'Alle domæner', vOversigt: 'Oversigt', vSiden: 'Siden sidst', vAngreb: 'Angreb', kraeverHandling: '{v} kræver handling', hvorforToken: 'Kræver en API-nøgle under Indstillinger.', kByggOm: 'Byg træet om', kSlaaAngreb: 'Slå Angreb til eller fra', h250Fod: 'Status med fremdrift (fra 2.5.0)', p250Fod: 'Statusdelen i fodlinjen: mærke, kort tekst, tynd fremdrift og en knap. Et trin læses ikke op; en ny tekst gør (høfligt).', koeHenter: 'Henter …', koeFaerdig: 'Alt er hentet', koeFejl: 'Hentningen fejlede', aabnOverblik: 'Åbn Overblik', kEtTrin: 'Et trin', kUbestemt: 'Ubestemt', kFaerdig: 'Færdig', kFejl: 'Fejl', h250Fliser: 'Valgt flise, to mål og frit indhold (fra 2.5.0)', p250Fliser: 'Klik på en flise for at vise den (aria-current, flade og dobbelt kant). Underteksten i den første er sit eget mål. Den sidste har to datoer med hvert sit link.', fliser250Aria: 'Afviste', flIGaar: 'Afvist i går', flIDag: 'Afvist i dag', iDagHidtil: 'I dag hidtil: 3', flSet: 'Først og sidst set', foerst: 'Først', sidst: 'Sidst', h250Kasse: 'Ikon i overskriften (fra 2.5.0)', p250Kasse: 'Et ikon i accent foran kassens overskrift.', kasseLaas: 'Lås', kasseLaasTekst: 'Låsen slår til efter 5 minutter uden brug.', h250Tom: 'En tom flade, der tager imod, og to handlinger (fra 2.5.0)', p250Tom: 'Fladen kan få fokus og tager imod ⌘V; den anden handling hjælper videre ad en anden vej.', tomModtagerH: 'Indsæt en tekst', tomModtagerP: 'Klik her og tryk ⌘V.', ariaModtager: 'Indsæt tekst med {v}', kAabnSager: 'Åbn Sager', modtaget: 'Modtaget: {v} tegn', h250Dialog: 'Dialoger, der kan fejle, og guiden (fra 2.5.0)', p250Dialog: 'Ny sag og Slet fejler første gang og lykkes anden gang: knappen venter, og fejlen står over fodlinjen. Om har fletbåndet over overskriften; guiden står i en bred dialog; Tre svar følger reglen for et spørgsmål med tre svar.', dlgNySag: 'Ny sag (kan fejle)', dlgNySagH: 'Ny sag', dlgNySagP: 'Første forsøg fejler, andet lykkes.', dlgNySagFejl: 'Der findes allerede en sag med det navn.', opretSag: 'Opret sag', dlgSletVent: 'Slet (kan fejle)', dlgSletVentP: 'Sletningen fejler første gang.', dlgSletFejl: 'Sagen kunne ikke slettes. Prøv igen.', dlgOm: 'Om', dlgOmH: 'Om demoen', dlgOmP: 'Fletbåndet står over overskriften; overskriften navngiver stadig dialogen.', kLuk: 'Luk', dlgGuide: 'Guide i dialog', dlgTre: 'Tre svar', dlgTreH: 'Gem den midlertidige sag?', dlgTreP: 'Den har 3 poster. Kassér sletter dem.', kKasser: 'Kassér', kGemSomSag: 'Gem som sag', h250Seg: 'Uden valg (fra 2.5.0)', p250Seg: 'Ved siden af et eget interval er intet valgt; et klik vælger og meldes.', pEget: 'Eget interval', h250Fjern: 'Aktive filtre, der kan fjernes (fra 2.5.0)', p250Fjern: 'Hele chippen fjerner filtret; fokus går til nabochippen. Nulstil lægger dem tilbage.', aktiveFiltre: 'Aktive filtre', fjernFilter: 'Fjern filter: {v}', fjernet: 'Fjernet: {v}', kNulstil: 'Nulstil', fltLand: 'Danmark', fltDato: '1.–4. november', h250Afk: 'Afkrydsning i en tabelrække (fra 2.5.0)', p250Afk: 'Boksen alene, 16 px; navnet siger, hvad den gør med rækken.', afk250Aria: 'Værdier, der maskeres', kolMaskeres: 'Maskér', kolVaerdi250: 'Værdi', ariaMaskerV: 'Maskér {v}', h250Raekke: 'Navn uden for komponenten (fra 2.5.0)', p250Raekke: 'Etiketten står i rækkens venstre side og navngiver kontrollen med aria-labelledby.', rTema: 'Tema', rTemaNote: 'Gælder kun dette vindue.', rSprog: 'Sprog', rAutostart: 'Start ved login', tekstZoom: '--tekst-zoom er {v} (fra 2.5.0)',
+        h260Faner: 'Visningerne som faner øverst (fra 2.6.0)', p260Faner: 'Visningsskiftet med faner: true står under titellinjen; båndet under (udenFaner) viser den valgte fanes kommandoer, og navigationsruden har kun træet. Piletasterne flytter og vælger; genvejen (Alt+1–4) står i fanens værktøjstip. Login er slået fra og siger hvorfor.', h260Otte: 'Otte faner i en smal række (fra 2.6.0)', p260Otte: 'Fanerne krymper med rækken; et navn, der ikke kan være der, afkortes med …, og rækken bliver aldrig bredere end vinduet.', h260Valgt: 'Valgt række under musen (fra 2.6.0)', p260Valgt: 'Hold musen over den valgte række: den viser valget, ikke hover-fladen.', hvorforLogin: 'Login kræver en API-nøgle under Indstillinger.', kUdskriv: 'Udskriv',
       },
       en: {
         dokTitel: 'Wi24rd UI Kit 2 — demo', appNavn: 'Wi24rd UI Kit 2', undertitel: 'Demo · package {v}',
@@ -200,6 +201,7 @@
         svagTekst: 'Text on a faint surface', kortAngreb: 'Attack (danger-mark)', kortBue: 'Arc without meaning (map-arc)',
         kasseSager: 'Latest cases', kasseNet: 'Own networks', visAlle: 'Show all', kasseFod: 'Updated 2 minutes ago', sag1: 'Support case 0042', sag2: 'Supplier 0007', sag3: 'Test 0001', netTekst: 'Addresses in 192.0.2.0/24 and 2001:db8::/32 are always masked.',
         h250Titel: 'Mark and title bar buttons (from 2.5.0)', p250Titel: 'The mark is the program’s own (here a mask of stripes in the title bar’s mark colour). Forward is disabled, the gear points to what is shown (line below), and help has its panel open (ring); click help to switch.', ariaFrem: 'Forward', ariaIndst: 'Settings', ariaHjaelp: 'Help', hjaelpAaben: 'Help: the panel is open', hjaelpLukket: 'Help: the panel is closed', h250Hvorfor: 'Why in a tooltip (from 2.5.0)', p250Hvorfor: 'With hvorforTip: true the explanation is in a tooltip that shows on Tab and is read out. The button below turns Copy on and off.', kSlaaTil: 'Turn Copy on or off', h250Nav: 'A tree that is rebuilt, and a view switcher with counts (from 2.5.0)', p250Nav: 'Rebuild changes the domains without losing the selection, folding or focus (and without calling vedValg). Since last time has a count that requires action; Attacks is disabled and says why in a tooltip.', tSamlet: 'All domains', vOversigt: 'Overview', vSiden: 'Since last time', vAngreb: 'Attacks', kraeverHandling: '{v} require action', hvorforToken: 'Requires an API key under Settings.', kByggOm: 'Rebuild the tree', kSlaaAngreb: 'Turn Attacks on or off', h250Fod: 'Status with progress (from 2.5.0)', p250Fod: 'The status part of the footer: mark, short text, thin progress and a button. A step is not read out; a new text is (politely).', koeHenter: 'Fetching …', koeFaerdig: 'Everything is fetched', koeFejl: 'Fetching failed', aabnOverblik: 'Open Overview', kEtTrin: 'One step', kUbestemt: 'Indeterminate', kFaerdig: 'Done', kFejl: 'Error', h250Fliser: 'Selected tile, two targets and free content (from 2.5.0)', p250Fliser: 'Click a tile to show it (aria-current, surface and double border). The subtext of the first is its own target. The last has two dates with a link each.', fliser250Aria: 'Rejected', flIGaar: 'Rejected yesterday', flIDag: 'Rejected today', iDagHidtil: 'Today so far: 3', flSet: 'First and last seen', foerst: 'First', sidst: 'Last', h250Kasse: 'Icon in the heading (from 2.5.0)', p250Kasse: 'An icon in accent before the box heading.', kasseLaas: 'Lock', kasseLaasTekst: 'The lock turns on after 5 minutes without use.', h250Tom: 'An empty surface that receives, and two actions (from 2.5.0)', p250Tom: 'The surface can take focus and receives ⌘V; the second action helps on another way.', tomModtagerH: 'Paste a text', tomModtagerP: 'Click here and press ⌘V.', ariaModtager: 'Paste text with {v}', kAabnSager: 'Open Cases', modtaget: 'Received: {v} characters', h250Dialog: 'Dialogs that can fail, and the guide (from 2.5.0)', p250Dialog: 'New case and Delete fail the first time and succeed the second: the button waits, and the error stands above the footer. About has the braid above the heading; the guide is in a wide dialog; Three answers follows the rule for a question with three answers.', dlgNySag: 'New case (can fail)', dlgNySagH: 'New case', dlgNySagP: 'The first attempt fails, the second succeeds.', dlgNySagFejl: 'A case with that name already exists.', opretSag: 'Create case', dlgSletVent: 'Delete (can fail)', dlgSletVentP: 'Deleting fails the first time.', dlgSletFejl: 'The case could not be deleted. Try again.', dlgOm: 'About', dlgOmH: 'About the demo', dlgOmP: 'The braid stands above the heading; the heading still names the dialog.', kLuk: 'Close', dlgGuide: 'Guide in a dialog', dlgTre: 'Three answers', dlgTreH: 'Save the temporary case?', dlgTreP: 'It has 3 entries. Discard deletes them.', kKasser: 'Discard', kGemSomSag: 'Save as case', h250Seg: 'Without a selection (from 2.5.0)', p250Seg: 'Next to a custom range nothing is selected; a click selects and is reported.', pEget: 'Custom range', h250Fjern: 'Active filters that can be removed (from 2.5.0)', p250Fjern: 'The whole chip removes the filter; focus goes to the neighbouring chip. Reset puts them back.', aktiveFiltre: 'Active filters', fjernFilter: 'Remove filter: {v}', fjernet: 'Removed: {v}', kNulstil: 'Reset', fltLand: 'Denmark', fltDato: '1–4 November', h250Afk: 'Checkbox in a table row (from 2.5.0)', p250Afk: 'The box alone, 16 px; the name says what it does with the row.', afk250Aria: 'Values that are masked', kolMaskeres: 'Mask', kolVaerdi250: 'Value', ariaMaskerV: 'Mask {v}', h250Raekke: 'Name outside the component (from 2.5.0)', p250Raekke: 'The label stands in the left side of the row and names the control with aria-labelledby.', rTema: 'Theme', rTemaNote: 'Applies to this window only.', rSprog: 'Language', rAutostart: 'Start at login', tekstZoom: '--tekst-zoom is {v} (from 2.5.0)',
+        h260Faner: 'The views as tabs at the top (from 2.6.0)', p260Faner: 'The view switcher with faner: true stands below the title bar; the command bar below (udenFaner) shows the selected tab’s commands, and the navigation pane has only the tree. The arrow keys move and select; the shortcut (Alt+1–4) is in the tab’s tooltip. Login is disabled and says why.', h260Otte: 'Eight tabs in a narrow row (from 2.6.0)', p260Otte: 'The tabs shrink with the row; a name that does not fit is shortened with …, and the row never gets wider than the window.', h260Valgt: 'A selected row under the mouse (from 2.6.0)', p260Valgt: 'Hold the mouse over the selected row: it shows the selection, not the hover surface.', hvorforLogin: 'Login requires an API key under Settings.', kUdskriv: 'Print',
       },
     },
   });
@@ -941,6 +943,58 @@
     };
     document.addEventListener('kit-demo-tekst', vis);
     vis();
+  }
+
+  /* ── 2.6.0: visningerne som faner øverst, båndet under følger fanen, NavPane uden visningsskift ── */
+  {
+    const FIRE = [
+      { id: 'oversigt', t: 'vOversigt', ikon: 'skaerm', knapper: [{ id: 'aabn', t: 'kAabn', ikon: 'fil', pri: true }, { id: 'gem', t: 'kGem', ikon: 'gem' }] },
+      { id: 'siden', t: 'vSiden', ikon: 'kalender', antal: 3, kraever: true, antalAriaT: 'kraeverHandling', knapper: [{ id: 'kopier', t: 'kKopier', ikon: 'kopier', pri: true }] },
+      { id: 'angreb', t: 'vAngreb', ikon: 'skjold', antal: 12, knapper: [{ id: 'udskriv', t: 'kUdskriv', ikon: 'eksport', pri: true }, { id: 'slet', t: 'kSlet', ikon: 'slet' }] },
+      { id: 'login', t: 'vLogin', ikon: 'laas', deaktiveret: true, hvorfor: 'hvorforLogin', knapper: [{ id: 'aabn', t: 'kAabn', ikon: 'fil', pri: true }] },
+    ];
+    const baande = {};
+    for (const v of FIRE) {
+      const b = document.createElement('div');
+      b.dataset.visning = v.id;
+      $('demo-baand260').appendChild(b);
+      K.commandBar(b, { ariaT: 'cmdAria', udenFaner: true, faner: [{ id: 'start', grupper: [{ t: 'gEksempel', knapper: v.knapper.map(k => ({ ...k, ved: () => meld('faner260-valgt', k.t) })) }] }] });
+      baande[v.id] = b;
+    }
+    K.navTrae($('demo-trae260'), [{ id: 'alle', t: 'tAlle', antal: 16, boern: [{ id: 'tjek', t: 'tTjek', antal: 2 }] }], { ariaT: 'traeAria', valgt: 'alle' });
+    const faner = K.visningsskift($('demo-faner260'), FIRE.map((v, i) => ({ ...v, genvej: 'Alt+' + (i + 1), genvejAria: 'Alt+' + (i + 1) })), { ariaT: 'visninger', faner: true });
+    const vaelg = id => {
+      faner.markér(id);
+      for (const [vid, b] of Object.entries(baande)) b.hidden = vid !== id;
+      meld('faner260-valgt', FIRE.find(v => v.id === id).t);
+    };
+    // Demoen skifter selv (ingen adresse): et klik og piletasterne (der klikker) går hertil; en fane slået fra gør intet.
+    $('demo-faner260').addEventListener('click', e => {
+      const a = e.target.closest('.vf');
+      if (!a) return;
+      e.preventDefault();
+      if (a.getAttribute('aria-disabled') !== 'true') vaelg(a.dataset.visning);
+    });
+    document.addEventListener('keydown', e => {
+      const n = /^Digit([1-4])$/.exec(e.code || '');
+      if (!n || !e.altKey || e.ctrlKey || e.metaKey) return;
+      const v = FIRE[Number(n[1]) - 1];
+      e.preventDefault();
+      if (!v.deaktiveret) vaelg(v.id);
+    });
+    faner.markér('oversigt');
+    for (const [vid, b] of Object.entries(baande)) b.hidden = vid !== 'oversigt';
+    const OTTE = [['overblik', 'vOverblik', 'mappe'], ['siden', 'vSiden', 'kalender'], ['angreb', 'vAngreb', 'skjold'], ['robotter', 'vRobotter', 'filter'],
+      ['login', 'vLogin', 'laas'], ['land', 'vLand', 'sprog'], ['besoeg', 'vBesoeg', 'oeje'], ['tek', 'vTek', 'tandhjul']];
+    const otte = K.visningsskift($('demo-faner260-otte'), OTTE.map(([id, t, ikon]) => ({ id, t, ikon })), { ariaT: 'visninger', faner: true });
+    otte.markér('overblik');
+    $('demo-faner260-otte').addEventListener('click', e => {
+      const a = e.target.closest('.vf');
+      if (!a) return;
+      e.preventDefault();
+      otte.markér(a.dataset.visning);
+      meld('faner260-otte-valgt', OTTE.find(([id]) => id === a.dataset.visning)[1]);
+    });
   }
 
   /* ── Start: udfyld teksterne, vis den rigtige visning ── */

@@ -89,6 +89,8 @@
   .demo-r { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: var(--space-3); align-items: center; }
   .demo-r small { display: block; color: var(--text-muted); font-size: var(--small-size); }
   .demo-afk250 td:first-child { width: 40px; }
+  /* 2.6.0: fanerne øverst i en lille skal; den smalle ramme viser, hvordan otte faner afkortes. */
+  .demo-faner-smal { max-width: 720px; }
 </style>
 </head>
 <body>
@@ -96,7 +98,7 @@
   <header class="titel">
     <span class="mrk" aria-hidden="true">W</span>
     <b data-t="appNavn">Wi24rd UI Kit 2</b>
-    <span data-t="undertitel" data-v="2.5.0" id="pakkeversion">Demo · pakke 2.0.1</span>
+    <span data-t="undertitel" data-v="2.6.0" id="pakkeversion">Demo · pakke 2.0.1</span>
     <span class="hoejre">
       <button type="button" class="rk" id="skift-tema" data-t-aria="ariaSkiftTema" data-t-title="ariaSkiftTema"></button>
       <button type="button" class="rk" id="skift-sprog" data-t-aria="ariaSkiftSprog" data-t="skiftSprog"></button>
@@ -135,6 +137,24 @@
             <p data-t="p250Titel"></p>
             <div class="demo-ramme demo-aaben"><div class="titel" id="demo-titel250"></div></div>
             <p class="demo-valgt" id="titel250-valgt" data-t="intetValgt"></p>
+            <h3 data-t="h260Faner"></h3>
+            <p data-t="p260Faner"></p>
+            <div class="demo-ramme demo-aaben">
+              <div class="titel"><span class="mrk" aria-hidden="true">W</span><b data-t="appNavn"></b></div>
+              <div id="demo-faner260"></div>
+              <div id="demo-baand260"></div>
+              <div class="midte demo-midte">
+                <nav class="nav" data-t-aria="navAria"><h3 data-t="navDemoH"></h3><ul id="demo-trae260"></ul></nav>
+                <main class="arb"><p class="demo-valgt" id="faner260-valgt" data-t="intetValgt"></p></main>
+              </div>
+            </div>
+            <h3 data-t="h260Otte"></h3>
+            <p data-t="p260Otte"></p>
+            <div class="demo-ramme demo-aaben demo-faner-smal">
+              <div class="titel"><span class="mrk" aria-hidden="true">W</span><b data-t="appNavn"></b></div>
+              <div id="demo-faner260-otte"></div>
+            </div>
+            <p class="demo-valgt" id="faner260-otte-valgt" data-t="intetValgt"></p>
           </section>
 
           <section class="demo-sektion" data-gruppe="skal" data-navn="CommandBar">
@@ -182,7 +202,7 @@
             <h2>StatusFooter</h2>
             <p data-t="pStatusFooter"></p>
             <div class="demo-ramme">
-              <div class="fodl"><span data-t="fodVenstre" data-v="16" data-w="13"></span><span class="h"><span id="demo-fod-laas"></span><span data-t="fodVersion" data-v="2.5.0"></span></span></div>
+              <div class="fodl"><span data-t="fodVenstre" data-v="16" data-w="13"></span><span class="h"><span id="demo-fod-laas"></span><span data-t="fodVersion" data-v="2.6.0"></span></span></div>
             </div>
             <h3 data-t="h250Fod"></h3>
             <p data-t="p250Fod"></p>
@@ -196,6 +216,8 @@
             <p data-t="pDataTable"></p>
             <div class="demo-ramme" id="demo-tabel"></div>
             <p class="demo-valgt" id="tabel-valgt" data-t="intetValgt"></p>
+            <h3 data-t="h260Valgt"></h3>
+            <p data-t="p260Valgt"></p>
             <h3 data-t="hTabelNy">Sortering, to hovedrækker og sideskift</h3>
             <p data-t="pTabelNy"></p>
             <div class="demo-ramme" id="demo-tabel-ny"></div>
@@ -457,7 +479,7 @@
 
       <footer class="fodl">
         <span id="fod-antal" data-t="fodAntal" data-v="0"></span>
-        <span class="h"><span id="fod-laas"></span><span data-t="fodVersion" data-v="2.5.0"></span></span>
+        <span class="h"><span id="fod-laas"></span><span data-t="fodVersion" data-v="2.6.0"></span></span>
       </footer>
     </main>
   </div>

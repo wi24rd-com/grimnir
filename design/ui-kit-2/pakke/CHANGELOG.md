@@ -2,6 +2,21 @@
 
 Første tal stiger, når et program skal ændre noget for at følge med. Andet tal ved nyt. Tredje tal ved rettelser.
 
+## 2.6.0 — 2026-11-12
+
+Visningerne kan stå som faner øverst (Grimnir bad om det, D25). Intet er omdøbt eller fjernet, og der er ingen nye funktioner: det nye er en indstilling på `Kit.visningsskift` og CSS. Uden indstillingen er alt som i 2.5.0, undtagen det, der står under "Ændret". Huginn and Muninns opsætning (otte visninger nederst i navigationsruden, båndet uden faner) bygger præcis det samme som med 2.5.0.
+
+### Nyt
+
+- **Visningerne som faner øverst:** `Kit.visningsskift(rod, visninger, { faner: true })` stiller visningerne som faner i en række under titellinjen (`.vfaner`, `.vf`, `.vf-navn`), med båndet under uden egen fanerække (`udenFaner`). Roller `tablist` og `tab` (et link til `#id` med `aria-selected`; kun den valgte i Tab-rækkefølgen); venstre og højre pil, Home og End flytter og vælger, Enter og mellemrum vælger. Navn, ikon, `antal`, `kraever`, `deaktiveret`/`hvorfor` og `saetPunkt` som før; genvejen står i et værktøjstip (hjælpetekst), og `panel` giver `aria-controls`. Den valgte er markeret med streg, vægt og ikon i accent (ikke kun farve). Rækken er 29 px høj, så den og båndet uden faner under fylder det samme som båndet med sin fanerække før; ved et smalt vindue afkortes navnene med …, og rækken bliver aldrig bredere end vinduet (målt i WebKit ved 900 px: fire faner og otte navne på højst 11 tegn står hele i alle tre tekststørrelser; se NavPane i `KOMPONENTER.md`).
+- **Navigationsruden uden visningsskift:** et `.trae` direkte i `.nav` uden `.skift` fylder resten af ruden og ruller selv helt ned.
+- Demoen viser fire faner med båndet, der følger fanen, og ruden uden visningsskift, og otte faner i en smal række, i begge temaer og sprog. Kontrasttesten måler fanernes par.
+
+### Ændret
+
+- **Valgt række vinder over hover** i tabellen: en valgt række under musen viser valget (`--accent-soft`), ikke hover-fladen (før vandt hover-reglen på vægt, fra 2.0.0). Det gælder alle tabeller med rækkevalg, også den første kolonne i en tabel med `fastFoerste`. Jan sagde ja (valg 1 efter 2.5.0).
+- `Tokens.xaml` og `tokens.css` har versionen 2.6.0 i første linje. Ingen token er tilføjet eller ændret.
+
 ## 2.5.0 — 2026-11-12
 
 Skallen, kontrollerne og fliserne (ønskerne K22–K26, K28 og K31–K35 fra Huginn and Muninn) og dialogen, afkrydsningen, den tomme tilstand og tekststørrelsen (ønskerne G1–G11, Grimnir fandt, da det skiftede til kittets komponenter). Intet er omdøbt eller fjernet. Én ny funktion (`Kit.fodstatus`); alt andet er nye indstillinger på funktioner, der findes. Uden de nye indstillinger er alt som i 2.4.0, undtagen det, der står under "Ændret". Ønskerne fra Wi24rd FTP (F1–F8) venter på prøven af `Tokens.xaml` på Windows; K27 (præfiks på klasserne) er 3.0.0.
