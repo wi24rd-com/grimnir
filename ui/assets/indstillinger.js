@@ -26,13 +26,40 @@
   const st = { indst: null };
 
   /* ═════════════════════════════ Indstillinger ═════════════════════════════ */
+  /* V-KITBRUG.1: kontrollerne er kittets. Tema, sprog og tekststørrelse er radiogrupper med valgene i en række (Kit.
+     radiogruppe, vandret; navnene indst-tema, indst-sprog og indst-tekst); de virker straks som Vis-fanen. Tekststørrelsen
+     er kittets tre trin (window.Tekst i tema.js, som husker valget i localStorage['grimnir-tekst'] og sætter <html
+     data-tekst>; normal sætter ingen attribut). Afkrydsningerne (Kit.afkrydsning) og valglisterne (Kit.valgliste) har de
+     samme id'er som før, og hver knap og liste har stadig sit navn i aria-label. */
+  const Tk = window.Tekst;
+  function radiogruppe(navn, etiket, valg, valgt, ved) {
+    const g = K.radiogruppe({ navn, etiket: { t: etiket }, valg, valgt, vandret: true, vedValg: ved });
+    for (const i of g.inputs) i.setAttribute('data-t-aria', valg.find(v => v.id === i.value).t);
+    return g;
+  }
+  const gTema = radiogruppe('indst-tema', 'gTema', [{ id: 'lys', t: 'kLys' }, { id: 'moerk', t: 'kMoerk' }, { id: 'system', t: 'kSystem' }], T.valg, v => T.saet(v));
+  const gSprog = radiogruppe('indst-sprog', 'gSprog', [{ id: 'da', t: 'kDansk' }, { id: 'en', t: 'kEngelsk' }], S.lang, v => S.saet(v));
+  const gTekst = radiogruppe('indst-tekst', 'gTekstStr', [{ id: 'lille', t: 'kTekstLille' }, { id: 'normal', t: 'kTekstNormal' }, { id: 'stor', t: 'kTekstStor' }], Tk.valg, v => Tk.saet(v));
+  $('indst-valg').prepend(gTema.rod, gSprog.rod, gTekst.rod);
+  function afkrydsning(id, t, hj) {
+    const a = K.afkrydsning({ id, t, hjaelp: hj ? { t: hj } : undefined });
+    a.input.setAttribute('data-t-aria', t);
+    return a;
+  }
+  const lUdloeb = K.valgliste({ id: 'indst-udloeb', etiket: { t: 'feltStdUdloeb' }, valg: [{ id: '', t: 'ingenUdloeb' }, { id: '30', t: 'udloeb30' }, { id: '90', t: 'udloeb90' }] });
+  lUdloeb.select.setAttribute('data-t-aria', 'feltStdUdloeb');
+  $('indst-nye').append(afkrydsning('indst-fremmede', 'valgFremmede', 'hjFremmede').rod, afkrydsning('indst-oktet', 'valgOktet', 'hjOktet').rod, lUdloeb.rod);
+  // Uden dør (i denne cyklus alt andet end macOS) starter Grimnir ikke låst; hjælpeteksten siger det (indst-stilstand-hj).
+  const lStilstand = K.valgliste({ id: 'indst-stilstand', etiket: { t: 'kLaasEfter' }, valg: [5, 15, 30, 60].map(n => ({ id: String(n), t: 'stilstand' + n })), hjaelp: { t: G.mac ? 'hjLaas' : 'hjLaasIngen' } });
+  lStilstand.select.setAttribute('data-t-aria', 'kLaasEfter');
+  $('indst-laasvalg').append(lStilstand.rod);
+  S.anvend($('dlg-indst'));
+
   const iFremmede = $('indst-fremmede'), iOktet = $('indst-oktet'), iUdloeb = $('indst-udloeb'), iStilstand = $('indst-stilstand'), guideKnap = $('indst-guide');
-  // Uden dør (i denne cyklus alt andet end macOS) starter Grimnir ikke låst; hjælpeteksten siger det.
-  $('indst-laas-hj').setAttribute('data-t', G.mac ? 'hjLaas' : 'hjLaasIngen');
-  S.anvend($('indst-laas-hj'));
   function tegnIndst() {
-    for (const r of document.querySelectorAll('input[name="indst-tema"]')) r.checked = r.value === T.valg;
-    for (const r of document.querySelectorAll('input[name="indst-sprog"]')) r.checked = r.value === S.lang;
+    gTema.vaelg(T.valg);
+    gSprog.vaelg(S.lang);
+    gTekst.vaelg(Tk.valg);
     // Guiden lægger værdier i ordbogen: nedtonet med forklaring, mens Grimnir er låst.
     guideKnap.disabled = GL.laast;
     if (GL.laast) guideKnap.setAttribute('data-t-title', 'hvorforLaast');
@@ -59,8 +86,6 @@
         return null;
       });
   }
-  for (const r of document.querySelectorAll('input[name="indst-tema"]')) r.addEventListener('change', () => T.saet(r.value));
-  for (const r of document.querySelectorAll('input[name="indst-sprog"]')) r.addEventListener('change', () => S.saet(r.value));
   iFremmede.addEventListener('change', () => gem({ masker_fremmede: iFremmede.checked }));
   iOktet.addEventListener('change', () => gem({ bevar_sidste_oktet: iOktet.checked }));
   iUdloeb.addEventListener('change', () => gem({ udloeb_dage: iUdloeb.value ? Number(iUdloeb.value) : null }));
@@ -68,6 +93,7 @@
   document.addEventListener('grimnir-laas', tegnIndst);
   $('indst-guide').addEventListener('click', () => { $('dlg-indst').close(); visGuide(); });
   document.addEventListener('grimnir-tema', tegnIndst);
+  document.addEventListener('grimnir-tekst', tegnIndst);
   document.addEventListener('grimnir-sprog', () => { tegnIndst(); if ($('dlg-guide').open) tegnLister(); });
 
   /* ═════════════════════════════ Guiden (kittets Wizard) ═════════════════════════════ */

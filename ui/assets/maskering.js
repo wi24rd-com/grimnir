@@ -99,22 +99,23 @@
     return S.t('ffejl_' + f.art) || S.t('sagfejl_andet');
   }
 
-  /* "Grimnir arbejder": vises, når en kommando har kørt i mere end et sekund (F4), og fjernes, når den er færdig. */
+  /* "Grimnir arbejder": vises, når en kommando har kørt i mere end et sekund (F4), og fjernes, når den er færdig.
+     V-KITBRUG.1 N3: kittets fremdrift (Kit.fremdrift, ubestemt: ring og tekst med role="status"); fladen er aria-busy, til
+     arbejdet er færdigt (faerdig()). Den står øverst på fladen og fjernes igen. */
   function arbejder(f, on) {
     if (on) {
-      if (!f.arbTimer && f.arbejder.hidden) {
+      if (!f.arbTimer && !f.frem) {
         f.arbTimer = setTimeout(() => {
           f.arbTimer = null;
-          f.arbejder.hidden = false;
-          f.d.flade.setAttribute('aria-busy', 'true');
-          S.anvend(f.arbejder);
+          f.frem = K.fremdrift({ t: 'arbejder', omraade: f.d.flade });
+          f.d.flade.insertBefore(f.frem.rod, f.d.flade.firstChild);
+          S.anvend(f.frem.rod);
         }, 1000);
       }
     } else {
       clearTimeout(f.arbTimer);
       f.arbTimer = null;
-      f.arbejder.hidden = true;
-      f.d.flade.removeAttribute('aria-busy');
+      if (f.frem) { f.frem.faerdig(); f.frem.rod.remove(); f.frem = null; }
     }
   }
 
@@ -180,17 +181,12 @@
     // Bannere uden tekst (fx afvist indsæt) skal også kunne ses, før der er en tekst: de står over den tomme tilstand.
     const tomBannere = el('div', 'bannere tom-bannere');
     d.flade.insertBefore(tomBannere, d.tom);
-    // V-FIL.1: den åbne fil i værktøjslinjen, "Grimnir arbejder" øverst på fladen og "Åbn fil" i den tomme tilstand.
+    // V-FIL.1: den åbne fil i værktøjslinjen og "Åbn fil" i den tomme tilstand ("Grimnir arbejder": arbejder()).
     const filinfo = el('span', 'filinfo');
     filinfo.hidden = true;
     d.sek.querySelector('.vl').insertBefore(filinfo, d.hoejre);
-    const arb = el('p', 'arbejder', 'arbejder');
-    arb.setAttribute('role', 'status');
-    arb.hidden = true;
-    d.flade.insertBefore(arb, d.flade.firstChild);
-    const fladen = { d, ark, bannere, besked, tomBannere, filinfo, arbejder: arb, arbTimer: null, vedAabn: null };
+    const fladen = { d, ark, bannere, besked, tomBannere, filinfo, frem: null, arbTimer: null, vedAabn: null };
     const aabnKnap = K.knap({ t: 'kAabnFil', ikon: 'fil', ved: () => { if (fladen.vedAabn) fladen.vedAabn(); } });
-    aabnKnap.classList.add('tom-aabn');
     d.tom.appendChild(aabnKnap);
     S.anvend(d.flade);
     return fladen;
@@ -708,6 +704,7 @@
           const on = valgt(r);
           const cb = document.createElement('input');
           cb.type = 'checkbox';
+          cb.className = 'afk-boks'; // V-KITBRUG.1 N3: kittets afkrydsning (tegningen); navnet står i aria-label
           cb.checked = on;
           cb.disabled = r.laast;
           cb.setAttribute('data-felt', 'valg');
@@ -940,13 +937,15 @@
       svar.pre.focus();
     }
     /* Gem som fil: først en bekræftelse (filen får de rigtige værdier i klartekst); derefter dialogen i Rust. */
+    // V-KITBRUG.1 N4: kittets bekræftelse (Kit.bekraeft): Annullér har fokus, "Vælg sted og gem" er den farlige handling.
     function gemFil() {
       if (!st.fil || !st.resultat || st.travl) return;
-      G.aabnDialog('dlg-demfil');
-      document.getElementById('demfil-nej').focus();
+      G.bekraeft({
+        t: 'demfilH', p: { t: 'demfilP' }, nej: { t: 'annuller' }, ja: { t: 'demfilOk' }, farlig: true,
+        udfyld: rod => { rod.id = 'dlg-demfil'; S.anvend(rod); },
+      }).then(ja => { if (ja) gemFilBekraeftet(); });
     }
     function gemFilBekraeftet() {
-      document.getElementById('dlg-demfil').close();
       if (!st.fil || !st.resultat || st.travl) return Promise.resolve();
       st.travl = true;
       tegnKommandoer(); tegnChip();
@@ -955,7 +954,6 @@
         if (navn) { besked(f, 'bFilGemt'); f.besked.setAttribute('data-v', navn); S.anvend(f.besked); }
       }).catch(e => { st.travl = false; fejl(e); }).then(() => { tegnKommandoer(); tegnChip(); tegnBannere(); });
     }
-    document.getElementById('demfil-ok').addEventListener('click', () => gemFilBekraeftet());
 
     const ADV = {
       ukendt_adresse: 'danger', ukendt_kode: 'danger', ligner_anden_sag: 'danger',

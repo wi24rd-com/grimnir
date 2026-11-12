@@ -17,6 +17,44 @@
   const $ = id => document.getElementById(id);
   const UGE = 7; // "Udløber snart": inden 7 dage
 
+  /* V-KITBRUG.1 N3: sagens valg og "Ingen udløb" (i Udløb nedenfor) er kittets afkrydsning (samme id'er; navnet står
+     stadig i aria-label). */
+  function afkrydsning(id, t) {
+    const a = K.afkrydsning({ id, t });
+    a.input.setAttribute('data-t-aria', t);
+    return a.rod;
+  }
+  $('sag-valg').querySelector('legend').after(afkrydsning('sag-fremmede', 'valgFremmede'), afkrydsning('sag-oktet', 'valgOktet'));
+  S.anvend($('sag-valg'));
+
+  /* V-KITBRUG.1 N4: felterne og fejlfeltet i kittets dialoger (Ny sag, Omdøb, Udløb, Slet sag). Felterne er kittets TextField
+     (.felt), fejlfeltet er Grimnirs (role="alert"), og alt står i dialogens indhold i samme rækkefølge som før. */
+  const FOELSOM = { spellcheck: 'false', autocomplete: 'off', autocorrect: 'off', autocapitalize: 'off' };
+  function feltMed(id, etiket, type, attr, hj) {
+    const f = document.createElement('div');
+    f.className = 'felt';
+    const l = document.createElement('label');
+    l.className = 'label';
+    l.htmlFor = id;
+    l.setAttribute('data-t', etiket);
+    const i = document.createElement('input');
+    i.id = id;
+    i.type = type;
+    for (const [k, v] of Object.entries(attr)) i.setAttribute(k, v);
+    f.append(l, i);
+    if (hj) {
+      const h = document.createElement('span');
+      h.className = 'hj';
+      h.id = id + '-hj';
+      h.setAttribute('data-t', hj);
+      f.appendChild(h);
+    }
+    return f;
+  }
+  function felter(...f) { const e = document.createElement('div'); e.className = 'dlg-felter'; e.append(...f); return e; }
+  function fejlFelt(id) { const p = document.createElement('p'); p.className = 'dlg-fejl'; p.id = id; p.setAttribute('role', 'alert'); return p; }
+  function samlet(...e) { const f = document.createDocumentFragment(); f.append(...e); return f; }
+
   /* ── Datoer ── */
   const to = n => String(n).padStart(2, '0');
   function iDagUtc() { const n = new Date(); return Date.UTC(n.getFullYear(), n.getMonth(), n.getDate()); }
@@ -280,6 +318,14 @@
 
   // Ny sag (også "Gem som sag" fra titellinjen og fra spørgsmålet ved lukning eller skift).
   let nyTil = 'sager';
+  const dNy = G.kitDialog('dlg-ny-sag', {
+    t: 'nySagH', p: { t: 'nySagP' },
+    indhold: samlet(felter(
+      feltMed('ny-sag-navn', 'feltNavn', 'text', { ...FOELSOM, maxlength: '120', 'data-t-aria': 'feltNavn', 'aria-describedby': 'ny-sag-fejl' }),
+      feltMed('ny-sag-udloeb', 'feltUdloebValgfri', 'date', { 'data-t-aria': 'feltUdloebValgfri', 'aria-describedby': 'ny-sag-udloeb-hj' }, 'hjUdloeb'),
+    ), fejlFelt('ny-sag-fejl')),
+    knapper: [{ id: 'annuller', t: 'annuller' }, { id: 'opret', t: 'opretSag', variant: 'primary', ved: () => { opret(); return false; } }],
+  }, { opret: 'ny-sag-opret' });
   const nyNavn = $('ny-sag-navn'), nyUdloeb = $('ny-sag-udloeb');
   function aabnNySag(til) {
     nyTil = til;
@@ -289,7 +335,7 @@
     nyUdloeb.value = dage ? datoOmDage(dage) : '';
     nyUdloeb.min = iDag();
     visFejl('ny-sag-fejl', '');
-    const p = $('dlg-ny-sag-p');
+    const p = dNy.rod.querySelector('.modal-tekst');
     p.setAttribute('data-t', status.id ? 'nySagTomP' : status.poster > 0 ? 'nySagMedPosterP' : 'nySagP');
     p.setAttribute('data-v', String(status.poster));
     S.anvend($('dlg-ny-sag'));
@@ -308,11 +354,15 @@
       else if (nyTil.startsWith('aabn:')) aabn(nyTil.slice(5));
     }).catch(e => visFejl('ny-sag-fejl', fejlTekst(e)));
   }
-  $('ny-sag-opret').addEventListener('click', opret);
   vedEnter(nyNavn, opret);
 
   // Omdøb
   let omdoebId = null;
+  G.kitDialog('dlg-omdoeb', {
+    t: 'omdoebH',
+    indhold: samlet(felter(feltMed('omdoeb-navn', 'feltNavn', 'text', { ...FOELSOM, maxlength: '120', 'data-t-aria': 'feltNavn', 'aria-describedby': 'omdoeb-fejl' })), fejlFelt('omdoeb-fejl')),
+    knapper: [{ id: 'annuller', t: 'annuller' }, { id: 'ok', t: 'kOmdoeb', variant: 'primary', ved: () => { omdoeb(); return false; } }],
+  }, { ok: 'omdoeb-ok' });
   const omNavn = $('omdoeb-navn');
   function aabnOmdoeb() {
     const p = valgtPost();
@@ -333,11 +383,18 @@
       if (omdoebId === status.id) invoke('sag_status').then(s => anvend(s, false)).catch(() => { /* uændret */ });
     }).catch(e => visFejl('omdoeb-fejl', fejlTekst(e)));
   }
-  $('omdoeb-ok').addEventListener('click', omdoeb);
   vedEnter(omNavn, omdoeb);
 
   // Udløb
   let udloebId = null;
+  const dUdloeb = G.kitDialog('dlg-udloeb', {
+    t: 'udloebH', p: { t: 'udloebP' },
+    indhold: samlet(felter(
+      feltMed('udloeb-dato', 'feltUdloeb', 'date', { 'data-t-aria': 'feltUdloeb', 'aria-describedby': 'udloeb-fejl' }),
+      afkrydsning('udloeb-ingen', 'ingenUdloeb'),
+    ), fejlFelt('udloeb-fejl')),
+    knapper: [{ id: 'annuller', t: 'annuller' }, { id: 'ok', t: 'gem', variant: 'primary', ved: () => { gemUdloeb(); return false; } }],
+  }, { ok: 'udloeb-ok' });
   const udDato = $('udloeb-dato'), udIngen = $('udloeb-ingen');
   function aabnUdloeb() {
     const p = valgtPost();
@@ -346,11 +403,10 @@
     udDato.value = p.udloeb || '';
     udIngen.checked = !p.udloeb;
     udDato.disabled = udIngen.checked;
-    $('dlg-udloeb-p').setAttribute('data-v', p.navn);
+    dUdloeb.rod.querySelector('.modal-tekst').setAttribute('data-v', p.navn);
     visFejl('udloeb-fejl', '');
     S.anvend($('dlg-udloeb'));
-    G.aabnDialog('dlg-udloeb');
-    (udIngen.checked ? udIngen : udDato).focus();
+    G.aabnDialog('dlg-udloeb', udIngen.checked ? udIngen : udDato);
   }
   udIngen.addEventListener('change', () => { udDato.disabled = udIngen.checked; if (!udIngen.checked) udDato.focus(); });
   function gemUdloeb() {
@@ -361,21 +417,24 @@
       if (udloebId === status.id) invoke('sag_status').then(s => anvend(s, false)).catch(() => { /* uændret */ });
     }).catch(e => visFejl('udloeb-fejl', fejlTekst(e)));
   }
-  $('udloeb-ok').addEventListener('click', gemUdloeb);
 
-  // Slet: bekræftelsen nævner sagens navn.
+  // Slet: bekræftelsen nævner sagens navn. Kittets dialog som bekræftelse (ikke Kit.bekraeft: sletningen kan fejle, og
+  // fejlen står i dialogen, der bliver åben). Fokus står som før på Slet sag.
   let sletId = null;
+  const dSlet = G.kitDialog('dlg-slet', {
+    t: 'sletH', p: { t: 'sletP' }, indhold: fejlFelt('slet-fejl'),
+    knapper: [{ id: 'annuller', t: 'annuller' }, { id: 'ok', t: 'kSletSag', variant: 'danger', ved: () => { slet(); return false; } }],
+  }, { ok: 'slet-ok' });
   function aabnSlet() {
     const p = valgtPost();
     if (!p) return;
     sletId = p.id;
-    $('dlg-slet-p').setAttribute('data-v', navnFor(p));
+    dSlet.rod.querySelector('.modal-tekst').setAttribute('data-v', navnFor(p));
     visFejl('slet-fejl', '');
     S.anvend($('dlg-slet'));
-    G.aabnDialog('dlg-slet');
-    $('slet-ok').focus();
+    G.aabnDialog('dlg-slet', 'ok');
   }
-  $('slet-ok').addEventListener('click', () => {
+  function slet() {
     const var_aaben = sletId === status.id;
     invoke('sag_slet', { id: sletId }).then(s => {
       $('dlg-slet').close();
@@ -383,24 +442,31 @@
       anvend(s, var_aaben);
       opdater();
     }).catch(e => visFejl('slet-fejl', fejlTekst(e)));
-  });
+  }
 
-  // "Gem den midlertidige sag?" ved lukning af programmet eller før en anden sag åbnes.
+  // "Gem den midlertidige sag?" ved lukning af programmet eller før en anden sag åbnes. Tre knapper som før: Annullér,
+  // Kassér (farlig) og Gem som sag (primær, har fokus).
   let kasserTil = 'afslut';
+  const dKasser = G.kitDialog('dlg-kasser', {
+    t: 'kasserAfslutH', p: { t: 'kasserP' },
+    knapper: [
+      { id: 'annuller', t: 'annuller' },
+      { id: 'kasser', t: 'kasser', variant: 'danger', ved: () => { kasser(); return false; } },
+      { id: 'gem', t: 'gemSomSag', variant: 'primary', ved: () => { aabnNySag(kasserTil); return false; } },
+    ],
+  }, { kasser: 'kasser-ok', gem: 'kasser-gem' });
   function visKasser(til) {
     kasserTil = til;
-    $('dlg-kasser-h').setAttribute('data-t', til === 'afslut' ? 'kasserAfslutH' : 'kasserAabnH');
-    $('dlg-kasser-p').setAttribute('data-v', String(status.poster));
+    dKasser.overskrift.setAttribute('data-t', til === 'afslut' ? 'kasserAfslutH' : 'kasserAabnH');
+    dKasser.rod.querySelector('.modal-tekst').setAttribute('data-v', String(status.poster));
     S.anvend($('dlg-kasser'));
-    G.aabnDialog('dlg-kasser');
-    $('kasser-gem').focus();
+    G.aabnDialog('dlg-kasser', 'gem');
   }
-  $('kasser-ok').addEventListener('click', () => {
+  function kasser() {
     $('dlg-kasser').close();
     if (kasserTil === 'afslut') invoke('program_afslut').catch(() => { /* programmet lukker */ });
     else aabn(kasserTil.slice(5));
-  });
-  $('kasser-gem').addEventListener('click', () => aabnNySag(kasserTil));
+  }
 
   /* ── Kommandoer, træ, søgning og hændelser ── */
   G.haandter('sager', 'ny-sag', () => aabnNySag('sager'));

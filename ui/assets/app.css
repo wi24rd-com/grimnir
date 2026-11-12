@@ -1,37 +1,37 @@
 /* Grimnir — det, der kun gælder Grimnir. Kittet (kit.css) har AppShell og komponenterne; her står, hvordan Grimnir
-   lægger sine fire visninger ind i skallen, den tomme tilstand og dialogerne. Kittet har endnu ingen tom tilstand og
-   ingen dialog (design/ui-kit-2/README.md, "Det mangler"); de står her, til kittet får dem. Ingen farvekoder. */
+   lægger sine fire visninger ind i skallen, og Grimnirs egne dialoger (.dlg), til de er skiftet til kittets (V-KITBRUG.1:
+   den tomme tilstand, afkrydsningen, fremdriften og otte dialoger er kittets). Ingen farvekoder.
+
+   V-KITBRUG.1 N2, tekststørrelsen: kittets zoom på <html> (0,9 ved lille, 1,125 ved stor) skalerer også vh, vw og px
+   (målt i WKWebView). --z er trinnet, og de mål her, der skal følge vinduet (højder i vh, bredder i vw, pladsen til
+   trafiklysene), deles med det, som kit.css gør for .vindue og .modal. Normal har --z: 1, og alt er som før. */
+:root { --z: 1; }
+:root[data-tekst="lille"] { --z: .9; }
+:root[data-tekst="stor"] { --z: 1.125; }
 
 /* Hver visning har sin del af NavPane og arbejdsfladen; kun den aktive vises (app.js sætter hidden). */
 .navdele { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .navdel { display: flex; flex-direction: column; min-height: 0; }
 .visning { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 
-/* Tom tilstand: én overskrift og én sætning om, hvad visningen gør. */
-.tom {
-  display: flex; flex-direction: column; align-items: center; gap: var(--space-2);
-  max-width: 520px; margin: 0 auto; padding: var(--space-8) var(--space-6); text-align: center;
-}
-.tom .tom-ikon { width: 40px; height: 40px; fill: none; stroke: var(--text-muted); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-.tom h2 { margin: var(--space-2) 0 0; font-size: var(--h2-size); line-height: var(--h2-line); font-weight: var(--h2-weight); }
-.tom p { margin: 0; color: var(--text-muted); }
-
-/* Dialoger (Indstillinger og Om). */
+/* Grimnirs egne dialoger (Indstillinger, sagens dialog, Tilføj post, Prøv på tekst og guiden). */
 .dlg {
-  width: min(480px, calc(100vw - 2 * var(--space-6)));
+  width: min(480px, calc(100vw / var(--z) - 2 * var(--space-6)));
   padding: var(--space-6); border: 1px solid var(--border); border-radius: var(--radius-lg);
   background: var(--surface); color: var(--text); box-shadow: var(--shadow-pop);
 }
 .dlg::backdrop { background: var(--rail); opacity: .45; }
 .dlg h2 { margin: 0 0 var(--space-3); font-size: var(--h2-size); line-height: var(--h2-line); font-weight: var(--h2-weight); }
 .dlg p { margin: 0 0 var(--space-4); }
-.dlg .om-tal { list-style: none; margin: 0 0 var(--space-4); padding: 0; color: var(--text-muted); }
-.dlg .om-tal li { padding: 2px 0; }
+/* Om (kittets dialog). */
+.om-p { margin: 0 0 var(--space-4); }
+.om-tal { list-style: none; margin: 0 0 var(--space-4); padding: 0; color: var(--text-muted); }
+.om-tal li { padding: 2px 0; }
 .dlg-knapper { display: flex; justify-content: flex-end; gap: var(--space-2); }
 
 /* ── Maskér og Demaskér (V-SKAL.2) ── */
 /* En tom tilstand, der tager imod ⌘V, kan have fokus; ringen følger kittets. */
-.tom[tabindex] { border-radius: var(--radius-md); }
+.tomt[tabindex] { border-radius: var(--radius-md); }
 .tom-bannere { padding: var(--space-3) var(--space-3) 0; }
 .arbejde { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-3); min-height: 100%; }
 .bannere { display: flex; flex-direction: column; gap: var(--space-2); }
@@ -51,16 +51,16 @@
 /* Teksten vises i et felt, der ikke kan redigeres: et <pre>, aldrig et <textarea> (det gør CRLF til LF). V-RET.1 R2: lange
    linjer brydes ikke (en log skal kunne læses linje for linje), og rullebjælkerne er altid synlige, så det ses, at der er
    mere til højre. Knappen "Ombryd" i panelhovedet skifter til ombrydning; valget huskes ikke. */
-.tekst { margin: 0; padding: var(--space-3); white-space: pre; overflow: auto; height: 62vh; min-height: 240px; }
+.tekst { margin: 0; padding: var(--space-3); white-space: pre; overflow: auto; height: calc(62vh / var(--z)); min-height: 240px; }
 .tekst.ombryd { white-space: pre-wrap; overflow-wrap: anywhere; }
 .tekst::-webkit-scrollbar { width: 12px; height: 12px; }
 .tekst::-webkit-scrollbar-track, .tekst::-webkit-scrollbar-corner { background: var(--surface-raised); }
 .tekst::-webkit-scrollbar-thumb { background: var(--text-muted); border: 3px solid var(--surface-raised); border-radius: var(--radius-pill); }
-.delt.lige .tekst { height: 40vh; }
+.delt.lige .tekst { height: calc(40vh / var(--z)); }
 .tekst:focus-visible { outline-offset: -2px; }
 .afkortet { margin: 0; padding: var(--space-2) var(--space-3); border-top: 1px solid var(--border); font-size: var(--small-size); color: var(--text-muted); }
-.tabelvaert { overflow: auto; height: 62vh; min-height: 240px; }
-.advarselpanel .tabelvaert { height: auto; max-height: 40vh; min-height: 0; }
+.tabelvaert { overflow: auto; height: calc(62vh / var(--z)); min-height: 240px; }
+.advarselpanel .tabelvaert { height: auto; max-height: calc(40vh / var(--z)); min-height: 0; }
 .tabel-tom { margin: 0; padding: var(--space-4) var(--space-3); color: var(--text-muted); }
 .flere { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-top: 1px solid var(--border); font-size: var(--small-size); color: var(--text-muted); }
 /* ── Tabellernes kolonner (V-RET.1 R1) ──
@@ -91,9 +91,18 @@ html[lang="en"] .fundtabel { --k2: 80px; --k6: 134px; --k7: 92px; --tabel-min: 6
 /* V-LAAS.4 N3: fra 1200 px har Erstatning plads til 24 tegn i feltets skrift (JetBrains Mono 13 px: 600/1000 em = 7,8 px
    pr. tegn → 187,2 px + feltets polstring og kant 18 px + cellens polstring 16 px = 221,2 px), så fx
    "user0001, USER0001" og "198.18.0.11" står hele. Under 1200 px beholder den 106 px (900 px ruller ikke vandret). */
+/* V-KITBRUG.1 N2: mediegrænserne måler vinduet, ikke layoutet (målt i WKWebView: @media og @container følger ikke zoom).
+   Ved stor er der 1/1,125 af vinduet til layoutet, så hver grænse gælder dér fra vinduesbredden × 1,125 (1100 → 1238,
+   1200 → 1350, 1720 → 1935, 1840 → 2070 px); reglerne står derfor to gange: med :root:not([data-tekst="stor"]) som før og med
+   :root[data-tekst="stor"] ved de flyttede grænser. Ved lille (0,9) er der mere plads end grænsen regner med; der gælder de
+   almindelige grænser (aldrig mindre plads end ved normal). tests/ui/kolonner.mjs regner alle tre trin. */
 @media (min-width: 1200px) {
-  .fundtabel { --k4: 224px; --tabel-min: 736px; }
-  html[lang="en"] .fundtabel { --tabel-min: 758px; }
+  :root:not([data-tekst="stor"]) .fundtabel { --k4: 224px; --tabel-min: 736px; }
+  :root:not([data-tekst="stor"])[lang="en"] .fundtabel { --tabel-min: 758px; }
+}
+@media (min-width: 1350px) {
+  :root[data-tekst="stor"] .fundtabel { --k4: 224px; --tabel-min: 736px; }
+  :root[data-tekst="stor"][lang="en"] .fundtabel { --tabel-min: 758px; }
 }
 /* V-PUDS.1 N3: ved brede tabeller står ordet (Altid/Aldrig) ved ikonet; title og aria-label er de samme. Ordet er det
    skjulte ord i knappen, som her bliver synligt. Knappen: kant 1 + polstring 6 + ikon 14 + mellemrum 4 + ordet + 6 + 1 px
@@ -101,16 +110,28 @@ html[lang="en"] .fundtabel { --k2: 80px; --k6: 134px; --k7: 92px; --tabel-min: 6
    får to knapper + 4 px + cellens 2 × 8 px. Fra 1200 px, mens fundene står under teksten, og igen fra 1840 px, hvor de
    står side om side og tabellen er bred nok til, at Fundet værdi stadig har mindst 240 px (1720–1839 px: kun ikonet). */
 @media (min-width: 1200px) and (max-width: 1719px) {
-  .fundtabel { --k7: 148px; --tabel-min: 816px; }
-  html[lang="en"] .fundtabel { --k7: 164px; --tabel-min: 830px; }
-  .fundtabel .ordbogknapper .mini.ikonknap { width: auto; padding: 0 6px; gap: 4px; }
-  .fundtabel .ordbogknapper .skjult-tekst { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; }
+  :root:not([data-tekst="stor"]) .fundtabel { --k7: 148px; --tabel-min: 816px; }
+  :root:not([data-tekst="stor"])[lang="en"] .fundtabel { --k7: 164px; --tabel-min: 830px; }
+  :root:not([data-tekst="stor"]) .fundtabel .ordbogknapper .mini.ikonknap { width: auto; padding: 0 6px; gap: 4px; }
+  :root:not([data-tekst="stor"]) .fundtabel .ordbogknapper .skjult-tekst { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; }
+}
+@media (min-width: 1350px) and (max-width: 1934px) {
+  :root[data-tekst="stor"] .fundtabel { --k7: 148px; --tabel-min: 816px; }
+  :root[data-tekst="stor"][lang="en"] .fundtabel { --k7: 164px; --tabel-min: 830px; }
+  :root[data-tekst="stor"] .fundtabel .ordbogknapper .mini.ikonknap { width: auto; padding: 0 6px; gap: 4px; }
+  :root[data-tekst="stor"] .fundtabel .ordbogknapper .skjult-tekst { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; }
 }
 @media (min-width: 1840px) {
-  .fundtabel { --k7: 148px; --tabel-min: 816px; }
-  html[lang="en"] .fundtabel { --k7: 164px; --tabel-min: 830px; }
-  .fundtabel .ordbogknapper .mini.ikonknap { width: auto; padding: 0 6px; gap: 4px; }
-  .fundtabel .ordbogknapper .skjult-tekst { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; }
+  :root:not([data-tekst="stor"]) .fundtabel { --k7: 148px; --tabel-min: 816px; }
+  :root:not([data-tekst="stor"])[lang="en"] .fundtabel { --k7: 164px; --tabel-min: 830px; }
+  :root:not([data-tekst="stor"]) .fundtabel .ordbogknapper .mini.ikonknap { width: auto; padding: 0 6px; gap: 4px; }
+  :root:not([data-tekst="stor"]) .fundtabel .ordbogknapper .skjult-tekst { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; }
+}
+@media (min-width: 2070px) {
+  :root[data-tekst="stor"] .fundtabel { --k7: 148px; --tabel-min: 816px; }
+  :root[data-tekst="stor"][lang="en"] .fundtabel { --k7: 164px; --tabel-min: 830px; }
+  :root[data-tekst="stor"] .fundtabel .ordbogknapper .mini.ikonknap { width: auto; padding: 0 6px; gap: 4px; }
+  :root[data-tekst="stor"] .fundtabel .ordbogknapper .skjult-tekst { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; }
 }
 .fundtabel th:first-child, .fundtabel td:first-child { padding-right: var(--space-1); }
 /* Lækagetjekkets rester: Hvad, Type, Tekst (resten), Antal, Linje. */
@@ -123,11 +144,16 @@ html[lang="en"] .resttabel { --k2: 80px; --tabel-min: 498px; }
    1400 px; med Erstatning på 224 px giver side om side først Fundet værdi mindst 240 px fra 1720 px (engelsk: 3/5 af
    1720 − 256 − 12 = 869 px tabel, 618 px faste kolonner, 251 px til værdien). */
 @media (max-width: 1719px) {
-  .delt:not(.lige) { grid-template-columns: minmax(0, 1fr); }
-  .delt:not(.lige) .tekst { height: 24vh; min-height: 140px; }
-  .delt:not(.lige) .tabelvaert { height: 44vh; min-height: 220px; }
+  :root:not([data-tekst="stor"]) .delt:not(.lige) { grid-template-columns: minmax(0, 1fr); }
+  :root:not([data-tekst="stor"]) .delt:not(.lige) .tekst { height: calc(24vh / var(--z)); min-height: 140px; }
+  :root:not([data-tekst="stor"]) .delt:not(.lige) .tabelvaert { height: calc(44vh / var(--z)); min-height: 220px; }
 }
-.tabel td input[type="checkbox"] { width: 16px; height: 16px; padding: 0; margin: 0; accent-color: var(--accent); }
+@media (max-width: 1934px) {
+  :root[data-tekst="stor"] .delt:not(.lige) { grid-template-columns: minmax(0, 1fr); }
+  :root[data-tekst="stor"] .delt:not(.lige) .tekst { height: calc(24vh / var(--z)); min-height: 140px; }
+  :root[data-tekst="stor"] .delt:not(.lige) .tabelvaert { height: calc(44vh / var(--z)); min-height: 220px; }
+}
+.tabel td input[type="checkbox"] { width: 16px; height: 16px; padding: 0; margin: 0; }
 .tabel td input[readonly] { color: var(--text-muted); }
 .tabel td input[disabled] { opacity: .55; }
 .tabel td input[aria-invalid="true"] { border-color: var(--danger); }
@@ -169,29 +195,31 @@ html[lang="en"] .resttabel { --k2: 80px; --tabel-min: 498px; }
 /* ── Sager (V-SAG.1) ── */
 /* macOS med titleBarStyle "Overlay": trafiklysene står oven på titellinjen (V-KIT.1: flyttet hertil fra kit.css; det
    er dette programs vinduesopsætning og Rusts <html data-platform>, ikke kittets). */
-[data-platform="macos"] .titel { padding-left: 80px; }
+[data-platform="macos"] .titel { padding-left: calc(80px / var(--z)); } /* V-KITBRUG.1: 80 px på skærmen i alle trin */
 /* Fuldskærm på macOS: trafiklysene er skjult, så titellinjen holder ikke plads til dem (Rust melder "fuldskaerm"). */
 [data-platform="macos"][data-fuldskaerm] .titel { padding-left: var(--space-3); }
 .dlg-felter { display: flex; flex-direction: column; gap: var(--space-3); margin: 0 0 var(--space-3); }
 .dlg-fejl { margin: 0 0 var(--space-3); color: var(--danger); font-size: var(--small-size); line-height: var(--small-line); }
 .dlg-fejl:empty { display: none; }
-.afkryds { display: flex; align-items: center; gap: var(--space-2); cursor: pointer; }
-.afkryds input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
 .sagtabel tbody tr { cursor: pointer; }
 /* Navn (resten), Værdier, Oprettet, Sidst brugt, Udløber, Status (V-RET.1 R1). Under 1100 px er datokolonnerne smallere:
    datoen og overskriften må gå over to linjer ("30. nov." / "2026"). */
 .sagtabel { --k2: 80px; --k3: 116px; --k4: 116px; --k5: 116px; --k6: 142px; --tabel-min: 710px; }
 html[lang="en"] .sagtabel { --k6: 160px; --tabel-min: 728px; }
 @media (max-width: 1099px) {
-  .sagtabel { --celle: var(--space-2); --k2: 72px; --k3: 80px; --k4: 80px; --k5: 80px; --k6: 134px; --tabel-min: 586px; }
-  html[lang="en"] .sagtabel { --k6: 152px; --tabel-min: 604px; }
-  .sagtabel th { white-space: normal; }
+  :root:not([data-tekst="stor"]) .sagtabel { --celle: var(--space-2); --k2: 72px; --k3: 80px; --k4: 80px; --k5: 80px; --k6: 134px; --tabel-min: 586px; }
+  :root:not([data-tekst="stor"])[lang="en"] .sagtabel { --k6: 152px; --tabel-min: 604px; }
+  :root:not([data-tekst="stor"]) .sagtabel th { white-space: normal; }
+}
+@media (max-width: 1237px) {
+  :root[data-tekst="stor"] .sagtabel { --celle: var(--space-2); --k2: 72px; --k3: 80px; --k4: 80px; --k5: 80px; --k6: 134px; --tabel-min: 586px; }
+  :root[data-tekst="stor"][lang="en"] .sagtabel { --k6: 152px; --tabel-min: 604px; }
+  :root[data-tekst="stor"] .sagtabel th { white-space: normal; }
 }
 .sagnavn { display: flex; align-items: baseline; min-width: 0; }
 .sagnavn .kort { flex: 0 1 auto; min-width: 0; }
 .sagnavn .muted { flex: none; margin-left: var(--space-2); font-size: var(--small-size); }
-.sagtabel .tabelvaert, .sagliste .tabelvaert { height: auto; max-height: 70vh; }
-.tom .btn { margin-top: var(--space-2); }
+.sagtabel .tabelvaert, .sagliste .tabelvaert { height: auto; max-height: calc(70vh / var(--z)); }
 
 /* ── Ordbog, indstillinger og guiden (V-ORDBOG.1) ── */
 /* Maskér: rækkens vej til ordbogen og advarslen om egne koder. */
@@ -204,7 +232,7 @@ html[lang="en"] .sagtabel { --k6: 160px; --tabel-min: 728px; }
 .raekkeadv { display: block; margin-top: 2px; color: var(--text-muted); font-size: var(--small-size); line-height: var(--small-line); }
 .raekkeadv::before { content: "! "; font-weight: 700; color: var(--warn); }
 /* Ordbog-visningen. */
-.ordbogflade .tabelvaert { height: auto; max-height: 62vh; min-height: 0; }
+.ordbogflade .tabelvaert { height: auto; max-height: calc(62vh / var(--z)); min-height: 0; }
 /* Type, Værdi eller mønster (resten), Note (V-RET.1 R1). */
 .ordbogtabel { --k1: 160px; --k3: 34%; }
 .ordbogtabel td .muted { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
@@ -219,25 +247,24 @@ html[lang="en"] .sagtabel { --k6: 160px; --tabel-min: 728px; }
 }
 .hjaelpelinje > span:nth-child(2) { flex: 1; }
 /* Bredere dialoger: Indstillinger, Prøv på tekst og guiden. */
-.dlg.dlg-bred { width: min(620px, calc(100vw - 2 * var(--space-6))); }
-.dlg.dlg-guide { width: min(820px, calc(100vw - 2 * var(--space-6))); padding: 0; }
+.dlg.dlg-bred { width: min(620px, calc(100vw / var(--z) - 2 * var(--space-6))); }
+.dlg.dlg-guide { width: min(820px, calc(100vw / var(--z) - 2 * var(--space-6))); padding: 0; }
 .dlg .felt { margin: 0 0 var(--space-3); }
 .dlg-felter .felt { margin: 0; }
 .dlg textarea { font-family: var(--mono-family); }
 .dlg .hj { font-size: var(--small-size); line-height: var(--small-line); color: var(--text-muted); }
 .dlg .hj.fejltekst { color: var(--danger); }
 .dlg .hj:empty { display: none; }
-.dlg .felt select { padding: 0 6px; }
+.dlg .felt > select { padding: 0 6px; }
 .indst { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); margin: 0 0 var(--space-3); }
 .indst .lodret { grid-column: 1 / -1; }
 .valg { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); margin: 0; padding: 0; border: 0; min-width: 0; }
 .valg legend { padding: 0; margin: 0 0 var(--space-2); }
 .valg.lodret { flex-direction: column; gap: var(--space-2); }
-.valg .hj { margin: -4px 0 0 24px; }
+.valg > .hj { margin: -4px 0 0 24px; }
 .valg .felt { margin: var(--space-1) 0 0; max-width: 260px; }
-.afkryds input[type="radio"] { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
 .sag-valg { margin: 0 0 var(--space-3); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-md); }
-.proev-svar { display: flex; flex-direction: column; gap: var(--space-2); margin: 0 0 var(--space-3); max-height: 40vh; overflow: auto; }
+.proev-svar { display: flex; flex-direction: column; gap: var(--space-2); margin: 0 0 var(--space-3); max-height: calc(40vh / var(--z)); overflow: auto; }
 .proev-svar:empty { display: none; }
 .proev-svar .besked, .proev-svar .dlg-fejl { margin: 0; }
 .proevtabel { --k1: 132px; --k4: 64px; --k5: 64px; }
@@ -258,9 +285,8 @@ html[lang="en"] .sagtabel { --k6: 160px; --tabel-min: 728px; }
 .filinfo .filnavn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280px; }
 .filinfo .muted { color: var(--text-muted); white-space: nowrap; }
 .filinfo .muted + .muted::before { content: "· "; }
-.arbejder { margin: 0; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); background: var(--info-soft); color: var(--text); font-size: var(--small-size); line-height: var(--small-line); }
-.arbejder[hidden] { display: none; }
-.tom .tom-aabn { margin-top: var(--space-2); }
+/* "Grimnir arbejder" er kittets fremdrift (V-KITBRUG.1); her står den som før: en linje øverst på fladen. */
+.flade > .frem { flex: none; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); background: var(--info-soft); }
 .flade[data-traek] { outline: 2px dashed var(--info); outline-offset: -6px; }
 
 /* ── Låseskærmen (V-LAAS.2, L4) ──

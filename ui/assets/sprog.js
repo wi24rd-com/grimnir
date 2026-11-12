@@ -32,6 +32,8 @@
       kEksporter: 'Eksportér', kImporter: 'Importér', kSletSag: 'Slet sag', kTilfoejPost: 'Tilføj post',
       kProev: 'Prøv på tekst', kFjernPost: 'Fjern post',
       kLys: 'Lys', kMoerk: 'Mørk', kSystem: 'System', kDansk: 'Dansk', kEngelsk: 'English',
+      // V-KITBRUG.1 N2: tekststørrelsen i Indstillinger (kittets tre trin, window.Tekst).
+      gTekstStr: 'Tekststørrelse', kTekstLille: 'Lille', kTekstNormal: 'Normal', kTekstStor: 'Stor',
       hvorforSenere: 'Kommer i en senere version af Grimnir', hvorforFilter: 'Vælg filter i træet til venstre',
       tDenneTekst: 'Denne tekst', tAlleFund: 'Alle fund', tSkalTjekkes: 'Skal tjekkes', tHemmeligheder: 'Hemmeligheder',
       tSenesteISagen: 'Seneste i sagen', tDetteSvar: 'Dette svar', tAlleKoder: 'Alle koder', tAdvarsler: 'Advarsler',
@@ -288,6 +290,7 @@
       kEksporter: 'Export', kImporter: 'Import', kSletSag: 'Delete case', kTilfoejPost: 'Add entry',
       kProev: 'Try on text', kFjernPost: 'Remove entry',
       kLys: 'Light', kMoerk: 'Dark', kSystem: 'System', kDansk: 'Dansk', kEngelsk: 'English',
+      gTekstStr: 'Text size', kTekstLille: 'Small', kTekstNormal: 'Normal', kTekstStor: 'Large',
       hvorforSenere: 'Coming in a later version of Grimnir', hvorforFilter: 'Choose a filter in the tree on the left',
       tDenneTekst: 'This text', tAlleFund: 'All findings', tSkalTjekkes: 'Needs checking', tHemmeligheder: 'Secrets',
       tSenesteISagen: 'Latest in the case', tDetteSvar: 'This reply', tAlleKoder: 'All codes', tAdvarsler: 'Warnings',

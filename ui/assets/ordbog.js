@@ -200,6 +200,11 @@
   const tilfoej = (type, vaerdi, note) => aendring('ordbog_tilfoej', { type, vaerdi, note: note || null });
 
   /* ═════════════════════════════ Tilføj og Ret ═════════════════════════════ */
+  // V-KITBRUG.1 N3: Type er kittets valgliste (Kit.valgliste) med samme id, valg, navn og hjælpetekst (opost-type-hj).
+  const lType = K.valgliste({ id: 'opost-type', etiket: { t: 'feltType' }, valg: ['domaene', 'netbios', 'navnemoenster', 'eget_net', 'ord', 'person', 'aldrig'].map(x => ({ id: x, t: 'type_' + x })), hjaelp: { t: 'hjt_domaene' } });
+  lType.select.setAttribute('data-t-aria', 'feltType');
+  $('dlg-opost').querySelector('.dlg-felter').prepend(lType.rod);
+  S.anvend(lType.rod);
   const pType = $('opost-type'), pVaerdi = $('opost-vaerdi'), pNote = $('opost-note');
   let post = { tilstand: 'ny', id: null, efter: null };
   function feltFejl(felt, tekst) {
@@ -280,41 +285,51 @@
 
   /* ═════════════════════════════ Start forfra (V-FIL.1 F5) ═════════════════════════════ */
   const iDag = () => { const d0 = new Date(); return `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}-${String(d0.getDate()).padStart(2, '0')}`; };
+  /* V-KITBRUG.1 N4: Start forfra og Fjern post er kittets dialog som bekræftelse (ikke Kit.bekraeft: handlingen kan fejle,
+     og fejlen står i dialogen, der bliver åben, i et felt med role="alert"). Fokus som før: Annullér i Start forfra,
+     Fjern post i Fjern post. */
+  function fejlFelt(id) { const p = document.createElement('p'); p.className = 'dlg-fejl'; p.id = id; p.setAttribute('role', 'alert'); return p; }
+  const dForfra = G.kitDialog('dlg-oforfra', {
+    t: 'oforfraH', p: { t: 'oforfraP' }, indhold: fejlFelt('oforfra-fejl'),
+    knapper: [{ id: 'nej', t: 'annuller' }, { id: 'ok', t: 'hStartForfra', variant: 'danger', ved: () => { startForfra(); return false; } }],
+  }, { nej: 'oforfra-nej', ok: 'oforfra-ok' });
   function aabnStartForfra() {
     if (!st.fejl) return;
-    $('dlg-oforfra-p').setAttribute('data-v', iDag());
+    dForfra.rod.querySelector('.modal-tekst').setAttribute('data-v', iDag());
     $('oforfra-fejl').textContent = '';
     S.anvend($('dlg-oforfra'));
-    G.aabnDialog('dlg-oforfra');
-    $('oforfra-nej').focus();
+    G.aabnDialog('dlg-oforfra', 'nej');
   }
-  $('oforfra-ok').addEventListener('click', () => {
+  function startForfra() {
     invoke('ordbog_start_forfra', { dato: iDag() }).then(r => {
       $('dlg-oforfra').close();
       st.infoBanner = r.flyttet_til || null;
       anvendSvar(r.ordbog);
     }).catch(e => { $('oforfra-fejl').textContent = fejlTekst(e); });
-  });
+  }
 
   /* ═════════════════════════════ Fjern post ═════════════════════════════ */
   let fjernId = null;
+  const dFjern = G.kitDialog('dlg-ofjern', {
+    t: 'ofjernH', p: { t: 'ofjernP' }, indhold: fejlFelt('ofjern-fejl'),
+    knapper: [{ id: 'annuller', t: 'annuller' }, { id: 'ok', t: 'kFjernPost', variant: 'danger', ved: () => { fjern(); return false; } }],
+  }, { ok: 'ofjern-ok' });
   function aabnFjern() {
     const p = valgtPost();
     if (!p || st.fejl) return;
     fjernId = p.id;
-    $('dlg-ofjern-p').setAttribute('data-v', p.vaerdi);
+    dFjern.rod.querySelector('.modal-tekst').setAttribute('data-v', p.vaerdi);
     $('ofjern-fejl').textContent = '';
     S.anvend($('dlg-ofjern'));
-    G.aabnDialog('dlg-ofjern');
-    $('ofjern-ok').focus();
+    G.aabnDialog('dlg-ofjern', 'ok');
   }
-  $('ofjern-ok').addEventListener('click', () => {
+  function fjern() {
     aendring('ordbog_fjern', { id: fjernId }).then(() => {
       $('dlg-ofjern').close();
       st.valgt = null;
       tegn();
     }).catch(e => { $('ofjern-fejl').textContent = fejlTekst(e); });
-  });
+  }
 
   /* ═════════════════════════════ Prøv på tekst ═════════════════════════════ */
   const prTekst = $('proev-tekst'), prSvar = $('proev-svar');

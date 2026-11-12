@@ -9,6 +9,13 @@
 // Segoe UI som reserve, klassiske rullebjælker) er ikke målt; en klassisk rullebjælke regnes med 16 px (antaget, ikke
 // målt), og dér må tabellen gerne rulle vandret. Højder, rækker, der brydes over flere linjer, og tekst, brugeren selv
 // skriver (værdier, sagsnavne, noter), er ikke med; de forkortes med … og står hele i title.
+// V-KITBRUG.1 N2: tekststørrelsen i tre trin. Kittets zoom på <html> (lille 0,9, stor 1,125) giver layoutet vinduets
+// bredde / zoom (et vindue på 900 px er 800 px ved stor), mens @media-grænserne måler vinduet (begge målt i en
+// WKWebView, macOS 26.6). Tekst og kolonner skaleres sammen, så de målte tekstbredder gælder i alle trin; det, der
+// ændres, er pladsen og hvilke regler der gælder. app.css har derfor reglerne to gange: :root:not([data-tekst="stor"])
+// med grænserne som før, og :root[data-tekst="stor"] med grænserne × 1,125. Ved stor kan tabellen i Maskér først stå uden
+// vandret rulning, når layoutet er mindst 900 px (vinduet mindst 1013 px); smallere ruller den vandret og holder værdien
+// på mindst 140 px (tabellens --tabel-min). Det regnes og skrives i rapporten.
 // Brug: npm run test:kolonner (= node tests/ui/kolonner.mjs).
 import fs from 'node:fs';
 import path from 'node:path';
@@ -80,6 +87,21 @@ function regler(css) {
   return ud;
 }
 const mediaPasser = (m, W) => !m || ((m.max == null || W <= m.max) && (m.min == null || W >= m.min));
+const TRIN = [{ navn: 'normal', z: 1 }, { navn: 'lille', z: 0.9 }, { navn: 'stor', z: 1.125 }];
+/* En selektor er halen (fx ".fundtabel") alene eller med et præfiks for sprog og trin: html[lang="en"], :root:not([data-
+   tekst="stor"]) eller :root[data-tekst="stor"], de to sidste evt. med [lang="en"]. Giver præfiksets vægt (klasser og
+   attributter tæller 1, html 0,01, som i CSS'ens kaskade) eller null, når reglen ikke gælder for sproget og trinnet. */
+function praefiks(v, hale, sprog, trin) {
+  if (v === hale) return 0;
+  if (!v.endsWith(' ' + hale)) return null;
+  const m = v.slice(0, -hale.length - 1).match(/^(html|:root)(?::not\(\[data-tekst="(\w+)"\]\)|\[data-tekst="(\w+)"\])?(\[lang="en"\])?$/);
+  if (!m) return null;
+  if (m[4] && sprog !== 'en') return null;
+  if (m[2] && trin === m[2]) return null;
+  if (m[3] && trin !== m[3]) return null;
+  return (m[1] === ':root' ? 1 : 0.01) + (m[2] || m[3] ? 1 : 0) + (m[4] ? 1 : 0);
+}
+const har = (r, hale, sprog, trin) => r.valg.some(v => praefiks(v, hale, sprog, trin) != null);
 
 const tokens = {};
 for (const m of laes('ui/assets/tokens.css').matchAll(/(--[a-z0-9-]+):\s*([^;]+);/g)) if (!(m[1] in tokens)) tokens[m[1]] = m[2].trim();
@@ -98,11 +120,14 @@ const PAD = px(decl(APP, '.arbejde', 'padding'));
 const GAP = px(decl(APP, '.delt', 'gap'));
 const KANT = Number((decl(APP, '.panel', 'border') || '').match(/^(\d+)px/)?.[1]);
 const FR = [...(decl(APP, '.delt', 'grid-template-columns') || '').matchAll(/(\d+)fr/g)].map(m => Number(m[1]));
-const stak = APP.find(r => r.media && r.media.max && r.valg.includes('.delt:not(.lige)') && /^minmax\(0, 1fr\)$/.test(r.decl['grid-template-columns'] || ''));
-const STAK_TIL = stak ? stak.media.max : null;
+const stakTil = trin => { const r = APP.find(x => x.media && x.media.max && har(x, '.delt:not(.lige)', 'da', trin) && /^minmax\(0, 1fr\)$/.test(x.decl['grid-template-columns'] || '')); return r ? r.media.max : null; };
+const STAK_TIL = stakTil('normal');
 tjek('fladen: NavPane, polstring, gitter og kant læst fra CSS\'en', NAV === 232 && PAD === 12 && GAP === 12 && KANT === 1 && FR.join() === '2,3', `nav ${NAV}, polstring ${PAD}, gap ${GAP}, kant ${KANT}, fr ${FR}`);
 // V-LAAS.4 N3: før 1399; med Erstatning på 24 tegn er der først plads side om side fra 1720 px.
 tjek('Maskér: fundene står under teksten op til ' + STAK_TIL + ' px og side om side derover', STAK_TIL === 1719, String(STAK_TIL));
+// V-KITBRUG.1 N2: lille som normal; stor fra 1720 × 1,125 = 1935 px vindue.
+tjek('V-KITBRUG.1: lille: fundene står under teksten op til 1719 px (som normal)', stakTil('lille') === 1719, String(stakTil('lille')));
+tjek('V-KITBRUG.1: stor: fundene står under teksten op til 1934 px (1720 × 1,125)', stakTil('stor') === 1934, String(stakTil('stor')));
 const vinduMin = px(decl(KIT, '.vindue', 'min-width'));
 const konf = JSON.parse(laes('src-tauri/tauri.conf.json')).app.windows[0];
 tjek('mindste vindue er 900 px i både kit.css og tauri.conf.json (det mindste, der regnes på)', vinduMin === 900 && konf.minWidth === 900 && konf.width === 1200, `${vinduMin} / ${konf.minWidth} / ${konf.width}`);
@@ -117,27 +142,28 @@ const FELT_EKSTRA = 2 * (FELT_POLSTRING[1] ?? FELT_POLSTRING[0]) + 2 * FELT_KANT
 const TEGN_PX = MONO_EM * MONO_PX;
 tjek('V-LAAS.4: feltet i Erstatning er <input class="mono"> med JetBrains Mono 13 px, polstring 8 px og kant 1 px', /inp\.className = 'mono';/.test(laes('ui/assets/maskering.js')) && MONO_FAMILIE === 'var(--mono-family)' && /^"JetBrains Mono"/.test(tokens['--font-mono']) && MONO_PX === 13 && FELT_EKSTRA === 18, `${MONO_FAMILIE} ${tokens['--font-mono']} ${MONO_PX} ${FELT_EKSTRA}`);
 
-/* Pladsen til tabellen ved vinduesbredden W (minus en eventuel rullebjælke). */
-function vaertBredde(vaert, W, rb) {
-  const inde = W - NAV - 2 * PAD;
-  if (vaert === 'masker') return (W > STAK_TIL ? (inde - GAP) * FR[1] / (FR[0] + FR[1]) : inde) - 2 * KANT - rb;
+/* Pladsen til tabellen ved vinduesbredden W i trinnet (minus en eventuel rullebjælke). Layoutet er W / zoom; om fundene står
+   under teksten, afgør @media ud fra W. */
+function vaertBredde(vaert, W, rb, trin = TRIN[0]) {
+  const inde = W / trin.z - NAV - 2 * PAD;
+  if (vaert === 'masker') return (W > stakTil(trin.navn) ? (inde - GAP) * FR[1] / (FR[0] + FR[1]) : inde) - 2 * KANT - rb;
   if (vaert === 'panel') return inde - 2 * KANT - rb;
   return inde - rb;
 }
 
 /* Tabellens variabler ved W og sprog: reglerne for .klasse og html[lang="en"] .klasse, i CSS'ens kaskade (en engelsk
    regel vinder over en almindelig; ellers vinder den sidste). */
-function variabler(klasse, sprog, W) {
+function variabler(klasse, sprog, W, trin = 'normal') {
   const passer = APP.filter(r => mediaPasser(r.media, W)).flatMap(r => r.valg.map(v => ({ v, r })))
-    .filter(({ v }) => v === '.' + klasse || (sprog === 'en' && v === 'html[lang="en"] .' + klasse))
-    .map(({ v, r }) => ({ spec: v.startsWith('html') ? 2 : 1, nr: r.nr, decl: r.decl }))
+    .map(({ v, r }) => ({ spec: praefiks(v, '.' + klasse, sprog, trin), nr: r.nr, decl: r.decl }))
+    .filter(x => x.spec != null)
     .sort((a, b) => a.spec - b.spec || a.nr - b.nr);
   const v = {};
   for (const p of passer) for (const [k, x] of Object.entries(p.decl)) if (k.startsWith('--')) v[k] = x;
   return v;
 }
 /* Bryder overskrifterne i tabellen ved W (white-space: normal i en @media)? */
-const thBrydes = (klasse, W) => APP.some(r => mediaPasser(r.media, W) && r.media && r.valg.includes(`.${klasse} th`) && r.decl['white-space'] === 'normal');
+const thBrydes = (klasse, W, trin = 'normal') => APP.some(r => mediaPasser(r.media, W) && r.media && har(r, `.${klasse} th`, 'da', trin) && r.decl['white-space'] === 'normal');
 
 /* ── Tabellerne: kolonnernes sprognøgler (som i koden), værdikolonnen, hvor tabellen står, og chips/typer pr. kolonne ── */
 const S = (() => {
@@ -167,15 +193,15 @@ for (const tb of TABELLER) {
    Knappens bredde læses fra CSS'en: kant fra .mini, polstring og mellemrum fra reglen i @media (ellers 24 px uden ord),
    ikonet fra .mini.ikonknap svg, afstanden mellem knapperne fra .ordbogknapper. */
 const ORD_VAELG = '.fundtabel .ordbogknapper .skjult-tekst', KNAP_VAELG = '.fundtabel .ordbogknapper .mini.ikonknap';
-const ordVises = W => APP.some(r => r.media && mediaPasser(r.media, W) && r.valg.includes(ORD_VAELG) && r.decl.position === 'static');
-const knapRegel = W => APP.filter(r => r.media && mediaPasser(r.media, W) && r.valg.includes(KNAP_VAELG)).pop();
+const ordVises = (W, trin = 'normal') => APP.some(r => r.media && mediaPasser(r.media, W) && har(r, ORD_VAELG, 'da', trin) && r.decl.position === 'static');
+const knapRegel = (W, trin = 'normal') => APP.filter(r => r.media && mediaPasser(r.media, W) && har(r, KNAP_VAELG, 'da', trin)).pop();
 const MINI_KANT = Number((decl(APP, '.mini', 'border') || '').match(/^(\d+)px/)?.[1]);
 const IKON = px(decl(APP, '.mini.ikonknap svg', 'width'));
 const IKONKNAP = px(decl(APP, '.mini.ikonknap', 'width'));
 const KNAP_AFSTAND = px(decl(APP, '.ordbogknapper', 'gap'));
-function ordbogBredde(sprog, W) {
-  if (!ordVises(W)) return 2 * IKONKNAP + KNAP_AFSTAND;
-  const k = knapRegel(W);
+function ordbogBredde(sprog, W, trin = 'normal') {
+  if (!ordVises(W, trin)) return 2 * IKONKNAP + KNAP_AFSTAND;
+  const k = knapRegel(W, trin);
   const pol = (k.decl.padding || '').split(/\s+/).map(px);
   const mellem = px(k.decl.gap);
   return ['kAltid', 'kAldrig'].reduce((a, n) => a + 2 * MINI_KANT + 2 * (pol[1] ?? pol[0]) + IKON + mellem + MAALT_KNAPORD[S.TEKST[sprog][n]], 0) + KNAP_AFSTAND;
@@ -185,6 +211,11 @@ tjek('V-PUDS.1 N3: ordene i Altid/Aldrig er målt i begge sprog', ['da', 'en'].e
 for (const W of [900, 1099, 1100, 1199]) tjek(`V-PUDS.1 N3: ${W} px: kun ikonet i Altid/Aldrig (under 1200 px)`, !ordVises(W));
 for (const W of [1200, 1600, 1719, 1840, 1920]) tjek(`V-PUDS.1 N3: ${W} px: ordet står ved ikonet i Altid/Aldrig`, ordVises(W) && knapRegel(W));
 tjek('V-PUDS.1 N3: 1720 px (side om side, smal tabel): kun ikonet', !ordVises(1720) && !ordVises(1839));
+// V-KITBRUG.1 N2: lille har grænserne som normal; stor har dem × 1,125 (1200 → 1350, 1720 → 1935, 1840 → 2070).
+for (const W of [900, 1199, 1720, 1839]) tjek(`V-KITBRUG.1: lille ${W} px: kun ikonet i Altid/Aldrig (som normal)`, !ordVises(W, 'lille'));
+for (const W of [1200, 1719, 1840]) tjek(`V-KITBRUG.1: lille ${W} px: ordet står ved ikonet (som normal)`, ordVises(W, 'lille') && knapRegel(W, 'lille'));
+for (const W of [900, 1200, 1349, 1935, 2069]) tjek(`V-KITBRUG.1: stor ${W} px: kun ikonet i Altid/Aldrig`, !ordVises(W, 'stor'));
+for (const W of [1350, 1600, 1934, 2070]) tjek(`V-KITBRUG.1: stor ${W} px: ordet står ved ikonet`, ordVises(W, 'stor') && knapRegel(W, 'stor'));
 // V-PUDS.1 N4: Demaskér-tabellens Antal og Linje har faste bredder i begge sprog ved alle bredder.
 for (const sprog of ['da', 'en']) for (const W of [...BREDDER, ...OVERGANGE]) {
   const v = variabler('advtabel', sprog, W);
@@ -192,19 +223,27 @@ for (const sprog of ['da', 'en']) for (const W of [...BREDDER, ...OVERGANGE]) {
 }
 
 const rapport = [];
-for (const tb of TABELLER) {
+// V-KITBRUG.1 N2: overgangene ved stor (grænserne × 1,125) og hvor layoutet når 900 px (1012/1013 px vindue).
+const OVERGANGE_STOR = [1012, 1013, 1237, 1238, 1349, 1350, 1934, 1935, 2069, 2070];
+for (const trin of TRIN) for (const tb of TABELLER) {
   const n = tb.kol.length;
+  const tn = trin.navn === 'normal' ? '' : ' ' + trin.navn;
   for (const sprog of ['da', 'en']) {
-    for (const W of [...BREDDER, ...OVERGANGE]) {
-      const v = variabler(tb.klasse, sprog, W);
+    for (const W of [...BREDDER, ...OVERGANGE, ...(trin.navn === 'stor' ? OVERGANGE_STOR : [])]) {
+      const v = variabler(tb.klasse, sprog, W, trin.navn);
+      // V-KITBRUG.1 N2: ved stor er reglerne ved vinduet W de samme som ved normal i et vindue på W / 1,125 (layoutets bredde).
+      if (trin.navn === 'stor') {
+        const L = Math.floor(W / trin.z), vn = variabler(tb.klasse, sprog, L, 'normal');
+        tjek(`${tb.klasse} ${sprog} stor ${W} px: samme regler som normal ved ${L} px (kolonner, overskrifter, ord i Altid/Aldrig, stak)`, JSON.stringify(v) === JSON.stringify(vn) && thBrydes(tb.klasse, W, 'stor') === thBrydes(tb.klasse, L) && ordVises(W, 'stor') === ordVises(L) && (W > stakTil('stor')) === (L > STAK_TIL), JSON.stringify(v) + ' ≠ ' + JSON.stringify(vn));
+      }
       const celle = px(v['--celle']) ?? px('var(--space-3)');
       const bredde = [...Array(n)].map((_, i) => v['--k' + (i + 1)] || 'auto');
       const auto = bredde.map((b, i) => (b === 'auto' ? i + 1 : 0)).filter(Boolean);
       const min = px(v['--tabel-min']) ?? 0;
       const pxSum = bredde.filter(b => b !== 'auto' && !b.endsWith('%')).reduce((a, b) => a + px(b), 0);
-      const har = bredde.some(b => b.endsWith('%'));
+      const harPct = bredde.some(b => b.endsWith('%'));
       const regn = rb => {
-        const plads = vaertBredde(tb.vaert, W, rb);
+        const plads = vaertBredde(tb.vaert, W, rb, trin);
         const tabel = Math.max(plads, min);
         const kol = bredde.map(b => (b === 'auto' ? null : b.endsWith('%') ? tabel * parseFloat(b) / 100 : px(b)));
         const fast = kol.reduce((a, b) => a + (b || 0), 0);
@@ -212,12 +251,15 @@ for (const tb of TABELLER) {
         return { plads, tabel, kol, rul: tabel > plads + 0.01 };
       };
       const a = regn(0), b = regn(RULLEBJAELKE);
-      const navn = `${tb.klasse} ${sprog} ${W} px`;
-      if (BREDDER.includes(W)) rapport.push(`${navn.padEnd(24)} plads ${String(Math.round(a.plads)).padStart(4)}  kolonner [${a.kol.map(Math.round).join(', ')}]  værdi ${Math.round(a.kol[tb.vaerdi - 1])}` + (b.rul ? `  (klassisk rullebjælke: ruller ${Math.round(b.tabel - b.plads)} px)` : ''));
-      if (BREDDER.includes(W) && sprog === 'da') tjek(`${tb.klasse}: én kolonne uden fast bredde, og det er værdien (kolonne ${tb.vaerdi})`, auto.join() === String(tb.vaerdi), auto.join());
-      if (!har) tjek(`${navn}: --tabel-min (${min}) giver værdien mindst ${VAERDI_MIN} px`, min >= pxSum + VAERDI_MIN, `${pxSum} + ${VAERDI_MIN}`);
+      const navn = `${tb.klasse} ${sprog}${tn} ${W} px`;
+      // Ved stor er layoutet W / 1,125; under 900 px layout (vinduet under 1013 px) må tabellen rulle vandret.
+      const layout = W / trin.z, rulMaa = layout < 900;
+      if (BREDDER.includes(W) || (rulMaa && a.rul && sprog === 'da')) rapport.push(`${navn.padEnd(30)} plads ${String(Math.round(a.plads)).padStart(4)}  kolonner [${a.kol.map(Math.round).join(', ')}]  værdi ${Math.round(a.kol[tb.vaerdi - 1])}` + (b.rul ? `  (klassisk rullebjælke: ruller ${Math.round(b.tabel - b.plads)} px)` : ''));
+      if (BREDDER.includes(W) && sprog === 'da' && !tn) tjek(`${tb.klasse}: én kolonne uden fast bredde, og det er værdien (kolonne ${tb.vaerdi})`, auto.join() === String(tb.vaerdi), auto.join());
+      if (!harPct) tjek(`${navn}: --tabel-min (${min}) giver værdien mindst ${VAERDI_MIN} px`, min >= pxSum + VAERDI_MIN, `${pxSum} + ${VAERDI_MIN}`);
       tjek(`${navn}: værdikolonnen er ${Math.round(a.kol[tb.vaerdi - 1])} px (mindst ${VAERDI_MIN})`, a.kol[tb.vaerdi - 1] >= VAERDI_MIN);
-      tjek(`${navn}: ingen vandret rulning (plads ${Math.round(a.plads)}, tabel ${Math.round(a.tabel)})`, !a.rul);
+      if (!rulMaa) tjek(`${navn}: ingen vandret rulning (plads ${Math.round(a.plads)}, tabel ${Math.round(a.tabel)})`, !a.rul);
+      else tjek(`${navn}: layoutet er ${Math.round(layout)} px (under 900): vandret rulning tilladt, værdien holdes af --tabel-min`, trin.navn === 'stor' && a.kol[tb.vaerdi - 1] >= VAERDI_MIN);
       tjek(`${navn}: med en klassisk rullebjælke har værdien stadig mindst ${VAERDI_MIN} px`, b.kol[tb.vaerdi - 1] >= VAERDI_MIN, String(Math.round(b.kol[tb.vaerdi - 1])));
       // Overskrifter, chips og typeord kan være i deres kolonne (bredden minus polstring); første kolonne i Maskér har
       // mindre polstring til højre (space-1).
@@ -226,7 +268,7 @@ for (const tb of TABELLER) {
       const mangler = [];
       tb.kol.forEach((k, i) => {
         const tekst = T[sprog][k];
-        const dele = thBrydes(tb.klasse, W) ? tekst.split(' ') : [tekst];
+        const dele = thBrydes(tb.klasse, W, trin.navn) ? tekst.split(' ') : [tekst];
         for (const d of dele) { if (!(d in MAALT_TH)) mangler.push(d); else if (MAALT_TH[d] > indhold(i)) for_brede.push(`«${d}» ${MAALT_TH[d]} > ${Math.round(indhold(i))}`); }
       });
       for (const [i, noegler] of Object.entries(tb.chips || {})) for (const k of noegler) {
@@ -238,7 +280,7 @@ for (const tb of TABELLER) {
         if (!(t in MAALT_ORD)) mangler.push(t); else if (MAALT_ORD[t] > indhold(i - 1)) for_brede.push(`typen «${t}» ${MAALT_ORD[t]} > ${Math.round(indhold(i - 1))}`);
       }
       tjek(`${navn}: alle tekster er målt (ellers: mål dem i WebKit og skriv dem i MAALT_*)`, mangler.length === 0, [...new Set(mangler)].join(', '));
-      if (tb.klasse === 'fundtabel' && W >= ERSTATNING_FRA) {
+      if (tb.klasse === 'fundtabel' && W >= ERSTATNING_FRA * (trin.navn === 'stor' ? trin.z : 1)) {
         // V-LAAS.4 N3: Erstatning (kolonne 4) har plads til 24 tegn; Fundet værdi har mindst 240 px.
         const felt = a.kol[3] - 2 * celle - FELT_EKSTRA;
         tjek(`${navn}: Erstatning viser ${ERSTATNING_TEGN} tegn (${Math.round(felt * 10) / 10} px ≥ ${ERSTATNING_TEGN} × ${TEGN_PX} px)`, felt >= ERSTATNING_TEGN * TEGN_PX, String(felt));
@@ -246,16 +288,16 @@ for (const tb of TABELLER) {
       }
       if (tb.klasse === 'fundtabel') {
         // V-PUDS.1 N3: Altid og Aldrig (med eller uden ord) kan være i Ordbog (kolonne 7).
-        const kn = ordbogBredde(sprog, W);
-        tjek(`${navn}: Altid og Aldrig${ordVises(W) ? ' med ord' : ''} kan være i Ordbog (${Math.round(kn * 10) / 10} ≤ ${Math.round(indhold(6))} px)`, kn <= indhold(6));
+        const kn = ordbogBredde(sprog, W, trin.navn);
+        tjek(`${navn}: Altid og Aldrig${ordVises(W, trin.navn) ? ' med ord' : ''} kan være i Ordbog (${Math.round(kn * 10) / 10} ≤ ${Math.round(indhold(6))} px)`, kn <= indhold(6));
       }
-      if (tb.klasse === 'fundtabel' && W === 900) tjek(`${navn}: V-LAAS.4: ingen vandret rulning ved 900 px (Erstatning er først bredere fra 1200 px)`, !a.rul);
+      if (tb.klasse === 'fundtabel' && W === 900 && !rulMaa) tjek(`${navn}: V-LAAS.4: ingen vandret rulning ved 900 px (Erstatning er først bredere fra 1200 px)`, !a.rul);
       tjek(`${navn}: overskrifter, chips og typer kan være i deres kolonne`, for_brede.length === 0, for_brede.join('; '));
     }
   }
 }
 
-console.log('\nKolonnebredder (px, med polstring), regnet ud fra CSS\'en uden rullebjælke:');
+console.log('\nKolonnebredder (px i layoutet, med polstring), regnet ud fra CSS\'en uden rullebjælke (lille og stor: V-KITBRUG.1):');
 for (const l of rapport) console.log('  ' + l);
 console.log(`\n${ok + fejl} tjek: ${ok} ok, ${fejl} fejl`);
 process.exit(fejl ? 1 : 0);

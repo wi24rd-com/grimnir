@@ -153,7 +153,6 @@
     fl.type = 'button';
     fl.className = 'fl';
     fl.setAttribute('aria-disabled', 'true');
-    fl.setAttribute('data-t-title', 'hvorforFilter');
     fl.appendChild(K.ikon('filter'));
     const flTekst = document.createElement('span');
     fl.appendChild(flTekst);
@@ -161,16 +160,14 @@
     hoejre.className = 'hoejre';
     hoejre.appendChild(K.chip('none', { t: v.chip }));
     vl.append(soeg, fl, hoejre);
+    // V-KITBRUG.1 N3: hvorfor filterknappen ikke kan bruges, står i kittets værktøjstip (mus og tastatur; før i title).
+    K.vaerktoejstip(fl, { t: 'hvorforFilter' });
     const flade = document.createElement('div');
     flade.className = 'flade';
-    const tom = document.createElement('div');
-    tom.className = 'tom';
-    const tomIkon = K.ikon(v.ikon, 'tom-ikon');
-    const h2 = document.createElement('h2');
-    h2.setAttribute('data-t', v.tom[0]);
-    const p = document.createElement('p');
-    p.setAttribute('data-t', v.tom[1]);
-    tom.append(tomIkon, h2, p);
+    // V-KITBRUG.1 N3: kittets tomme tilstand (ikon, overskrift og én sætning). Maskér og Demaskér gør den til en flade, der
+    // tager imod indsat tekst og en sluppet fil (maskering.js); knapperne i den lægges til af visningerne.
+    const tom = K.tomTilstand({ ikon: v.ikon, t: v.tom[0], p: { t: v.tom[1] } });
+    const p = tom.querySelector('.tomt-p');
     flade.appendChild(tom);
     sek.append(vl, flade);
     arb.appendChild(sek);
@@ -238,14 +235,45 @@
   indstKnap.appendChild(K.ikon('tandhjul', 'ik'));
   indstKnap.setAttribute('data-v', mod + ',');
 
-  // Dialoger: Indstillinger (indholdet styres af indstillinger.js) og Om (med kittets fletbånd, ADR D16: ét sted).
-  $('om-flet').appendChild(K.fletbaand());
-  function aabnDialog(id) {
-    const d = $(id);
-    for (const andet of document.querySelectorAll('dialog[open]')) if (andet !== d) andet.close();
-    if (!d.open) d.showModal();
+  /* Dialoger. V-KITBRUG.1 N4: en dialog bygget med kittets Kit.dialog får sit gamle id (dlg-…), knapperne deres gamle
+     id'er (knapId: { svar: id }), og den står i <body> fra start, så den kan findes, før den åbnes. Kun én dialog er
+     åben ad gangen: aabnDialog lukker de andre (kittets og Grimnirs egne .dlg) og åbner den ene; fokus kan peges på
+     (et knap-svar, et id eller et element), ellers vælger kittet. bekraeft er kittets Kit.bekraeft med samme regel. */
+  const KITDLG = {};
+  function kitDialog(id, o, knapId = {}) {
+    const dl = K.dialog(o);
+    dl.rod.id = id;
+    for (const [svar, kid] of Object.entries(knapId)) dl.knap(svar).id = kid;
+    document.body.appendChild(dl.rod);
+    S.anvend(dl.rod);
+    KITDLG[id] = dl;
+    return dl;
   }
+  function lukAndre(d) { for (const andet of document.querySelectorAll('dialog[open]')) if (andet !== d) andet.close(); }
+  function aabnDialog(id, fokus) {
+    const d = $(id);
+    lukAndre(d);
+    if (KITDLG[id]) KITDLG[id].aabn(fokus);
+    else if (!d.open) d.showModal();
+  }
+  function bekraeft(o) { lukAndre(null); return K.bekraeft(o); }
   for (const b of document.querySelectorAll('dialog [data-luk]')) b.addEventListener('click', () => b.closest('dialog').close());
+
+  // Om: navn, slogan, beskrivelse, versionerne og licensen, med kittets fletbånd øverst (ADR D16: ét sted).
+  const elT = (tag, kl, t, id) => { const e = document.createElement(tag); if (kl) e.className = kl; if (t) e.setAttribute('data-t', t); if (id) e.id = id; return e; };
+  const omIndhold = document.createElement('div');
+  const identitet = elT('div', 'identitet');
+  identitet.append(elT('p', 'id-navn', 'appNavn'), elT('p', 'id-slogan', 'slogan'), elT('p', 'id-beskrivelse', 'beskrivelse'));
+  const omTal = elT('ul', 'om-tal');
+  const omVersion = elT('li', 'mono', 'version', 'om-version'), omKerne = elT('li', 'mono', 'kerne', 'om-kerne');
+  omVersion.setAttribute('data-v', '…');
+  omKerne.setAttribute('data-v', '…');
+  omTal.append(omVersion, omKerne, elT('li', null, 'licens'));
+  omIndhold.append(identitet, elT('p', 'om-p', 'omP'), omTal);
+  const om = kitDialog('dlg-om', { t: 'omH', indhold: omIndhold, knapper: [{ id: 'luk', t: 'luk' }] });
+  const omFlet = elT('div', 'om-flet', null, 'om-flet');
+  omFlet.appendChild(K.fletbaand());
+  om.rod.prepend(omFlet);
   indstKnap.addEventListener('click', () => aabnDialog('dlg-indst'));
   const MENU = { indstillinger: 'dlg-indst', om: 'dlg-om' };
 
@@ -287,5 +315,5 @@
   opdaterVis();
   /* maskering.js: registrér en handling for en kommando (visning:id) og nå visningernes dele. */
   const haandter = (visning, id, fn) => { HANDLINGER[visning + ':' + id] = fn; };
-  window.Grimnir = { vis: gaaTil, get aktiv() { return aktivVisning; }, get laast() { return laast(); }, VISNINGER, dele, haandter, mac, mod, aabnDialog, tauri };
+  window.Grimnir = { vis: gaaTil, get aktiv() { return aktivVisning; }, get laast() { return laast(); }, VISNINGER, dele, haandter, mac, mod, aabnDialog, kitDialog, bekraeft, tauri };
 })();
