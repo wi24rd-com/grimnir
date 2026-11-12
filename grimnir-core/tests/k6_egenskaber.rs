@@ -245,3 +245,45 @@ proptest! {
         prop_assert_eq!(grimnir_core::demasker(&ka.maskeret, &sag).0, a);
     }
 }
+
+/// V-MANUEL.1: arterne, en tilføjet værdi kan få.
+const TILFOEJ_ARTER: [grimnir_core::Art; 8] = [
+    grimnir_core::Art::Vaert,
+    grimnir_core::Art::Domaene,
+    grimnir_core::Art::NetbiosDomaene,
+    grimnir_core::Art::Bruger,
+    grimnir_core::Art::Person,
+    grimnir_core::Art::Database,
+    grimnir_core::Art::Ord,
+    grimnir_core::Art::Serienummer,
+];
+
+proptest! {
+    #![proptest_config(ProptestConfig { cases: 512, ..ProptestConfig::default() })]
+
+    /// V-MANUEL.1: brugeren peger på vilkårlige stykker af teksten (også tomme, med linjeskift, mellemrum, dele af
+    /// adresser og koder) og giver dem en art; maskér → lækagetjek → demaskér giver originalen bytepræcist, og en senere
+    /// demaskering med sagen alene gør det samme.
+    #[test]
+    fn rundtur_med_tilfoejede_vaerdier(
+        t in tekst(),
+        valg in prop::collection::vec((0usize..10_000, 0usize..12, 0..TILFOEJ_ARTER.len()), 0..6),
+    ) {
+        let mut o = ordbog();
+        for (start, laengde, art) in valg {
+            let mut s = start % (t.len() + 1);
+            while !t.is_char_boundary(s) {
+                s -= 1;
+            }
+            let mut e = (s + laengde).min(t.len());
+            while !t.is_char_boundary(e) {
+                e -= 1;
+            }
+            o.tilfoejede.push((t[s..e].to_string(), TILFOEJ_ARTER[art]));
+        }
+        let mut sag = Sag::default();
+        let k = kaede(&t, &o, &mut sag);
+        prop_assert_eq!(&k.tilbage, &t);
+        prop_assert_eq!(&grimnir_core::demasker(&k.maskeret, &sag).0, &t);
+    }
+}

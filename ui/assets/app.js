@@ -22,6 +22,11 @@
     kvittering: [['path', { d: 'M6 3h12v18l-3-2-3 2-3-2-3 2z' }], ['path', { d: 'M9 8h6M9 12h6' }]],
     maske: [['path', { d: 'M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z' }], ['path', { d: 'M4 4l16 16' }]],
     naeste: [['path', { d: 'M12 4v10' }], ['path', { d: 'M12 18.5v.5' }], ['path', { d: 'M17 9l3 3-3 3' }]],
+    // V-MANUEL.1: Fortryd, Gentag, Ryd og Maskér dette (en markering med et plus).
+    fortryd: [['path', { d: 'M9 14L4 9l5-5' }], ['path', { d: 'M4 9h10.5a5.5 5.5 0 0 1 0 11H11' }]],
+    gentag: [['path', { d: 'M15 14l5-5-5-5' }], ['path', { d: 'M20 9H9.5a5.5 5.5 0 0 0 0 11H13' }]],
+    ryd: [['path', { d: 'M8 20h12' }], ['path', { d: 'M4.6 14.6l9.2-9.2a2 2 0 0 1 2.8 0l2 2a2 2 0 0 1 0 2.8L11 18.8H8.8z' }], ['path', { d: 'M9.5 9.7l4.8 4.8' }]],
+    markering: [['path', { d: 'M4 8V5h3M17 5h3v3M20 16v3h-3M7 19H4v-3' }], ['path', { d: 'M12 8.5v7M8.5 12h7' }]],
   });
 
   const senere = (id, t, ikon, pri) => ({ id, t, ikon, pri: Boolean(pri), deaktiveret: true, hvorfor: 'hvorforSenere' });
@@ -38,8 +43,10 @@
       id: 'masker', t: 'vMasker', ikon: 'maske', soeg: 'soegMasker', chip: 'chipIntetIndsat', fod: 'fodMasker',
       tom: ['tomMaskerH', 'tomMaskerP'], modtager: 'ariaIndsaetTekst',
       grupper: [
-        { t: 'gTekst', knapper: [aktiv('masker', 'indsaet', 'kIndsaet', 'indsaet', false, true), aktiv('masker', 'aabn-fil', 'kAabnFil', 'fil', false, true)] },
-        { t: 'gMaskering', knapper: [aktiv('masker', 'analyser', 'kAnalyser', 'soeg'), aktiv('masker', 'gem-masker', 'kGemMasker', 'skjold', true), aktiv('masker', 'foer-efter', 'kFoerEfter', 'foerefter')] },
+        // V-MANUEL.1: Ryd i Tekst; Fortryd og Gentag i en egen gruppe (Rediger, som menuen); Maskér dette først i Maskering.
+        { t: 'gTekst', knapper: [aktiv('masker', 'indsaet', 'kIndsaet', 'indsaet', false, true), aktiv('masker', 'aabn-fil', 'kAabnFil', 'fil', false, true), aktiv('masker', 'ryd', 'kRyd', 'ryd')] },
+        { t: 'gRediger', knapper: [aktiv('masker', 'fortryd', 'kFortryd', 'fortryd'), aktiv('masker', 'gentag', 'kGentag', 'gentag')] },
+        { t: 'gMaskering', knapper: [aktiv('masker', 'masker-dette', 'kMaskerDette', 'markering'), aktiv('masker', 'analyser', 'kAnalyser', 'soeg'), aktiv('masker', 'gem-masker', 'kGemMasker', 'skjold', true), aktiv('masker', 'foer-efter', 'kFoerEfter', 'foerefter')] },
         // V-FIL.1: Gem maskeret fil ved siden af Kopiér. V-KVIT.1: Kopiér kvittering (aktiv, når der er et maskeret resultat).
         { t: 'gResultat', knapper: [aktiv('masker', 'kopier', 'kKopier', 'kopier'), aktiv('masker', 'gem-fil', 'kGemMaskeretFil', 'gem'), aktiv('masker', 'kvittering', 'kKvittering', 'kvittering')] },
       ],
@@ -53,8 +60,9 @@
       id: 'demasker', t: 'vDemasker', ikon: 'oeje', soeg: 'soegDemasker', chip: 'chipIntetSvar', fod: 'fodDemasker',
       tom: ['tomDemaskerH', 'tomDemaskerP'], modtager: 'ariaIndsaetSvar', tilSager: true,
       grupper: [
-        { t: 'gSvar', knapper: [aktiv('demasker', 'indsaet', 'kIndsaet', 'indsaet', false, true), aktiv('demasker', 'aabn-fil', 'kAabnFil', 'fil', false, true)] },
-        { t: 'gDemaskering', knapper: [aktiv('demasker', 'demasker', 'kDemasker', 'oeje', true), senere('naeste-advarsel', 'kNaesteAdvarsel', 'naeste')] },
+        // V-MANUEL.1: Ryd i Svar; Næste advarsel er bygget (N4) og styres af maskering.js som de andre.
+        { t: 'gSvar', knapper: [aktiv('demasker', 'indsaet', 'kIndsaet', 'indsaet', false, true), aktiv('demasker', 'aabn-fil', 'kAabnFil', 'fil', false, true), aktiv('demasker', 'ryd', 'kRyd', 'ryd')] },
+        { t: 'gDemaskering', knapper: [aktiv('demasker', 'demasker', 'kDemasker', 'oeje', true), aktiv('demasker', 'naeste-advarsel', 'kNaesteAdvarsel', 'naeste')] },
         { t: 'gResultat', knapper: [aktiv('demasker', 'kopier-resultat', 'kKopierResultat', 'kopier'), aktiv('demasker', 'gem-fil', 'kGemFil', 'gem')] },
       ],
       trae: [

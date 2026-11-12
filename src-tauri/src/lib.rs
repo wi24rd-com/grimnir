@@ -65,8 +65,8 @@ mod programmenu;
 use indstillinger::Indstillinger;
 use laas::Udloeser;
 use maskering::{
-    Analyse, Demaskering, FilAnalyse, FilDemaskering, FilInfo, FilMaskering, LaasStatus, LaasSvar, Maskering, OrdbogUd, Proeve, RaekkeSide,
-    Rettelse, SagListePost, SagStatus, SideValg, StartForfra, Tilstand, UiFejl, Visning,
+    AnalyseMed, Demaskering, FilAnalyse, FilDemaskering, FilInfo, FilMaskering, LaasStatus, LaasSvar, Maskering, OrdbogUd, Proeve,
+    RaekkeSide, Rettelse, SagListePost, SagStatus, SideValg, StartForfra, Tilfoejet, Tilstand, UiFejl, Visning,
 };
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -83,28 +83,38 @@ fn kerne_version() -> &'static str {
 }
 
 /// Fundene i en tekst med forslag til koder. `fravalgt` og `rettelser` er brugerens valg indtil nu (udeladt: kernens
-/// standard), så tabellen viser de koder, `gem_og_masker` vil bruge. Ændrer ikke sagen.
+/// standard), så tabellen viser de koder, `gem_og_masker` vil bruge. Ændrer ikke sagen. V-MANUEL.1: `tilfoejede` er
+/// værdierne, brugeren selv har peget på i teksten ("Maskér dette"; udeladt: ingen).
 #[tauri::command(async)]
 fn analyser(
     tilstand: State<'_, Tilstand>,
     tekst: String,
     fravalgt: Option<Vec<usize>>,
     rettelser: Option<Vec<Rettelse>>,
-) -> Result<Analyse, UiFejl> {
+    tilfoejede: Option<Vec<Tilfoejet>>,
+) -> Result<AnalyseMed, UiFejl> {
     let _travl = tilstand.travl();
-    maskering::analyser(&tilstand, &tekst, fravalgt.as_deref(), rettelser.as_deref().unwrap_or_default())
+    maskering::analyser_med(
+        &tilstand,
+        &tekst,
+        fravalgt.as_deref(),
+        rettelser.as_deref().unwrap_or_default(),
+        tilfoejede.as_deref().unwrap_or_default(),
+    )
 }
 
 /// Maskerer teksten med brugerens valg og gemmer sagen (i hukommelsen). Afvises en rettelse, gemmes intet.
+/// V-MANUEL.1: med de tilføjede værdier (udeladt: ingen); de gemmes i sagen som ethvert andet fund.
 #[tauri::command(async)]
 fn gem_og_masker(
     tilstand: State<'_, Tilstand>,
     tekst: String,
     fravalgt: Vec<usize>,
     rettelser: Vec<Rettelse>,
+    tilfoejede: Option<Vec<Tilfoejet>>,
 ) -> Result<Maskering, UiFejl> {
     let _travl = tilstand.travl();
-    maskering::gem_og_masker(&tilstand, &tekst, &fravalgt, &rettelser)
+    maskering::gem_og_masker_med(&tilstand, &tekst, &fravalgt, &rettelser, tilfoejede.as_deref().unwrap_or_default())
 }
 
 /// Sætter de rigtige værdier tilbage i en tekst med sagens koder.

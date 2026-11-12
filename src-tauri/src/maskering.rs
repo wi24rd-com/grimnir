@@ -541,6 +541,47 @@ pub struct Rettelse {
     pub kode: String,
 }
 
+/// V-MANUEL.1: en værdi, brugeren har peget på i teksten ("Maskér dette"), og typen, den maskeres som. Værdien er en
+/// original: typen har ingen afledt `Debug` (den viser `<skjult>`), og værdien nulstilles, når typen slippes. Den kommer
+/// aldrig i en fejl, en log eller kvitteringen.
+#[derive(Clone, Deserialize)]
+pub struct Tilfoejet {
+    /// Værdien, som brugeren markerede den.
+    pub vaerdi: String,
+    /// Typen som fundtabellens `art`: `ord` | `bruger` | `vaert` | `domaene` | `person` | `netbios` | `database` |
+    /// `serienummer` (arterne, kernen kan give en navnekode, [`Ordbog::kan_tilfoejes`]).
+    pub art: String,
+}
+
+impl std::fmt::Debug for Tilfoejet {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Tilfoejet")
+            .field("vaerdi", &"<skjult>")
+            .field("art", &self.art)
+            .finish()
+    }
+}
+
+impl Drop for Tilfoejet {
+    fn drop(&mut self) {
+        zeroize::Zeroize::zeroize(&mut self.vaerdi);
+    }
+}
+
+/// V-MANUEL.1: hvad der blev af en tilføjet værdi. Kun pladser og tal, aldrig værdien.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct TilfoejetUd {
+    /// Pladsen i listen, webvisningen sendte.
+    pub nr: usize,
+    /// Rækken (`id`), værdien står i, eller `None`, når den ikke står nogen steder som et helt ord i teksten.
+    pub raekke: Option<usize>,
+    /// Antal steder i teksten (rækkens `antal`; 0 uden række).
+    pub antal: usize,
+    /// Hvorfor værdien ikke er taget med: `tom` (kun mellemrum), `linjeskift`, `type` (ukendt type), `kode` (en af sagens
+    /// koder; den kan ikke maskeres igen), `aldrig` (står på "maskér aldrig", som vinder over alt). `None`: taget med.
+    pub afvist: Option<&'static str>,
+}
+
 /// En afvist rettelse eller en ukendt række. Indeholder rækkens id og brugerens ønskede kode, aldrig en original.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct RaekkeFejl {
@@ -680,6 +721,9 @@ pub struct Raekke {
     pub rettet: bool,
     /// Alle rækkens koder fandtes i sagen før denne tekst (kendt fra en tidligere maskering i denne session).
     pub kendt: bool,
+    /// V-MANUEL.1: rækken er en værdi, brugeren selv har tilføjet: pladsen i listen af tilføjede værdier (`None`: fundet af
+    /// Grimnir).
+    pub tilfoejet: Option<usize>,
 }
 
 /// En advarsel fra kernen, samlet pr. art og kode. Uden forslag (forslaget er en original).
@@ -710,6 +754,24 @@ pub struct Analyse {
     pub bytes: usize,
     /// Antal linjer.
     pub linjer: usize,
+}
+
+/// V-MANUEL.1: svaret fra [`analyser_med`]: analysen og hvad der blev af hver tilføjet værdi. Webvisningen får ét objekt
+/// (felterne fra [`Analyse`] og `tilfoejede`); `Analyse` selv er uændret.
+#[derive(Clone, Debug, Serialize)]
+pub struct AnalyseMed {
+    /// Analysen.
+    #[serde(flatten)]
+    pub analyse: Analyse,
+    /// Hvad der blev af hver tilføjet værdi, i listens rækkefølge.
+    pub tilfoejede: Vec<TilfoejetUd>,
+}
+
+impl std::ops::Deref for AnalyseMed {
+    type Target = Analyse;
+    fn deref(&self) -> &Analyse {
+        &self.analyse
+    }
 }
 
 /// En rest fra lækagetjekket, samlet pr. art og tekst.
@@ -1245,6 +1307,7 @@ fn beregn(sag: &Sag, tekst: &str, udvalg: Udvalg<'_>, rettelser: &[Rettelse], or
             linje: linjer.af(g.id),
             rettet: rettet[gi],
             kendt: !rettet[gi] && koder[gi].iter().all(|k| sag.opslag(k).is_some()),
+            tilfoejet: None,
         })
         .collect();
     Ok(Beregning {
@@ -1326,35 +1389,168 @@ fn aldrig_moedt(tekst: &str, ordbog: &Ordbog, med: &[(usize, usize)]) -> usize {
     n
 }
 
+// ------------------------------------------------------------------------------------------------------- tilføjede
+
+/// V-MANUEL.1: arterne, en tilføjet værdi kan få ([`Ordbog::kan_tilfoejes`]), ved deres navn i fundtabellen.
+pub const TILFOEJ_ARTER: [Art; 8] = [
+    Art::Ord,
+    Art::Bruger,
+    Art::Vaert,
+    Art::Domaene,
+    Art::Person,
+    Art::NetbiosDomaene,
+    Art::Database,
+    Art::Serienummer,
+];
+
+/// Typen fra webvisningen (`bruger`, `vaert` …) som kernens art, når den kan tilføjes.
+fn tilfoej_art(navn: &str) -> Option<Art> {
+    TILFOEJ_ARTER
+        .into_iter()
+        .find(|a| art_navn(*a) == navn)
+        .filter(|a| Ordbog::kan_tilfoejes(*a))
+}
+
+/// Sand, hvis værdien er en af sagens koder eller aliaser (også med andre store/små bogstaver). Den kan ikke maskeres
+/// igen; kernen maskerer den allerede i kollisionspasset, og `Sag::ret` afviser den som ny kode af samme grund.
+fn er_kode(sag: &Sag, v: &str) -> bool {
+    sag.opslag(v).is_some()
+        || sag.data().poster.iter().any(|p| p.kode.eq_ignore_ascii_case(v))
+        || sag.data().aliaser.iter().any(|(a, _)| a.eq_ignore_ascii_case(v))
+}
+
+/// V-MANUEL.1: lægger de tilføjede værdier, der kan tages med, i kernens ordbog (trimmet, med deres art) og svarer for
+/// hver, om den blev taget med. Den anden del er (værdien med små bogstaver → pladsen) til at finde rækkerne bagefter.
+/// Kernen kender reglerne for tomme værdier, linjeskift og arter i forvejen; her afvises de, så webvisningen kan sige
+/// hvorfor, og desuden sagens koder og værdier på "maskér aldrig" (kernen ville give dem 0 steder uden en grund).
+fn tag_tilfoejede(tilfoejede: &[Tilfoejet], sag: &Sag, ordbog: &mut Ordbog) -> (HashMap<String, usize>, Vec<TilfoejetUd>) {
+    let mut aldrig: Vec<String> = ordbog.aldrig.iter().map(|a| a.trim().to_ascii_lowercase()).collect();
+    let mut noegler: HashMap<String, usize> = HashMap::new();
+    let mut ud = Vec::with_capacity(tilfoejede.len());
+    for (nr, x) in tilfoejede.iter().enumerate() {
+        let v = x.vaerdi.trim();
+        let mut lille = v.to_ascii_lowercase();
+        let art = tilfoej_art(&x.art);
+        let afvist = if v.is_empty() {
+            Some("tom")
+        } else if v.contains(['\r', '\n']) {
+            Some("linjeskift")
+        } else if art.is_none() {
+            Some("type")
+        } else if er_kode(sag, v) {
+            Some("kode")
+        } else if aldrig.contains(&lille) {
+            Some("aldrig")
+        } else {
+            None
+        };
+        match (afvist, art) {
+            (None, Some(art)) => {
+                ordbog.tilfoejede.push((v.to_string(), art));
+                // Den første af to ens værdier gælder; kopien med små bogstaver nulstilles.
+                let ny = !noegler.contains_key(&lille);
+                if ny {
+                    noegler.insert(lille, nr);
+                } else {
+                    zeroize::Zeroize::zeroize(&mut lille);
+                }
+            }
+            _ => zeroize::Zeroize::zeroize(&mut lille),
+        }
+        ud.push(TilfoejetUd {
+            nr,
+            raekke: None,
+            antal: 0,
+            afvist,
+        });
+    }
+    for a in aldrig.iter_mut() {
+        zeroize::Zeroize::zeroize(a);
+    }
+    (noegler, ud)
+}
+
+/// V-MANUEL.1: knytter rækkerne til de tilføjede værdier (en række, hvis stavemåder er en tilføjet værdi uden hensyn til
+/// store/små bogstaver, er den værdis række) og fylder svarene ud. Nøglerne nulstilles.
+fn knyt_tilfoejede(raekker: &mut [Raekke], noegler: HashMap<String, usize>, ud: &mut [TilfoejetUd]) {
+    if !noegler.is_empty() {
+        for r in raekker.iter_mut() {
+            let nr = r.vaerdier.iter().find_map(|v| noegler.get(&v.to_ascii_lowercase()).copied());
+            if let Some(nr) = nr {
+                r.tilfoejet = Some(nr);
+                if let Some(t) = ud.get_mut(nr) {
+                    if t.raekke.is_none() {
+                        t.raekke = Some(r.id);
+                    }
+                    t.antal += r.antal;
+                }
+            }
+        }
+    }
+    for (mut k, _) in noegler {
+        zeroize::Zeroize::zeroize(&mut k);
+    }
+}
+
 // ------------------------------------------------------------------------------------------------------- handlingerne
 
 /// Finder fundene og regner koderne ud på en kladde af sagen. Sagen ændres ikke.
 pub fn analyser(t: &Tilstand, tekst: &str, fravalgt: Option<&[usize]>, rettelser: &[Rettelse]) -> Result<Analyse, UiFejl> {
+    analyser_med(t, tekst, fravalgt, rettelser, &[]).map(|a| a.analyse)
+}
+
+/// V-MANUEL.1: [`analyser`] med de værdier, brugeren selv har peget på i teksten ("Maskér dette"). De findes som
+/// ordbogens ord (alle steder, ved en grænse) med den valgte type og står i rækkerne som alle andre fund
+/// ([`Raekke::tilfoejet`]); [`AnalyseMed::tilfoejede`] siger, hvad der blev af hver.
+pub fn analyser_med(
+    t: &Tilstand,
+    tekst: &str,
+    fravalgt: Option<&[usize]>,
+    rettelser: &[Rettelse],
+    tilfoejede: &[Tilfoejet],
+) -> Result<AnalyseMed, UiFejl> {
     t.aaben()?;
     // V-KVIT.1: en ny analyse af indsat tekst: kvitteringen for det gamle resultat findes ikke længere.
     *t.kvit_tekst() = None;
     tjek_tekst(tekst)?;
-    analyser_i(t, tekst, fravalgt.map_or(Udvalg::Standard, Udvalg::Fravalgt), rettelser)
+    analyser_i(t, tekst, fravalgt.map_or(Udvalg::Standard, Udvalg::Fravalgt), rettelser, tilfoejede)
 }
 
 /// [`analyser`] uden tekstens grænse (en fil har sin egen, [`fil::MAKS_FIL`]).
-fn analyser_i(t: &Tilstand, tekst: &str, udvalg: Udvalg<'_>, rettelser: &[Rettelse]) -> Result<Analyse, UiFejl> {
-    let ordbog = t.kerne_ordbog();
+fn analyser_i(
+    t: &Tilstand,
+    tekst: &str,
+    udvalg: Udvalg<'_>,
+    rettelser: &[Rettelse],
+    tilfoejede: &[Tilfoejet],
+) -> Result<AnalyseMed, UiFejl> {
+    let mut ordbog = t.kerne_ordbog();
     // Sagen kopieres under låsen; selve beregningen sker uden lås.
     let sag = {
         let laast = t.sag();
         kopi(&laast.sag, laast.sag.valg().masker_fremmede)?
     };
+    let (noegler, mut tilfoejet_ud) = tag_tilfoejede(tilfoejede, &sag, &mut ordbog);
     let b = beregn(&sag, tekst, udvalg, rettelser, &ordbog);
     nulstil(sag.til_data());
     ob::nulstil_kerne(ordbog);
-    let b = b?;
-    let ud = Analyse {
-        advarsler: samlede_advarsler(&b.advarsler, &b.linjer),
-        linjer: fil::antal_linjer(tekst),
-        raekker: b.raekker,
-        fejl: b.fejl,
-        bytes: tekst.len(),
+    let mut b = match b {
+        Ok(b) => b,
+        Err(f) => {
+            knyt_tilfoejede(&mut [], noegler, &mut tilfoejet_ud);
+            return Err(f);
+        }
+    };
+    knyt_tilfoejede(&mut b.raekker, noegler, &mut tilfoejet_ud);
+    let ud = AnalyseMed {
+        analyse: Analyse {
+            advarsler: samlede_advarsler(&b.advarsler, &b.linjer),
+            linjer: fil::antal_linjer(tekst),
+            raekker: b.raekker,
+            fejl: b.fejl,
+            bytes: tekst.len(),
+        },
+        tilfoejede: tilfoejet_ud,
     };
     ob::nulstil_kerne(b.aldrig);
     nulstil(b.kladde.til_data());
@@ -1364,10 +1560,22 @@ fn analyser_i(t: &Tilstand, tekst: &str, udvalg: Udvalg<'_>, rettelser: &[Rettel
 /// Maskerer med brugerens valg og rettelser og gemmer sagen. Afvises en rettelse, gemmes intet. I en navngiven sag
 /// skrives sagen krypteret til disk, før svaret sendes; fejler det, er intet ændret, og der er ingen maskeret tekst.
 pub fn gem_og_masker(t: &Tilstand, tekst: &str, fravalgt: &[usize], rettelser: &[Rettelse]) -> Result<Maskering, UiFejl> {
+    gem_og_masker_med(t, tekst, fravalgt, rettelser, &[])
+}
+
+/// V-MANUEL.1: [`gem_og_masker`] med de tilføjede værdier (som [`analyser_med`]). De lægges i sagen som ethvert andet
+/// fund, så et svar med deres koder kan demaskeres; ordbogen ændres ikke. Kvitteringen tæller dem (antal, ingen værdier).
+pub fn gem_og_masker_med(
+    t: &Tilstand,
+    tekst: &str,
+    fravalgt: &[usize],
+    rettelser: &[Rettelse],
+    tilfoejede: &[Tilfoejet],
+) -> Result<Maskering, UiFejl> {
     t.aaben()?;
     *t.kvit_tekst() = None;
     tjek_tekst(tekst)?;
-    let (m, nr, tal) = gem_og_masker_i(t, tekst, fravalgt, rettelser)?;
+    let (m, nr, tal) = gem_og_masker_i(t, tekst, fravalgt, rettelser, tilfoejede)?;
     // V-KVIT.1: tallene til kvitteringen huskes. Porten tjekkes igen under låsen, så intet huskes efter [`laas_igen`].
     let mut k = t.kvit_tekst();
     if !t.er_laast() {
@@ -1379,8 +1587,14 @@ pub fn gem_og_masker(t: &Tilstand, tekst: &str, fravalgt: &[usize], rettelser: &
 
 /// [`gem_og_masker`] uden tekstens grænse. Svarer også med sagens nummer efter gemningen og (V-KVIT.1) tallene til
 /// kvitteringen.
-fn gem_og_masker_i(t: &Tilstand, tekst: &str, fravalgt: &[usize], rettelser: &[Rettelse]) -> Result<(Maskering, u64, Tal), UiFejl> {
-    let ordbog = t.kerne_ordbog();
+fn gem_og_masker_i(
+    t: &Tilstand,
+    tekst: &str,
+    fravalgt: &[usize],
+    rettelser: &[Rettelse],
+    tilfoejede: &[Tilfoejet],
+) -> Result<(Maskering, u64, Tal), UiFejl> {
+    let mut ordbog = t.kerne_ordbog();
     let mut a = match t.sag_aaben() {
         Ok(a) => a,
         Err(f) => {
@@ -1388,6 +1602,7 @@ fn gem_og_masker_i(t: &Tilstand, tekst: &str, fravalgt: &[usize], rettelser: &[R
             return Err(f);
         }
     };
+    let (noegler, mut tilfoejet_ud) = tag_tilfoejede(tilfoejede, &a.sag, &mut ordbog);
     let b = beregn(&a.sag, tekst, Udvalg::Fravalgt(fravalgt), rettelser, &ordbog);
     // V-KVIT.1: tallet regnes kun, når maskeringen gennemføres (ingen afvist rettelse).
     let aldrig = match &b {
@@ -1395,7 +1610,14 @@ fn gem_og_masker_i(t: &Tilstand, tekst: &str, fravalgt: &[usize], rettelser: &[R
         _ => 0,
     };
     ob::nulstil_kerne(ordbog);
-    let b = b?;
+    let mut b = match b {
+        Ok(b) => b,
+        Err(f) => {
+            knyt_tilfoejede(&mut [], noegler, &mut tilfoejet_ud);
+            return Err(f);
+        }
+    };
+    knyt_tilfoejede(&mut b.raekker, noegler, &mut tilfoejet_ud);
     if !b.fejl.is_empty() {
         return Err(UiFejl::Raekker { fejl: b.fejl });
     }
@@ -1458,6 +1680,8 @@ fn gem_og_masker_i(t: &Tilstand, tekst: &str, fravalgt: &[usize], rettelser: &[R
         fravalgt: b.raekker.iter().filter(|r| !r.valgt && r.standard).count(),
         ikke_foreslaaet: b.raekker.iter().filter(|r| !r.valgt && !r.standard).count(),
         aldrig,
+        tilfoejet_vaerdier: b.raekker.iter().filter(|r| r.valgt && r.tilfoejet.is_some()).count(),
+        tilfoejet_steder: b.raekker.iter().filter(|r| r.valgt && r.tilfoejet.is_some()).map(|r| r.antal).sum(),
     };
     Ok((
         Maskering {
@@ -2628,7 +2852,7 @@ pub fn fil_analyser(
         (None, Some(f)) => Udvalg::Fravalgt(f),
         (None, None) => Udvalg::Standard,
     };
-    let a = analyser_i(t, &h.fil.tekst, udvalg, rettelser)?;
+    let a = analyser_i(t, &h.fil.tekst, udvalg, rettelser, &[])?.analyse;
     let mut gamle = std::mem::replace(&mut h.raekker, a.raekker);
     nulstil_raekker(&mut gamle);
     h.fejl = a.fejl.clone();
@@ -2676,7 +2900,7 @@ pub fn fil_gem_og_masker(t: &Tilstand, fravalgt: &[usize], rettelser: &[Rettelse
     let mut g = t.fil(Visning::Masker);
     let h = g.as_mut().ok_or(UiFejl::IngenFil)?;
     h.resultat = None;
-    let (m, nr, tal) = gem_og_masker_i(t, &h.fil.tekst, fravalgt, rettelser)?;
+    let (m, nr, tal) = gem_og_masker_i(t, &h.fil.tekst, fravalgt, rettelser, &[])?;
     let (uddrag, ikke_vist) = fil::uddrag(&m.maskeret);
     let bytes = m.maskeret.len();
     let rester = m.rester.iter().map(|r| r.antal).sum();

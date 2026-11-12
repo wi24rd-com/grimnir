@@ -44,6 +44,20 @@ pub const GENVEJ_INDSTILLINGER: &str = "CmdOrCtrl+,";
 /// Genvejen til Afslut.
 pub const GENVEJ_AFSLUT: &str = "CmdOrCtrl+Q";
 
+/// Rediger → Fortryd (⌘Z) og Gentag (⇧⌘Z) (V-MANUEL.1 N2): egne punkter, ikke systemets `undo:`/`redo:`. Hændelsen
+/// `menu` med "fortryd" eller "gentag"; webvisningen afgør: står fokus i et tekstfelt, fortryder den feltets egen
+/// redigering (`document.execCommand('undo')`), ellers brugerens seneste valg i Maskér. Systemets punkter sender kun
+/// `undo:` til webvisningen, og den gør intet, når fokus ikke står i et felt, så et klik i menuen kunne ikke nå Grimnirs
+/// valg. Tastetrykket ⌘Z når siden før menuen (WebKit); siden stopper det selv uden for et felt, så menuen ikke også
+/// slår til.
+pub const FORTRYD: &str = "pm-fortryd";
+/// Rediger → Gentag (⇧⌘Z).
+pub const GENTAG: &str = "pm-gentag";
+/// Genvejen til Fortryd.
+pub const GENVEJ_FORTRYD: &str = "CmdOrCtrl+Z";
+/// Genvejen til Gentag (som macOS: ⇧⌘Z).
+pub const GENVEJ_GENTAG: &str = "CmdOrCtrl+Shift+Z";
+
 /// Menupunktets id → navnet, webvisningen får i hændelsen `menu`; `None` for alt andet. Ren funktion.
 pub fn handling(id: &str) -> Option<&'static str> {
     match id {
@@ -55,6 +69,8 @@ pub fn handling(id: &str) -> Option<&'static str> {
         TEKST_STOERRE => Some("tekst-stoerre"),
         TEKST_MINDRE => Some("tekst-mindre"),
         TEKST_NORMAL => Some("tekst-normal"),
+        FORTRYD => Some("fortryd"),
+        GENTAG => Some("gentag"),
         _ => None,
     }
 }
@@ -213,8 +229,8 @@ pub fn byg(app: &tauri::AppHandle, t: &Tekster) -> tauri::Result<tauri::menu::Me
         t.rediger,
         true,
         &[
-            &P::undo(app, Some(t.fortryd))?,
-            &P::redo(app, Some(t.gentag))?,
+            &MenuItem::with_id(app, FORTRYD, t.fortryd, true, Some(GENVEJ_FORTRYD))?,
+            &MenuItem::with_id(app, GENTAG, t.gentag, true, Some(GENVEJ_GENTAG))?,
             &P::separator(app)?,
             &P::cut(app, Some(t.klip))?,
             &P::copy(app, Some(t.kopier))?,
@@ -330,6 +346,33 @@ mod tests {
         // Ingen af de tre er en genvej, menuen har i forvejen.
         let andre = [GENVEJ_AABN, GENVEJ_GEM, GENVEJ_INDSTILLINGER, GENVEJ_AFSLUT];
         assert!(vis_punkter(&EN).iter().all(|(_, _, g)| !andre.contains(g)));
+    }
+
+    #[test]
+    fn fortryd_og_gentag_er_grimnirs_egne_punkter_med_genveje() {
+        // V-MANUEL.1 N2: hændelsen `menu` med "fortryd"/"gentag"; webvisningen afgør, om det er feltets fortryd.
+        assert_eq!(handling(FORTRYD), Some("fortryd"));
+        assert_eq!(handling(GENTAG), Some("gentag"));
+        assert_eq!((GENVEJ_FORTRYD, GENVEJ_GENTAG), ("CmdOrCtrl+Z", "CmdOrCtrl+Shift+Z"));
+        assert_eq!(
+            (DA.fortryd, DA.gentag, EN.fortryd, EN.gentag),
+            ("Fortryd", "Gentag", "Undo", "Redo")
+        );
+        let andre = [
+            GENVEJ_AABN,
+            GENVEJ_GEM,
+            GENVEJ_INDSTILLINGER,
+            GENVEJ_AFSLUT,
+            GENVEJ_TEKST_STOERRE,
+            GENVEJ_TEKST_MINDRE,
+            GENVEJ_TEKST_NORMAL,
+        ];
+        assert!(!andre.contains(&GENVEJ_FORTRYD) && !andre.contains(&GENVEJ_GENTAG));
+        // Byggeren bruger dem (ikke systemets undo/redo).
+        let kilde = include_str!("programmenu.rs");
+        let byg = &kilde[kilde.find("pub fn byg(").expect("byg")..kilde.find("pub fn platform_skript").expect("platform")];
+        assert!(byg.contains("MenuItem::with_id(app, FORTRYD") && byg.contains("MenuItem::with_id(app, GENTAG"));
+        assert!(!byg.contains(&["P::", "undo("].concat()) && !byg.contains(&["P::", "redo("].concat()));
     }
 
     #[test]

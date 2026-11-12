@@ -80,6 +80,14 @@ export const PAR = [
   ['info', 'surface-raised', TEKST, 'Wizard: Spring over (tekstknap) i fodlinjen'],
   ['info', 'surface-raised', KANT, 'Wizard: fokusring i trinlisten og fodlinjen'],
   ['text', 'surface', TEKST, 'Wizard: overskrift, sætning og felter'],
+  // V-MANUEL.1: genvejsmenuen for en markering og typens valgliste i en tilføjet række.
+  ['text', 'surface', TEKST, 'V-MANUEL.1: punkterne i genvejsmenuen og typen i valglisten'],
+  ['text', 'surface-raised', TEKST, 'V-MANUEL.1: genvejsmenuens punkt ved hover og fokus'],
+  ['text-muted', 'surface', TEKST, 'V-MANUEL.1: genvejen (kbd) i genvejsmenuen og valglistens pil'],
+  ['text-muted', 'surface-raised', TEKST, 'V-MANUEL.1: genvejen (kbd) ved hover og fokus'],
+  ['border-strong', 'surface', KANT, 'V-MANUEL.1: genvejsmenuens kant og valglistens kant'],
+  ['info', 'surface-raised', KANT, 'V-MANUEL.1: fokusring på genvejsmenuens punkt'],
+  ['info', 'surface', KANT, 'V-MANUEL.1: fokusring på valglisten og Fjern i en tilføjet række'],
   // V-ORDBOG.1: Ordbog-visningen, Maskér → ordbogen, indstillinger.
   ['text', 'surface-raised', TEKST, 'Ordbog: gruppeoverskriften Maskér altid / Maskér aldrig'],
   ['text-muted', 'surface-raised', TEKST, 'Ordbog: gruppens note'],

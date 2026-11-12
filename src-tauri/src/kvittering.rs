@@ -46,6 +46,10 @@ pub struct Tal {
     pub ikke_foreslaaet: usize,
     /// Forskellige værdier på "Maskér aldrig", som analysen mødte i teksten.
     pub aldrig: usize,
+    /// V-MANUEL.1: af de maskerede værdier dem, brugeren selv tilføjede ("Maskér dette"): antal værdier (rækker) …
+    pub tilfoejet_vaerdier: usize,
+    /// … og antal steder.
+    pub tilfoejet_steder: usize,
 }
 
 /// Hvor teksten kom fra.
@@ -174,6 +178,19 @@ pub fn tekst(tal: &Tal, sag: Option<&str>, kilde: Kilde, engelsk: bool) -> Strin
         v(tal.typer.iter().map(|t| t.vaerdier).sum()),
         s(tal.typer.iter().map(|t| t.steder).sum())
     ));
+    // V-MANUEL.1: kun når brugeren selv har tilføjet værdier (så kvitteringen er uændret uden dem).
+    if tal.tilfoejet_vaerdier > 0 {
+        linje(format!(
+            "- {}: {}, {}",
+            if en {
+                "Of which added by the user"
+            } else {
+                "Heraf tilføjet af brugeren"
+            },
+            v(tal.tilfoejet_vaerdier),
+            s(tal.tilfoejet_steder)
+        ));
+    }
     linje(String::new());
     linje(if en {
         format!("Leak check: {} found", antal(tal.rester, "leftover", "leftovers"))
@@ -250,6 +267,8 @@ mod tests {
             fravalgt: 0,
             ikke_foreslaaet: 0,
             aldrig: 0,
+            tilfoejet_vaerdier: 0,
+            tilfoejet_steder: 0,
         };
         let da = tekst(&tal, None, Kilde::Tekst, false);
         assert!(da.contains("Maskeret tekst: 1 linje, 1 tegn\n"), "{da}");

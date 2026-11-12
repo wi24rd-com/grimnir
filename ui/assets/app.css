@@ -254,6 +254,40 @@ html[lang="en"] .sagtabel { --k6: 160px; --tabel-min: 728px; }
 .mini[disabled]:hover { background: var(--surface); }
 .raekkeadv { display: block; margin-top: 2px; color: var(--text-muted); font-size: var(--small-size); line-height: var(--small-line); }
 .raekkeadv::before { content: "! "; font-weight: 700; color: var(--warn); }
+/* V-MANUEL.1 N1: en tilføjet række. Typen er en valgliste (kittets Valgliste) i Type-kolonnen, kompakt, så den kan være i
+   kolonnen: på dansk med pilen (Domæne 61 px + 4 + 20 + kant 2 = 87 ≤ 92 px), på engelsk uden pil og med 2 px polstring
+   (Machine 57 + 4 + kant 2 = 63 ≤ 64 px; kolonnen er 80/72 px). Skriften er tabellens, så de målte typeord gælder
+   (MAALT_ORD i tests/ui/kolonner.mjs). Advarslen under værdien (kort værdi, 0 steder) står på sin egen linje. */
+.fundtabel .typevalg { display: block; }
+.fundtabel .typevalg .vliste select { height: 26px; padding: 0 20px 0 4px; font-size: inherit; }
+.fundtabel .typevalg .vliste svg { right: 4px; width: 12px; height: 12px; margin-top: -6px; }
+html[lang="en"] .fundtabel .typevalg .vliste select { padding: 0 2px; }
+html[lang="en"] .fundtabel .typevalg .vliste svg { display: none; }
+.vaerdi.med-adv { flex-wrap: wrap; row-gap: 0; }
+.vaerdi.med-adv .raekkeadv { flex: 1 0 100%; margin-top: 0; }
+.ingen-kode { display: block; padding: 4px 0; }
+/* Fjern er altid kun krydset (24 px, navnet i aria-label og værktøjstippet), også hvor Altid og Aldrig viser ordet: på
+   engelsk ville "Always" og "Remove" med ord fylde 158 px i Ordbog-kolonnens 148 (kolonner.mjs). Reglen står efter de
+   brede regler og har mindst deres vægt, så den vinder. */
+:root .fundtabel .ordbogknapper .mini.ikonknap.fjern { width: 24px; padding: 0; gap: 0; }
+:root .fundtabel .ordbogknapper .mini.ikonknap.fjern .skjult-tekst {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+/* V-MANUEL.1 N1: genvejsmenuen for en markering i teksten. Den står i tekstpanelet under hovedet (højre), ikke ved musen:
+   en placering ved musen kræver inline-stil (CSP'en og "ingen inline-stil sat fra JavaScript"; kit-ønske G20). */
+.tekstpanel { position: relative; }
+.genvejsmenu {
+  position: absolute; top: 40px; right: var(--space-3); z-index: 3; display: flex; flex-direction: column; min-width: 200px; padding: var(--space-1);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-pop);
+}
+.genvejsmenu[hidden] { display: none; }
+.menupunkt {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); height: 30px; padding: 0 var(--space-2);
+  border: 0; border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: var(--body-size); text-align: left; cursor: pointer;
+}
+.menupunkt:hover, .menupunkt:focus-visible { background: var(--surface-raised); }
+.menupunkt:focus-visible { outline: 2px solid var(--info); outline-offset: -2px; }
+.menupunkt kbd { font-family: var(--mono-family); font-size: var(--small-size); color: var(--text-muted); }
 /* Type, Værdi eller mønster (resten), Note (V-RET.1 R1). */
 .ordbogtabel { --k1: 160px; --k3: 34%; }
 .ordbogtabel td .muted { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }

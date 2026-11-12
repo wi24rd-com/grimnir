@@ -1007,27 +1007,35 @@ fn ordbogen(c: &mut Ctx) {
         }
     }
 
-    // Ord, personer og NetBIOS-navne
-    let mut ord: Vec<(String, Art)> = Vec::new();
-    ord.extend(c.ordbog.ord.iter().map(|o| (o.trim().to_string(), Art::Ord)));
-    ord.extend(c.ordbog.personer.iter().map(|o| (o.trim().to_string(), Art::Person)));
+    // Værdier, brugeren har peget på (V-MANUEL.1), ord, personer og NetBIOS-navne. De tilføjede står først, så de vinder
+    // over en ordbogsindgang med samme spænd (brugerens valg af art gælder).
+    let mut ord: Vec<(String, Art, Sikkerhed)> = Vec::new();
+    ord.extend(c.ordbog.gyldige_tilfoejede().map(|(v, a)| (v.to_string(), a, Sikkerhed::Sikker)));
+    ord.extend(c.ordbog.ord.iter().map(|o| (o.trim().to_string(), Art::Ord, Sikkerhed::Ordbog)));
+    ord.extend(
+        c.ordbog
+            .personer
+            .iter()
+            .map(|o| (o.trim().to_string(), Art::Person, Sikkerhed::Ordbog)),
+    );
     ord.extend(
         c.ordbog
             .domaener
             .iter()
             .filter(|d| !d.contains('.'))
-            .map(|o| (o.trim().to_string(), Art::NetbiosDomaene)),
+            .map(|o| (o.trim().to_string(), Art::NetbiosDomaene, Sikkerhed::Ordbog)),
     );
-    ord.retain(|(o, _)| !o.is_empty());
+    ord.retain(|(o, _, _)| !o.is_empty());
     if !ord.is_empty() {
         let ac = AhoCorasick::builder()
             .ascii_case_insensitive(true)
             .match_kind(MatchKind::LeftmostLongest)
-            .build(ord.iter().map(|(o, _)| o.as_bytes()));
+            .build(ord.iter().map(|(o, _, _)| o.as_bytes()));
         if let Ok(ac) = ac {
             for m in ac.find_iter(t) {
                 if ved_graense(t, m.start(), m.end(), N) {
-                    nye.push(fund(m.start(), m.end(), ord[m.pattern().as_usize()].1, Sikkerhed::Ordbog, None));
+                    let (_, art, sikkerhed) = &ord[m.pattern().as_usize()];
+                    nye.push(fund(m.start(), m.end(), *art, *sikkerhed, None));
                 }
             }
         }

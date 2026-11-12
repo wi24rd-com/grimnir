@@ -139,7 +139,8 @@ const plads = b => (b.parentElement.classList.contains('tip-plads') ? b.parentEl
     tjek(`${id}: træets valgte punkt har aria-current`, d.querySelectorAll(`.navdel[data-visning="${id}"] .tr[aria-current="true"]`).length === 1);
     tjek(`${id}: ${i + 1}. visning`, links[i].classList.contains('on'));
   }
-  const kommandoer = { masker: ['Indsæt', 'Åbn fil', 'Analysér', 'Gem og maskér', 'Før og efter', 'Kopiér', 'Gem maskeret fil', 'Kopiér kvittering'], demasker: ['Indsæt', 'Åbn fil', 'Demaskér', 'Næste advarsel', 'Kopiér resultat', 'Gem som fil'], sager: ['Ny sag', 'Åbn i Maskér', 'Omdøb', 'Udløb', 'Eksportér', 'Importér', 'Slet sag'], ordbog: ['Tilføj post', 'Ret', 'Prøv på tekst', 'Importér', 'Eksportér', 'Fjern post'] };
+  // V-MANUEL.1: Ryd (Maskér og Demaskér), Fortryd og Gentag (gruppen Rediger) og Maskér dette (gruppen Maskering).
+  const kommandoer = { masker: ['Indsæt', 'Åbn fil', 'Ryd', 'Fortryd', 'Gentag', 'Maskér dette', 'Analysér', 'Gem og maskér', 'Før og efter', 'Kopiér', 'Gem maskeret fil', 'Kopiér kvittering'], demasker: ['Indsæt', 'Åbn fil', 'Ryd', 'Demaskér', 'Næste advarsel', 'Kopiér resultat', 'Gem som fil'], sager: ['Ny sag', 'Åbn i Maskér', 'Omdøb', 'Udløb', 'Eksportér', 'Importér', 'Slet sag'], ordbog: ['Tilføj post', 'Ret', 'Prøv på tekst', 'Importér', 'Eksportér', 'Fjern post'] };
   for (const [id, liste] of Object.entries(kommandoer)) {
     const ord = [...d.querySelectorAll(`#baand > [data-visning="${id}"] .grupper[data-fane="start"] .cb`)].map(b => b.textContent.trim());
     tjek(`${id}: kommandoerne fra design/skaerme/`, JSON.stringify(ord) === JSON.stringify(liste), JSON.stringify(ord));
@@ -442,7 +443,7 @@ const raekkeMed = (d, id) => d.querySelector(`section[data-visning="masker"] .fu
   const stor = 'x'.repeat(5 * 1024 * 1024 + 1);
   tom.focus();
   indsaet(w, tom, stor);
-  tjek('over 5 MB: afvist med banner, intet indsat', G.M.st.tekst === null && /Teksten er 5\.0 MB\. Grimnir tager højst 5 MB/.test(sek.textContent) && sek.querySelector('.ban.danger'));
+  tjek('over 5 MB: afvist med banner, intet indsat', G.M.st.tekst === null && /Teksten er 5,0 MB\. Grimnir tager højst 5 MB/.test(sek.textContent) && sek.querySelector('.ban.danger'));
   tjek('utf8Laengde tæller bytes (æ = 2, € = 3, 😀 = 4)', G.utf8Laengde('aæ€😀') === 10 && G.MAKS_BYTES === 5242880);
 
   // ⌘V: teksten gemmes bytepræcist og vises i et felt, der ikke kan redigeres.
@@ -928,7 +929,7 @@ const aaben = (d, id) => { const e = d.getElementById(id); return Boolean(e && e
   indsaet(w, dsek.querySelector('.tomt'), seks);
   tjek('Demaskér: 6 MB tages imod (grænsen er 8 MB)', w.GrimnirMaskering.D.st.tekst === seks);
   indsaet(w, dsek.querySelector('pre.tekst'), 'x'.repeat(8 * 1024 * 1024 + 1));
-  tjek('Demaskér: over 8 MB afvises med besked', w.GrimnirMaskering.D.st.tekst === seks && /Teksten er 8\.0 MB\. Demaskér tager højst 8 MB/.test(dsek.textContent));
+  tjek('Demaskér: over 8 MB afvises med besked', w.GrimnirMaskering.D.st.tekst === seks && /Teksten er 8,0 MB\. Demaskér tager højst 8 MB/.test(dsek.textContent));
   s.emit('fuldskaerm', true);
   tjek('fuldskærm: <html data-fuldskaerm>', d.documentElement.hasAttribute('data-fuldskaerm'));
   s.emit('fuldskaerm', false);
@@ -1486,7 +1487,7 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   tjek(`sprog: hver FilFejl (${arter.length}) og hvert "ligner" (${ligner.length}) fra fil.rs har en tekst`, arter.length >= 7 && ligner.length === 6 && uden.length === 0, uden.join(', '));
   tjek('fil.rs: hvert "ligner" i dokumentationen bruges i koden', ligner.every(l => filrs.includes(`"${l}"`)));
   const GMw = w.GrimnirMaskering;
-  tjek('filfejl som tekst: Latin-1 med byteposition og stor fil med MB', GMw.filFejlTekst({ art: 'tegnsaet', ligner: 'enkeltbyte', byte: 1234 }).includes('position 1.234') && GMw.filFejlTekst({ art: 'for_stor', bytes: 110100480, maks: 104857600 }) === 'filen er 105.0 MB, og grænsen er 100.0 MB');
+  tjek('filfejl som tekst: Latin-1 med byteposition og stor fil med MB', GMw.filFejlTekst({ art: 'tegnsaet', ligner: 'enkeltbyte', byte: 1234 }).includes('position 1.234') && GMw.filFejlTekst({ art: 'for_stor', bytes: 110100480, maks: 104857600 }) === 'filen er 105,0 MB, og grænsen er 100,0 MB');
 }
 
 // ── Maskér med en fil: åbn, uddrag, rækker fra Rust, søgning over alle, gem, kopiér ──
@@ -1506,9 +1507,9 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   await vent(10);
   tjek('Arkiv → Åbn… (⌘O): fil_aabn for Maskér', s.kald.some(k => k[0] === 'fil_aabn' && k[1].visning === 'masker') && G.M.st.fil && G.M.st.fil.navn === 'app.log');
   const fi = sek.querySelector('.vl .filinfo');
-  tjek('værktøjslinjen: filnavn, størrelse, tegnsæt og linjeskift', fi && !fi.hidden && fi.textContent === 'app.log11.8 MBUTF-16 LECRLF', fi && fi.textContent);
+  tjek('værktøjslinjen: filnavn, størrelse, tegnsæt og linjeskift', fi && !fi.hidden && fi.textContent === 'app.log11,8 MBUTF-16 LECRLF', fi && fi.textContent);
   tjek('uddraget vises, og en linje siger, hvor meget der ikke vises', sek.querySelector('pre.tekst').textContent.startsWith('Password=') && sek.querySelector('.afkortet').textContent === 'Viser de første 200.000 tegn. 1.234.567 tegn mere er med i maskeringen, men vises ikke.' && !sek.querySelector('.afkortet').hidden);
-  tjek('tekstpanelet viser filens linjer og størrelse', sek.querySelector('.panel .panel-hoved .muted').textContent.includes('1202'));
+  tjek('tekstpanelet viser filens linjer og størrelse', sek.querySelector('.panel .panel-hoved .muted').textContent.includes('1.202 linjer'));
   s.tast('Enter', { metaKey: true });
   await vent(10);
   const fa = s.kald.filter(k => k[0] === 'fil_analyser');
@@ -1895,7 +1896,7 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   s.tast('Enter', { metaKey: true }); await vent(5);
   tjek('R3: Demaskér efter demaskering: 4 linjer fra Rust (tekst med afsluttende CRLF)', info().startsWith('4 linjer'), info());
   const m = ui('assets/maskering.js');
-  tjek('R3: ingen linjetælling i webvisningen (split på linjeskift)', !/split\(['"]\\n['"]\)/.test(m) && !/split\(\/\\r\?\\n\//.test(m));
+  tjek('R3 (V-MANUEL.1 N5): webvisningen tæller linjerne uden split på linjeskift (efter Rusts regel, antalLinjer)', !/split\(['"]\\n['"]\)/.test(m) && !/split\(\/\\r\?\\n\//.test(m));
 }
 
 // ── V-RET.1 R4: ental og flertal i begge sprog ──
@@ -3429,22 +3430,8 @@ const elNavn = e => e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') + (e.clas
   tjek('V-PUDS.3 N1: app.css: ingen regel giver .valg .felt en max-width (kun .vliste i den)', !CSS_REGLER.some(r => r.sel === '.valg .felt' && 'max-width' in r.decl) && CSS_REGLER.some(r => r.sel === '.valg .felt > .vliste' && r.decl['max-width'] === '260px'));
 }
 
-// ── N2: "Næste advarsel" i Demaskér er en pladsholder (ingen fejl) ──
-{
-  const s = side({ rust: falskRust() });
-  const { d, w } = s;
-  await vent(5);
-  indsaet(w, d.querySelector('section[data-visning="masker"] .tomt'), TEKST);
-  s.tast('Enter', { metaKey: true }); await vent(5);
-  s.tast('Enter', { metaKey: true }); await vent(5);
-  w.location.hash = 'demasker'; await vent(5);
-  indsaet(w, d.querySelector('section[data-visning="demasker"] .tomt'), 'Prøv 198.18.0.11 og h0099');
-  s.tast('Enter', { metaKey: true }); await vent(5);
-  const b = knapI(d, 'demasker', 'naeste-advarsel');
-  const GM = w.GrimnirMaskering;
-  tjek('V-PUDS.3 N2: Demaskér med advarsler: Næste advarsel er slået fra med forklaringen "Kommer i en senere version af Grimnir" (en pladsholder siden V-SKAL.1; spørgsmål til Jan)', GM.D.st.resultat && GM.D.st.resultat.advarsler.length === 2 && !kommandoAktiv(d, 'demasker', 'naeste-advarsel') && forklaring(b) === 'Kommer i en senere version af Grimnir');
-  tjek('V-PUDS.3 N2: … kommandoen har ingen handling: app.js bygger den med senere(…), ikke aktiv(…), og maskering.js registrerer ingen', /senere\('naeste-advarsel', 'kNaesteAdvarsel', 'naeste'\)/.test(ui('assets/app.js')) && !/naeste-advarsel/.test(ui('assets/maskering.js')));
-}
+// ── V-PUDS.3 N2 → V-MANUEL.1 N4: "Næste advarsel" er bygget (de to tjek om pladsholderen er erstattet af afsnittet
+//    "V-MANUEL.1 N4" længere nede) ──
 
 // ── N4: fejlen i en dialog ryddes, når feltet, den handler om, ændres ──
 {
@@ -3672,6 +3659,523 @@ const elNavn = e => e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') + (e.clas
   const alle = [...d.querySelectorAll('.skjult-tekst')].filter(e => cssVaerdi(e, 'position') === 'absolute');
   const udenNogen = alle.filter(e => { for (let a = e.parentElement; a; a = a.parentElement) { const p = cssVaerdi(a, 'position'); if (p && p !== 'static') return false; } return true; });
   tjek(`V-PUDS.3 N7: gennemgang: hver af de ${alle.length} skjulte tekster i Grimnir har en forfader med position`, alle.length >= 10 && udenNogen.length === 0, udenNogen.map(e => elNavn(e.parentElement)).join(', '));
+}
+
+// ═════════════════════════════ V-MANUEL.1 ═════════════════════════════
+// Maskér dette (N1), Fortryd og Gentag (N2), Ryd (N3), Næste advarsel (N4) og størrelser og linjetal (N5) med en
+// efterlignet Rust (falskManuelRust), der finder de tilføjede værdier som kernen: alle steder ved en grænse (bogstaver og
+// cifre er ikke grænser), uden hensyn til store/små bogstaver, ikke inde i adressen (overlap), og afviser "h0001" (en kode
+// i sagen) og "aldrigord" (maskér aldrig). Kun opdigtede værdier. Ingen test læser den rigtige udklipsholder.
+const MTEKST = 'login jdoe fra 10.20.30.11\nfejl: JDoe, jdoe2, xjdoe\nhost pc-17 og db1 og h0001\n';
+function falskManuelRust() {
+  const log = { analyser: [], gem: [] };
+  const PRAEFIKS = { ord: 'ord', bruger: 'user', vaert: 'h', domaene: 'd', person: 'Person ' };
+  let poster = 0, koder = {};
+  const graenseRe = v => new RegExp(`(?<![A-Za-z0-9])${v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![A-Za-z0-9])`, 'gi');
+  const beregn = ({ tekst, fravalgt, rettelser, tilfoejede }) => {
+    const ret = new Map((rettelser || []).map(r => [r.id, r.kode]));
+    const ip = tekst.indexOf('10.20.30.11');
+    const raa = [];
+    if (ip >= 0) raa.push({ id: ip, art: 'ipv4_egen', status: 'sikker', standard: true, hemmelig: false, vaerdier: ['10.20.30.11'], koder: ['198.18.0.11'], antal: 1, linje: 1, laast: false, tilfoejet: null });
+    const kode = tekst.indexOf('h0001');
+    if (kode >= 0) raa.push({ id: kode, art: 'ligner_kode', status: 'sikker', standard: true, hemmelig: false, vaerdier: ['h0001'], koder: ['ord0099'], antal: 1, linje: 3, laast: true, tilfoejet: null });
+    const svar = (tilfoejede || []).map((t, nr) => {
+      const v = t.vaerdi.trim();
+      if (v === 'h0001') return { nr, raekke: null, antal: 0, afvist: 'kode' };
+      if (v.toLowerCase() === 'aldrigord') return { nr, raekke: null, antal: 0, afvist: 'aldrig' };
+      const steder = [...tekst.matchAll(graenseRe(v))].filter(m => !(ip >= 0 && m.index >= ip && m.index < ip + 11));
+      if (!steder.length) return { nr, raekke: null, antal: 0, afvist: null };
+      const stave = [...new Set(steder.map(m => m[0]))];
+      raa.push({ id: steder[0].index, art: t.art, status: 'sikker', standard: true, hemmelig: false, vaerdier: stave, koder: stave.map((_, j) => PRAEFIKS[t.art] + String(nr + 1).padStart(4, '0') + (j ? 'b' : '')), antal: steder.length, linje: tekst.slice(0, steder[0].index).split('\n').length, laast: false, tilfoejet: nr });
+      return { nr, raekke: steder[0].index, antal: steder.length, afvist: null };
+    });
+    raa.sort((a, b) => a.id - b.id);
+    const ider = new Set(raa.map(r => r.id));
+    const fejl = [...ret.keys()].filter(id => !ider.has(id)).map(id => ({ id, fejl: 'ukendt_raekke', kode: ret.get(id) }));
+    const raekker = raa.map(r => ({ ...r, kendt: false, rettet: ret.has(r.id), valgt: r.laast || (fravalgt == null ? r.standard : !fravalgt.includes(r.id)), koder: ret.has(r.id) ? r.koder.map(() => ret.get(r.id)) : r.koder }));
+    return { raekker, fejl, tilfoejede: svar };
+  };
+  return {
+    log,
+    analyser: a => { log.analyser.push(JSON.parse(JSON.stringify(a))); const b = beregn(a); return { raekker: b.raekker, fejl: b.fejl, advarsler: [], bytes: a.tekst.length, linjer: 4, tilfoejede: b.tilfoejede }; },
+    gem_og_masker: a => {
+      log.gem.push(JSON.parse(JSON.stringify(a)));
+      const b = beregn(a);
+      let m = a.tekst;
+      koder = {};
+      for (const r of b.raekker.filter(x => x.valgt)) r.vaerdier.forEach((v, i) => { m = m.split(v).join(r.koder[i]); koder[r.koder[i]] = v; });
+      poster = Object.keys(koder).length;
+      return { maskeret: m, rester: [], advarsler: [], poster };
+    },
+    demasker: a => {
+      let t = a.tekst;
+      for (const [k, o] of Object.entries(koder)) t = t.split(k).join(o);
+      const adv = [{ art: 'ukendt_kode', kode: 'h0099', antal: 1, linje: 2 }, { art: 'overloeb_mac', kode: '', antal: 1, linje: 0 }, { art: 'anden_stavemaade', kode: 'USER0001', antal: 2, linje: 4 }, { art: 'ikke_brugt', kode: 'ord0001', antal: 1, linje: 0 }];
+      return { tekst: t, linjer: 4, koder: Object.keys(koder), tilbage: [], advarsler: a.tekst.includes('ingen advarsler') ? adv.filter(x => x.art === 'ikke_brugt') : adv };
+    },
+    sag_status: () => ({ poster }),
+    menu_sprog: () => null,
+  };
+}
+const preM = d => d.querySelector('section[data-visning="masker"] pre.tekst');
+/* Markerer [fra, til) i Maskérs tekstfelt (som musen gør) og melder selectionchange, som WebKit gør. */
+function marker(w, d, fra, til) {
+  const n = preM(d).firstChild;
+  w.getSelection().setBaseAndExtent(n, fra, n, til);
+  d.dispatchEvent(new w.Event('selectionchange'));
+}
+const markerOrd = (w, d, ord, n = 0) => { let i = -1; for (let k = 0; k <= n; k++) i = MTEKST.indexOf(ord, i + 1); marker(w, d, i, i + ord.length); };
+const beskedM = d => d.querySelector('section[data-visning="masker"] .arbejde .besked');
+const tilfRaekke = (d, v) => [...d.querySelectorAll('section[data-visning="masker"] .fundtabel tr.tilfoejet')].find(tr => tr.querySelector('.vaerdi .mono') && tr.querySelector('.vaerdi .mono').textContent.split(', ').some(x => x.toLowerCase() === v.toLowerCase()));
+async function manuelSide(o = {}) {
+  const rust = falskManuelRust();
+  const s = side({ rust, ...o });
+  const { d, w } = s;
+  await vent(5);
+  indsaet(w, d.querySelector('section[data-visning="masker"] .tomt'), MTEKST);
+  s.tast('Enter', { metaKey: !o.platform || o.platform === 'macos', ctrlKey: o.platform === 'windows' });
+  await vent(10);
+  return { ...s, rust, GM: w.GrimnirMaskering };
+}
+
+// ── V-MANUEL.1 N1: Maskér dette fra båndet ──
+{
+  const s = await manuelSide();
+  const { d, w, GM, rust } = s;
+  const b = knapI(d, 'masker', 'masker-dette');
+  tjek('V-MANUEL.1 N1: Maskér dette står i båndets gruppe Maskering (først)', b && b.closest('.grp').querySelector('.cap').textContent === 'Maskering' && b.closest('.kn').firstElementChild === plads(b));
+  tjek('V-MANUEL.1 N1: uden markering er Maskér dette slået fra med en forklaring, der siger hvordan (mus, Skift + piletaster)', !kommandoAktiv(d, 'masker', 'masker-dette') && /^Markér en værdi i teksten først, med musen eller Skift \+ piletaster/.test(forklaring(b) || ''), forklaring(b));
+  tjek('V-MANUEL.1 N1: hjælpeteksten siger grænsereglen (et helt ord; bogstav eller ciffer før eller efter = længere ord)', /som et helt ord/.test(forklaring(b)) && /et bogstav eller et ciffer lige før eller efter gør den til en del af et længere ord/.test(forklaring(b)));
+  markerOrd(w, d, 'jdoe');
+  tjek('V-MANUEL.1 N1: med en markering i teksten er Maskér dette slået til, med genvejen ⇧⌘M', kommandoAktiv(d, 'masker', 'masker-dette') && b.getAttribute('title') === 'Genvej: ⇧⌘M' && b.getAttribute('aria-keyshortcuts') === 'Meta+Shift+M', b.getAttribute('title'));
+  const md = new w.MouseEvent('mousedown', { bubbles: true, cancelable: true });
+  b.dispatchEvent(md);
+  tjek('V-MANUEL.1 N1: musetrykket på båndets knap tager ikke markeringen eller fokus fra teksten (mousedown stoppes)', md.defaultPrevented && GM.M.markering() === 'jdoe');
+  const foer = rust.log.analyser.length;
+  b.click();
+  await vent(10);
+  const sidst = rust.log.analyser[rust.log.analyser.length - 1];
+  tjek('V-MANUEL.1 N1: værdien sendes til Rust med analysen (tilfoejede, type Ord som standard)', rust.log.analyser.length === foer + 1 && JSON.stringify(sidst.tilfoejede) === '[{"vaerdi":"jdoe","art":"ord"}]', JSON.stringify(sidst && sidst.tilfoejede));
+  const tr = tilfRaekke(d, 'jdoe');
+  tjek('V-MANUEL.1 N1: en ny række med alle forekomster (jdoe og JDoe: 2; ikke jdoe2 og xjdoe)', tr && tr.querySelectorAll('td')[4].textContent === '2' && tr.querySelector('.vaerdi .mono').textContent === 'jdoe, JDoe');
+  tjek('V-MANUEL.1 N1: rækken er markeret som tilføjet med ord og symbol (status "Tilføjet", ikke kun farve)', tr && tr.querySelector('.chip').textContent.includes('Tilføjet') && tr.querySelector('.chip svg, .chip .sym, .chip [aria-hidden]'));
+  tjek('V-MANUEL.1 N1: rækken er afkrydset og har en erstatning (som de andre)', tr && tr.querySelector('[data-felt="valg"]').checked && tr.querySelector('[data-felt="kode"]').value.startsWith('ord0001'));
+  const sel = tr && tr.querySelector('select[data-felt="type"]');
+  tjek('V-MANUEL.1 N1: typen er en valgliste med Ord, Bruger, Maskine, Domæne og Person (kernens typer), Ord valgt', sel && [...sel.options].map(o => o.textContent).join() === 'Ord,Bruger,Maskine,Domæne,Person' && sel.value === 'ord' && sel.getAttribute('aria-label') === 'Type for jdoe');
+  tjek('V-MANUEL.1 N1: Ordbog-cellen har Altid og Fjern (ikke Aldrig) for en tilføjet række', tr && tr.querySelector('[data-felt="ordbog-altid"]') && tr.querySelector('[data-felt="fjern"]') && !tr.querySelector('[data-felt="ordbog-aldrig"]') && tr.querySelector('[data-felt="fjern"]').getAttribute('aria-label') === 'Fjern jdoe fra fundene');
+  tjek('V-MANUEL.1 N1: meldingen er høflig (role="status") og siger værdien og antallet', beskedM(d).getAttribute('role') === 'status' && beskedM(d).textContent === 'Tilføjet: jdoe (2 steder).', beskedM(d).textContent);
+  tjek('V-MANUEL.1 N1: den nye række er valgt i tabellen (kittets valg), og fokus bliver i teksten', tr && tr.getAttribute('aria-selected') === 'true' && tr.classList.contains('sel'));
+  tjek('V-MANUEL.1 N1: de andre rækker er ikke tilføjede', [...d.querySelectorAll('section[data-visning="masker"] .fundtabel tbody tr')].filter(x => x.classList.contains('tilfoejet')).length === 1);
+  // Typen: erstatningens form skifter
+  sel.value = 'bruger';
+  sel.dispatchEvent(new w.Event('change', { bubbles: true }));
+  await vent(10);
+  const tr2 = tilfRaekke(d, 'jdoe');
+  tjek('V-MANUEL.1 N1: skift typen til Bruger: Rust får typen, og erstatningen får formen user0001', JSON.stringify(rust.log.analyser[rust.log.analyser.length - 1].tilfoejede) === '[{"vaerdi":"jdoe","art":"bruger"}]' && tr2.querySelector('[data-felt="kode"]').value.startsWith('user0001') && tr2.querySelector('select').value === 'bruger');
+  // En rettet erstatning bliver ved et typeskift
+  const k = tr2.querySelector('[data-felt="kode"]');
+  k.value = 'konto-a';
+  k.dispatchEvent(new w.Event('change', { bubbles: true }));
+  await vent(400);
+  const s3 = tilfRaekke(d, 'jdoe').querySelector('select');
+  s3.value = 'vaert';
+  s3.dispatchEvent(new w.Event('change', { bubbles: true }));
+  await vent(10);
+  tjek('V-MANUEL.1 N1: en erstatning, brugeren selv har rettet, bliver ved et typeskift', tilfRaekke(d, 'jdoe').querySelector('[data-felt="kode"]').value === 'konto-a' && GM.M.st.tilfoejede[0].art === 'vaert');
+  // Analysér igen beholder de tilføjede
+  knapI(d, 'masker', 'analyser').click();
+  await vent(10);
+  tjek('V-MANUEL.1 N1: Analysér igen beholder de tilføjede værdier', JSON.stringify(rust.log.analyser[rust.log.analyser.length - 1].tilfoejede) === '[{"vaerdi":"jdoe","art":"vaert"}]' && tilfRaekke(d, 'jdoe'));
+  // Fjern
+  const fj = tilfRaekke(d, 'jdoe').querySelector('[data-felt="fjern"]');
+  fj.click();
+  await vent(10);
+  tjek('V-MANUEL.1 N1: Fjern fjerner rækken (ikke kun fravalg): Rust får den ikke længere, rettelsen er væk, fokus i teksten', !tilfRaekke(d, 'jdoe') && GM.M.st.tilfoejede.length === 0 && JSON.stringify(rust.log.analyser[rust.log.analyser.length - 1].tilfoejede) === '[]' && GM.M.st.rettelser.size === 0 && d.activeElement === preM(d));
+  tjek('V-MANUEL.1 N1: … og siger det', beskedM(d).textContent === 'Fjernet: jdoe.', beskedM(d).textContent);
+}
+
+// ── V-MANUEL.1 N1: genvejsmenu, genvej og tastatur ──
+{
+  const s = await manuelSide();
+  const { d, w, GM, rust } = s;
+  const pre = preM(d), menu = d.querySelector('section[data-visning="masker"] .tekstpanel .genvejsmenu');
+  const uden = new w.MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+  w.getSelection().removeAllRanges();
+  pre.dispatchEvent(uden);
+  tjek('V-MANUEL.1 N1: højreklik uden markering: webvisningens egen menu (ikke stoppet), Grimnirs er skjult', !uden.defaultPrevented && menu.hidden);
+  markerOrd(w, d, 'db1');
+  const med = new w.MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+  pre.dispatchEvent(med);
+  const punkter = [...menu.querySelectorAll('[role="menuitem"]')];
+  tjek('V-MANUEL.1 N1: højreklik på markeringen: Grimnirs genvejsmenu med Maskér dette (⇧⌘M) og Kopiér, fokus på Maskér dette', med.defaultPrevented && !menu.hidden && menu.getAttribute('role') === 'menu' && menu.getAttribute('aria-label') === 'Handlinger for markeringen' && punkter.map(p => p.textContent).join('|') === 'Maskér dette⇧⌘M|Kopiér⌘C' && d.activeElement === punkter[0], punkter.map(p => p.textContent).join('|'));
+  menu.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+  const ned = d.activeElement === punkter[1];
+  menu.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+  tjek('V-MANUEL.1 N1: genvejsmenuen: piletasterne flytter (og går rundt)', ned && d.activeElement === punkter[0]);
+  menu.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+  tjek('V-MANUEL.1 N1: genvejsmenuen: Esc lukker, og fokus går tilbage til teksten (markeringen står)', menu.hidden && d.activeElement === pre && GM.M.markering() === 'db1', `${menu.hidden} ${d.activeElement && d.activeElement.tagName} «${GM.M.markering()}»`);
+  pre.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'F10', shiftKey: true, bubbles: true, cancelable: true }));
+  tjek('V-MANUEL.1 N1: Skift+F10 i teksten åbner genvejsmenuen fra tastaturet', !menu.hidden && d.activeElement === punkter[0], `${menu.hidden} ${GM.M.kanMarkere()}`);
+  d.body.dispatchEvent(new w.MouseEvent('mousedown', { bubbles: true }));
+  tjek('V-MANUEL.1 N1: et klik uden for genvejsmenuen lukker den', menu.hidden);
+  markerOrd(w, d, 'db1');
+  pre.dispatchEvent(new w.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+  punkter[0].click();
+  await vent(10);
+  tjek('V-MANUEL.1 N1: Maskér dette fra genvejsmenuen tilføjer værdien og lukker menuen', menu.hidden && tilfRaekke(d, 'db1') && JSON.stringify(rust.log.analyser[rust.log.analyser.length - 1].tilfoejede) === '[{"vaerdi":"db1","art":"ord"}]');
+  // Tastaturet: markér pc-17 med Skift + piletaster og brug genvejen ⇧⌘M
+  pre.focus();
+  const i = MTEKST.indexOf('pc-17');
+  w.getSelection().setBaseAndExtent(pre.firstChild, i, pre.firstChild, i);
+  for (let n = 0; n < 5; n++) pre.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'ArrowRight', shiftKey: true, bubbles: true, cancelable: true }));
+  tjek('V-MANUEL.1 N1: Skift + højre pil markerer tegn for tegn i tekstfeltet (fra der, hvor der er klikket)', GM.M.markering() === 'pc-17' && kommandoAktiv(d, 'masker', 'masker-dette'), GM.M.markering());
+  s.tast('M', { metaKey: true, shiftKey: true, code: 'KeyM' });
+  await vent(10);
+  tjek('V-MANUEL.1 N1: ⇧⌘M tilføjer markeringen (uden mus)', tilfRaekke(d, 'pc-17') && GM.M.st.tilfoejede.map(x => x.vaerdi).join() === 'db1,pc-17');
+  w.getSelection().setBaseAndExtent(pre.firstChild, 0, pre.firstChild, 0);
+  pre.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'ArrowRight', shiftKey: true, altKey: true, bubbles: true, cancelable: true }));
+  tjek('V-MANUEL.1 N1: ⌥ + Skift + højre pil markerer et ord ad gangen', GM.M.markering() === 'login', GM.M.markering());
+  const F = GM.M.flyt, T = 'ab cd\r\nef\n😀x';
+  tjek('V-MANUEL.1 N1: markeringens trin: tegn, ord, linjens start og slut, op og ned med samme kolonne (CRLF og LF), et tegn uden for BMP er ét tegn (og op/ned lander ikke midt i det)',
+    F(T, 0, 'ArrowRight', false) === 1 && F(T, 0, 'ArrowRight', true) === 2 && F(T, 2, 'ArrowRight', true) === 5 && F(T, 5, 'ArrowLeft', true) === 3 && F(T, 4, 'Home') === 0 && F(T, 1, 'End') === 5 && F(T, 1, 'ArrowDown') === 8 && F(T, 8, 'ArrowUp') === 1 && F(T, 8, 'ArrowDown') === 10 && F(T, 10, 'ArrowRight') === 12 && F(T, 12, 'ArrowLeft') === 10 && F(T, 0, 'ArrowUp') === 0 && F(T, 13, 'ArrowDown') === 13);
+  // Tab fra teksten til båndets knap: fokus på en knap rydder markeringen (målt i WKWebView; jsdom gør det samme)
+  markerOrd(w, d, 'fejl');
+  const bk = knapI(d, 'masker', 'masker-dette');
+  bk.focus();
+  d.dispatchEvent(new w.Event('selectionchange'));
+  const ryddet = w.getSelection().toString() === '';
+  tjek('V-MANUEL.1 N1: Tab til båndets Maskér dette (markeringen ryddes af fokus): den seneste markering i teksten huskes, og knappen er slået til', ryddet && kommandoAktiv(d, 'masker', 'masker-dette') && GM.M.markering() === 'fejl');
+  bk.click(); await vent(10);
+  tjek('V-MANUEL.1 N1: … Enter/klik tilføjer den huskede værdi og lægger markeringen tilbage i teksten', tilfRaekke(d, 'fejl') && w.getSelection().toString() === 'fejl');
+  const p0 = MTEKST.indexOf('host');
+  w.getSelection().setBaseAndExtent(pre.firstChild, p0, pre.firstChild, p0);
+  d.dispatchEvent(new w.Event('selectionchange'));
+  tjek('V-MANUEL.1 N1: et klik i teksten (en tom markering i den) glemmer den huskede markering: Maskér dette er slået fra', !kommandoAktiv(d, 'masker', 'masker-dette') && GM.M.markering() === '');
+  bk.focus();
+  w.getSelection().removeAllRanges();
+  d.dispatchEvent(new w.Event('selectionchange'));
+  tjek('V-MANUEL.1 N1: … også når fokus derefter går til båndets knap (den gamle markering kommer ikke igen)', !kommandoAktiv(d, 'masker', 'masker-dette') && GM.M.markering() === '');
+  const u = new w.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true });
+  pre.dispatchEvent(u);
+  tjek('V-MANUEL.1 N1: uden Skift ruller piletasterne som før (stoppes ikke)', !u.defaultPrevented);
+  tjek('V-MANUEL.1 N1: genvejen ⇧⌘M er ikke brugt andre steder (menuen, ⌘1–⌘4, ⌘↵, ⇧⌘C, ⌘O, ⌘S, ⌘, ⌘Q, ⌘+/−/0, ⌘Z, ⇧⌘Z, ⌘G)', (() => {
+    const kilde = ui('assets/maskering.js') + ui('assets/app.js') + fs.readFileSync(path.join(repo, 'src-tauri', 'src', 'programmenu.rs'), 'utf8');
+    return !/CmdOrCtrl\+Shift\+M|CmdOrCtrl\+M"|CmdOrCtrl\+G"/.test(kilde) && (kilde.match(/'KeyM'/g) || []).length === 1 && (kilde.match(/'KeyG'/g) || []).length === 1;
+  })());
+}
+
+// ── V-MANUEL.1 N1: reglerne ──
+{
+  const s = await manuelSide();
+  const { d, w, GM, rust } = s;
+  const pre = preM(d);
+  const maskerDette = async () => { knapI(d, 'masker', 'masker-dette').click(); await vent(10); };
+  const n0 = rust.log.analyser.length;
+  marker(w, d, MTEKST.indexOf(' fra'), MTEKST.indexOf(' fra') + 1);
+  await maskerDette();
+  tjek('V-MANUEL.1 N1: kun mellemrum afvises med en forklaring (ingen analyse, intet tilføjet)', beskedM(d).textContent === 'Markeringen er tom eller kun mellemrum.' && rust.log.analyser.length === n0 && GM.M.st.tilfoejede.length === 0, beskedM(d).textContent);
+  marker(w, d, MTEKST.indexOf('11\nfejl'), MTEKST.indexOf('11\nfejl') + 7);
+  await maskerDette();
+  tjek('V-MANUEL.1 N1: en markering over flere linjer afvises med en forklaring', beskedM(d).textContent === 'Markeringen går over flere linjer. Markér en værdi på én linje.' && GM.M.st.tilfoejede.length === 0);
+  marker(w, d, MTEKST.indexOf(' jdoe ') , MTEKST.indexOf(' jdoe ') + 6);
+  await maskerDette();
+  tjek('V-MANUEL.1 N1: mellemrum i enderne skæres af (" jdoe " → jdoe)', GM.M.st.tilfoejede.map(x => x.vaerdi).join() === 'jdoe' && tilfRaekke(d, 'jdoe'));
+  markerOrd(w, d, 'JDoe');
+  await maskerDette();
+  tjek('V-MANUEL.1 N1: en værdi, der allerede er tilføjet (også med andre store/små bogstaver), vælger dens række i stedet for en ny', GM.M.st.tilfoejede.length === 1 && beskedM(d).textContent === 'JDoe er allerede tilføjet; rækken er valgt.' && tilfRaekke(d, 'jdoe').getAttribute('aria-selected') === 'true', beskedM(d).textContent);
+  // Et eksisterende fund: rækken vælges (og slås til, hvis den var fravalgt) i stedet for en ny
+  const ipTr = raekkeMed(d, MTEKST.indexOf('10.20.30.11'));
+  ipTr.querySelector('[data-felt="valg"]').click();
+  await vent(400);
+  const trin = GM.M.hist.bag.length;
+  markerOrd(w, d, '10.20.30.11');
+  await maskerDette();
+  tjek('V-MANUEL.1 N1: en værdi, der præcis er et eksisterende fund, vælger den række (og slår den til) i stedet for en ny', GM.M.st.tilfoejede.length === 1 && raekkeMed(d, MTEKST.indexOf('10.20.30.11')).getAttribute('aria-selected') === 'true' && raekkeMed(d, MTEKST.indexOf('10.20.30.11')).querySelector('[data-felt="valg"]').checked && GM.M.hist.bag.length === trin + 1 && beskedM(d).textContent === '10.20.30.11 er allerede et fund; rækken er valgt.', `${raekkeMed(d, MTEKST.indexOf('10.20.30.11')).getAttribute('aria-selected')} ${GM.M.hist.bag.length - trin} ${beskedM(d).textContent}`);
+  markerOrd(w, d, 'h0001');
+  await maskerDette();
+  tjek('V-MANUEL.1 N1: en af sagens koder (en låst række) afvises (som Ret gør)', GM.M.st.tilfoejede.length === 1 && beskedM(d).textContent === 'h0001 er allerede en kode i sagen og kan ikke maskeres igen.', beskedM(d).textContent);
+  // Delvist overlap (inde i adressen) → 0 steder: rækken advarer
+  markerOrd(w, d, '20.30');
+  await maskerDette();
+  const nul = tilfRaekke(d, '20.30');
+  tjek('V-MANUEL.1 N1: en værdi, der kun står inde i et længere fund, tilføjes med 0 steder og en advarsel i rækken', nul?.querySelectorAll('td')[4]?.textContent === '0' && Boolean(nul?.querySelector('.raekkeadv')?.textContent.startsWith('Står ikke som et helt ord i teksten')) && nul?.querySelector('[data-felt="valg"]')?.disabled && nul?.querySelectorAll('td')[3]?.textContent === '—', nul && nul.textContent);
+  tjek('V-MANUEL.1 N1: … og meldingen siger det', beskedM(d).textContent === 'Tilføjet: 20.30, men den står ikke som et helt ord i teksten.', beskedM(d).textContent);
+  tjek('V-MANUEL.1 N1: … rækken har stadig typen, Altid og Fjern', Boolean(nul?.querySelector('select[data-felt="type"]') && nul?.querySelector('[data-felt="fjern"]') && nul?.querySelector('[data-felt="ordbog-altid"]')));
+  // Et kort ord advarer om antallet
+  markerOrd(w, d, 'og');
+  await maskerDette();
+  const kort = tilfRaekke(d, 'og');
+  tjek('V-MANUEL.1 N1: et kort ord (under 3 tegn) tilføjes, men rækken advarer om antallet af steder', kort?.querySelector('.raekkeadv')?.textContent === 'Kort værdi: står 2 steder. Tjek, at det er de rigtige.', kort && kort.textContent);
+  // Rust afviser: en kode i sagen, der ikke står som en række, og maskér aldrig
+  const foerTrin = GM.M.hist.bag.length;
+  GM.M.st.tilfoejede.push({ vaerdi: 'aldrigord', art: 'ord' });
+  GM.M.st.meld = { v: 'aldrigord' };
+  await GM.M.analyser();
+  await vent(10);
+  tjek('V-MANUEL.1 N1: en værdi på "maskér aldrig" afvises af Rust med grunden og fjernes igen', !GM.M.st.tilfoejede.some(x => x.vaerdi === 'aldrigord') && beskedM(d).textContent === 'aldrigord står på Maskér aldrig i ordbogen, og det vinder over alt. Fjern den dér først.' && GM.M.hist.bag.length === foerTrin, beskedM(d).textContent);
+  // Før og efter med resultatet vist: Maskér dette er slået fra
+  GM.M.st.foerEfter = true; GM.M.st.resultat = { maskeret: 'x', rester: [], advarsler: [] };
+  tjek('V-MANUEL.1 N1: med det maskerede resultat vist er Maskér dette slået fra (vis den indsatte tekst)', GM.M.kanMarkere() === 'hvorforVisTeksten');
+  GM.M.st.foerEfter = false; GM.M.st.resultat = null;
+  GM.M.st.fil = { navn: 'x' };
+  tjek('V-MANUEL.1 N1: i en åben fil er Maskér dette slået fra med en forklaring (kun indsat tekst)', GM.M.kanMarkere() === 'hvorforKunIndsat');
+  GM.M.st.fil = null;
+  // Gem og maskér sender de tilføjede, og en ny tekst fjerner dem
+  s.tast('Enter', { metaKey: true }); await vent(10);
+  tjek('V-MANUEL.1 N1: Gem og maskér sender de tilføjede værdier til Rust (de lægges i sagen)', rust.log.gem.length === 1 && rust.log.gem[0].tilfoejede.map(x => x.vaerdi).join() === 'jdoe,20.30,og');
+  indsaet(w, pre, 'ny tekst om jdoe\n');
+  await vent(5);
+  tjek('V-MANUEL.1 N1: en ny indsat tekst fjerner de tilføjede værdier (og historikken)', GM.M.st.tilfoejede.length === 0 && GM.M.hist.bag.length === 0);
+}
+
+// ── V-MANUEL.1 N2: Fortryd og Gentag ──
+{
+  const s = await manuelSide();
+  const { d, w, GM, rust } = s;
+  const pre = preM(d);
+  const fb = knapI(d, 'masker', 'fortryd'), gb = knapI(d, 'masker', 'gentag');
+  tjek('V-MANUEL.1 N2: Fortryd og Gentag står i båndets gruppe Rediger', fb.closest('.grp').querySelector('.cap').textContent === 'Rediger' && gb.closest('.grp') === fb.closest('.grp'));
+  tjek('V-MANUEL.1 N2: uden noget at fortryde er de slået fra; forklaringen siger, at Gem og maskér tømmer historikken', !kommandoAktiv(d, 'masker', 'fortryd') && forklaring(fb) === 'Intet at fortryde. Historikken tømmes ved Gem og maskér, en ny tekst og Ryd' && !kommandoAktiv(d, 'masker', 'gentag') && /Gem og maskér/.test(forklaring(gb)), forklaring(fb));
+  const ip = MTEKST.indexOf('10.20.30.11');
+  // 1. afkrydsning, 2. Maskér dette, 3. type, 4. erstatning, 5. Fjern
+  raekkeMed(d, ip).querySelector('[data-felt="valg"]').click(); await vent(400);
+  markerOrd(w, d, 'jdoe'); knapI(d, 'masker', 'masker-dette').click(); await vent(10);
+  const sel = tilfRaekke(d, 'jdoe').querySelector('select'); sel.value = 'person'; sel.dispatchEvent(new w.Event('change', { bubbles: true })); await vent(10);
+  const k = tilfRaekke(d, 'jdoe').querySelector('[data-felt="kode"]'); k.value = 'anna-k'; k.dispatchEvent(new w.Event('change', { bubbles: true })); await vent(400);
+  markerOrd(w, d, 'db1'); knapI(d, 'masker', 'masker-dette').click(); await vent(10);
+  tilfRaekke(d, 'db1').querySelector('[data-felt="fjern"]').click(); await vent(10);
+  tjek('V-MANUEL.1 N2: hver handling er ét trin (afkrydsning, Maskér dette ×2, type, erstatning, Fjern)', GM.M.hist.bag.map(x => x.art).join() === 'valg,tilfoej,type,kode,tilfoej,fjern', GM.M.hist.bag.map(x => x.art).join());
+  tjek('V-MANUEL.1 N2: Fortryd er slået til med genvejen ⌘Z, Gentag er stadig slået fra', kommandoAktiv(d, 'masker', 'fortryd') && fb.getAttribute('title') === 'Genvej: ⌘Z' && !kommandoAktiv(d, 'masker', 'gentag'));
+  const meldt = [];
+  const tilbage = [];
+  for (let n = 0; n < 6; n++) {
+    d.body.focus();
+    s.tast('z', { metaKey: true, code: 'KeyZ' });
+    await vent(10);
+    meldt.push(beskedM(d).textContent);
+    tilbage.push(JSON.stringify(rust.log.analyser[rust.log.analyser.length - 1].tilfoejede));
+  }
+  tjek('V-MANUEL.1 N2: ⌘Z fortryder trin for trin og melder hvert (fodlinjens besked, role="status")', meldt.join(' | ') === 'Fortrudt: Fjern for db1 | Fortrudt: Maskér dette for db1 | Fortrudt: erstatning for jdoe | Fortrudt: type for jdoe | Fortrudt: Maskér dette for jdoe | Fortrudt: afkrydsning for 10.20.30.11', meldt.join(' | '));
+  tjek('V-MANUEL.1 N2: … og Rust får valgene, som de var (tilføjede værdier og typer)', tilbage.join(' | ') === '[{"vaerdi":"jdoe","art":"person"},{"vaerdi":"db1","art":"ord"}] | [{"vaerdi":"jdoe","art":"person"}] | [{"vaerdi":"jdoe","art":"person"}] | [{"vaerdi":"jdoe","art":"ord"}] | [] | []', tilbage.join(' | '));
+  tjek('V-MANUEL.1 N2: efter alle trin er valgene som før (afkrydset, ingen rettelser, intet tilføjet), og Fortryd er slået fra', raekkeMed(d, ip).querySelector('[data-felt="valg"]').checked && GM.M.st.rettelser.size === 0 && GM.M.st.tilfoejede.length === 0 && !kommandoAktiv(d, 'masker', 'fortryd') && kommandoAktiv(d, 'masker', 'gentag') && gb.getAttribute('title') === 'Genvej: ⇧⌘Z');
+  for (let n = 0; n < 4; n++) { s.tast('Z', { metaKey: true, shiftKey: true, code: 'KeyZ' }); await vent(10); }
+  tjek('V-MANUEL.1 N2: ⇧⌘Z gentager (fire trin: afkrydsning, Maskér dette, type, erstatning)', beskedM(d).textContent === 'Gentaget: erstatning for jdoe' && !raekkeMed(d, ip).querySelector('[data-felt="valg"]').checked && tilfRaekke(d, 'jdoe').querySelector('select').value === 'person' && tilfRaekke(d, 'jdoe').querySelector('[data-felt="kode"]').value === 'anna-k', beskedM(d).textContent);
+  gb.click(); await vent(10);
+  fb.click(); await vent(10);
+  tjek('V-MANUEL.1 N2: båndets Gentag og Fortryd gør det samme', beskedM(d).textContent === 'Fortrudt: Maskér dette for db1' && GM.M.st.tilfoejede.map(x => x.vaerdi).join() === 'jdoe');
+  // En ny handling efter Fortryd tømmer Gentag
+  raekkeMed(d, ip).querySelector('[data-felt="valg"]').click(); await vent(400);
+  tjek('V-MANUEL.1 N2: en ny handling efter Fortryd tømmer Gentag', GM.M.hist.frem.length === 0 && !kommandoAktiv(d, 'masker', 'gentag'));
+  // I et tekstfelt: browserens egen fortryd
+  const kode = tilfRaekke(d, 'jdoe').querySelector('[data-felt="kode"]');
+  kode.focus();
+  const tr0 = GM.M.hist.bag.length;
+  const ev = new w.KeyboardEvent('keydown', { key: 'z', code: 'KeyZ', metaKey: true, bubbles: true, cancelable: true });
+  kode.dispatchEvent(ev);
+  await vent(10);
+  tjek('V-MANUEL.1 N2: ⌘Z med fokus i et tekstfelt (Erstatning) er feltets egen fortryd: ikke stoppet, Grimnirs historik urørt', !ev.defaultPrevented && GM.M.hist.bag.length === tr0);
+  const kaldt = [];
+  d.execCommand = c => { kaldt.push(c); return true; };
+  s.emit('menu', 'fortryd');
+  s.emit('menu', 'gentag');
+  await vent(10);
+  tjek('V-MANUEL.1 N2: menuen Rediger → Fortryd/Gentag med fokus i et felt: webvisningens undo/redo i feltet (execCommand), historikken urørt', kaldt.join() === 'undo,redo' && GM.M.hist.bag.length === tr0, kaldt.join());
+  d.body.focus();
+  kode.blur();
+  s.emit('menu', 'fortryd');
+  await vent(10);
+  tjek('V-MANUEL.1 N2: menuen Rediger → Fortryd uden fokus i et felt: Grimnirs Fortryd', GM.M.hist.bag.length === tr0 - 1 && beskedM(d).textContent === 'Fortrudt: afkrydsning for 10.20.30.11' && kaldt.length === 2, beskedM(d).textContent);
+  // Tastetrykket og menuen sammen (hvis WebKit også lod menuen slå til): kun ét trin
+  const tr1 = GM.M.hist.bag.length;
+  s.tast('z', { metaKey: true, code: 'KeyZ' });
+  s.emit('menu', 'fortryd');
+  await vent(10);
+  tjek('V-MANUEL.1 N2: ⌘Z og menuens hændelse lige efter fortryder kun ét trin', GM.M.hist.bag.length === tr1 - 1);
+  // Mindst 50 trin; højst 100 huskes
+  for (let n = 0; n < 60; n++) raekkeMed(d, ip).querySelector('[data-felt="valg"]').click();
+  await vent(400);
+  let fortrudt = 0;
+  for (let n = 0; n < 55; n++) if (GM.M.fortryd()) fortrudt++;
+  tjek('V-MANUEL.1 N2: mindst 50 trin kan fortrydes (60 afkrydsninger, 55 fortrudt)', fortrudt === 55 && GM.M.hist.bag.length >= 5);
+  for (let n = 0; n < 130; n++) raekkeMed(d, ip).querySelector('[data-felt="valg"]').click();
+  await vent(400);
+  tjek('V-MANUEL.1 N2: historikken husker højst 100 trin', GM.M.hist.bag.length === 100);
+  // Gem og maskér tømmer historikken
+  s.tast('Enter', { metaKey: true }); await vent(10);
+  tjek('V-MANUEL.1 N2: Gem og maskér tømmer historikken; Fortryd er slået fra og forklaringen siger hvorfor', GM.M.st.resultat && GM.M.hist.bag.length === 0 && GM.M.hist.frem.length === 0 && !kommandoAktiv(d, 'masker', 'fortryd') && /Gem og maskér/.test(forklaring(fb)));
+  const efter = new w.KeyboardEvent('keydown', { key: 'z', code: 'KeyZ', metaKey: true, bubbles: true, cancelable: true });
+  d.dispatchEvent(efter);
+  tjek('V-MANUEL.1 N2: ⌘Z efter Gem og maskér fortryder intet (sagen er gemt)', GM.M.st.resultat && GM.M.hist.bag.length === 0);
+  // Ikke i Demaskér, Sager eller Ordbog
+  w.location.hash = 'ordbog'; await vent(5);
+  const ord = new w.KeyboardEvent('keydown', { key: 'z', code: 'KeyZ', metaKey: true, bubbles: true, cancelable: true });
+  d.dispatchEvent(ord);
+  tjek('V-MANUEL.1 N2: ⌘Z i Ordbog bruges ikke af Grimnir (ikke stoppet)', !ord.defaultPrevented);
+  // Altid/Aldrig (ordbogen på disk) er ikke et trin
+  const m = ui('assets/maskering.js');
+  const tilOrdbog = m.slice(m.indexOf('function tilOrdbog('), m.indexOf('/* ═════ V-MANUEL.1 N1: Maskér dette'));
+  tjek('V-MANUEL.1 N2: Altid og Aldrig er ikke trin i historikken (de skriver i ordbogen på disk)', tilOrdbog.length > 100 && !/husk\(/.test(tilOrdbog));
+}
+{
+  // Windows: Ctrl+Z og Ctrl+Y (og Ctrl+Shift+Z)
+  const s = await manuelSide({ platform: 'windows' });
+  const { d, w, GM } = s;
+  const ip = MTEKST.indexOf('10.20.30.11');
+  raekkeMed(d, ip).querySelector('[data-felt="valg"]').click(); await vent(400);
+  raekkeMed(d, ip).querySelector('[data-felt="valg"]').click(); await vent(400);
+  s.tast('z', { ctrlKey: true, code: 'KeyZ' }); await vent(10);
+  const a = !raekkeMed(d, ip).querySelector('[data-felt="valg"]').checked;
+  s.tast('y', { ctrlKey: true, code: 'KeyY' }); await vent(10);
+  const b = raekkeMed(d, ip).querySelector('[data-felt="valg"]').checked;
+  s.tast('z', { ctrlKey: true, code: 'KeyZ' }); await vent(10);
+  s.tast('Z', { ctrlKey: true, shiftKey: true, code: 'KeyZ' }); await vent(10);
+  tjek('V-MANUEL.1 N2: Windows: Ctrl+Z fortryder, Ctrl+Y og Ctrl+Shift+Z gentager; titlerne siger Ctrl+Z og Ctrl+Y', a && b && raekkeMed(d, ip).querySelector('[data-felt="valg"]').checked && knapI(d, 'masker', 'fortryd').getAttribute('title') === 'Genvej: Ctrl+Z' && (() => { GM.M.fortryd(); GM.M.tegn(); return knapI(d, 'masker', 'gentag').getAttribute('title') === 'Genvej: Ctrl+Y'; })());
+}
+
+// ── V-MANUEL.1 N3: Ryd ──
+{
+  const s = await manuelSide();
+  const { d, w, GM, kald } = s;
+  const sek = d.querySelector('section[data-visning="masker"]');
+  const rb = knapI(d, 'masker', 'ryd');
+  tjek('V-MANUEL.1 N3: Ryd står i båndets gruppe Tekst og er slået til med en tekst', rb.closest('.grp').querySelector('.cap').textContent === 'Tekst' && kommandoAktiv(d, 'masker', 'ryd'));
+  const sagFoer = kald.filter(k => /^sag_/.test(k[0]) && k[0] !== 'sag_status').length;
+  rb.click(); await vent(10);
+  tjek('V-MANUEL.1 N3: uden valg og uden resultat rydder Ryd straks (ingen bekræftelse): tom flade, fokus på den', !d.querySelector('dialog[open]') && GM.M.st.tekst === null && GM.M.st.analyse === null && !sek.querySelector('.tomt').hidden && sek.querySelector('.arbejde').hidden && d.activeElement === sek.querySelector('.tomt'));
+  tjek('V-MANUEL.1 N3: uden tekst er Ryd slået fra med en forklaring; sagen er ikke rørt', !kommandoAktiv(d, 'masker', 'ryd') && forklaring(rb) === 'Indsæt en tekst først' && kald.filter(k => /^sag_/.test(k[0]) && k[0] !== 'sag_status').length === sagFoer);
+  // Med valg: bekræftelse med fokus på Annullér
+  indsaet(w, sek.querySelector('.tomt'), MTEKST);
+  s.tast('Enter', { metaKey: true }); await vent(10);
+  markerOrd(w, d, 'jdoe'); knapI(d, 'masker', 'masker-dette').click(); await vent(10);
+  rb.click(); await vent(5);
+  const dlg = d.querySelector('dialog[open]');
+  tjek('V-MANUEL.1 N3: med valg spørger Ryd først (kittets bekræftelse, fokus på Annullér, Ryd kan ikke fortrydes)', dlg && dlg.id === 'dlg-ryd' && dlg.querySelector('h2').textContent === 'Ryd teksten?' && /Ryd kan ikke fortrydes\.$/.test(dlg.querySelector('p').textContent) && /tilføjede værdier/.test(dlg.querySelector('p').textContent) && d.activeElement && d.activeElement.textContent === 'Annullér', dlg && dlg.textContent);
+  [...dlg.querySelectorAll('button')].find(x => x.textContent === 'Annullér').click(); await vent(5);
+  tjek('V-MANUEL.1 N3: Annullér: intet er ryddet', GM.M.st.tekst === MTEKST && GM.M.st.tilfoejede.length === 1);
+  rb.click(); await vent(5);
+  [...d.querySelector('dialog[open]').querySelectorAll('button')].find(x => x.textContent === 'Ryd').click(); await vent(10);
+  tjek('V-MANUEL.1 N3: Ryd: teksten, fundene, de tilføjede værdier, historikken og resultatet er væk', GM.M.st.tekst === null && GM.M.st.tilfoejede.length === 0 && GM.M.hist.bag.length === 0 && GM.M.st.resultat === null && !sek.querySelector('.fundtabel'));
+  // Et resultat, der hverken er kopieret eller gemt
+  indsaet(w, sek.querySelector('.tomt'), MTEKST);
+  s.tast('Enter', { metaKey: true }); await vent(10);
+  s.tast('Enter', { metaKey: true }); await vent(10);
+  rb.click(); await vent(5);
+  const d2 = d.querySelector('dialog[open]');
+  tjek('V-MANUEL.1 N3: et maskeret resultat, der ikke er kopieret eller gemt: Ryd spørger først', d2 && /hverken kopieret eller gemt/.test(d2.querySelector('p').textContent));
+  [...d2.querySelectorAll('button')].find(x => x.textContent === 'Annullér').click(); await vent(5);
+  w.navigator.clipboard = { writeText: async () => { } };
+  knapI(d, 'masker', 'kopier').click(); await vent(10);
+  rb.click(); await vent(10);
+  tjek('V-MANUEL.1 N3: efter Kopiér rydder Ryd uden at spørge', !d.querySelector('dialog[open]') && GM.M.st.tekst === null);
+  // Demaskér
+  w.location.hash = 'demasker'; await vent(5);
+  const dsek = d.querySelector('section[data-visning="demasker"]');
+  const drb = knapI(d, 'demasker', 'ryd');
+  indsaet(w, dsek.querySelector('.tomt'), 'svar med ord0001');
+  s.tast('Enter', { metaKey: true }); await vent(10);
+  drb.click(); await vent(5);
+  const d3 = d.querySelector('dialog[open]');
+  tjek('V-MANUEL.1 N3: Demaskér: et demaskeret resultat, der ikke er kopieret eller gemt: Ryd spørger først (fokus på Annullér)', d3 && d3.id === 'dlg-ryd-dem' && /Ryd kan ikke fortrydes\.$/.test(d3.querySelector('p').textContent) && d.activeElement.textContent === 'Annullér');
+  [...d3.querySelectorAll('button')].find(x => x.textContent === 'Ryd').click(); await vent(10);
+  tjek('V-MANUEL.1 N3: Demaskér: Ryd tømmer svaret og resultatet og går til den tomme flade', GM.D.st.tekst === null && GM.D.st.resultat === null && !dsek.querySelector('.tomt').hidden && d.activeElement === dsek.querySelector('.tomt') && !kommandoAktiv(d, 'demasker', 'ryd'));
+  indsaet(w, dsek.querySelector('.tomt'), 'svar uden resultat');
+  drb.click(); await vent(10);
+  tjek('V-MANUEL.1 N3: Demaskér uden resultat: Ryd rydder straks', !d.querySelector('dialog[open]') && GM.D.st.tekst === null);
+}
+
+// ── V-MANUEL.1 N4: Næste advarsel ──
+{
+  const s = await manuelSide();
+  const { d, w, GM } = s;
+  s.tast('Enter', { metaKey: true }); await vent(10);
+  w.location.hash = 'demasker'; await vent(5);
+  const dsek = d.querySelector('section[data-visning="demasker"]');
+  const nb = knapI(d, 'demasker', 'naeste-advarsel');
+  const svar = 'linje et\r\nh0099 her\nlinje tre\rUSER0001 og USER0001\n';
+  indsaet(w, dsek.querySelector('.tomt'), svar);
+  tjek('V-MANUEL.1 N4: før demaskeringen er Næste advarsel slået fra (Demaskér først)', !kommandoAktiv(d, 'demasker', 'naeste-advarsel') && forklaring(nb) === 'Demaskér først');
+  s.tast('Enter', { metaKey: true }); await vent(10);
+  tjek('V-MANUEL.1 N4: med advarsler er Næste advarsel slået til med genvejen ⌘G (ikke længere "Kommer i en senere version")', kommandoAktiv(d, 'demasker', 'naeste-advarsel') && nb.getAttribute('title') === 'Genvej: ⌘G' && nb.getAttribute('aria-keyshortcuts') === 'Meta+G' && !/senere\('naeste-advarsel'/.test(ui('assets/app.js')));
+  const beskedD = () => dsek.querySelector('.arbejde .besked');
+  const valgtRk = () => [...dsek.querySelectorAll('.advtabel tbody tr')].findIndex(tr => tr.getAttribute('aria-selected') === 'true');
+  const markeret = () => w.getSelection().toString();
+  const forloeb = [];
+  for (let n = 0; n < 4; n++) {
+    if (n === 1) s.tast('g', { metaKey: true, code: 'KeyG' }); else nb.click();
+    await vent(5);
+    forloeb.push([GM.D.st.filter, valgtRk(), beskedD().textContent, markeret()]);
+  }
+  tjek('V-MANUEL.1 N4: hvert tryk (knap eller ⌘G) vælger den næste række under Advarsler og starter forfra efter den sidste', forloeb.map(x => x[0] + ':' + x[1]).join() === 'advarsler:0,advarsler:1,advarsler:2,advarsler:0', JSON.stringify(forloeb));
+  tjek('V-MANUEL.1 N4: … viser stedet i svaret (linjen markeres; Rusts linjeregel: CRLF, LF og et enligt CR) og melder det høfligt', forloeb[0][2] === 'Advarsel 1/3: linje 2.' && forloeb[0][3] === 'h0099 her' && forloeb[1][2] === 'Advarsel 2/3: uden sted i svaret.' && forloeb[2][2] === 'Advarsel 3/3: linje 4.' && forloeb[2][3] === 'USER0001 og USER0001' && beskedD().getAttribute('role') === 'status', JSON.stringify(forloeb));
+  tjek('V-MANUEL.1 N4: rækken er valgt i tabellen (kittets valg)', dsek.querySelectorAll('.advtabel tbody tr')[0].classList.contains('sel'));
+  tjek('V-MANUEL.1 N4: visLinje: en linje efter det viste svar giver false (intet markeres)', GM.D.visLinje(99) === false && GM.D.visLinje(0) === false && GM.D.visLinje(3) === true && markeret() === 'linje tre');
+  // Uden advarsler
+  indsaet(w, dsek.querySelector('pre.tekst'), 'ingen advarsler her');
+  s.tast('Enter', { metaKey: true }); await vent(10);
+  tjek('V-MANUEL.1 N4: uden advarsler er den slået fra med forklaringen "Ingen advarsler i dette svar"', GM.D.st.resultat && !kommandoAktiv(d, 'demasker', 'naeste-advarsel') && forklaring(nb) === 'Ingen advarsler i dette svar', forklaring(nb));
+  const foerG = beskedD().textContent, adv0 = GM.D.st.adv;
+  const g = new w.KeyboardEvent('keydown', { key: 'g', code: 'KeyG', metaKey: true, bubbles: true, cancelable: true });
+  d.dispatchEvent(g);
+  tjek('V-MANUEL.1 N4: ⌘G uden advarsler gør intet', beskedD().textContent === foerG && GM.D.st.adv === adv0 && adv0 === -1);
+  S_EN: {
+    w.Sprog.saet('en'); await vent(5);
+    tjek('V-MANUEL.1 N4: engelsk: "No warnings in this reply"', forklaring(nb) === 'No warnings in this reply', forklaring(nb));
+    w.Sprog.saet('da'); await vent(5);
+  }
+}
+
+// ── V-MANUEL.1 N5: størrelser og linjetal med sprogets talformat ──
+{
+  const s = side({ rust: falskRust() });
+  const { d, w } = s;
+  await vent(5);
+  const GM = w.GrimnirMaskering;
+  const linjer = 'a\n'.repeat(12344) + 'b';
+  indsaet(w, d.querySelector('section[data-visning="masker"] .tomt'), linjer);
+  const info = () => d.querySelector('section[data-visning="masker"] .panel-hoved .muted').textContent;
+  tjek('V-MANUEL.1 N5: linjetallet har sprogets tusindtalsskille ("12.345 linjer")', info() === '12.345 linjer · 24 kB', info());
+  w.Sprog.saet('en'); await vent(5);
+  tjek('V-MANUEL.1 N5: … og på engelsk ("12,345 lines")', info() === '12,345 lines · 24 kB', info());
+  tjek('V-MANUEL.1 N5: engelsk: fejlen om en stor fil og grænsen med punktum', GM.filFejlTekst({ art: 'for_stor', bytes: 110100480, maks: 104857600 }) === 'the file is 105.0 MB, and the limit is 100.0 MB');
+  w.Sprog.saet('da'); await vent(5);
+  indsaet(w, d.querySelector('section[data-visning="masker"] pre.tekst'), 'x');
+  tjek('V-MANUEL.1 N5: ental ved præcis 1 ("1 linje")', info() === '1 linje · 1 byte', info());
+  const m5 = ui('assets/maskering.js');
+  tjek('V-MANUEL.1 N5: Linje i Rester- og Demaskér-tabellen har også sprogets tusindtalsskille (tal(…), ikke String(…))', /String\(r\.antal\), tal\(r\.linje\)\]/.test(m5) && /a\.linje \? tal\(a\.linje\) : ''/.test(m5) && !/String\(r\.linje\)\]|String\(a\.linje\)/.test(m5));
+  tjek('V-MANUEL.1 N5: maskering.js har ikke længere sin egen MB-funktion med toFixed (alle størrelser går gennem stoerrelse)', !/toFixed/.test(ui('assets/maskering.js')) && !/\bmb\(/.test(ui('assets/maskering.js')));
+  tjek('V-MANUEL.1 N5: sprog.js: filStr, bForStor, bForStorDemasker og ffejl_for_stor har størrelsen som en færdig tekst (ingen "{v} MB")', ['da', 'en'].every(sp => !/\{[vw]\} MB/.test([w.Sprog.TEKST[sp].filStr, w.Sprog.TEKST[sp].bForStor, w.Sprog.TEKST[sp].bForStorDemasker, w.Sprog.TEKST[sp].ffejl_for_stor].join(' '))));
+}
+{
+  // Filinfoen følger sproget ved et sprogskift
+  const s = side({ rust: { ...falskRust(), fil_aabn: () => ({ navn: 'app.log', bytes: 12345678, tegnsaet: 'utf8', linjeskift: 'lf', linjer: 1202, uddrag: 'x', ikke_vist: 0 }) } });
+  const { d, w } = s;
+  await vent(5);
+  knapI(d, 'masker', 'aabn-fil').click(); await vent(10);
+  const fi = () => d.querySelector('section[data-visning="masker"] .vl .filinfo').textContent;
+  const da = fi();
+  w.Sprog.saet('en'); await vent(5);
+  tjek('V-MANUEL.1 N5: filinfoens størrelse følger sproget ("11,8 MB" → "11.8 MB")', da.includes('11,8 MB') && fi().includes('11.8 MB'), da + ' / ' + fi());
+  w.Sprog.saet('da'); await vent(5);
+}
+
+// ── V-MANUEL.1: tekster, CSS og regler ──
+{
+  const { w } = side();
+  const T = w.Sprog.TEKST;
+  const nye = ['gRediger', 'kMaskerDette', 'kFortryd', 'kGentag', 'kRyd', 'hvorforMarker', 'hvorforKunIndsat', 'hvorforVisTeksten', 'hvorforIntetFortryd', 'hvorforIntetGentag', 'hvorforIngenAdvarsler', 'stTilfoejet', 'ariaTypeFor', 'kFjern', 'kFjernTitel', 'ariaFjern', 'advKort', 'advNulSteder', 'bTilfoejet', 'bTilfoejetNul', 'bMarkeringTom', 'bMarkeringLinjer', 'bFindesAllerede', 'bAlleredeTilfoejet', 'bErKode', 'bAfvist_kode', 'bAfvist_aldrig', 'bAfvist_tom', 'bAfvist_linjeskift', 'bAfvist_type', 'bFjernet', 'rydH', 'rydPValg', 'rydPResultat', 'rydPBegge', 'rydDemP', 'kRydOk', 'bNaesteAdv', 'bNaesteAdvUdenSted', 'ariaGenvejsmenu', 'kKopierMarkering', 'titelType', 'linjeNr', ...['valg', 'kode', 'type', 'tilfoej', 'fjern'].flatMap(a => ['fortrudt_' + a, 'gentaget_' + a])];
+  // Oversat: dansk og engelsk er forskellige, undtagen hvor ordet er det samme (Type for {v}).
+  const mangler = nye.filter(k => !(k in T.da && k in T.en) || (T.da[k] === T.en[k] && k !== 'ariaTypeFor'));
+  tjek(`V-MANUEL.1: de ${nye.length} nye tekster findes på dansk og engelsk (og er oversat)`, mangler.length === 0, mangler.join(', '));
+  const rs = fs.readFileSync(path.join(repo, 'src-tauri', 'src', 'maskering.rs'), 'utf8');
+  const grunde = [...rs.slice(rs.indexOf('fn tag_tilfoejede')).split(/\n}\n/)[0].matchAll(/Some\("([a-z]+)"\)/g)].map(x => x[1]);
+  tjek('V-MANUEL.1: hver grund, Rust kan afvise en tilføjet værdi med, har en tekst (bAfvist_*)', grunde.length === 5 && grunde.every(g => 'bAfvist_' + g in T.da && 'bAfvist_' + g in T.en), grunde.join());
+  const typer = [...rs.matchAll(/pub const TILFOEJ_ARTER: \[Art; 8\] = \[([^\]]+)\]/g)].map(m => m[1])[0] || '';
+  const m = ui('assets/maskering.js');
+  const ui5 = (m.match(/const TYPER = \[([^\]]+)\]/) || [])[1] || '';
+  tjek('V-MANUEL.1: valglistens typer er nogle, Rust tager imod (TILFOEJ_ARTER), og har tekster', ui5.split(',').map(x => x.trim().replace(/'/g, '')).every(t => t && ('art_' + t) in T.da && typer.includes({ ord: 'Art::Ord', bruger: 'Art::Bruger', vaert: 'Art::Vaert', domaene: 'Art::Domaene', person: 'Art::Person' }[t])), ui5);
+  tjek('V-MANUEL.1: genvejsmenuen står i tekstpanelet uden inline-stil (CSS-reglen giver den position)', CSS_REGLER.some(r => r.sel === '.tekstpanel' && r.decl.position === 'relative') && CSS_REGLER.some(r => r.sel === '.genvejsmenu' && r.decl.position === 'absolute') && !/genvejsmenu[^\n]*\.style/.test(m));
+  tjek('V-MANUEL.1: intet nyt skriver til konsollen eller localStorage, og teksten vises stadig i <pre>', !/\bconsole\s*\./.test(m) && !/localStorage\s*\.\s*setItem|sessionStorage|indexedDB/.test(m) && /el\('pre'/.test(m));
+  tjek('V-MANUEL.1: de tilføjede værdier sendes kun til Rust (invoke) og står kun i hukommelsen (st.tilfoejede)', (m.match(/tilfoejede: tilfoejede\(\)/g) || []).length === 4);
 }
 
 console.log(`\n${ok + fejl} tjek: ${ok} ok, ${fejl} fejl`);

@@ -347,6 +347,71 @@ for (const sprog of ['da', 'en']) {
 // Reglen for smalle vinduer findes for begge trin-grupper, ved grænser, der passer sammen (stor = (943 + 1) × 1,125 − 1).
 tjek('V-PUDS.3 N3: den smalle regel for fundtabellen står ved max-width 943 px (normal og lille) og 1061 px (stor)', APP.some(r => r.media && r.media.max === 943 && har(r, '.fundtabel', 'da', 'normal') && r.decl['--k4']) && APP.some(r => r.media && r.media.max === 1061 && har(r, '.fundtabel', 'da', 'stor') && r.decl['--k4']) && (943 + 1) * 1.125 - 1 === 1061);
 
+/* V-MANUEL.1: en tilføjet række i fundtabellen. Chippen "Tilføjet", typens valgliste og Altid + Fjern skal kunne være i
+   deres kolonne ved hver vinduesbredde fra 900 px (ved stor fra 1013 px, hvor tabellen holder op med at rulle vandret), i alle
+   tre trin og begge sprog. Målt i V-MANUEL.1 i en WKWebView (macOS, WebKit som i Tauri; engangsværktøj i scratchpad, ikke i
+   repoet) med ui/assets/*.css og de pakkede skrifter og rundet op som de andre tal; kontroller målt samme sted gav de gamle
+   tal (Fra ordbog 88,1 → 89, From dictionary 116,1 → 117, Altid 26,9 → 27, Aldrig 34,9 → 35, Always 42,3 → 43, Never 34,7 → 35,
+   Maskine 55,4 → 56, Domæne 60,0 → 61, Machine 56,6 → 57). Valglisten er målt med sin naturlige bredde (width: auto) for de
+   bredeste typeord: ordet, polstringen fra app.css, kanten og WebKits egen 1 px. */
+const MAALT_CHIP_MANUEL = { 'Tilføjet': 66, 'Added': 64 };
+/* Ordet i Fjern er målt (Fjern 29,5 → 30, Remove 46,6 → 47), men vises aldrig: med ord ville Always + Remove være 158 px i
+   Ordbog-kolonnens 148 px på engelsk. Fjern er derfor altid kun krydset (24 px; reglen i app.css prøves nedenfor). */
+const MAALT_KNAPORD_MANUEL = { 'Fjern': 30, 'Remove': 47 };
+const MAALT_VALG = { da: { 'Domæne': 87, 'Maskine': 82, 'Ord': 51 }, en: { 'Machine': 63, 'Domain': 57, 'Word': 42 } };
+const TYPER_UI = ((laes('ui/assets/maskering.js').match(/const TYPER = \[([^\]]+)\]/) || [])[1] || '').split(',').map(x => x.trim().replace(/'/g, ''));
+tjek('V-MANUEL.1: chippen Tilføjet og ordet i Fjern er målt i begge sprog', ['da', 'en'].every(sp => T[sp].stTilfoejet in MAALT_CHIP_MANUEL && T[sp].kFjern in MAALT_KNAPORD_MANUEL));
+tjek(`V-MANUEL.1: valglistens typer (${TYPER_UI.join(', ')}) er alle målt, og den bredeste valgliste er målt i hvert sprog`, TYPER_UI.length === 5 && ['da', 'en'].every(sp => {
+  const ord = TYPER_UI.map(t => T[sp]['art_' + t]);
+  const bredest = Math.max(...ord.map(o => MAALT_ORD[o]));
+  return ord.every(o => o in MAALT_ORD) && Object.keys(MAALT_VALG[sp]).some(o => MAALT_ORD[o] === bredest);
+}));
+const VALG_SEL = '.fundtabel .typevalg .vliste select';
+tjek('V-MANUEL.1: valglistens polstring er den, der blev målt (dansk 0 20px 0 4px med pil, engelsk 0 2px uden pil); ellers mål igen',
+  APP.some(r => !r.media && r.valg.includes(VALG_SEL) && r.decl.padding === '0 20px 0 4px') && APP.some(r => !r.media && r.valg.includes('html[lang="en"] ' + VALG_SEL) && r.decl.padding === '0 2px') && APP.some(r => !r.media && r.valg.includes('html[lang="en"] .fundtabel .typevalg .vliste svg') && r.decl.display === 'none'));
+function ordbogBreddeTilfoejet(sprog, W, trin = 'normal') {
+  if (!ordVises(W, trin)) return 2 * IKONKNAP + KNAP_AFSTAND;
+  const k = knapRegel(W, trin);
+  const pol = (k.decl.padding || '').split(/\s+/).map(px);
+  const mellem = px(k.decl.gap);
+  return 2 * MINI_KANT + 2 * (pol[1] ?? pol[0]) + IKON + mellem + MAALT_KNAPORD[T[sprog].kAltid] + KNAP_AFSTAND + IKONKNAP;
+}
+// Hvis Fjern viste ordet som Altid og Aldrig: for bredt på engelsk (derfor reglen).
+function ordbogBreddeMedOrd(sprog, W, trin) {
+  const k = knapRegel(W, trin), pol = (k.decl.padding || '').split(/\s+/).map(px), mellem = px(k.decl.gap);
+  return [MAALT_KNAPORD[T[sprog].kAltid], MAALT_KNAPORD_MANUEL[T[sprog].kFjern]].reduce((a, w) => a + 2 * MINI_KANT + 2 * (pol[1] ?? pol[0]) + IKON + mellem + w, 0) + KNAP_AFSTAND;
+}
+{
+  const v = variabler('fundtabel', 'en', 1600, 'normal'), celle = px(v['--celle']) ?? px('var(--space-3)');
+  tjek(`V-MANUEL.1: Fjern med ord ville ikke kunne være i Ordbog på engelsk ved 1600 px (${ordbogBreddeMedOrd('en', 1600, 'normal')} > ${px(v['--k7']) - 2 * celle} px); derfor kun krydset`, ordbogBreddeMedOrd('en', 1600, 'normal') > px(v['--k7']) - 2 * celle);
+  const FJ = ':root .fundtabel .ordbogknapper .mini.ikonknap.fjern';
+  tjek('V-MANUEL.1: app.css holder Fjern som et kryds på 24 px uden synligt ord, efter de brede regler (der viser ordet)', (() => {
+    const i = APP.findIndex(r => !r.media && r.valg.includes(FJ) && r.decl.width === '24px' && r.decl.padding === '0');
+    const j = APP.findIndex(r => !r.media && r.valg.includes(FJ + ' .skjult-tekst') && r.decl.position === 'absolute' && r.decl.width === '1px');
+    const sidsteBred = Math.max(...APP.map((r, n) => (r.media && r.valg.some(x => x.includes('.ordbogknapper .skjult-tekst')) ? n : -1)));
+    return i > sidsteBred && j > sidsteBred && sidsteBred > 0;
+  })());
+}
+for (const trin of TRIN) for (const sprog of ['da', 'en']) {
+  const brud = [];
+  let n = 0, mindstType = Infinity;
+  for (let W = trin.navn === 'stor' ? 1013 : 900; W <= 2600; W++) {
+    const v = variabler('fundtabel', sprog, W, trin.navn);
+    const celle = px(v['--celle']) ?? px('var(--space-3)');
+    const kol = [...Array(7)].map((_, i) => (v['--k' + (i + 1)] ? px(v['--k' + (i + 1)]) : null));
+    const plads = vaertBredde('masker', W, 0, trin);
+    kol[2] = Math.max(plads, px(v['--tabel-min']) ?? 0) - kol.reduce((a, b) => a + (b || 0), 0);
+    const indhold = i => kol[i] - 2 * celle;
+    n++;
+    mindstType = Math.min(mindstType, indhold(1));
+    const valg = Math.max(...Object.values(MAALT_VALG[sprog]));
+    if (valg > indhold(1)) brud.push(`${W}: valglisten ${valg} > ${indhold(1)}`);
+    if (MAALT_CHIP_MANUEL[T[sprog].stTilfoejet] > indhold(5)) brud.push(`${W}: chippen`);
+    if (ordbogBreddeTilfoejet(sprog, W, trin.navn) > indhold(6)) brud.push(`${W}: Altid og Fjern`);
+  }
+  tjek(`V-MANUEL.1: ${trin.navn} ${sprog}: en tilføjet række: valglisten (${Math.max(...Object.values(MAALT_VALG[sprog]))} px; Type har mindst ${mindstType} px), chippen Tilføjet og Altid + Fjern kan være i deres kolonne ved hver bredde (${n} bredder)`, brud.length === 0, brud.slice(0, 4).join('; '));
+}
+
 console.log('\nKolonnebredder (px i layoutet, med polstring), regnet ud fra CSS\'en uden rullebjælke (lille og stor: V-KITBRUG.1):');
 for (const l of rapport) console.log('  ' + l);
 console.log(`\n${ok + fejl} tjek: ${ok} ok, ${fejl} fejl`);

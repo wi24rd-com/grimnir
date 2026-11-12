@@ -271,6 +271,7 @@ pub fn nulstil_kerne(o: Ordbog) {
         .chain(o.ord)
         .chain(o.personer)
         .chain(o.aldrig)
+        .chain(o.tilfoejede.into_iter().map(|(v, _)| v))
     {
         s.zeroize();
     }

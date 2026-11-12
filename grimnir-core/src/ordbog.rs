@@ -3,7 +3,7 @@
 use std::collections::HashSet;
 
 use crate::net::laes_ipv4;
-use crate::typer::Fejl;
+use crate::typer::{Art, Fejl};
 
 /// Brugerens ordbog.
 ///
@@ -22,12 +22,38 @@ pub struct Ordbog {
     pub personer: Vec<String>,
     /// Værdier, der aldrig maskeres. Vinder over alt andet. En indgang i CIDR-form gælder hele nettet.
     pub aldrig: Vec<String>,
+    /// V-MANUEL.1: værdier, brugeren selv har peget på i teksten ("Maskér dette"), med den art, de maskeres som. De findes
+    /// alle steder i teksten som ordbogens ord: kun ved en grænse (et navn midt i et længere ord tages ikke med),
+    /// uafhængigt af store/små bogstaver (ASCII), og overlap afgøres som for alle andre fund (længste spænd vinder). Fundene
+    /// får sikkerheden [`Sikkerhed::Sikker`](crate::Sikkerhed::Sikker). Kun navnearter tages med ([`Ordbog::kan_tilfoejes`]);
+    /// tomme værdier, værdier med linjeskift og andre arter springes over. "Maskér aldrig" vinder også over dem. De er
+    /// ikke ordbogens poster: skallen gemmer dem ikke.
+    pub tilfoejede: Vec<(String, Art)>,
 }
 
 impl Ordbog {
     /// En tom ordbog.
     pub fn ny() -> Self {
         Ordbog::default()
+    }
+
+    /// V-MANUEL.1: sand, hvis en værdi af arten kan tilføjes i [`Ordbog::tilfoejede`]: arterne med en navnekode
+    /// (`h0001`, `d01.example`, `NB01`, `user0001`, `Person 0001`, `db0001`, `ord0001`, `sn0001`). Adresser, hemmeligheder,
+    /// SID, GUID og CPR har deres egen form og kan ikke gives til en vilkårlig tekst.
+    pub fn kan_tilfoejes(art: Art) -> bool {
+        matches!(
+            art,
+            Art::Vaert | Art::Domaene | Art::NetbiosDomaene | Art::Bruger | Art::Person | Art::Database | Art::Ord | Art::Serienummer
+        )
+    }
+
+    /// V-MANUEL.1: de tilføjede værdier, der tages med: trimmet, ikke tomme, uden linjeskift og af en art, der
+    /// [kan tilføjes](Ordbog::kan_tilfoejes).
+    pub(crate) fn gyldige_tilfoejede(&self) -> impl Iterator<Item = (&str, Art)> {
+        self.tilfoejede
+            .iter()
+            .map(|(v, a)| (v.trim(), *a))
+            .filter(|(v, a)| !v.is_empty() && !v.contains(['\r', '\n']) && Ordbog::kan_tilfoejes(*a))
     }
 
     /// Kontrollerer, at alle net kan læses.
