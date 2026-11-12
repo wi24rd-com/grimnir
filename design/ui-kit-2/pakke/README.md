@@ -11,11 +11,11 @@ Tankerne bag kittet (principper, farvernes betydning, sprogtone) står i `../REA
 | Sti | Hvad |
 |---|---|
 | `VERSION`, `CHANGELOG.md` | Pakkens version og hvad der er ændret |
-| `tokens/wi24rd-ui-kit-2.tokens.json` | Kilden til alle tokens: farver i lyst og mørkt tema (også ok, mærker, dataserier, skala og kort fra 2.1.0), skrift, luft, radier, skygger |
+| `tokens/wi24rd-ui-kit-2.tokens.json` | Kilden til alle tokens: farver i lyst og mørkt tema (også ok, mærker, dataserier, skala og kort fra 2.1.0; tekst, der er slået fra, og hover på mærker fra 2.4.0), skrift, luft, radier, skygger |
 | `tokens/tokens.css` | Samme tokens som CSS-variabler (genereret) |
 | `tokens/Tokens.xaml` | Samme tokens som WPF-ressourcer (genereret) |
-| `web/kit.css` | Komponenternes udseende (fra 2.2.0 også vælger, sidepanel og segmentknap; fra 2.3.0 dialog, afkrydsning, kontakt, radiogruppe, valgliste, StatusTile, kasse, tom tilstand, fremdrift, værktøjstip, filterchip, tabellens sortering og sideskift, og tekststørrelsen) |
-| `web/kit.js` | Komponenternes opførsel (`window.Kit`), også `Kit.vaelger`, `Kit.sidepanel` og `Kit.segment` fra 2.2.0, og fra 2.3.0 `Kit.dialog`, `Kit.bekraeft`, `Kit.afkrydsning`, `Kit.kontakt`, `Kit.radiogruppe`, `Kit.valgliste`, `Kit.statusflise`, `Kit.statusfliser`, `Kit.kasse`, `Kit.tomTilstand`, `Kit.fremdrift`, `Kit.vaerktoejstip`, `Kit.filterchip`, `Kit.filterchips` og `Kit.sideskift` |
+| `web/kit.css` | Komponenternes udseende (fra 2.2.0 også vælger, sidepanel og segmentknap; fra 2.3.0 dialog, afkrydsning, kontakt, radiogruppe, valgliste, StatusTile, kasse, tom tilstand, fremdrift, værktøjstip, filterchip, tabellens sortering og sideskift, og tekststørrelsen; fra 2.4.0 tabellens rulleramme, faste bredder og skillelinjer) |
+| `web/kit.js` | Komponenternes opførsel (`window.Kit`), også `Kit.vaelger`, `Kit.sidepanel` og `Kit.segment` fra 2.2.0, og fra 2.3.0 `Kit.dialog`, `Kit.bekraeft`, `Kit.afkrydsning`, `Kit.kontakt`, `Kit.radiogruppe`, `Kit.valgliste`, `Kit.statusflise`, `Kit.statusfliser`, `Kit.kasse`, `Kit.tomTilstand`, `Kit.fremdrift`, `Kit.vaerktoejstip`, `Kit.filterchip`, `Kit.filterchips` og `Kit.sideskift`, og fra 2.4.0 `Kit.tabelRul` |
 | `web/tema.js` | Lyst, mørkt eller som systemet (`window.Tema`), og fra 2.3.0 tekststørrelsen i tre trin (`window.Tekst`) |
 | `web/sprogmotor.js` | Sprogets mekanik: opslag, ental og flertal, sprogskift (`window.KitSprog`) |
 | `web/fonts/` | Inter og JetBrains Mono (woff2) med deres OFL-licenser |
@@ -103,7 +103,7 @@ Har programmet allerede sit eget sprogmodul, kan det beholde det. Kittet kræver
 
 ### 5. Byg skærmen
 
-Start med skallen i `KOMPONENTER.md` (AppShell) og fyld den med `Kit.commandBar`, `Kit.navTrae`, `Kit.visningsskift` og `Kit.tabel`. Til valg for hele skærmen er der `Kit.vaelger` (titellinje, værktøjslinje, bånd) og `Kit.segment`; til hjælp og detaljer ved siden af arbejdet `Kit.sidepanel`. Et program med få kommandoer bruger båndet uden faner (`udenFaner: true`). Fra 2.3.0 er der dialoger (`Kit.dialog`, `Kit.bekraeft`), formularens valg (`Kit.afkrydsning`, `Kit.kontakt`, `Kit.radiogruppe`, `Kit.valgliste`; se "Hvilken kontrol hvornår" i `KOMPONENTER.md`), fliser (`Kit.statusfliser`), kasser (`Kit.kasse`), tom tilstand, fremdrift, værktøjstip, filterchips og tabellens sortering og sideskift. Demoens `demo/index.html` og `demo/demo.js` er et lille, komplet eksempel.
+Start med skallen i `KOMPONENTER.md` (AppShell) og fyld den med `Kit.commandBar`, `Kit.navTrae`, `Kit.visningsskift` og `Kit.tabel`. Til valg for hele skærmen er der `Kit.vaelger` (titellinje, værktøjslinje, bånd) og `Kit.segment`; til hjælp og detaljer ved siden af arbejdet `Kit.sidepanel`. Et program med få kommandoer bruger båndet uden faner (`udenFaner: true`). Fra 2.3.0 er der dialoger (`Kit.dialog`, `Kit.bekraeft`), formularens valg (`Kit.afkrydsning`, `Kit.kontakt`, `Kit.radiogruppe`, `Kit.valgliste`; se "Hvilken kontrol hvornår" i `KOMPONENTER.md`), fliser (`Kit.statusfliser`), kasser (`Kit.kasse`), tom tilstand, fremdrift, værktøjstip, filterchips og tabellens sortering og sideskift. Fra 2.4.0 kan tabellens rækker åbne noget i stedet for at blive valgt, eller slet ikke reagere (`raekkeHandling`), og tabellen kan have rækkehoved, faste bredder, skillelinjer, en `caption`, følge indholdet og rulle vandret med første kolonne fast (`Kit.tabelRul`). Demoens `demo/index.html` og `demo/demo.js` er et lille, komplet eksempel.
 
 Det, kittet forventer af programmet:
 
@@ -186,6 +186,22 @@ public void SaetTema(bool moerk)
 ```
 
 `StaticResource` virker kun, hvis programmet aldrig skifter tema, mens det kører.
+
+### Farver, der regnes (fra 2.4.0)
+
+`KOMPONENTER.md` (Grundlag, "Farver til status, data og kort") har to regler, der i CSS skrives med `color-mix`. WPF har ingen `color-mix`, så de holdes ens sådan:
+
+- **Hover på et mærke** (78 % mærke, 22 % `--text`) kan ikke skrives i XAML. Derfor er den regnet ud som tokens: `Wi24rdInfoMarkHoverBrush` osv. (fem mærker, begge temaer).
+- **Svag flade af et mærke** (18 % dækning) og **næsten dækkende flade** (92 %) er farven med gennemsigtighed. Den skrives med pensels `Opacity` på den farve, der findes, så der er ingen nye tokens:
+
+```xml
+<Ellipse Stroke="{DynamicResource Wi24rdDangerMarkBrush}">
+  <Ellipse.Fill><SolidColorBrush Color="{DynamicResource Wi24rdDangerMarkColor}" Opacity="0.18"/></Ellipse.Fill>
+</Ellipse>
+<Button><Button.Background><SolidColorBrush Color="{DynamicResource Wi24rdSurfaceColor}" Opacity="0.92"/></Button.Background></Button>
+```
+
+Skrevet efter WPF's `Brush.Opacity`; ikke bygget eller kørt i et WPF-program.
 
 ### Skrifterne i WPF
 

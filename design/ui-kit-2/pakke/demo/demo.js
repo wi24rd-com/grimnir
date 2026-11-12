@@ -95,6 +95,13 @@
         hTekst: 'Tekststørrelse', pTekst: 'Fra 2.3.0. Tre trin som én skala for hele fladen; valget huskes og sættes, før siden tegnes. Prøv også ⌘+, ⌘− og ⌘0 (Ctrl på Windows): genvejene er programmets, funktionerne kittets.',
         tekstAria: 'Tekststørrelse', tLille: 'Lille', tNormal: 'Normal', tStor: 'Stor', gTekst: 'Tekst',
         hKasse: 'Kasse', pKasse: 'Fra 2.3.0. Kittets kort: en flade med overskrift, indhold, en valgfri handling i hovedet og en valgfri fodlinje. Klassen hedder .kasse.',
+        hTabelAabn: 'Rækker, der åbner, og tabel uden rækkevalg', pTabelAabn: 'Fra 2.4.0. Øverst åbner en række noget med klik, Enter eller mellemrum; piletasterne flytter kun. Tallene er deres egne knapper og åbner ikke rækken. Rammen ruller vandret, og domænet står fast. Nederst en tabel, der kun skal læses: ingen række kan vælges, men knapperne virker.',
+        tabelAabnNavn: 'Domæner, der kan åbnes', tabelRulAria: 'Domæner, ruller vandret', kolHvorfor: 'Hvorfor', kolAabn: 'Åbn', kolDetaljer: 'Detaljer', aabnFor: 'Åbn {v}', hentetTitel: 'Hentet i dag', intetAabnet: 'Intet åbnet endnu.', aabnet: 'Åbnet: {v}', talAria: '{v} afvist i går', talValgt: 'Tallet for {v} (rækken blev ikke åbnet)',
+        stRoligt: 'Roligt', stHoldOeje: 'Hold øje', stHandl: 'Handl', hvorforTekst: 'Flest login-forsøg fra et ukendt net; alle blev stoppet.',
+        tabelLaesNavn: 'De seneste hændelser', kolDag: 'Dag', kolHaendelse: 'Hændelse', hLogin: 'Login afvist', hDmarc: 'DMARC fejlede', hTrafik: 'Trafikken steg', visKilde: 'Vis', visKildeAria: 'Vis {v}', visValgt: 'Vist: {v}',
+        gFra: 'Kopiér ⌘C (slået fra: tekst i --text-disabled)',
+        h240: 'Hover, buer og svage flader', p240: 'Fra 2.4.0. Søjlerne skifter til mærkets hover-farve under musen (mærket blandet med tekstens farve). Under dem mærkernes svage flade (18 %) med tekst på. På kortet er buen, der er et angreb, rød som ringen; den blå bue betyder ingenting ud over vejen. Forklaringen står på en næsten dækkende flade (92 %).',
+        svagTekst: 'Tekst på svag flade', kortAngreb: 'Angreb (danger-mark)', kortBue: 'Bue uden betydning (map-arc)',
         kasseSager: 'Seneste sager', kasseNet: 'Egne net', visAlle: 'Vis alle', kasseFod: 'Opdateret for 2 minutter siden', sag1: 'Supportsag 0042', sag2: 'Leverandør 0007', sag3: 'Test 0001', netTekst: 'Adresser i 192.0.2.0/24 og 2001:db8::/32 maskeres altid.',
       },
       en: {
@@ -183,6 +190,13 @@
         hTekst: 'Text size', pTekst: 'From 2.3.0. Three steps as one scale for the whole surface; the choice is remembered and set before the page is drawn. Also try ⌘+, ⌘− and ⌘0 (Ctrl on Windows): the shortcuts are the program\'s, the functions the kit\'s.',
         tekstAria: 'Text size', tLille: 'Small', tNormal: 'Normal', tStor: 'Large', gTekst: 'Text',
         hKasse: 'Box', pKasse: 'From 2.3.0. The card of the kit: a surface with a heading, content, an optional action in the header and an optional footer. The class is .kasse.',
+        hTabelAabn: 'Rows that open, and a table without row selection', pTabelAabn: 'From 2.4.0. At the top a row opens something with a click, Enter or space; the arrow keys only move. The numbers are buttons of their own and do not open the row. The frame scrolls sideways, and the domain stays put. At the bottom a table that is only read: no row can be selected, but the buttons work.',
+        tabelAabnNavn: 'Domains that can be opened', tabelRulAria: 'Domains, scrolls sideways', kolHvorfor: 'Why', kolAabn: 'Open', kolDetaljer: 'Details', aabnFor: 'Open {v}', hentetTitel: 'Fetched today', intetAabnet: 'Nothing opened yet.', aabnet: 'Opened: {v}', talAria: '{v} rejected yesterday', talValgt: 'The number for {v} (the row was not opened)',
+        stRoligt: 'Calm', stHoldOeje: 'Watch', stHandl: 'Act', hvorforTekst: 'Most login attempts from an unknown network; all were stopped.',
+        tabelLaesNavn: 'Latest events', kolDag: 'Day', kolHaendelse: 'Event', hLogin: 'Login rejected', hDmarc: 'DMARC failed', hTrafik: 'Traffic rose', visKilde: 'Show', visKildeAria: 'Show {v}', visValgt: 'Shown: {v}',
+        gFra: 'Copy ⌘C (disabled: text in --text-disabled)',
+        h240: 'Hover, arcs and faint surfaces', p240: 'From 2.4.0. The bars change to the hover colour of the mark under the mouse (the mark mixed with the text colour). Below them the faint surface of each mark (18 %) with text on it. On the map the arc that is an attack is red like the ring; the blue arc means nothing but the route. The legend stands on an almost opaque surface (92 %).',
+        svagTekst: 'Text on a faint surface', kortAngreb: 'Attack (danger-mark)', kortBue: 'Arc without meaning (map-arc)',
         kasseSager: 'Latest cases', kasseNet: 'Own networks', visAlle: 'Show all', kasseFod: 'Updated 2 minutes ago', sag1: 'Support case 0042', sag2: 'Supplier 0007', sag3: 'Test 0001', netTekst: 'Addresses in 192.0.2.0/24 and 2001:db8::/32 are always masked.',
       },
     },
@@ -363,6 +377,47 @@
     vedPrSide: n => { tabelPr = n; tabelSide = 1; sider.saet(1, antalSider()); tabelNy.saetRaekker(sideRaekker()); S.anvend(sider.rod); },
   });
   $('demo-tabel-ny').append(tabelNy, sider.rod);
+
+  /* 2.4.0 (K36–K38): rækker, der åbner, i en rulleramme med fast første kolonne; tallene er knapper, der ikke åbner
+     rækken. Under den en tabel, der kun skal læses (ingen rækkevalg), med en knap i hver række. Kun opdigtede data. */
+  const meldV = (id, noegle, v) => { const p = $(id); p.setAttribute('data-t', noegle); p.setAttribute('data-v', String(v)); S.anvend(p); };
+  const STATUS = [['ok', 'stRoligt'], ['warn', 'stHoldOeje'], ['danger', 'stHandl']];
+  const tekstEl240 = (tag, t, v) => { const e = document.createElement(tag); e.setAttribute('data-t', t); if (v != null) e.setAttribute('data-v', String(v)); return e; };
+  const aabnRaekker = DOMAENE_TAL.slice(0, 8).map(([navn, iGaar, syv, uge], i) => {
+    const tal = document.createElement('button');
+    tal.type = 'button';
+    tal.className = 'demo-tal';
+    tal.textContent = String(iGaar);
+    tal.setAttribute('data-t-aria', 'talAria');
+    tal.setAttribute('data-v', navn);
+    tal.addEventListener('click', () => meldV('tabel-aabn-valgt', 'talValgt', navn));
+    const chev = document.createElement('span');
+    chev.append(K.ikon('hoejre', 'ik'));
+    const skjult = tekstEl240('span', 'aabnFor', navn);
+    skjult.className = 'skjult-tekst';
+    chev.append(skjult);
+    return { celler: [navn, K.chip(STATUS[i % 3][0], { t: STATUS[i % 3][1] }), tekstEl240('span', 'hvorforTekst'), tal, syv, uge, chev], data: navn, attr: { 'data-zone': 'z' + (i + 1) }, titelT: 'hentetTitel' };
+  });
+  const tabelAabn = K.tabel({
+    titelT: 'tabelAabnNavn', raekkeHandling: 'aabn', layout: 'auto', fastFoerste: true,
+    kolonnegrupper: [{ id: 'afvist', t: 'thAfvist', skille: true }, { id: 'angreb', t: 'thAngreb', skille: true }],
+    kolonner: [{ t: 'kolDomaene', hoved: true }, { t: 'kolStatus' }, { t: 'kolHvorfor', bredde: 'l' }, { t: 'thIGaar', tal: true, gruppe: 'afvist', bredde: 's' }, { t: 'th7', tal: true, gruppe: 'afvist', bredde: 's' }, { t: 'thUge', tal: true, gruppe: 'angreb', bredde: 's' }, { t: 'kolAabn', bredde: 'xs', klasse: 'demo-chev' }],
+    raekker: aabnRaekker,
+    vedAabn: (tr, data) => meldV('tabel-aabn-valgt', 'aabnet', data),
+  });
+  const rul = K.tabelRul(tabelAabn, { ariaT: 'tabelRulAria' });
+  $('demo-tabel-aabn').appendChild(rul.rod);
+  const laesRaekker = [['2026-11-10', 'eksempel.dk', 'hLogin', 4], ['2026-11-10', 'shop.eksempel.dk', 'hDmarc', 1], ['2026-11-09', 'api.eksempel.dk', 'hTrafik', 12]].map(([dag, navn, h, n]) => {
+    const vis = K.knap({ t: 'visKilde', variant: 'ghost', ved: () => meldV('tabel-laes-valgt', 'visValgt', navn) });
+    vis.setAttribute('data-t-aria', 'visKildeAria');
+    vis.setAttribute('data-v', navn);
+    return { celler: [dag, navn, tekstEl240('span', h), n, vis], mono: [0, 1], data: navn };
+  });
+  $('demo-tabel-laes').appendChild(K.tabel({
+    titelT: 'tabelLaesNavn', raekkeHandling: 'ingen',
+    kolonner: [{ t: 'kolDag', bredde: 'l' }, { t: 'kolDomaene', hoved: true }, { t: 'kolHaendelse' }, { t: 'kolAntal', tal: true, bredde: 's' }, { t: 'kolDetaljer', bredde: 'm' }],
+    raekker: laesRaekker,
+  }));
 
   $('demo-bannere').append(
     K.banner({ variant: 'info', t: 'bInfo' }),
@@ -584,7 +639,7 @@
   $('demo-kasser').append(kasseSager.rod, kasseNet.rod);
 
   /* ── Tokens-visningen. Navnene er dem i tokens.json (testen holder dem ens). ── */
-  const FARVER = ['bg', 'surface', 'surface-raised', 'rail', 'rail-text', 'rail-strong', 'rail-active', 'accent-on-rail', 'border', 'border-strong', 'text', 'text-muted', 'accent', 'accent-hover', 'on-accent', 'accent-soft', 'ok', 'ok-soft', 'info', 'info-soft', 'warn', 'warn-soft', 'danger', 'danger-soft', 'ok-mark', 'warn-mark', 'danger-mark', 'info-mark', 'none-mark', 'data-1', 'data-2', 'data-3', 'data-4', 'data-5', 'data-6', 'data-axis', 'data-grid', 'data-label', 'seq-1', 'seq-2', 'seq-3', 'seq-4', 'seq-5', 'map-sea', 'map-land', 'map-border', 'map-ring', 'map-arc'];
+  const FARVER = ['bg', 'surface', 'surface-raised', 'rail', 'rail-text', 'rail-strong', 'rail-active', 'accent-on-rail', 'border', 'border-strong', 'text', 'text-muted', 'text-disabled', 'accent', 'accent-hover', 'on-accent', 'accent-soft', 'ok', 'ok-soft', 'info', 'info-soft', 'warn', 'warn-soft', 'danger', 'danger-soft', 'ok-mark', 'warn-mark', 'danger-mark', 'info-mark', 'none-mark', 'ok-mark-hover', 'warn-mark-hover', 'danger-mark-hover', 'info-mark-hover', 'none-mark-hover', 'data-1', 'data-2', 'data-3', 'data-4', 'data-5', 'data-6', 'data-axis', 'data-grid', 'data-label', 'seq-1', 'seq-2', 'seq-3', 'seq-4', 'seq-5', 'map-sea', 'map-land', 'map-border', 'map-ring', 'map-arc'];
   const STILE = ['display', 'h1', 'h2', 'h3', 'body', 'small', 'label', 'mono'];
   const LUFT = ['space-1', 'space-2', 'space-3', 'space-4', 'space-6', 'space-8'];
   const RADIER = ['radius-sm', 'radius-md', 'radius-lg', 'radius-pill'];
@@ -663,6 +718,39 @@
       d.append(i, mono(k));
       $('demo-kortfarver').appendChild(d);
     }
+  }
+
+  /* ── 2.4.0: hover på mærker (K19), svage flader (K21) og en bue, der er et angreb (K20). Farverne står i demoens
+     <style> med tokens og color-mix; her bygges kun elementerne. ── */
+  for (const m of ['ok', 'warn', 'danger', 'info', 'none']) {
+    const d = document.createElement('span'), i = document.createElement('i');
+    i.className = m;
+    d.append(i, mono(m + '-mark-hover'));
+    $('demo-hover').appendChild(d);
+    const f = tekstEl240('span', 'svagTekst');
+    f.className = m;
+    $('demo-svag').appendChild(f);
+  }
+  {
+    const NS = window.Kit.ikon('sol').namespaceURI;
+    const el = (navn, attr, stil) => { const e = document.createElementNS(NS, navn); for (const k of Object.keys(attr)) e.setAttribute(k, attr[k]); if (stil) e.setAttribute('style', stil); return e; };
+    const svg = el('svg', { viewBox: '0 0 320 140', role: 'img', 'aria-hidden': 'true' });
+    svg.append(
+      el('rect', { x: 0, y: 0, width: 320, height: 140 }, 'fill: var(--map-sea)'),
+      el('path', { d: 'M20 40 L90 22 L130 48 L112 96 L48 108 Z' }, 'fill: var(--map-land); stroke: var(--map-border)'),
+      el('path', { d: 'M170 30 L250 24 L296 62 L270 112 L196 104 Z' }, 'fill: var(--map-land); stroke: var(--map-border)'),
+      el('path', { d: 'M60 90 Q150 20 232 66', 'data-bue': 'angreb' }, 'fill: none; stroke: var(--danger-mark); stroke-width: 2'),
+      el('path', { d: 'M76 50 Q160 0 270 44', 'data-bue': 'neutral' }, 'fill: none; stroke: var(--map-arc); stroke-width: 2'),
+      el('circle', { cx: 232, cy: 66, r: 12, 'data-ring': 'svag' }, 'fill: color-mix(in srgb, var(--map-ring) 18%, transparent); stroke: var(--map-ring); stroke-width: 2'),
+      el('circle', { cx: 232, cy: 66, r: 3 }, 'fill: var(--map-ring)'),
+    );
+    const forkl = document.createElement('div');
+    forkl.className = 'demo-forklaring';
+    const a = tekstEl240('span', 'kortAngreb'), b = tekstEl240('span', 'kortBue');
+    a.className = 'angreb';
+    b.className = 'bue';
+    forkl.append(a, b);
+    $('demo-kort240').append(svg, forkl);
   }
 
   /* ── Start: udfyld teksterne, vis den rigtige visning ── */

@@ -45,7 +45,7 @@ Programmet får hele Kit 2's skal (se beslutningen øverst). Trin 1–6 lægger 
 
 ## Opfyldte ønsker
 
-Ønskerne står i `../Huginn-Muninn/claude_cowork/from-cowork/KIT-OENSKER-HAM.md` (K1–K17). Kittet udvides i kilden, så næste program får det med.
+Ønskerne står i `../Huginn-Muninn/claude_cowork/from-cowork/KIT-OENSKER-HAM.md` (K1–K38). Kittet udvides i kilden, så næste program får det med.
 
 | Ønske | Pakke | Hvad kittet har nu |
 |---|---|---|
@@ -67,8 +67,19 @@ Programmet får hele Kit 2's skal (se beslutningen øverst). Trin 1–6 lægger 
 | K15 Tabel: to hovedrækker, sortering, sideskift | 2.3.0 | `Kit.tabel` med `kolonnegrupper` og `gruppe`, `sort` og `vedSortering` (programmet sorterer, fx i Rust som i dag), og `Kit.sideskift`. Afløser hovedet med `<colgroup>`, `rowspan` og `scope="colgroup"` i `index.html` og `nav.dyk-sider` i `visning-vaernet.js` |
 | K16 Filterchip | 2.3.0 | `Kit.filterchips` og `Kit.filterchip` (`aria-pressed`, antal, gruppe med navn). Afløser filterknapperne med `aria-pressed` på Angreb og Login |
 | K17 Tekststørrelse i tre trin | 2.3.0 | `Tekst` i kittets `tema.js` (lille, normal, stor; én skala for hele fladen). Afløser `tekst.js` (`hmTekst`, `data-density`); se trin 3 |
+| K18 Deaktiveret tekst | 2.4.0 | `--text-disabled` (4,5:1 mod `--surface`, `--surface-raised` og `--bg`; programmets egen lyse værdi var 4,4:1 mod `--bg`). Afløser `--color-text-disabled` |
+| K19 Hover på et mærke | 2.4.0 | `--info-mark-hover` m.fl. (mærket 78 % blandet med `--text`, som programmet gør nu; tokens, fordi WPF ikke kan blande). Afløser `--board-visitors-hover` |
+| K20 Buer, der er angreb | 2.4.0 | Regel: en bue tager betydningens mærkefarve; angreb er `--danger-mark`. Programmets `--kort-bue: var(--danger-mark)` er efter reglen |
+| K21 Svag flade af et mærke | 2.4.0 | Regel med `color-mix` og `transparent`: 18 % (mærke) og 92 % (`--surface`), som programmet gør nu; ingen tokens. `--kort-ring-fyld` og `--board-zoom-bg` kan blive, hvor de er, eller skrives direkte |
+| K29 Knaptekst ombrydes ikke | 2.4.0 | `.btn` har `white-space: nowrap` i kittet. Afløser `.btn { white-space: nowrap; }` i `app.css` |
+| K30 Symbolet for `danger` | 2.4.0 | `Kit.SYMBOL.danger` er `×` (før `?`). Røde chips ("Handl", "Kritisk", "Afvist") viser × |
+| K36 Rækker, der åbner, og tabel uden rækkevalg | 2.4.0 | `Kit.tabel` med `raekkeHandling: 'aabn'` (Overblik: `vedAabn`, klik, Enter, mellemrum; et klik på et tal eller et link i "Hvorfor" åbner ikke rækken) og `'ingen'` ("De seneste", Login, DMARC, trafik pr. dag). Navnet er `raekkeHandling`, ikke `raekker` som i ønsket: `raekker` er listen |
+| K37 Rækkehoved, celleklasser og rækkens data | 2.4.0 | `hoved: true` (domænet som `<th scope="row">`), `klasse` (`tal-kol`, `st`, `hv`, `chev` kan blive programmets klasser), `bredde` (fast sæt: `xs` 40, `s` 72, `m` 112, `l` 160, `xl` 240 px; `tal-kol` er i dag ca. 64 px), `skille: true` på kolonnegrupperne (afløser `.sep`), `attr: { 'data-zone': … }`, `titel` og `titelT` (afløser `<caption class="sr-only">`) |
+| K38 Tabel, der følger indholdet og ruller vandret | 2.4.0 | `layout: 'auto'`, `Kit.tabelRul(tabel, { ariaT })` og `fastFoerste: true`. Afløser `.tabel-rul` i `index.html` og `app.css` og den faste første kolonne i `@media (max-width: 1099px)`; kittets kolonne står fast ved alle bredder, når rammen ruller |
 
-**Alle 17 ønsker (K1–K17) er opfyldt med 2.3.0.** Ønskerne K18–K21, som Huginn and Muninn har skrevet efter B1 (deaktiveret tekst, hover på et mærke, buer på kort, svag flade af et mærke), er ikke en del af 2.3.0; de står i programmets `KIT-OENSKER-HAM.md` og venter på deres egen kørsel.
+**Alle 17 ønsker (K1–K17) er opfyldt med 2.3.0.** K18–K21, K29, K30 og K36–K38 er opfyldt med 2.4.0. Med 2.4.0 kan programmet flytte **B2d** (tabellerne, tom tilstand, fremdrift og værktøjstip): Overblik og de fire læsetabeller kan bygges med `Kit.tabel`, og hverken piletasterne eller musen åbner noget, programmet ikke har bedt om.
+
+**Venter på 2.5.0** (V-KIT.6): K22 (mærke med eget billede), K23 (titellinjeknap slået fra eller aktiv), K24 (visningsskift med punkt slået fra og tal), K25 (status med fremdrift i fodlinjen), K26 (træ, der kan bygges om), K28 (segmentknap uden valg), K31 (radiogruppe, valgliste og kontakt med navn uden for gruppen), K32 (ikon i kassens overskrift), K33 (valgt flise og flise med to mål), K34 (aktivt filter, der kan fjernes) og K35 (flise med frit indhold). Indtil da bliver de dele i programmets egne filer, som ønskerne beskriver. **K27** (præfiks på kittets klasser) kræver 3.0.0 og er ikke planlagt.
 
 Det af `--board-*`, der ikke har en modpart i kittet, bliver programmets eget og peger på kittets flader og tekstfarver.
 
@@ -77,7 +88,7 @@ Det af `--board-*`, der ikke har en modpart i kittet, bliver programmets eget og
 | Hvad | Hvorfor |
 |---|---|
 | Tæthed for sig (tættere rækker uden mindre tekst) | Kittet har tekststørrelsen i tre trin (2.3.0), som skalerer hele fladen, men ingen tæthed for sig. Har programmet brug for det, er det et nyt ønske |
-| Ønskerne K18–K21 | Ikke i 2.3.0 (se "Opfyldte ønsker"). Indtil da bliver `--color-text-disabled`, hover på søjler og kortets fyld i programmets egen fil, som ønskerne beskriver |
+| Ønskerne K22–K26, K28 og K31–K35 | Ikke i 2.4.0; venter på 2.5.0 (se "Opfyldte ønsker"). K27 kræver 3.0.0 |
 | Båndets bølger og logo | Kit 2's titellinje er en rolig linje på 34 px. Med hele skallen udgår bølgerne; logoet bliver til mærket (`.mrk`) eller programmets eget. Vælgerne (domæne, land) har plads fra 2.2.0 (`Kit.vaelger` i `.titel .hoejre`) |
 | Sprogets mekanik (`hmSprog`) | Programmets er rigere end kittets (`{domaene}`, `{land}`, datoer, tal, ordliste, genindlæsning). Flyttes ikke |
 | XAML-udgaven fra Kit 1.0 (`design/out/Wi24rdTokens.xaml`) | Filen siger selv, at den endnu ikke bruges af FTP. Kit 2 har sin egen (`tokens/Tokens.xaml`) med andre nøgler; den gamle kan udgå, når Kit 1.0 udgår |

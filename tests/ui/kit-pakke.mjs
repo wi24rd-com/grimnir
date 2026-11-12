@@ -25,6 +25,10 @@ const V230_FUNKTIONER = ['Kit.filterchip', 'Kit.filterchips', 'Kit.kasse', 'Kit.
 // K15: en tabel bygget af 2.0.0's kit.js (git show 64c0cce:design/ui-kit-2/pakke/web/kit.js) med bygTabel i 2.3.0-blokken: efter
 // oprettelsen og efter vaelg(1). Uden de nye indstillinger skal tabellen være byte for byte den samme.
 const V200_TABEL = {"tabel": "<table class=\"tabel\" role=\"grid\" data-t-aria=\"tabelAria\"><thead><tr><th data-t=\"kolVaerdi\" scope=\"col\"></th><th scope=\"col\">Status</th><th class=\"r\" data-t=\"kolAntal\" scope=\"col\"></th></tr></thead><tbody><tr class=\"gruppe\"><td colspan=\"3\"><b data-t=\"grpAdresser\"></b> <span class=\"muted\">2 rækker</span></td></tr><tr tabindex=\"0\" aria-selected=\"false\"><td class=\"mono\">192.0.2.17</td><td><span class=\"chip ok\"><span aria-hidden=\"true\">✓</span><span class=\"ord\">Maskeres</span></span></td><td class=\"r\">4</td></tr><tr tabindex=\"-1\" aria-selected=\"false\"><td class=\"mono\">2001:db8::17</td><td></td><td class=\"r\">12</td></tr><tr class=\"gruppe\"><td colspan=\"3\"><b>Navne</b></td></tr><tr tabindex=\"-1\" aria-selected=\"false\"><td class=\"mono\">srv-app01.eksempel.dk</td><td><span class=\"chip warn\"><span aria-hidden=\"true\">!</span><span class=\"ord\" data-t=\"cWarn\"></span></span></td><td class=\"r\">0</td></tr></tbody></table>", "tabelValgt": "<table class=\"tabel\" role=\"grid\" data-t-aria=\"tabelAria\"><thead><tr><th data-t=\"kolVaerdi\" scope=\"col\"></th><th scope=\"col\">Status</th><th class=\"r\" data-t=\"kolAntal\" scope=\"col\"></th></tr></thead><tbody><tr class=\"gruppe\"><td colspan=\"3\"><b data-t=\"grpAdresser\"></b> <span class=\"muted\">2 rækker</span></td></tr><tr tabindex=\"-1\" aria-selected=\"false\"><td class=\"mono\">192.0.2.17</td><td><span class=\"chip ok\"><span aria-hidden=\"true\">✓</span><span class=\"ord\">Maskeres</span></span></td><td class=\"r\">4</td></tr><tr tabindex=\"0\" aria-selected=\"true\" class=\"sel\"><td class=\"mono\">2001:db8::17</td><td></td><td class=\"r\">12</td></tr><tr class=\"gruppe\"><td colspan=\"3\"><b>Navne</b></td></tr><tr tabindex=\"-1\" aria-selected=\"false\"><td class=\"mono\">srv-app01.eksempel.dk</td><td><span class=\"chip warn\"><span aria-hidden=\"true\">!</span><span class=\"ord\" data-t=\"cWarn\"></span></span></td><td class=\"r\">0</td></tr></tbody></table>"};
+// Pakke 2.4.0 (K36–K38, K18–K21, K29, K30): de nye navne. Det, der ikke står her, V200_*, 2.2.0's eller V230_*, må ikke findes.
+const V240_FUNKTIONER = ['Kit.tabelRul'];
+const V240_KLASSER = ['uden-valg', 'kol-xs', 'kol-s', 'kol-m', 'kol-l', 'kol-xl', 'kol-skille', 'layout-auto', 'tabel-rul', 'fast-foerste'];
+const V240_FARVER = ['text-disabled', 'ok-mark-hover', 'warn-mark-hover', 'danger-mark-hover', 'info-mark-hover', 'none-mark-hover'];
 const V230_KLASSER = ['fchips', 'fchip', 'fchip-mark', 'kasse', 'kasse-top', 'kasse-handling', 'kasse-indhold', 'fyld', 'kasse-fod', 'sfliser', 'sflise', 'sflise-navn', 'sflise-tal', 'sflise-under', 'sflise-pil', 'tomt', 'tomt-ikon', 'tomt-h', 'tomt-p', 'lille', 'frem', 'ubestemt', 'frem-tekst', 'frem-bjaelke', 'snurr', 'tip-plads', 'tip', 'under', 'venstre-kant', 'afk-felt', 'afk', 'afk-boks', 'afk-tekst', 'afk-hj', 'valgsaet', 'vandret', 'tilfra', 'tilfra-ord', 'tilfra-til', 'tilfra-fra', 'vliste', 'modal', 'bred', 'modal-top', 'modal-luk', 'modal-tekst', 'modal-indhold', 'modal-fod', 'sorter', 'sorter-pil', 'kolgruppe', 'sideskift', 'sideskift-nr', 'sideskift-pr'];
 
 // ── N1: én kilde ──
@@ -54,7 +58,7 @@ const V230_KLASSER = ['fchips', 'fchip', 'fchip-mark', 'kasse', 'kasse-top', 'ka
   const mangler = skal.filter(f => !fs.existsSync(path.join(PAKKE, f)));
   tjek('pakken har alle sine filer', mangler.length === 0, mangler.join(', '));
   // V-KVIT.1 N4: pakken er 2.0.1 (kun dokumenter: licensteksten, beslutningen om Huginn and Muninn, noten om Sandbox).
-  tjek('VERSION er 2.3.0', VERSION === '2.3.0' && pk('VERSION') === '2.3.0\n', JSON.stringify(pk('VERSION')));
+  tjek('VERSION er 2.4.0', VERSION === '2.4.0' && pk('VERSION') === '2.4.0\n', JSON.stringify(pk('VERSION')));
   const log = pk('CHANGELOG.md');
   const foerste = /^## (\d+\.\d+\.\d+) — (\d{4}-\d{2}-\d{2})$/m.exec(log);
   tjek('CHANGELOG: første post er pakkens version med en dato', Boolean(foerste) && foerste[1] === VERSION, foerste ? foerste[0] : 'ingen post');
@@ -199,7 +203,7 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
   tjek('demo: i sidste trin hedder den primære knap Done', frem.querySelector('span').textContent === 'Done');
   w.location.hash = '#tokens';
   w.dispatchEvent(new w.HashChangeEvent('hashchange'));
-  tjek('demo: visningsskiftet viser Tokens (48 farver, 8 skriftstile) og markerer den', !d.getElementById('v-tokens').hidden && d.getElementById('v-komponenter').hidden && d.querySelectorAll('#demo-farver .demo-farve').length === 48 && d.querySelectorAll('#demo-skrift > div').length === 8 && d.querySelector('#skift .vs.on').dataset.visning === 'tokens' && d.querySelector('#skift .vs.on').getAttribute('aria-current') === 'page');
+  tjek('demo: visningsskiftet viser Tokens (54 farver fra 2.4.0, 8 skriftstile) og markerer den', !d.getElementById('v-tokens').hidden && d.getElementById('v-komponenter').hidden && d.querySelectorAll('#demo-farver .demo-farve').length === 54 && d.querySelectorAll('#demo-skrift > div').length === 8 && d.querySelector('#skift .vs.on').dataset.visning === 'tokens' && d.querySelector('#skift .vs.on').getAttribute('aria-current') === 'page');
   tjek('demo: stadig ingen fejl efter brug', fejlListe.length === 0, fejlListe.join(' | ').slice(0, 300));
   w.close();
 }
@@ -230,7 +234,7 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
   };
   const lys = laes(ordboeger[0]), moerk = laes(ordboeger[1]);
   tjek('Tokens.xaml: ingen nøgle står to gange i samme ordbog', lys.dobbelt === 0 && moerk.dobbelt === 0);
-  tjek('Tokens.xaml: de to ordbøger har præcis de samme nøgler (151 hver)', lys.m.size === 151 && JSON.stringify([...lys.m.keys()]) === JSON.stringify([...moerk.m.keys()]), `${lys.m.size} / ${moerk.m.size}`);
+  tjek('Tokens.xaml: de to ordbøger har præcis de samme nøgler (163 hver fra 2.4.0)', lys.m.size === 163 && JSON.stringify([...lys.m.keys()]) === JSON.stringify([...moerk.m.keys()]), `${lys.m.size} / ${moerk.m.size}`);
   tjek('Tokens.xaml: alle nøgler følger navnereglen (Wi24rd + PascalCase)', [...lys.m.keys()].every(k => /^Wi24rd[A-Z][A-Za-z0-9]*$/.test(k)));
   tjek('kontrol: navnereglen (surface-raised → Wi24rdSurfaceRaised, space-1 → Wi24rdSpace1, accent → Wi24rdAccent)', pascal('surface-raised') === 'Wi24rdSurfaceRaised' && pascal('space-1') === 'Wi24rdSpace1' && pascal('accent') + 'Brush' === 'Wi24rdAccentBrush');
 
@@ -254,7 +258,7 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
   const css = pk('tokens/tokens.css');
   const blok = (start) => { const i = css.indexOf(start); return Object.fromEntries([...css.slice(i, css.indexOf('}', i)).matchAll(/--([a-z0-9-]+): ([^;]+);/g)].map(m => [m[1], m[2]])); };
   const faelles = blok(':root {\n  --font-sans'), cssLys = blok(':root {\n  color-scheme: light;'), cssMoerk = blok(':root[data-tema="moerk"] {');
-  tjek('tokens.css: 47 fælles variabler og 50 pr. tema (kontrol af læsningen)', Object.keys(faelles).length === 47 && Object.keys(cssLys).length === 50 && Object.keys(cssMoerk).length === 50, [faelles, cssLys, cssMoerk].map(b => Object.keys(b).length).join('/'));
+  tjek('tokens.css: 47 fælles variabler og 56 pr. tema fra 2.4.0 (kontrol af læsningen)', Object.keys(faelles).length === 47 && Object.keys(cssLys).length === 56 && Object.keys(cssMoerk).length === 56, [faelles, cssLys, cssMoerk].map(b => Object.keys(b).length).join('/'));
   const farveNavne = tokens.color.tokens.map(t => t.name);
   for (const [navn, o, c, tema] of [['Wi24rdLys', lys, cssLys, 'light'], ['Wi24rdMoerk', moerk, cssMoerk, 'dark']]) {
     const uens = farveNavne.filter(n => {
@@ -262,7 +266,7 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
       const v = argb(c[n], n);
       return !brush || !color || brush.getAttribute('Color') !== v || color.textContent !== v;
     });
-    tjek(`Tokens.xaml (${navn}): de 48 farver er de samme som i tokens.css (pensel og farve)`, farveNavne.length === 48 && uens.length === 0, uens.join(', '));
+    tjek(`Tokens.xaml (${navn}): de 54 farver (fra 2.4.0) er de samme som i tokens.css (pensel og farve)`, farveNavne.length === 54 && uens.length === 0, uens.join(', '));
     tjek(`Tokens.xaml (${navn}): farverne er også dem i tokens.json (${tema})`, temaVaerdier(tokens, tema).filter(([n]) => farveNavne.includes(n)).every(([n, v]) => o.m.get(pascal(n) + 'Brush').getAttribute('Color') === '#FF' + v.slice(1).toUpperCase()));
     const tal = Object.entries(faelles).filter(([, v]) => /^-?[\d.]+px$/.test(v));
     const talUens = tal.filter(([n, v]) => { const e = o.m.get(pascal(n)); return !e || e.textContent !== v.replace('px', ''); }).map(([n]) => n);
@@ -275,7 +279,7 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
     tjek(`Tokens.xaml (${navn}): de to skygger har samme afstand, sløring, farve og styrke som i tokens.css`, skygger.length === 2 && skygger.every(Boolean));
     const alleCss = [...Object.keys(faelles), ...Object.keys(c)];
     const udenNoegle = alleCss.filter(n => !(o.m.has(pascal(n)) || o.m.has(pascal(n) + 'Brush')));
-    tjek(`Tokens.xaml (${navn}): hver CSS-variabel har en nøgle efter navnereglen (${alleCss.length} variabler)`, alleCss.length === 97 && udenNoegle.length === 0, udenNoegle.join(', '));
+    tjek(`Tokens.xaml (${navn}): hver CSS-variabel har en nøgle efter navnereglen (${alleCss.length} variabler)`, alleCss.length === 103 && udenNoegle.length === 0, udenNoegle.join(', '));
   }
   tjek('Tokens.xaml: skriftvægte og familier (Normal/SemiBold; Inter, Segoe UI; ingen CSS-ord som system-ui)', lys.m.get('Wi24rdBodyWeight').textContent === 'Normal' && lys.m.get('Wi24rdH1Weight').textContent === 'SemiBold' && lys.m.get('Wi24rdFontSans').textContent === 'Inter, Segoe UI' && lys.m.get('Wi24rdFontMono').textContent === 'JetBrains Mono, Cascadia Mono, Menlo' && lys.m.get('Wi24rdMonoFamily').textContent === lys.m.get('Wi24rdFontMono').textContent && !/system-ui|sans-serif|monospace|&quot;/.test(xaml));
   tjek('Tokens.xaml: lyst og mørkt tema har forskellige farver, men samme tal', lys.m.get('Wi24rdSurfaceBrush').getAttribute('Color') === '#FFFFFFFF' && moerk.m.get('Wi24rdSurfaceBrush').getAttribute('Color') === '#FF121C29' && lys.m.get('Wi24rdSpace4').textContent === moerk.m.get('Wi24rdSpace4').textContent);
@@ -302,8 +306,8 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
   for (const f of ['tema.js', 'sprogmotor.js', 'kit.js']) dom.window.eval(pk('web/' + f));
   const w = dom.window;
   const kodeFunktioner = new Set([...Object.keys(w.Kit).map(k => 'Kit.' + k), ...Object.keys(w.Tema).map(k => 'Tema.' + k), ...Object.keys(w.KitSprog).map(k => 'KitSprog.' + k), ...Object.keys(w.Tekst).map(k => 'Tekst.' + k)]);
-  tjek('kittet stiller Kit (32 navne), Tema (3), KitSprog (1) og fra 2.3.0 Tekst (6) til rådighed', Object.keys(w.Kit).length === 32 && Object.keys(w.Tema).length === 3 && Object.keys(w.KitSprog).length === 1 && Object.keys(w.Tekst).length === 6, [...kodeFunktioner].join(', '));
-  tjek('kit.css har 144 klasser i sine vælgere (kontrol af læsningen)', cssKlasser.size === 144 && cssKlasser.has('btn') && cssKlasser.has('skjult-tekst') && !cssKlasser.has('woff2'), String(cssKlasser.size));
+  tjek('kittet stiller Kit (33 navne fra 2.4.0), Tema (3), KitSprog (1) og fra 2.3.0 Tekst (6) til rådighed', Object.keys(w.Kit).length === 33 && Object.keys(w.Tema).length === 3 && Object.keys(w.KitSprog).length === 1 && Object.keys(w.Tekst).length === 6, [...kodeFunktioner].join(', '));
+  tjek('kit.css har 154 klasser i sine vælgere fra 2.4.0 (kontrol af læsningen)', cssKlasser.size === 154 && cssKlasser.has('btn') && cssKlasser.has('skjult-tekst') && !cssKlasser.has('woff2'), String(cssKlasser.size));
 
   const uden = afsnit.filter(a => klasserI(a).length + funktionerI(a).length === 0).map(a => a.navn);
   tjek('hver komponent i KOMPONENTER.md nævner mindst én klasse eller funktion', uden.length === 0, uden.join(', '));
@@ -367,7 +371,7 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
   const NYE = ['ok', 'ok-soft', 'ok-mark', 'warn-mark', 'danger-mark', 'info-mark', 'none-mark', 'data-1', 'data-2', 'data-3', 'data-4', 'data-5', 'data-6', 'data-axis', 'data-grid', 'data-label',
     'seq-1', 'seq-2', 'seq-3', 'seq-4', 'seq-5', 'map-sea', 'map-land', 'map-border', 'map-ring', 'map-arc'];
   const mangler = NYE.filter(n => !farve[n] || !/^#[0-9A-F]{6}$/.test(farve[n].light) || !/^#[0-9A-F]{6}$/.test(farve[n].dark));
-  tjek('2.1.0: de 26 nye farver findes i lyst og mørkt tema', mangler.length === 0 && tokens.color.tokens.length === 48, mangler.join(', '));
+  tjek('2.1.0: de 26 nye farver findes i lyst og mørkt tema (i alt 54 fra 2.4.0)', mangler.length === 0 && tokens.color.tokens.length === 54, mangler.join(', '));
   tjek('2.1.0 (K1): ok og ok-soft har samme værdier som accent og accent-soft, men er egne tokens', ['light', 'dark'].every(t => farve.ok[t] === farve.accent[t] && farve['ok-soft'][t] === farve['accent-soft'][t]));
   const css = pk('web/kit.css');
   tjek('2.1.0 (K1): OK-chip og OK-banner bruger ok, ikke accent', /\.chip\.ok \{ background: var\(--ok-soft\); color: var\(--ok\); \}/.test(css) && /\.ban\.ok \{ background: var\(--ok-soft\); \} \.ban\.ok \.s \{ background: var\(--ok\);/.test(css));
@@ -425,9 +429,9 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
   tjek('2.2.0: hver klasse i kit.css fra 2.0.0 findes stadig (65)', V200_KLASSER.length === 65 && mKl.length === 0, mKl.join(', '));
   tjek('2.2.0: hver funktion i Kit, Tema og KitSprog fra 2.0.0 findes stadig (18)', V200_FUNKTIONER.length === 18 && mFn.length === 0, mFn.join(', '));
   tjek('2.2.0: hvert ikon fra 2.0.0 findes stadig (27), og der er ingen nye', V200_IKONER.length === 27 && mIk.length === 0 && JSON.stringify(Object.keys(K.IKONER)) === JSON.stringify(V200_IKONER), mIk.join(', '));
-  tjek('2.2.0: de nye navne er Kit.vaelger, Kit.sidepanel og Kit.segment (og fra 2.3.0 kun dem i V230_FUNKTIONER)', JSON.stringify(fn.filter(f => !V200_FUNKTIONER.includes(f) && !V230_FUNKTIONER.includes(f))) === JSON.stringify(['Kit.vaelger', 'Kit.sidepanel', 'Kit.segment']), fn.filter(f => !V200_FUNKTIONER.includes(f)).join(', '));
+  tjek('2.2.0: de nye navne er Kit.vaelger, Kit.sidepanel og Kit.segment (og fra 2.3.0 og 2.4.0 kun dem i V230_FUNKTIONER og V240_FUNKTIONER)', JSON.stringify(fn.filter(f => !V200_FUNKTIONER.includes(f) && !V230_FUNKTIONER.includes(f) && !V240_FUNKTIONER.includes(f))) === JSON.stringify(['Kit.vaelger', 'Kit.sidepanel', 'Kit.segment']), fn.filter(f => !V200_FUNKTIONER.includes(f)).join(', '));
   const nyeKl = ['enkel', 'baand-el', 'taet', 'vlg', 'vlg-knap', 'vlg-vaerdi', 'vlg-pop', 'op', 'hoejre-kant', 'vlg-soeg', 'vlg-liste', 'vlg-p', 'aktiv', 'vlg-mark', 'vlg-boks', 'vlg-alle', 'vlg-navn', 'vlg-ingen', 'sidepanel', 'over', 'sp-top', 'sp-luk', 'sp-indhold', 'seg', 'seg-v'];
-  tjek('2.2.0: kit.css har de 25 nye klasser og ingen andre nye (ud over dem i V230_KLASSER fra 2.3.0)', nyeKl.length === 25 && JSON.stringify([...cssKlasser].filter(k => !V200_KLASSER.includes(k) && !V230_KLASSER.includes(k)).sort()) === JSON.stringify([...nyeKl].sort()), [...cssKlasser].filter(k => !V200_KLASSER.includes(k)).join(', '));
+  tjek('2.2.0: kit.css har de 25 nye klasser og ingen andre nye (ud over dem i V230_KLASSER fra 2.3.0 og V240_KLASSER fra 2.4.0)', nyeKl.length === 25 && JSON.stringify([...cssKlasser].filter(k => !V200_KLASSER.includes(k) && !V230_KLASSER.includes(k) && !V240_KLASSER.includes(k)).sort()) === JSON.stringify([...nyeKl].sort()), [...cssKlasser].filter(k => !V200_KLASSER.includes(k)).join(', '));
   function bygEksempler(K2, d2) {
     const b = d2.createElement('div');
     K2.commandBar(b, { ariaT: 'cmdAria', valgt: 'vis', faner: [
@@ -1079,7 +1083,7 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
   tjek('KOMPONENTER.md: "Findes ikke endnu" er rettet: StatusTile, Dialog, Værktøjstip, Tom tilstand, Fremdrift, afkrydsning, kontakt og valgliste står ikke længere som manglende', !/\| (StatusTile|Dialog|Værktøjstip|Tom tilstand|Fremdrift) \|/.test(findes) && !/\| Afkrydsning, kontakt/.test(findes) && /\| Cover \|/.test(findes) && /\| Menu \|/.test(findes) && /Fra 2\.3\.0 er Dialog, Afkrydsning, Kontakt, Radiogruppe, Valgliste, StatusTile, Kasse \(kort\), Tom tilstand, Fremdrift, Værktøjstip, Filterchip og Tekststørrelse kode/.test(findes));
   const hm = pk('flytning/HUGINN-MUNINN.md');
   tjek('flytning/HUGINN-MUNINN.md: K10–K17 står som opfyldt i 2.3.0 med hvad de afløser; det siges, at alle 17 er opfyldt; tekststørrelse og komponenterne står ikke længere som umulige at flytte', ['K10', 'K11', 'K12', 'K13', 'K14', 'K15', 'K16', 'K17'].every(k => new RegExp('\\| ' + k + ' [^|]*\\| 2\\.3\\.0 \\|[^\\n]*Afløser').test(hm)) && /\*\*Alle 17 ønsker \(K1–K17\) er opfyldt med 2\.3\.0\.\*\*/.test(hm) && !/\| Tekststørrelse i tre trin \(`data-density`\) \| Kit 2 har én størrelse/.test(hm) && !/\| Dialoger, afkrydsning/.test(hm) && /compact` → `lille`/.test(hm) && /K18–K21/.test(hm));
-  tjek('demo 2.3.0: versionen på siden er 2.3.0', (pk('demo/index.html').match(/data-v="2\.3\.0"/g) || []).length === 3);
+  tjek('demo 2.3.0: versionen på siden er 2.3.0 eller nyere (fra 2.4.0: 2.4.0)', (pk('demo/index.html').match(/data-v="2\.[34]\.0"/g) || []).length === 3);
   tjek('KOMPONENTER.md: Filterchip har alle syv dele og siger, at .chip ikke kan klikkes', harDele('Filterchip') && /aria-pressed/.test(afsnitAf('Filterchip')) && /kan ikke klikkes/.test(afsnitAf('Filterchip')));
 
   w.close();
@@ -1161,6 +1165,209 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
   w.Tema.saet('moerk');
   tjek('demo 2.3.0: mørkt tema sættes på siden med de nye komponenter', d.documentElement.getAttribute('data-tema') === 'moerk');
   w.close();
+}
+
+// ── Pakke 2.4.0 (K36–K38, K18–K21, K29, K30): tabellen, farverne og to ændringer, Jan har sagt ja til. ──
+{
+  const css = pk('web/kit.css'), kitJs = pk('web/kit.js'), md = pk('KOMPONENTER.md'), readme = pk('README.md');
+  const afsnitAf = navn => { const i = md.indexOf('\n## ' + navn + '\n'); return i < 0 ? '' : md.slice(i, md.indexOf('\n## ', i + 1)); };
+  const ny = () => {
+    const dom = new JSDOM('<!doctype html><html data-kit-praefiks="proeve"><body></body></html>', { runScripts: 'outside-only', url: 'http://kit.invalid/', pretendToBeVisual: true });
+    for (const f of ['tema.js', 'sprogmotor.js', 'kit.js']) dom.window.eval(pk('web/' + f));
+    return dom.window;
+  };
+  const w = ny(), d = w.document, K = w.Kit;
+  const tast = (el, key) => { const e = new w.KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }); el.dispatchEvent(e); return e; };
+  const fejlAf = f => { try { f(); return ''; } catch (e) { return String(e.message); } };
+  const fn = Object.keys(K).map(k => 'Kit.' + k);
+  const cssUden = css.replace(/\/\*[\s\S]*?\*\//g, '').replace(/@font-face\s*\{[^}]*\}/g, '').replace(/@keyframes[^{]*\{(?:[^{}]*\{[^}]*\})*[^}]*\}/g, ' ').replace(/\{[^}]*\}/g, ' ');
+  const cssKlasser = new Set([...cssUden.matchAll(/\.([a-z][a-z0-9-]*)/g)].map(m => m[1]));
+  tjek('2.4.0: de nye navne i V240_FUNKTIONER og V240_KLASSER findes i Kit og kit.css', V240_FUNKTIONER.every(f => fn.includes(f)) && V240_KLASSER.every(k => cssKlasser.has(k)), [...V240_FUNKTIONER.filter(f => !fn.includes(f)), ...V240_KLASSER.filter(k => !cssKlasser.has(k))].join(', '));
+  // Huginn and Muninns egne tabelklasser (app.css, vagt.css): kittet må ikke tage dem, mens programmet flytter.
+  const HAM_TABEL = ['sep', 'tal-kol', 'chev', 'st', 'hv', 'v', 'sr-only', 'vg-tabel', 'vg-tabel-rul', 'domaene'];
+  tjek('2.4.0: tabellens nye klasser støder ikke sammen med Huginn and Muninns tabelklasser (.sep, .tal-kol, .chev …) eller de optagne', HAM_TABEL.every(k => !cssKlasser.has(k)) && ['kort', 'tom', 'tal', 'sort', 'sider'].every(k => !cssKlasser.has(k)));
+
+  const kol = [{ t: 'kolNavn' }, { t: 'kolStatus' }, { t: 'kolAntal', tal: true }];
+  const rk = () => [{ gruppe: { t: 'grp' } }, { celler: ['a.eksempel.dk', 'ok', 1], data: 'a' }, { celler: ['b.eksempel.dk', 'warn', 2], data: 'b' }, { celler: ['c.eksempel.dk', 'ok', 3], data: 'c' }];
+  // Uden de nye indstillinger og med raekkeHandling: 'vaelg' er tabellen den samme (2.0.0-snapshot står i K15).
+  tjek('K36: raekkeHandling: \'vaelg\' giver præcis samme markup som uden indstillingen (standard)', K.tabel({ ariaT: 'x', kolonner: kol, raekker: rk(), raekkeHandling: 'vaelg' }).outerHTML === K.tabel({ ariaT: 'x', kolonner: kol, raekker: rk() }).outerHTML);
+  tjek('K36: en ukendt raekkeHandling, et ukendt layout og en ukendt bredde giver en fejl', /ukendt raekkeHandling: vælg/.test(fejlAf(() => K.tabel({ kolonner: kol, raekker: [], raekkeHandling: 'vælg' }))) && /ukendt layout: flyd/.test(fejlAf(() => K.tabel({ kolonner: kol, raekker: [], layout: 'flyd' }))) && /ukendt bredde: 87/.test(fejlAf(() => K.tabel({ kolonner: [{ t: 'a', bredde: 87 }], raekker: [] }))));
+
+  // ── K36 'aabn' ──
+  const aabnet = [];
+  const ta = K.tabel({ ariaT: 'x', kolonner: kol, raekker: rk(), raekkeHandling: 'aabn', vedAabn: (tr, data) => aabnet.push(data) });
+  d.body.appendChild(ta);
+  const rA = () => [...ta.querySelectorAll('tbody tr:not(.gruppe)')];
+  tjek('K36 (aabn): role="grid"; én række har tabindex 0, de andre -1; ingen aria-selected og ingen .sel', ta.getAttribute('role') === 'grid' && rA().map(r => r.tabIndex).join() === '0,-1,-1' && rA().every(r => !r.hasAttribute('aria-selected') && !r.classList.contains('sel')) && !ta.classList.contains('uden-valg'));
+  rA()[1].querySelector('td').click();
+  tjek('K36 (aabn): klik kalder vedAabn(række, data); rækken bliver Tab-stop; intet bliver valgt', aabnet.join() === 'b' && rA()[1].tabIndex === 0 && rA()[0].tabIndex === -1 && rA().every(r => !r.hasAttribute('aria-selected') && !r.classList.contains('sel')));
+  rA()[1].focus();
+  const ned = tast(rA()[1], 'ArrowDown');
+  const efterNed = d.activeElement === rA()[2] && rA()[2].tabIndex === 0 && aabnet.length === 1 && ned.defaultPrevented;
+  tast(rA()[2], 'Home');
+  const efterHome = d.activeElement === rA()[0] && aabnet.length === 1;
+  tast(rA()[0], 'End');
+  tjek('K36 (aabn): pil ned, Home og End flytter kun fokus (og Tab-stoppet); intet kaldes', efterNed && efterHome && d.activeElement === rA()[2] && aabnet.length === 1);
+  const enter = tast(rA()[2], 'Enter');
+  tast(rA()[0], ' ');
+  tjek('K36 (aabn): Enter og mellemrum på rækken kalder vedAabn (og forhindrer standarden)', aabnet.join() === 'b,c,a' && enter.defaultPrevented);
+  // Et link og en knap i en celle er deres egne mål.
+  const iCelle = [];
+  const knapI = d.createElement('button'); knapI.type = 'button'; knapI.textContent = '3'; knapI.addEventListener('click', () => iCelle.push('knap'));
+  const linkI = d.createElement('a'); linkI.href = '#x'; linkI.textContent = 'mere'; linkI.addEventListener('click', e => { e.preventDefault(); iCelle.push('link'); });
+  const indenI = d.createElement('span'); indenI.textContent = 'tekst';
+  const tc = K.tabel({ kolonner: kol, raekker: [{ celler: [indenI, knapI, linkI], data: 'k' }], raekkeHandling: 'aabn', vedAabn: (tr, data) => iCelle.push('række:' + data) });
+  d.body.appendChild(tc);
+  knapI.click(); linkI.click();
+  const foerEnter = iCelle.join();
+  knapI.focus();
+  tast(knapI, 'Enter'); tast(knapI, ' ');
+  indenI.click();
+  tjek('K36 (aabn): et klik på en knap eller et link i en celle åbner ikke rækken, og Enter/mellemrum på knappen går ikke til rækken; et klik på tekst i cellen åbner', foerEnter === 'knap,link' && iCelle.join() === 'knap,link,række:k');
+  // saetRaekker: fokus bliver på rækken med samme data, ellers samme plads.
+  rA()[2].focus();
+  ta.saetRaekker([{ celler: ['c.eksempel.dk', 'ok', 3], data: 'c' }, { celler: ['a.eksempel.dk', 'ok', 1], data: 'a' }]);
+  const sammeData = d.activeElement === rA()[0] && rA()[0].__data === 'c' && rA().map(r => r.tabIndex).join() === '0,-1';
+  rA()[1].focus();
+  ta.saetRaekker([{ celler: ['x', 'ok', 1], data: 'x' }, { celler: ['y', 'ok', 1], data: 'y' }, { celler: ['z', 'ok', 1], data: 'z' }]);
+  const sammePlads = d.activeElement === rA()[1] && rA()[1].tabIndex === 0;
+  ta.vaelg(0);
+  tjek('K36 (aabn): saetRaekker beholder fokus på rækken med samme data, ellers samme plads; tabel.vaelg gør intet', sammeData && sammePlads && rA().every(r => !r.classList.contains('sel') && !r.hasAttribute('aria-selected')) && aabnet.length === 3);
+  // Sortering, to hovedrækker og sideskift i 'aabn'.
+  const sorteret = [];
+  const tas = K.tabel({ raekkeHandling: 'aabn', vedAabn: (tr, data) => sorteret.push('å:' + data), kolonnegrupper: [{ id: 'g', t: 'g' }], kolonner: [{ t: 'n', sort: true }, { t: 'a', tal: true, gruppe: 'g', sort: true }, { t: 'b', tal: true, gruppe: 'g' }], sortering: { kolonne: 0 }, vedSortering: (k, r) => sorteret.push(k + ':' + r), raekker: [{ celler: ['p', 1, 2], data: 'p' }] });
+  d.body.appendChild(tas);
+  tas.querySelector('.sorter[data-kolonne="1"]').click();
+  tas.saetRaekker([{ celler: ['q', 5, 6], data: 'q' }]);
+  tas.querySelector('tbody tr').click();
+  const sd = K.sideskift({ side: 1, sider: 2, forrige: 'F', naeste: 'N', vedSide: n => { sorteret.push('side' + n); tas.saetRaekker([{ celler: ['r', 7, 8], data: 'r' }]); } });
+  sd.rod.querySelector('[data-side="naeste"]').click();
+  tas.querySelector('tbody tr').click();
+  tjek('K36 (aabn): sortering, to hovedrækker og sideskift virker (vedSortering, saetRaekker, vedAabn efter hver)', sorteret.join() === '1:stigende,å:q,side2,å:r' && tas.querySelectorAll('thead tr').length === 2 && tas.querySelector('tbody tr').tabIndex === 0);
+
+  // ── K36 'ingen' ──
+  const tiKnap = K.knap({ tekst: 'Vis' });
+  let tiKlik = 0;
+  tiKnap.addEventListener('click', () => tiKlik++);
+  const ti = K.tabel({ ariaT: 'laes', kolonner: kol, raekker: [{ gruppe: 'g' }, { celler: ['a', tiKnap, 1], data: 'a' }, { celler: ['b', 'x', 2], data: 'b' }], raekkeHandling: 'ingen', kolonnegrupper: [{ id: 'g', t: 'g' }] });
+  d.body.appendChild(ti);
+  const rI = [...ti.querySelectorAll('tbody tr:not(.gruppe)')];
+  rI[1].querySelector('td').click();
+  tast(rI[0], 'ArrowDown');
+  tiKnap.click();
+  tjek('K36 (ingen): en almindelig <table class="tabel uden-valg"> uden role, uden tabindex og aria-selected på rækkerne; klik og piletaster gør intet; knappen i cellen virker og kan nås med Tab', !ti.hasAttribute('role') && ti.className === 'tabel uden-valg' && ti.getAttribute('data-t-aria') === 'laes' && rI.every(r => !r.hasAttribute('tabindex') && !r.hasAttribute('aria-selected') && !r.classList.contains('sel')) && tiKlik === 1 && tiKnap.tabIndex === 0 && !ti.querySelector('[tabindex="-1"]'));
+  const tis = K.tabel({ raekkeHandling: 'ingen', kolonner: [{ t: 'n', sort: true }], vedSortering: () => tiKlik++, raekker: [] });
+  tis.querySelector('.sorter').click();
+  tis.saetRaekker([{ celler: ['n'] }]);
+  tjek('K36 (ingen): sortering og saetRaekker virker; rækkerne får stadig ingen tabindex', tiKlik === 2 && !tis.querySelector('tbody tr').hasAttribute('tabindex'));
+  tjek('K36 (CSS): .uden-valg har ingen markør og ingen hover (stærkere vælgere end tabellens hover; kun nye vælgere)', /\.tabel\.uden-valg tbody tr:not\(\.gruppe\) \{ cursor: auto; \}/.test(css) && /\.tabel\.uden-valg tbody tr:not\(\.gruppe\):hover > \* \{ background: none; \}/.test(css) && /\.tabel tbody tr:not\(\.gruppe\) \{ cursor: pointer; \}/.test(css) && /\.tabel tbody tr:not\(\.gruppe\):hover td \{ background: var\(--surface-raised\); \}/.test(css));
+  tjek('KOMPONENTER.md (DataTable): raekkeHandling med de tre værdier, hvorfor navnet ikke er raekker, rollen (grid) med begrundelse, og hvad en skærmlæser hører (ikke prøvet)', /`raekkeHandling`/.test(afsnitAf('DataTable')) && /fordi `raekker` er listen/.test(afsnitAf('DataTable')) && /\*\*Rollen for en række, der åbner\.\*\*/.test(afsnitAf('DataTable')) && /`role="link"` på rækken er fravalgt/.test(afsnitAf('DataTable')) && /Hvad en skærmlæser hører/.test(afsnitAf('DataTable')) && /\*\*ikke prøvet\*\*/.test(afsnitAf('DataTable')));
+
+  // ── K37 ──
+  const tk37 = K.tabel({
+    titelT: 'tNavn', kolonnegrupper: [{ id: 'g1', t: 'G1', skille: true }, { id: 'g2', t: 'G2' }],
+    kolonner: [{ t: 'dom', hoved: true, klasse: 'dom' }, { t: 'st', klasse: 'st', bredde: 'm' }, { t: 'a', tal: true, gruppe: 'g1', bredde: 's' }, { t: 'b', tal: true, gruppe: 'g1', bredde: 's', klasse: 'ekstra' }, { t: 'c', tal: true, gruppe: 'g2', bredde: 'xs' }],
+    raekker: [{ celler: ['eksempel.dk', 'ok', 1, 2, 3], mono: [0], data: 'z1', attr: { 'data-zone': 'z1', 'data-n': 7 }, titel: 'Hentet i dag' }, { celler: ['shop.eksempel.dk', 'ok', 4, 5, 6], data: 'z2', titelT: 'hentetT' }],
+  });
+  const kb = [...tk37.querySelector('tbody tr').children];
+  tjek('K37 (hoved): kolonnen med hoved: true er <th scope="row"> i rækkerne og <th scope="col"> i hovedet', kb[0].tagName === 'TH' && kb[0].scope === 'row' && kb.slice(1).every(c => c.tagName === 'TD') && tk37.querySelector('thead th[data-t="dom"]').scope === 'col');
+  tjek('K37 (klasse): klassen står på hovedcellen og hver kropscelle, efter r og mono og før bredden og skillelinjen', kb[0].className === 'mono dom' && kb[1].className === 'st kol-m' && kb[3].className === 'r ekstra kol-s' && kb[2].className === 'r kol-s kol-skille' && tk37.querySelector('thead th[data-t="b"]').className === 'r ekstra kol-s' && tk37.querySelector('thead th[data-t="dom"]').className === 'dom');
+  const cols = [...tk37.querySelectorAll('colgroup')].map(cg => [...cg.children].map(c => c.className || '-').join('+'));
+  tjek('K37 (bredde): én <col> pr. kolonne i gruppernes <colgroup> (uden span), med kol-xs/s/m (samme klasse på cellerne); en kolonne uden bredde har en tom <col>', cols.join(' | ') === '- | kol-m | kol-s+kol-s | kol-xs' && [...tk37.querySelectorAll('colgroup')].every(cg => !cg.hasAttribute('span')));
+  const t1 = K.tabel({ kolonner: [{ t: 'a', bredde: 'l' }, { t: 'b' }, { t: 'c', bredde: 'xl' }], raekker: [] });
+  tjek('K37 (bredde): uden kolonnegrupper én <colgroup> med en <col> pr. kolonne, før <thead>; uden bredde ingen <colgroup> (som før)', t1.firstElementChild.tagName === 'COLGROUP' && [...t1.querySelectorAll('col')].map(c => c.className || '-').join() === 'kol-l,-,kol-xl' && !K.tabel({ kolonner: [{ t: 'a' }], raekker: [] }).querySelector('colgroup'));
+  const skille = [...tk37.querySelectorAll('th.kol-skille, td.kol-skille')].map(e => (e.getAttribute('data-t') || e.textContent) + ':' + e.tagName.toLowerCase());
+  tjek('K37 (skille): skille: true giver .kol-skille på gruppens overskrift, dens første kolonnes hoved og første kolonnes celler; ikke på gruppen uden skille', skille.join() === 'G1:th,a:th,1:td,4:td');
+  const tr0 = tk37.querySelector('tbody tr'), tr1 = tk37.querySelectorAll('tbody tr')[1];
+  tjek('K37 (attr, titel): data-* sættes på rækken (værdien som tekst); titel giver title, titelT giver data-t-title', tr0.getAttribute('data-zone') === 'z1' && tr0.getAttribute('data-n') === '7' && tr0.title === 'Hentet i dag' && tr1.getAttribute('data-t-title') === 'hentetT' && !tr1.hasAttribute('title'));
+  const afvist = ['onclick', 'role', 'tabindex', 'aria-label', 'class', 'style', 'data-', 'data-Zone', 'id'].map(n => fejlAf(() => K.tabel({ kolonner: kol, raekker: [{ celler: [1, 2, 3], attr: { [n]: 'x' } }] })));
+  tjek('K37 (attr): alt andet end data-* giver en fejl (on*, role, tabindex, aria-*, class, style, id, tomt og store bogstaver)', afvist.every(f => /kun data-\*-attributter/.test(f)), afvist.join(' | '));
+  tjek('K37 (begrundelse): afvisningen er begrundet i kit.js og KOMPONENTER.md', /role, tabindex, aria-\*, class og style er\s+kittets tilstand/.test(kitJs) && /\*\*Kun `data-\*`\*\*; et andet navn giver en fejl\. Begrundelse/.test(afsnitAf('DataTable')));
+  tjek('K37 (caption): titelT giver <caption class="skjult-tekst" data-t> som tabellens første barn (kun for skærmlæsere, begrundet); titel giver tekst', tk37.firstElementChild.tagName === 'CAPTION' && tk37.firstElementChild.className === 'skjult-tekst' && tk37.firstElementChild.getAttribute('data-t') === 'tNavn' && K.tabel({ titel: 'Domæner', kolonner: kol, raekker: [] }).querySelector('caption').textContent === 'Domæner' && /\*\*Kun for skærmlæsere:\*\*/.test(afsnitAf('DataTable')));
+  tjek('K37 (CSS): rækkehovedet ligner en celle (tekstens farve og størrelse, ingen store bogstaver, vægt 600) og følger hover og valg; faste bredder 40/72/112/160/240 px på klasser; skillelinjen 2 px border-strong', /\.tabel tbody th \{[^}]*font-size: var\(--body-size\); font-weight: 600; letter-spacing: normal; text-transform: none; color: var\(--text\);/.test(css) && /\.tabel tbody tr:not\(\.gruppe\):hover > th \{ background: var\(--surface-raised\); \}/.test(css) && /\.tabel tbody tr\.sel > th \{ background: var\(--accent-soft\); \}/.test(css) && [['xs', 40], ['s', 72], ['m', 112], ['l', 160], ['xl', 240]].every(([k, px]) => new RegExp(`\\.tabel \\.kol-${k} \\{ width: ${px}px; \\}`).test(css) && new RegExp(`\\.tabel\\.layout-auto \\.kol-${k} \\{ min-width: ${px}px; \\}`).test(css)) && /\.tabel \.kol-skille \{ border-left: 2px solid var\(--border-strong\); \}/.test(css));
+  tjek('KOMPONENTER.md (DataTable): bredder kun som faste klasser (ingen inline-stil), og hvordan en anden bredde gives', /\*\*Kun faste bredder:\*\* kittet sætter aldrig inline-stil/.test(afsnitAf('DataTable')));
+
+  // ── K38 ──
+  const t38 = K.tabel({ kolonner: kol, raekker: rk(), layout: 'auto', fastFoerste: true });
+  tjek('K38: layout: \'auto\' giver .layout-auto, fastFoerste giver .fast-foerste (begge kun med indstillingen); første kolonne i en gruppe giver en fejl', t38.className === 'tabel layout-auto fast-foerste' && K.tabel({ kolonner: kol, raekker: [], layout: 'fast' }).className === 'tabel' && /første kolonne må ikke være i en kolonnegruppe/.test(fejlAf(() => K.tabel({ fastFoerste: true, kolonnegrupper: [{ id: 'g' }], kolonner: [{ t: 'a', gruppe: 'g' }], raekker: [] }))));
+  tjek('K38: Kit.tabelRul uden navn giver en fejl', /rullerammen skal have et navn/.test(fejlAf(() => K.tabelRul(K.tabel({ kolonner: kol, raekker: [] })))));
+  const rul = K.tabelRul(t38, { ariaT: 'rulAria' });
+  d.body.appendChild(rul.rod);
+  let sw = 900, cw = 400;
+  Object.defineProperty(rul.rod, 'scrollWidth', { get: () => sw });
+  Object.defineProperty(rul.rod, 'clientWidth', { get: () => cw });
+  const ruller = rul.maal();
+  const naarRuller = rul.rod.getAttribute('role') === 'region' && rul.rod.tabIndex === 0 && rul.rod.getAttribute('data-t-aria') === 'rulAria';
+  sw = 400;
+  const ikke = rul.maal();
+  tjek('K38 (tabelRul): <div class="tabel-rul"> om tabellen; når den ruller: role="region", tabindex 0 og navn; ellers hverken rolle eller Tab-stop (navnet bliver)', rul.rod.className === 'tabel-rul' && rul.tabel === t38 && t38.parentElement === rul.rod && ruller === true && naarRuller && ikke === false && !rul.rod.hasAttribute('role') && !rul.rod.hasAttribute('tabindex') && rul.rod.getAttribute('data-t-aria') === 'rulAria' && K.tabelRul(K.tabel({ kolonner: kol, raekker: [] }), { aria: 'Domæner' }).rod.getAttribute('aria-label') === 'Domæner');
+  tjek('K38 (tabelRul): måles igen, når rammen eller tabellen skifter størrelse (ResizeObserver, når den findes)', /new ResizeObserver\(\(\) => maal\(\)\)/.test(kitJs) && /ro\.observe\(rod\);\s*ro\.observe\(tabelEl\);/.test(kitJs) && /typeof ResizeObserver === 'function'/.test(kitJs));
+  tjek('K38 (CSS): layout-auto er table-layout: auto; rullerammen ruller vandret (position: relative, så en skjult caption ikke ruller siden); fokusringen ligger inden for rammen', /\.tabel\.layout-auto \{ table-layout: auto; \}/.test(css) && /\.tabel-rul \{ position: relative; overflow-x: auto;/.test(css) && /\.tabel-rul:focus-visible \{ outline-offset: -2px; \}/.test(css));
+  tjek('K38 (CSS): fast første kolonne: sticky, left 0, kant til højre; flade surface (accent-soft i en valgt række, surface-raised ved hover, også i hovedet); kanterne pr. celle (separate)', /\.tabel\.fast-foerste \{ border-collapse: separate; border-spacing: 0; \}/.test(css) && /\.tabel\.fast-foerste thead tr:first-child > th:first-child,\n\.tabel\.fast-foerste tbody tr:not\(\.gruppe\) > :first-child \{ position: sticky; left: 0; z-index: 1; border-right: 1px solid var\(--border\); \}/.test(css) && /\.tabel\.fast-foerste tbody tr:not\(\.gruppe\) > :first-child \{ background: var\(--surface\); \}/.test(css) && /\.tabel\.fast-foerste tbody tr\.sel > :first-child \{ background: var\(--accent-soft\); \}/.test(css) && /\.tabel\.fast-foerste:not\(\.uden-valg\) tbody tr:not\(\.gruppe\):hover > :first-child \{ background: var\(--surface-raised\); \}/.test(css));
+  // Rækkefølgen i kit.css afgør, hvilken flade den faste celle får, når vælgerne er lige stærke.
+  const iCss = s => css.indexOf(s);
+  tjek('K38 (CSS): den faste celles flade står efter .uden-valg-nulstillingen og før valgt/hover (samme styrke: rækkefølgen afgør)', iCss('.tabel.uden-valg tbody tr:not(.gruppe):hover > *') < iCss('.tabel.fast-foerste tbody tr:not(.gruppe) > :first-child { background') && iCss('.tabel.fast-foerste tbody tr:not(.gruppe) > :first-child { background') < iCss('.tabel.fast-foerste tbody tr.sel > :first-child'));
+
+  // ── K18–K21: farverne ──
+  const farve = Object.fromEntries(tokens.color.tokens.map(t => [t.name, t.value]));
+  tjek('2.4.0: de seks nye farver findes i begge temaer som #RRGGBB, og de 48 fra før har samme værdier som i 2.3.0 (ingen ændret)', V240_FARVER.every(n => farve[n] && /^#[0-9A-F]{6}$/.test(farve[n].light) && /^#[0-9A-F]{6}$/.test(farve[n].dark)) && tokens.color.tokens.length === 54 && tokens.color.tokens.filter(t => !V240_FARVER.includes(t.name)).length === 48);
+  const kanal = (h, i) => parseInt(h.slice(1 + 2 * i, 3 + 2 * i), 16);
+  const bland = (a, p, b) => [0, 1, 2].map(i => kanal(a, i) * p + kanal(b, i) * (1 - p));
+  const afvig = ['ok', 'warn', 'danger', 'info', 'none'].flatMap(m => ['light', 'dark'].map(t => { const r = bland(farve[m + '-mark'][t], 0.78, farve.text[t]); return Math.max(...[0, 1, 2].map(i => Math.abs(kanal(farve[m + '-mark-hover'][t], i) - r[i]))); }));
+  tjek('K19: hver *-mark-hover er mærket 78 % blandet med text i srgb (som color-mix), højst en halv enhed fra pr. kanal, i begge temaer', afvig.every(x => x <= 0.5), afvig.map(x => x.toFixed(2)).join(','));
+  const xaml = pk('tokens/Tokens.xaml');
+  tjek('K18/K19: Tokens.xaml har Wi24rdTextDisabledBrush og fem Wi24rd*MarkHoverBrush i begge ordbøger', (xaml.match(/x:Key="Wi24rdTextDisabledBrush"/g) || []).length === 2 && ['Ok', 'Warn', 'Danger', 'Info', 'None'].every(m => (xaml.match(new RegExp(`x:Key="Wi24rd${m}MarkHoverBrush"`, 'g')) || []).length === 2));
+  const grundlag = afsnitAf('Grundlag');
+  tjek('K18 (regel): --text-disabled er til tekst, der er slået fra, ikke til tekst, der skal læses; aldrig farve alene; kittets knapper nedtones fortsat med opacity (og gør det)', /\*\*Tekst, der er slået fra\*\* \(K18\)/.test(grundlag) && /ikke til tekst, der skal læses/.test(grundlag) && /\*\*Kittets egne knapper nedtones fortsat som i dag\*\*/.test(grundlag) && /\.btn\[disabled\], \.btn\[aria-disabled="true"\] \{ opacity: \.55;/.test(css) && !/--text-disabled/.test(css));
+  tjek('K19 (regel): mærket blandet med --text (78 %), tokens fordi Tokens.xaml ikke kan blande, og at hover aldrig står alene (lille forskel i mørkt tema)', /\*\*Hover på et mærke\*\* \(K19\)/.test(grundlag) && /78 % mærke og 22 % tekst/.test(grundlag) && /ikke kan blande to farver/.test(grundlag) && /hover må aldrig være det eneste/.test(grundlag));
+  tjek('K20 (regel): en bue tager betydningens mærkefarve (angreb --danger-mark); --map-arc er standard; ingen token ændret (map-arc er stadig info-mark)', /\*\*Buer på kort\*\* \(K20\)/.test(grundlag) && /`--danger-mark`/.test(grundlag) && /`--map-arc` \(oplysningens blå\) er standard/.test(grundlag) && ['light', 'dark'].every(t => farve['map-arc'][t] === farve['info-mark'][t]));
+  tjek('K21 (regel): to faste trin med color-mix og transparent (18 % mærke, 92 % surface), ingen tokens, og hvordan WPF gør det (Opacity); README har eksemplet', /\*\*Svag flade af et mærke\*\* \(K21\)/.test(grundlag) && /color-mix\(in srgb, var\(--danger-mark\) 18%, transparent\)/.test(grundlag) && /color-mix\(in srgb, var\(--surface\) 92%, transparent\)/.test(grundlag) && /Opacity="0\.18"/.test(grundlag) && /### Farver, der regnes \(fra 2\.4\.0\)/.test(readme) && /Opacity="0\.18"/.test(readme) && /Opacity="0\.92"/.test(readme) && !tokens.color.tokens.some(t => /svag|soft-mark|-18/.test(t.name)));
+
+  // ── K29 og K30 ──
+  tjek('K29: .btn har white-space: nowrap (i selve .btn-reglen); KOMPONENTER.md (Button) siger det', /\.btn \{\n[^}]*white-space: nowrap;[^}]*\}/.test(css) && /ombrydes teksten aldrig \(`white-space: nowrap`\)/.test(afsnitAf('Button')));
+  tjek('K30: SYMBOL.danger er × (de andre som før), chippen viser det; bannerets danger er stadig !', K.SYMBOL.danger === '×' && [K.SYMBOL.ok, K.SYMBOL.warn, K.SYMBOL.info, K.SYMBOL.none].join('') === '✓!i–' && K.chip('danger', 'Fejl').firstChild.textContent === '×' && K.banner({ variant: 'danger', tekst: 'x' }).querySelector('.s').textContent === '!');
+  tjek('K30: KOMPONENTER.md (StatusChip) siger `danger` (×) og ikke længere (?)', /`danger` \(×\)/.test(afsnitAf('StatusChip')) && !/`danger` \(\?\)/.test(afsnitAf('StatusChip')));
+
+  // ── Pakken ──
+  const log = pk('CHANGELOG.md');
+  const a240 = log.slice(log.indexOf('## 2.4.0'), log.indexOf('## 2.3.0'));
+  tjek('CHANGELOG 2.4.0: første post med kun dato; Nyt og Ændret; K29 og K30 under Ændret; K36–K38 og K18–K21 under Nyt; intet omdøbt eller fjernet', log.indexOf('## 2.4.0 — 2026-11-12') > 0 && log.indexOf('## 2.4.0') < log.indexOf('## 2.3.0') && /### Nyt[\s\S]*### Ændret/.test(a240) && /### Ændret[\s\S]*\(K29\)[\s\S]*\(K30\)/.test(a240) && ['K36', 'K37', 'K38', 'K18', 'K19', 'K20', 'K21'].every(k => a240.slice(0, a240.indexOf('### Ændret')).includes(k)) && /Intet er omdøbt eller fjernet/.test(a240));
+  tjek('CHANGELOG: "Ikke udgivet endnu" er lagt ind under 2.4.0 (dokumentrettelserne efter Wi24rd FTP\'s fase A)', !/## Ikke udgivet endnu/.test(log) && /### Dokumenter/.test(a240) && /Wi24rd FTP's fase A/.test(a240) && /`flytning\/WI24RD-FTP\.md`: det gamle trin 2/.test(a240));
+  const hm = pk('flytning/HUGINN-MUNINN.md');
+  tjek('flytning/HUGINN-MUNINN.md: K18–K21, K29, K30 og K36–K38 står som opfyldt i 2.4.0; B2d kan flyttes; K22–K26, K28 og K31–K35 venter på 2.5.0; K27 er 3.0.0', ['K18', 'K19', 'K20', 'K21', 'K29', 'K30', 'K36', 'K37', 'K38'].every(k => new RegExp('\\| ' + k + ' [^|]*\\| 2\\.4\\.0 \\|').test(hm)) && /\*\*B2d\*\*/.test(hm) && /\*\*Venter på 2\.5\.0\*\*/.test(hm) && ['K22', 'K23', 'K24', 'K25', 'K26', 'K28', 'K31', 'K32', 'K33', 'K34', 'K35'].every(k => hm.slice(hm.indexOf('**Venter på 2.5.0**')).includes(k)) && /\*\*K27\*\* \(præfiks på kittets klasser\) kræver 3\.0\.0/.test(hm));
+  tjek('README 2.4.0: indholdslisten nævner Kit.tabelRul; "Byg skærmen" nævner raekkeHandling og Kit.tabelRul', /`Kit\.sideskift`, og fra 2\.4\.0 `Kit\.tabelRul`/.test(readme) && /\(`raekkeHandling`\)/.test(readme) && /\(`Kit\.tabelRul`\)/.test(readme));
+}
+{
+  // Demoen 2.4.0 med pakkens rigtige filer, i begge sprog og temaer.
+  const dom = await JSDOM.fromFile(demoFil, { runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true, virtualConsole: new VirtualConsole() });
+  const w = dom.window, d = w.document;
+  await new Promise(r => (d.readyState === 'complete' ? r() : w.addEventListener('load', r)));
+  await vent(20);
+  const html = pk('demo/index.html');
+  const ta = d.querySelector('#demo-tabel-aabn > .tabel-rul > table.tabel');
+  const rA = ta ? [...ta.querySelectorAll('tbody tr')] : [];
+  tjek('demo 2.4.0 (K36–K38): tabellen med rækker, der åbner, står i en rulleramme med navn; layout-auto og fast-foerste; caption; rækkehoved; skillelinjer; bredder; data-zone og title (dansk)', Boolean(ta) && ta.className === 'tabel layout-auto fast-foerste' && ta.getAttribute('role') === 'grid' && ta.querySelector('caption').textContent === 'Domæner, der kan åbnes' && ta.parentElement.getAttribute('aria-label') === 'Domæner, ruller vandret' && rA.length === 8 && rA[0].firstElementChild.tagName === 'TH' && rA[0].firstElementChild.scope === 'row' && ta.querySelectorAll('thead .kol-skille').length === 4 && ta.querySelectorAll('col.kol-s').length === 3 && rA[0].getAttribute('data-zone') === 'z1' && rA[0].title === 'Hentet i dag' && rA.every(r => !r.hasAttribute('aria-selected')));
+  rA[1].querySelector('td').click();
+  const efterKlik = d.getElementById('tabel-aabn-valgt').textContent;
+  rA[2].querySelector('.demo-tal').click();
+  const efterTal = d.getElementById('tabel-aabn-valgt').textContent;
+  rA[3].focus();
+  rA[3].dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+  tjek('demo 2.4.0 (K36): klik på en række åbner den, et klik på tallet åbner den ikke (tallet melder sig selv), Enter åbner (dansk); den sidste celle siger "Åbn …" til skærmlæseren', efterKlik === 'Åbnet: shop.eksempel.dk' && efterTal === 'Tallet for blog.eksempel.dk (rækken blev ikke åbnet)' && d.getElementById('tabel-aabn-valgt').textContent === 'Åbnet: api.eksempel.dk' && rA[0].lastElementChild.querySelector('.skjult-tekst').textContent === 'Åbn eksempel.dk');
+  const tl = d.querySelector('#demo-tabel-laes > table.tabel');
+  tl.querySelectorAll('tbody tr')[1].querySelector('.btn').click();
+  tjek('demo 2.4.0 (K36): tabellen, der kun skal læses, har ingen rolle og ingen Tab-stop på rækkerne; knappen i rækken virker og har et navn (dansk)', tl.className === 'tabel uden-valg' && !tl.hasAttribute('role') && [...tl.querySelectorAll('tbody tr')].every(r => !r.hasAttribute('tabindex')) && d.getElementById('tabel-laes-valgt').textContent === 'Vist: shop.eksempel.dk' && tl.querySelectorAll('tbody tr')[1].querySelector('.btn').getAttribute('aria-label') === 'Vis shop.eksempel.dk');
+  tjek('demo 2.4.0 (K18): tekst, der er slået fra, i --text-disabled under Grundlag', d.getElementById('demo-fra').textContent.startsWith('Kopiér') && /\.demo-fra \{ color: var\(--text-disabled\); \}/.test(html));
+  tjek('demo 2.4.0 (K19, K21): fem søjler, der skifter til *-mark-hover under musen, og fem svage flader (color-mix 18 %) med tekst; forklaringen på kortet står på surface 92 %', d.querySelectorAll('#demo-hover i').length === 5 && ['ok', 'warn', 'danger', 'info', 'none'].every(m => new RegExp(`\\.demo-hover \\.${m}:hover \\{ background: var\\(--${m}-mark-hover\\); \\}`).test(html) && new RegExp(`\\.demo-svag \\.${m} \\{ background: color-mix\\(in srgb, var\\(--${m}-mark\\) 18%, transparent\\); \\}`).test(html)) && d.querySelectorAll('#demo-svag span').length === 5 && /background: color-mix\(in srgb, var\(--surface\) 92%, transparent\)/.test(html));
+  const buer = [...d.querySelectorAll('#demo-kort240 path[data-bue]')].map(p => p.getAttribute('data-bue') + ':' + /stroke: var\(--([a-z-]+)\)/.exec(p.getAttribute('style'))[1]);
+  tjek('demo 2.4.0 (K20, K21): kortet har en bue, der er et angreb (--danger-mark), og en uden betydning (--map-arc); ringen har mærkets svage flade (18 %)', buer.join() === 'angreb:danger-mark,neutral:map-arc' && /color-mix\(in srgb, var\(--map-ring\) 18%, transparent\)/.test(d.querySelector('#demo-kort240 circle[data-ring]').getAttribute('style')) && d.querySelector('#demo-kort240 .demo-forklaring .angreb').textContent === 'Angreb (danger-mark)');
+  tjek('demo 2.4.0 (K30): chippen danger viser × i demoen', d.querySelector('#demo-chips .chip.danger').firstChild.textContent === '×');
+  w.Sprog.saet('en');
+  tjek('demo 2.4.0 (English): de nye dele har tekst', ta.querySelector('caption').textContent === 'Domains that can be opened' && d.getElementById('tabel-aabn-valgt').textContent === 'Opened: api.eksempel.dk' && d.querySelector('[data-t="hTabelAabn"]').textContent === 'Rows that open, and a table without row selection' && d.querySelector('[data-t="h240"]').textContent === 'Hover, arcs and faint surfaces' && rA[0].lastElementChild.querySelector('.skjult-tekst').textContent === 'Open eksempel.dk' && tl.querySelector('caption').textContent === 'Latest events');
+  w.Tema.saet('moerk');
+  tjek('demo 2.4.0: mørkt tema sættes på siden med de nye dele', d.documentElement.getAttribute('data-tema') === 'moerk' && Boolean(d.querySelector('#demo-tabel-aabn .tabel-rul')));
+  const da = Object.keys(w.Sprog.TEKST.da), en = Object.keys(w.Sprog.TEKST.en);
+  tjek('demo 2.4.0: dansk og engelsk har de samme nøgler', JSON.stringify(da.slice().sort()) === JSON.stringify(en.slice().sort()), da.filter(k => !en.includes(k)).concat(en.filter(k => !da.includes(k))).join(', '));
 }
 
 // ── N4: flyttevejledningerne ──

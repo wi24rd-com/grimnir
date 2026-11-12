@@ -305,7 +305,41 @@ export const PAR = [
   ['text', 'surface', TEKST, '2.3.0 Sideskift: forrige og næste'],
   ['border-strong', 'surface', KANT, '2.3.0 Sideskift: kanten om knapperne og valglisten'],
   ['info', 'surface', KANT, '2.3.0 Sideskift: fokusring'],
+  // 2.4.0 (K36–K38): tabellen. Rækkehovedet (th scope="row") står i tekstens farve på rækkens flader; skillelinjen mellem
+  // kolonnegrupperne er border-strong; den faste første kolonne har surface under sig; rullerammens fokusring er info.
+  ['text', 'surface', TEKST, '2.4.0 DataTable: rækkehovedet og den faste første kolonne'],
+  ['text', 'surface-raised', TEKST, '2.4.0 DataTable: rækkehovedet ved hover'],
+  ['text', 'accent-soft', TEKST, '2.4.0 DataTable: rækkehovedet i en valgt række'],
+  ['border-strong', 'surface', KANT, '2.4.0 DataTable: skillelinjen mellem kolonnegrupper i rækkerne'],
+  ['border-strong', 'surface-raised', KANT, '2.4.0 DataTable: skillelinjen i hovedet'],
+  ['info', 'surface', KANT, '2.4.0 DataTable: fokusring på en række, der åbner, og på rullerammen'],
+  // 2.4.0 (K18): tekst, der er slået fra.
+  ['text-disabled', 'surface', TEKST, '2.4.0 --text-disabled på surface'],
+  ['text-disabled', 'surface-raised', TEKST, '2.4.0 --text-disabled på surface-raised (bånd, tabelhoved)'],
+  ['text-disabled', 'bg', TEKST, '2.4.0 --text-disabled på bg'],
+  // 2.4.0 (K19): hover på et mærke er stadig et mærke (3:1 mod fladerne).
+  ...['ok', 'warn', 'danger', 'info', 'none'].flatMap(m => ['surface', 'surface-raised', 'bg'].map(f => [m + '-mark-hover', f, KANT, `2.4.0 hover på mærket (${m}) mod ${f}`])),
+  // 2.4.0 (K21): tekst på et mærkes svage flade (18 % over surface) og på den næsten dækkende flade (surface 92 %) over
+  // kortets eller skalaens mørkeste/lyseste farve. mix(A N%, B) er color-mix(in srgb, A N%, B), og color-mix med
+  // transparent lagt på B giver det samme.
+  ...['ok', 'warn', 'danger', 'info', 'none'].flatMap(m => [['text', `mix(${m}-mark 18%, surface)`, TEKST, `2.4.0 tekst på mærkets svage flade (${m})`], ['text-muted', `mix(${m}-mark 18%, surface)`, TEKST, `2.4.0 sekundær tekst på mærkets svage flade (${m})`]]),
+  ...['map-sea', 'map-land', 'seq-5', 'danger-mark', 'data-3'].map(u => ['text', `mix(surface 92%, ${u})`, TEKST, `2.4.0 tekst på næsten dækkende flade over ${u}`]),
+  ['danger', 'mix(surface 92%, map-sea)', TEKST, '2.4.0 demoens forklaring på kortet: angreb'],
+  ['info', 'mix(surface 92%, map-sea)', TEKST, '2.4.0 demoens forklaring på kortet: bue'],
 ];
+
+/* En farve fra et tokennavn eller fra mix(A N%, B): A og B blandet i srgb, N % af A. */
+const BLAND = /^mix\(([a-z0-9-]+) (\d+(?:\.\d+)?)%, ([a-z0-9-]+)\)$/;
+export function farveAf(spec, farver) {
+  const m = BLAND.exec(spec);
+  if (!m) {
+    if (!(spec in farver)) throw new Error('ukendt token: ' + spec);
+    return farver[spec];
+  }
+  const [a, b] = [farveAf(m[1], farver), farveAf(m[3], farver)], p = Number(m[2]) / 100;
+  const kanal = (h, i) => parseInt(h.slice(1 + 2 * i, 3 + 2 * i), 16);
+  return '#' + [0, 1, 2].map(i => Math.round(kanal(a, i) * p + kanal(b, i) * (1 - p)).toString(16).padStart(2, '0')).join('').toUpperCase();
+}
 
 function lin(c) {
   const v = c / 255;
@@ -328,8 +362,7 @@ let fejl = 0, ok = 0;
 for (const tema of ['light', 'dark']) {
   const farver = Object.fromEntries(temaVaerdier(tokens, tema));
   for (const [fg, bg, graense, hvor] of PAR) {
-    if (!(fg in farver) || !(bg in farver)) throw new Error(`ukendt token i parret ${fg}/${bg}`);
-    const k = kontrast(farver[fg], farver[bg]);
+    const k = kontrast(farveAf(fg, farver), farveAf(bg, farver));
     const bestaar = k >= graense;
     if (bestaar) ok++;
     else fejl++;

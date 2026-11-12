@@ -2,9 +2,29 @@
 
 Første tal stiger, når et program skal ændre noget for at følge med. Andet tal ved nyt. Tredje tal ved rettelser.
 
-## Ikke udgivet endnu
+## 2.4.0 — 2026-11-12
 
-Kun dokumenter, rettet 2026-11-11 efter Wi24rd FTP's fase A. Ingen kode, tokens eller komponenter er ændret, og `Tokens.xaml` er byte for byte som i 2.3.0. Rettelserne får deres versionsnummer, når prøven af `Tokens.xaml` på Windows er set: pakkens version står i første linje af de genererede filer, så et nyt nummer ændrer også `Tokens.xaml`.
+Tabellen (ønskerne K36–K38 fra Huginn and Muninn), to nye farvegrupper og regler for farver (K18–K21) og to ændringer, Jan har sagt ja til (K29, K30). Intet er omdøbt eller fjernet. Uden de nye indstillinger er tabellen stadig byte for byte som i 2.0.0. To ting ser anderledes ud end i 2.3.0, se "Ændret": knaptekst ombrydes ikke, og `danger` i StatusChip har symbolet ×.
+
+### Nyt
+
+- **Rækker, der åbner, og tabel uden rækkevalg** (K36): `Kit.tabel` har `raekkeHandling: 'vaelg' | 'aabn' | 'ingen'` (standard `'vaelg'`, som før; navnet er ikke `raekker`, som ønsket, fordi `raekker` er listen med rækkerne). `'aabn'` kalder `vedAabn(række, data)` ved klik, Enter og mellemrum, uden `aria-selected` og `.sel`; piletasterne flytter kun fokus, og et klik på et link eller en knap i en celle åbner ikke rækken. Tabellen er stadig `role="grid"` (begrundelsen står i `KOMPONENTER.md`). `'ingen'` er en almindelig `<table>` uden rolle, Tab-stop, markør og hover (`.uden-valg`).
+- **Rækkehoved, celleklasser og rækkens data** (K37): `hoved: true` giver `<th scope="row">`; `klasse` pr. kolonne; faste bredder `bredde: 'xs' | 's' | 'm' | 'l' | 'xl'` som `<col class="kol-…">` (ingen inline-stil); `skille: true` på en kolonnegruppe giver en skillelinje (`.kol-skille`); `attr` (kun `data-*`, andet giver en fejl) og `titel`/`titelT` pr. række; tabellens navn som `<caption class="skjult-tekst">` (`titelT`/`titel`).
+- **Tabel, der følger indholdet og ruller vandret** (K38): `layout: 'auto'` (`.layout-auto`), `Kit.tabelRul(tabel, { ariaT })` (`.tabel-rul`: ruller vandret; når den ruller, er den et område med navn og et Tab-stop) og `fastFoerste: true` (`.fast-foerste`: første kolonne står fast med sin flade under sig i begge temaer).
+- **`--text-disabled`** (K18): tekst, der er slået fra. Mindst 4,5:1 mod `--surface`, `--surface-raised` og `--bg` i begge temaer. Ikke til tekst, der skal læses; kittets knapper nedtones stadig med `opacity`.
+- **Hover på mærker** (K19): `--ok-mark-hover`, `--warn-mark-hover`, `--danger-mark-hover`, `--info-mark-hover` og `--none-mark-hover` er mærket blandet med `--text` (78 % mærke). Tokens, fordi WPF ikke kan blande farver; en test holder dem lig reglen.
+- **Regler for buer og svage flader** (K20, K21) i `KOMPONENTER.md`: en bue tager betydningens mærkefarve (`--map-arc` er standard); en svag flade er mærket med 18 % dækning og en næsten dækkende flade `--surface` med 92 %, med `color-mix` og `transparent` (ingen tokens; i WPF en pensel med `Opacity`, se README).
+- Demoen viser tabellen med rækker, der åbner, tabellen uden rækkevalg, rullerammen med fast første kolonne, tekst, der er slået fra, hover på mærker, en bue, der er et angreb, og de svage flader, i begge temaer og sprog. Kontrasttesten måler de nye par, også de blandede farver.
+
+### Ændret
+
+- **Knaptekst ombrydes ikke** (K29): `.btn` har `white-space: nowrap`. Knappen har fast højde, og en ombrudt tekst blev skåret over; nu bliver knappen bredere.
+- **Symbolet for `danger` i StatusChip er ×** (K30), før ?. `Kit.SYMBOL.danger` er `×`. Banneret er uændret.
+- `tokens.css` og `Tokens.xaml` har de seks nye farver (12 nøgler pr. tema i `Tokens.xaml`) og versionen 2.4.0 i første linje. Ingen eksisterende værdi er ændret.
+
+### Dokumenter
+
+Rettet 2026-11-11 efter Wi24rd FTP's fase A (stod før under "Ikke udgivet endnu"). Prøven af `Tokens.xaml` i et kørende WPF-program på Windows er stadig ikke set.
 
 - `flytning/WI24RD-FTP.md`: det gamle trin 2 (lad de gamle `Brush.*`-nøgler pege på kittet) er udgået. Kittets nøgler findes først på øverste niveau, når `SaetTema` har kørt, så penslerne skiftes direkte til `DynamicResource` (99 steder i XAML) og `SetResourceReference` (13 steder i koden). Tabellen er rettet: `Brush.Ok` er `Wi24rdOkBrush`, og statusprikkerne er `Wi24rdOkMarkBrush`, `Wi24rdWarnMarkBrush`, `Wi24rdNoneMarkBrush` og `Wi24rdDangerMarkBrush`. Nyt under "Hvad programmet har i dag": de 13 opslag i koden, to stilarter uden navn, 6 ubrugte pensler, 9 `MessageBox`, ingen `.gitattributes`, og at titellinjen ikke bliver mørk af sig selv. Cyklusserne er rettet til det.
 - `README.md`, WPF: `Tokens.xaml` bygger (0 fejl, 0 advarsler), men er ikke indlæst af et kørende program endnu. `SaetTema` skal kaldes i `OnStartup`, før det første vindue laves, og ingen token findes før det.

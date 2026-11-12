@@ -57,6 +57,31 @@
   .demo-frem { padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-md); max-width: 420px; margin-bottom: var(--space-2); }
   #demo-tip { padding-top: var(--space-8); }
   .demo-ind { padding-left: var(--space-6); }
+  /* 2.4.0: rammen er smal, så tabellen ruller vandret; tallene i tabellen er deres egne knapper. */
+  .demo-rul-smal { max-width: 460px; border: 1px solid var(--border); border-radius: var(--radius-md); }
+  .demo-tal { padding: 0; border: 0; background: none; color: var(--info); font: inherit; text-decoration: underline; cursor: pointer; }
+  .demo-chev { color: var(--text-disabled); }
+  .demo-fra { color: var(--text-disabled); }
+  /* 2.4.0: hover på mærker (K19), svage flader (K21). Kun tokens og color-mix. */
+  .demo-hover { display: flex; align-items: flex-end; gap: var(--space-3); margin-bottom: var(--space-3); }
+  .demo-hover span { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); color: var(--data-label); font-size: var(--small-size); }
+  .demo-hover i { display: block; width: 36px; height: 56px; border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+  .demo-hover .ok { background: var(--ok-mark); } .demo-hover .ok:hover { background: var(--ok-mark-hover); }
+  .demo-hover .warn { background: var(--warn-mark); } .demo-hover .warn:hover { background: var(--warn-mark-hover); }
+  .demo-hover .danger { background: var(--danger-mark); } .demo-hover .danger:hover { background: var(--danger-mark-hover); }
+  .demo-hover .info { background: var(--info-mark); } .demo-hover .info:hover { background: var(--info-mark-hover); }
+  .demo-hover .none { background: var(--none-mark); } .demo-hover .none:hover { background: var(--none-mark-hover); }
+  .demo-svag { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
+  .demo-svag span { padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm); color: var(--text); }
+  .demo-svag .ok { background: color-mix(in srgb, var(--ok-mark) 18%, transparent); }
+  .demo-svag .warn { background: color-mix(in srgb, var(--warn-mark) 18%, transparent); }
+  .demo-svag .danger { background: color-mix(in srgb, var(--danger-mark) 18%, transparent); }
+  .demo-svag .info { background: color-mix(in srgb, var(--info-mark) 18%, transparent); }
+  .demo-svag .none { background: color-mix(in srgb, var(--none-mark) 18%, transparent); }
+  .demo-kort240 { position: relative; }
+  .demo-forklaring { position: absolute; right: var(--space-2); bottom: var(--space-2); display: flex; flex-direction: column; gap: 2px; padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm); background: color-mix(in srgb, var(--surface) 92%, transparent); color: var(--text); font-size: var(--small-size); }
+  .demo-forklaring .angreb { color: var(--danger); } .demo-forklaring .bue { color: var(--info); }
 </style>
 </head>
 <body>
@@ -64,7 +89,7 @@
   <header class="titel">
     <span class="mrk" aria-hidden="true">W</span>
     <b data-t="appNavn">Wi24rd UI Kit 2</b>
-    <span data-t="undertitel" data-v="2.3.0" id="pakkeversion">Demo · pakke 2.0.1</span>
+    <span data-t="undertitel" data-v="2.4.0" id="pakkeversion">Demo · pakke 2.0.1</span>
     <span class="hoejre">
       <button type="button" class="rk" id="skift-tema" data-t-aria="ariaSkiftTema" data-t-title="ariaSkiftTema"></button>
       <button type="button" class="rk" id="skift-sprog" data-t-aria="ariaSkiftSprog" data-t="skiftSprog"></button>
@@ -137,7 +162,7 @@
             <h2>StatusFooter</h2>
             <p data-t="pStatusFooter"></p>
             <div class="demo-ramme">
-              <div class="fodl"><span data-t="fodVenstre" data-v="16" data-w="13"></span><span class="h"><span id="demo-fod-laas"></span><span data-t="fodVersion" data-v="2.3.0"></span></span></div>
+              <div class="fodl"><span data-t="fodVenstre" data-v="16" data-w="13"></span><span class="h"><span id="demo-fod-laas"></span><span data-t="fodVersion" data-v="2.4.0"></span></span></div>
             </div>
           </section>
 
@@ -150,6 +175,12 @@
             <p data-t="pTabelNy"></p>
             <div class="demo-ramme" id="demo-tabel-ny"></div>
             <p class="demo-valgt" id="tabel-ny-valgt" data-t="intetValgt"></p>
+            <h3 data-t="hTabelAabn">Rækker, der åbner, og tabel uden rækkevalg</h3>
+            <p data-t="pTabelAabn"></p>
+            <div class="demo-rul-smal" id="demo-tabel-aabn"></div>
+            <p class="demo-valgt" id="tabel-aabn-valgt" data-t="intetAabnet"></p>
+            <div class="demo-ramme" id="demo-tabel-laes"></div>
+            <p class="demo-valgt" id="tabel-laes-valgt" data-t="intetValgt"></p>
           </section>
 
           <section class="demo-sektion" data-gruppe="indhold" data-navn="StatusTile">
@@ -325,6 +356,7 @@
               <span class="mono">srv-app01.eksempel.dk · 192.0.2.17</span>
               <span><svg class="ik" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg> <span data-t="gIk"></span></span>
               <span><span data-t="gSkjult"></span><span class="skjult-tekst" data-t="gSkjultTekst"></span></span>
+              <span class="demo-fra" id="demo-fra" data-t="gFra"></span>
             </div>
           </section>
         </div>
@@ -345,6 +377,13 @@
             <div class="demo-kort" id="demo-kort"></div>
             <div class="demo-raekke" id="demo-kortfarver"></div>
           </section>
+          <section class="demo-sektion" id="demo-240-sektion">
+            <h2 data-t="h240">Hover, buer og svage flader</h2>
+            <p data-t="p240"></p>
+            <div class="demo-hover" id="demo-hover"></div>
+            <div class="demo-svag" id="demo-svag"></div>
+            <div class="demo-kort demo-kort240" id="demo-kort240"></div>
+          </section>
           <section class="demo-sektion demo-skrift">
             <h2 data-t="hSkrift">Skrift</h2>
             <p data-t="pSkrift"></p>
@@ -362,7 +401,7 @@
 
       <footer class="fodl">
         <span id="fod-antal" data-t="fodAntal" data-v="0"></span>
-        <span class="h"><span id="fod-laas"></span><span data-t="fodVersion" data-v="2.3.0"></span></span>
+        <span class="h"><span id="fod-laas"></span><span data-t="fodVersion" data-v="2.4.0"></span></span>
       </footer>
     </main>
   </div>

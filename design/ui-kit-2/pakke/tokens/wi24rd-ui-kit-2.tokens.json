@@ -110,6 +110,14 @@
     "usage": "Sekundær tekst, etiketter og hjælpetekst på bg og surface."
    },
    {
+    "name": "text-disabled",
+    "value": {
+     "light": "#647182",
+     "dark": "#8091A5"
+    },
+    "usage": "Fra 2.4.0. Tekst, der er slået fra (et menupunkt eller en genvej, der ikke kan bruges), og pynt som en chevron. Ikke til tekst, der skal læses. Mindst 4,5:1 mod surface, surface-raised og bg. Kittets knapper nedtones stadig med opacity."
+   },
+   {
     "name": "accent",
     "value": {
      "light": "#007864",
@@ -244,6 +252,46 @@
      "dark": "#7A8BA0"
     },
     "usage": "Mærke for ingen status eller ukendt: statusprik, søjle, markør."
+   },
+   {
+    "name": "ok-mark-hover",
+    "value": {
+     "light": "#108371",
+     "dark": "#5CDBC1"
+    },
+    "usage": "Fra 2.4.0. Hover på et mærke for OK (søjlen under musen): ok-mark blandet med text, 78 % mærke (color-mix i srgb), regnet ud her, så WPF har samme farve."
+   },
+   {
+    "name": "warn-mark-hover",
+    "value": {
+     "light": "#9C6309",
+     "dark": "#FAC36F"
+    },
+    "usage": "Fra 2.4.0. Hover på et mærke for advarsel: warn-mark 78 % blandet med text."
+   },
+   {
+    "name": "danger-mark-hover",
+    "value": {
+     "light": "#AE352F",
+     "dark": "#FA948D"
+    },
+    "usage": "Fra 2.4.0. Hover på et mærke for fejl og angreb: danger-mark 78 % blandet med text."
+   },
+   {
+    "name": "info-mark-hover",
+    "value": {
+     "light": "#2A62B8",
+     "dark": "#8AB5FD"
+    },
+    "usage": "Fra 2.4.0. Hover på et mærke for oplysning og besøg: info-mark 78 % blandet med text."
+   },
+   {
+    "name": "none-mark-hover",
+    "value": {
+     "light": "#667381",
+     "dark": "#92A1B2"
+    },
+    "usage": "Fra 2.4.0. Hover på et mærke for ingen status: none-mark 78 % blandet med text."
    },
    {
     "name": "data-1",

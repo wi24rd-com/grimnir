@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- GENERERET fra wi24rd-ui-kit-2.tokens.json (Wi24rd UI Kit 2, pakke 2.3.0). Ret ikke i hånden.
+<!-- GENERERET fra wi24rd-ui-kit-2.tokens.json (Wi24rd UI Kit 2, pakke 2.4.0). Ret ikke i hånden.
      To ordbøger med de samme nøgler: Wi24rdLys og Wi24rdMoerk. Flet præcis én ind i programmets ressourcer og brug
      DynamicResource, så temaet kan skiftes (se pakkens README.md). Tal er WPF-enheder (1 = 1 px ved 96 dpi);
      …Tracking er i em, og WPF har ingen egenskab til det på TextBlock. -->
@@ -31,6 +31,8 @@
     <SolidColorBrush x:Key="Wi24rdTextBrush" Color="#FF17212B"/>
     <Color x:Key="Wi24rdTextMutedColor">#FF4F5E6D</Color>
     <SolidColorBrush x:Key="Wi24rdTextMutedBrush" Color="#FF4F5E6D"/>
+    <Color x:Key="Wi24rdTextDisabledColor">#FF647182</Color>
+    <SolidColorBrush x:Key="Wi24rdTextDisabledBrush" Color="#FF647182"/>
     <Color x:Key="Wi24rdAccentColor">#FF007864</Color>
     <SolidColorBrush x:Key="Wi24rdAccentBrush" Color="#FF007864"/>
     <Color x:Key="Wi24rdAccentHoverColor">#FF006050</Color>
@@ -65,6 +67,16 @@
     <SolidColorBrush x:Key="Wi24rdInfoMarkBrush" Color="#FF2F74E0"/>
     <Color x:Key="Wi24rdNoneMarkColor">#FF7C8A99</Color>
     <SolidColorBrush x:Key="Wi24rdNoneMarkBrush" Color="#FF7C8A99"/>
+    <Color x:Key="Wi24rdOkMarkHoverColor">#FF108371</Color>
+    <SolidColorBrush x:Key="Wi24rdOkMarkHoverBrush" Color="#FF108371"/>
+    <Color x:Key="Wi24rdWarnMarkHoverColor">#FF9C6309</Color>
+    <SolidColorBrush x:Key="Wi24rdWarnMarkHoverBrush" Color="#FF9C6309"/>
+    <Color x:Key="Wi24rdDangerMarkHoverColor">#FFAE352F</Color>
+    <SolidColorBrush x:Key="Wi24rdDangerMarkHoverBrush" Color="#FFAE352F"/>
+    <Color x:Key="Wi24rdInfoMarkHoverColor">#FF2A62B8</Color>
+    <SolidColorBrush x:Key="Wi24rdInfoMarkHoverBrush" Color="#FF2A62B8"/>
+    <Color x:Key="Wi24rdNoneMarkHoverColor">#FF667381</Color>
+    <SolidColorBrush x:Key="Wi24rdNoneMarkHoverBrush" Color="#FF667381"/>
     <Color x:Key="Wi24rdData1Color">#FF2F74E0</Color>
     <SolidColorBrush x:Key="Wi24rdData1Brush" Color="#FF2F74E0"/>
     <Color x:Key="Wi24rdData2Color">#FFB85C00</Color>
@@ -184,6 +196,8 @@
     <SolidColorBrush x:Key="Wi24rdTextBrush" Color="#FFE8EEF4"/>
     <Color x:Key="Wi24rdTextMutedColor">#FFA6B4C3</Color>
     <SolidColorBrush x:Key="Wi24rdTextMutedBrush" Color="#FFA6B4C3"/>
+    <Color x:Key="Wi24rdTextDisabledColor">#FF8091A5</Color>
+    <SolidColorBrush x:Key="Wi24rdTextDisabledBrush" Color="#FF8091A5"/>
     <Color x:Key="Wi24rdAccentColor">#FF35D6B3</Color>
     <SolidColorBrush x:Key="Wi24rdAccentBrush" Color="#FF35D6B3"/>
     <Color x:Key="Wi24rdAccentHoverColor">#FF6BE5CA</Color>
@@ -218,6 +232,16 @@
     <SolidColorBrush x:Key="Wi24rdInfoMarkBrush" Color="#FF6FA5FF"/>
     <Color x:Key="Wi24rdNoneMarkColor">#FF7A8BA0</Color>
     <SolidColorBrush x:Key="Wi24rdNoneMarkBrush" Color="#FF7A8BA0"/>
+    <Color x:Key="Wi24rdOkMarkHoverColor">#FF5CDBC1</Color>
+    <SolidColorBrush x:Key="Wi24rdOkMarkHoverBrush" Color="#FF5CDBC1"/>
+    <Color x:Key="Wi24rdWarnMarkHoverColor">#FFFAC36F</Color>
+    <SolidColorBrush x:Key="Wi24rdWarnMarkHoverBrush" Color="#FFFAC36F"/>
+    <Color x:Key="Wi24rdDangerMarkHoverColor">#FFFA948D</Color>
+    <SolidColorBrush x:Key="Wi24rdDangerMarkHoverBrush" Color="#FFFA948D"/>
+    <Color x:Key="Wi24rdInfoMarkHoverColor">#FF8AB5FD</Color>
+    <SolidColorBrush x:Key="Wi24rdInfoMarkHoverBrush" Color="#FF8AB5FD"/>
+    <Color x:Key="Wi24rdNoneMarkHoverColor">#FF92A1B2</Color>
+    <SolidColorBrush x:Key="Wi24rdNoneMarkHoverBrush" Color="#FF92A1B2"/>
     <Color x:Key="Wi24rdData1Color">#FF6FA5FF</Color>
     <SolidColorBrush x:Key="Wi24rdData1Brush" Color="#FF6FA5FF"/>
     <Color x:Key="Wi24rdData2Color">#FFFFB066</Color>

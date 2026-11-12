@@ -71,6 +71,18 @@ Regler:
 - **Mærker og serier er ikke tekst.** Tekst i statusfarve bruger `--ok`, `--warn`, `--danger` og `--info`; tal og etiketter i et diagram bruger `--data-label`.
 - **Skalaen** går fra `--seq-1` (lidt) til `--seq-5` (meget). I lyst tema bliver trinene mørkere, i mørkt tema lysere; land uden data er `--map-land`.
 
+Fra 2.4.0 (ønskerne K18–K21 fra Huginn and Muninn):
+
+| Gruppe | Tokens | Bruges til | Krav |
+|---|---|---|---|
+| Slået fra | `--text-disabled` | Tekst, der er slået fra: et menupunkt eller en genvej, der ikke kan bruges, og pynt som en chevron | Mindst 4,5:1 mod `--surface`, `--surface-raised` og `--bg` |
+| Hover på mærker | `--ok-mark-hover`, `--warn-mark-hover`, `--danger-mark-hover`, `--info-mark-hover`, `--none-mark-hover` | Mærket under musen: søjlen, prikken | 3:1 mod fladerne som mærket |
+
+- **Tekst, der er slået fra** (K18). `--text-disabled` er til tekst, der er slået fra, og ikke til tekst, der skal læses (brug `--text-muted`). Den er næsten lige så mørk som `--text-muted` (begge skal kunne læses), så "slået fra" må aldrig hvile på farven alene: elementet har `aria-disabled="true"` eller `disabled`, og musen viser ingen hånd. **Kittets egne knapper nedtones fortsat som i dag** (`opacity: .55` på `.btn`, `.5` på båndets kommandoer `.cb`); tokenet er til programmets egne elementer.
+- **Hover på et mærke** (K19). Mærket under musen er mærket blandet med `--text`: 78 % mærke og 22 % tekst, i srgb (forholdet er Huginn and Muninns). I lyst tema bliver mærket mørkere, i mørkt lysere; kontrasten mod fladen stiger altså. Reglen er lavet som tokens, fordi `Tokens.xaml` ikke kan blande to farver (WPF har ingen `color-mix`): `--info-mark-hover` osv. er reglen regnet ud, og en test holder dem lig `color-mix(in srgb, var(--info-mark) 78%, var(--text))`. I CSS kan man skrive begge dele; tokenet er det, der er ens i begge programtyper. **Bemærk:** i mørkt tema er forskellen mellem `--ok-mark` og `--ok-mark-hover` (og `--warn-mark`) lille i lyshed (1,08:1); hover må aldrig være det eneste, der viser, hvad musen peger på (markøren, et værktøjstip eller en tekst følger med).
+- **Buer på kort** (K20). En bue tager betydningens mærkefarve: en bue, der er et angreb, er `--danger-mark` (som ringen om målet, `--map-ring`). `--map-arc` (oplysningens blå) er standard, når buen ikke betyder andet end "herfra og dertil". Ingen token er ændret.
+- **Svag flade af et mærke** (K21). To faste trin med `color-mix` og `transparent`, ingen tokens: en svag flade bag eller om et mærke er mærket med 18 % dækning, `color-mix(in srgb, var(--danger-mark) 18%, transparent)` (fx fyldet i ringen om et land); en næsten dækkende flade over et diagram eller kort er fladen med 92 %, `color-mix(in srgb, var(--surface) 92%, transparent)` (fx en zoomknap over kortet). Tekst på den svage flade er `--text` eller `--text-muted` (målt over `--surface`: mindst 5,1:1), aldrig mærket selv (under 3:1 i lyst tema). Ingen tokens, fordi `Tokens.xaml` kan udtrykke reglen med de farver, der findes: en pensel med `Opacity` på mærkets farve, `<SolidColorBrush Color="{DynamicResource Wi24rdDangerMarkColor}" Opacity="0.18"/>` (se README, WPF).
+
 ## AppShell
 
 **Klasser:** `.vindue`, `.titel`, `.mrk`, `.rk`, `.hoejre`, `.midte`, `.arb`, `.vl`, `.soeg`, `.fl`, `.flade`
@@ -234,9 +246,9 @@ skift.markér('filer');
 
 ## DataTable
 
-**Klasser:** `.tabel`, `.r`, `.gruppe`, `.sel`, `.sorter`, `.sorter-pil`, `.kolgruppe`, `.sideskift`, `.sideskift-nr`, `.sideskift-pr`, `.vliste`
+**Klasser:** `.tabel`, `.r`, `.gruppe`, `.sel`, `.sorter`, `.sorter-pil`, `.kolgruppe`, `.sideskift`, `.sideskift-nr`, `.sideskift-pr`, `.vliste`, `.uden-valg`, `.kol-xs`, `.kol-s`, `.kol-m`, `.kol-l`, `.kol-xl`, `.kol-skille`, `.layout-auto`, `.tabel-rul`, `.fast-foerste`
 
-**Funktioner:** `Kit.tabel`, `Kit.sideskift`
+**Funktioner:** `Kit.tabel`, `Kit.sideskift`, `Kit.tabelRul`
 
 **Formål:** Tabellen på arbejdsfladen: rækker på 40 px, grupper, tal til højre, værdier i mono. Hele rækken vælges.
 
@@ -262,7 +274,7 @@ En celle er tekst, et tal eller et element (fx en chip eller et felt). `mono` er
 
 **Tastatur:** Tab går til den valgte række (ellers den første). Op og ned vælger forrige og næste, Home og End første og sidste. Fra 2.3.0: sorteringsknapperne i hovedet nås med Tab før rækkerne og sorterer med Enter og mellemrum; sideskiftets knapper og antal pr. side nås med Tab efter tabellen.
 
-**Kræver af programmet:** Kolonnebredder i programmets egen CSS (tabellen har `table-layout: fixed`). Hvad et valg åbner (`vedValg`). At bygge tabellen igen, når rækkerne ændres (eller fra 2.3.0: `tabel.saetRaekker(raekker)`).
+**Kræver af programmet:** Kolonnebredder i programmets egen CSS (tabellen har `table-layout: fixed`), eller fra 2.4.0 kittets faste bredder (`bredde`). Hvad et valg åbner (`vedValg`). At bygge tabellen igen, når rækkerne ændres (eller fra 2.3.0: `tabel.saetRaekker(raekker)`).
 
 ### Sortering, to hovedrækker og sideskift (fra 2.3.0)
 
@@ -305,6 +317,55 @@ sider.saet(1, 4);   tabel.saetSortering(1, 'faldende');
 - **To hovedrækker.** `kolonnegrupper` med `id` og tekst, og `gruppe: id` på kolonnerne. Kolonner med samme gruppe ved siden af hinanden får en fælles overskrift (`.kolgruppe`, `scope="colgroup"`, `colspan`) i første række og deres egne i anden (`scope="col"`); en kolonne uden gruppe står i begge rækker (`rowspan="2"`). Tabellen får en `<colgroup>` pr. gruppe og pr. kolonne uden gruppe, så `scope="colgroup"` peger på de rigtige kolonner.
 - **Sideskift.** `Kit.sideskift` er sin egen funktion, fordi en `<nav>` ikke kan stå inde i `<table>`, og `Kit.tabel` returnerer tabellen selv (som i 2.0.0). Den står under tabellen: Forrige, "Side X af Y" (`role="status"`, så et skift læses op) og Næste, og til højre antal pr. side (browserens `<select>` med valglistens udseende). Forrige og Næste har `aria-disabled="true"` på første og sidste side og kan stadig nås med Tab, så fokus ikke forsvinder, når man når enden. Et klik flytter tallet og kalder `vedSide(n)`; **programmet leverer siderne** (henter eller skærer rækkerne til) og kalder `saet(side, sider)`, når antallet af sider ændres. `vedPrSide(n)` kaldes, når antal pr. side skiftes.
 
+### Rækker, der åbner, rækkehoved, bredder og rulleramme (fra 2.4.0)
+
+Nye indstillinger. **Uden dem er tabellen stadig byte for byte som i 2.0.0** (samme test som i 2.3.0).
+
+```js
+const tabel = Kit.tabel({
+  titelT: 'tabelNavn',                    // <caption class="skjult-tekst">: tabellens navn til skærmlæseren
+  raekkeHandling: 'aabn',                 // 'vaelg' (standard) | 'aabn' | 'ingen'
+  vedAabn: (tr, data) => aabnDomaene(data),
+  layout: 'auto', fastFoerste: true,
+  kolonnegrupper: [{ id: 'afvist', t: 'thAfvist', skille: true }, { id: 'angreb', t: 'thAngreb', skille: true }],
+  kolonner: [
+    { t: 'thDomaene', hoved: true, klasse: 'domaene' },   // <th scope="row"> i rækkerne
+    { t: 'thIGaar', tal: true, gruppe: 'afvist', bredde: 's' },
+    { t: 'th7', tal: true, gruppe: 'afvist', bredde: 's' },
+    { t: 'thUgen', tal: true, gruppe: 'angreb', bredde: 's' },
+  ],
+  raekker: [{ celler: ['eksempel.dk', 3, 41, 12], data: 'z1', attr: { 'data-zone': 'z1' }, titelT: 'hentetKl' }],
+});
+const rul = Kit.tabelRul(tabel, { ariaT: 'tabelRul' });   // { rod, tabel, maal }
+kasse.indhold.appendChild(rul.rod);   Sprog.anvend(rul.rod);
+```
+
+```html
+<div class="tabel-rul" aria-label="Domæner" role="region" tabindex="0">   <!-- role og tabindex kun, når den ruller -->
+  <table class="tabel layout-auto fast-foerste" role="grid">
+    <caption class="skjult-tekst">Dine domæner</caption>
+    <colgroup><col></colgroup><colgroup><col class="kol-s"><col class="kol-s"></colgroup><colgroup><col class="kol-s"></colgroup>
+    <thead>…<th class="kolgruppe kol-skille" scope="colgroup" colspan="2">Afvist</th>…<th class="r kol-s kol-skille" scope="col">I går</th>…</thead>
+    <tbody><tr tabindex="0" data-zone="z1" title="Hentet i dag"><th class="domaene" scope="row">eksempel.dk</th><td class="r kol-s kol-skille">3</td>…</tr></tbody>
+  </table>
+</div>
+```
+
+- **Hvad rækken gør (`raekkeHandling`).** Indstillingen hedder ikke `raekker`, fordi `raekker` er listen med rækkerne.
+  - `'vaelg'` (standard): som før. Hele rækken vælges (`.sel`, `aria-selected`), og piletasterne vælger.
+  - `'aabn'`: rækken er et mål, der åbner noget (fx en anden visning). Klik, Enter og mellemrum kalder `vedAabn(række, data)`. Ingen `aria-selected` og ingen `.sel`: intet bliver valgt. Op, ned, Home og End flytter kun fokus; der kaldes intet. Ét Tab-stop i tabellen (den række, man sidst stod på). Et klik på et link, en knap, et felt, en etiket eller `summary` i en celle åbner ikke rækken, og Enter og mellemrum på dem går til dem selv. `saetRaekker` beholder fokus på rækken med samme `data` (`===`), ellers på samme plads, så en tabel, der tegnes om, mens man står i den, ikke smider fokus væk.
+  - `'ingen'`: en almindelig `<table>` (klassen `.uden-valg`): ingen `role`, ingen `tabindex` på rækkerne, ingen markør og ingen hover. Links og knapper i cellerne virker og nås med Tab.
+  - `tabel.vaelg(i)` gør kun noget ved `'vaelg'`. Sortering, to hovedrækker og sideskift virker ens i alle tre: de rører kun hovedet og rækkerne.
+- **Rollen for en række, der åbner.** Tabellen er `role="grid"` som ved `'vaelg'`, og rækken er en almindelig række (`<tr>`, rollen `row`) med `tabindex`. Valgt, fordi `grid` er rollen for en tabel, man bevæger sig rundt i med piletasterne: med `grid` sender VoiceOver og NVDA piletasterne til tabellen; uden den bruger skærmlæseren dem selv til at læse celle for celle, og tabellens piletaster virker ikke. `role="link"` på rækken er fravalgt: rækken ville holde op med at være en række, og cellerne ville miste deres kolonnenavne. Hvad en skærmlæser hører (forventet ud fra rollerne; **ikke prøvet** med VoiceOver eller NVDA): ved Tab ind i tabellen tabellens navn (`caption` eller `aria-label`) og antal rækker og kolonner, og på rækken cellernes indhold, med kolonnenavnet, når man flytter sig til en ny kolonne, og rækkehovedet (`hoved: true`), når man flytter sig til en ny række. Intet "valgt" eller "ikke valgt". At rækken åbner noget, siges ikke af rollen: læg "Åbn eksempel.dk" som skjult tekst (`.skjult-tekst`) i rækkens sidste celle, fx sammen med en pil.
+- **Rækkehoved.** `hoved: true` på en kolonne giver `<th scope="row">` i rækkerne (i hovedet står den som de andre, `scope="col"`). Den ligner en celle i tekstens farve og størrelse, med vægt 600, og følger rækkens hover og valg.
+- **Celleklasser og bredder.** `klasse` på en kolonne sættes på hovedcellen og hver kropscelle (efter `r` og `mono`). `bredde: 'xs' | 's' | 'm' | 'l' | 'xl'` (40, 72, 112, 160 og 240 px) giver en `<col class="kol-…">` og samme klasse på kolonnens hoved- og kropsceller (efter `klasse`); så snart én kolonne har en bredde, får alle en `<col>`. Med `layout: 'auto'` får cellerne også `min-width`: målt i WebKit holder hverken `<col>` eller `width` alene, når tabellen er for bred til sin plads; det gør `min-width` på cellen. **Kun faste bredder:** kittet sætter aldrig inline-stil, så en fri bredde (fx `bredde: 87`) kan ikke gives; en anden bredde står i programmets egen CSS (`col.kol-…` eller en klasse via `klasse`). En ukendt bredde giver en fejl.
+- **Skillelinje mellem kolonnegrupper.** `skille: true` på en gruppe i `kolonnegrupper` giver en linje (2 px, `--border-strong`) før gruppens første kolonne, i begge hovedrækker og i hver række (`.kol-skille`).
+- **Rækkens data.** `attr: { 'data-zone': 'z1' }` sætter attributter på rækken. **Kun `data-*`**; et andet navn giver en fejl. Begrundelse: `role`, `tabindex`, `aria-*` og `class` er kittets tilstand (Tab-stop, valg), og `style` og `on*` ville gå uden om kittets regler (ingen inline-stil, intet i markup, der kører). `titel` (tekst) eller `titelT` (nøgle, `data-t-title`) bliver rækkens `title`.
+- **Tabellens navn.** `titelT` (nøgle) eller `titel` (tekst) giver en `<caption class="skjult-tekst">` først i tabellen. **Kun for skærmlæsere:** en tabel står altid under en synlig overskrift (kassens eller panelets), og en synlig caption ville sige det samme to gange; med `caption` har tabellen alligevel sit navn, når man går ind i den, og i skærmlæserens liste over tabeller. Brug `titelT` eller `ariaT`, ikke begge (`aria-label` vinder over `caption`).
+- **Tabel, der følger indholdet.** `layout: 'auto'` (`.layout-auto`) giver `table-layout: auto`: kolonnerne følger indholdet, og tabellen kan blive bredere end sin plads. Standard er fast som før.
+- **Rulleramme.** `Kit.tabelRul(tabel, { ariaT | aria })` lægger tabellen i en `<div class="tabel-rul">`, der ruller vandret. Navnet er påkrævet (ellers en fejl). Når tabellen er bredere end rammen, får rammen `role="region"` og `tabindex="0"`: den har et navn og kan nås med Tab og rulles med piletasterne; når den ikke ruller, er den hverken et område eller et Tab-stop. Det måles, når rammen eller tabellen skifter størrelse (`ResizeObserver`), og når programmet kalder `rul.maal()` (giver `true`, når den ruller). Navnet (`aria-label`) bliver stående, også når rammen ikke ruller.
+- **Fast første kolonne.** `fastFoerste: true` (`.fast-foerste`) holder første kolonne fast i venstre side, når rammen ruller (`position: sticky`), med en kant til højre. Cellen har `--surface` under sig (`--surface-raised` i hovedet og ved hover, `--accent-soft` i en valgt række), så det, der ruller ind under den, ikke ses, i begge temaer. Tabellen tegner kanterne pr. celle (`border-collapse: separate`), så de følger med. Første kolonne må ikke være i en kolonnegruppe (det giver en fejl). Tabellen skal stå på `--surface`, som tabeller i kittet gør.
+
 ## StatusChip
 
 **Klasser:** `.chip`, `.ok`, `.warn`, `.danger`, `.info`, `.none`, `.ord`
@@ -323,7 +384,7 @@ Kit.chip('warn', { t: 'cSkalTjekkes' });     // eller Kit.chip('ok', 'Maskeres')
 <span class="chip warn"><span aria-hidden="true">!</span><span class="ord">Skal tjekkes</span></span>
 ```
 
-**Tilstande:** Fem varianter: `ok` (✓), `warn` (!), `danger` (?), `info` (i) og `none` (–). Symbolerne står i `Kit.SYMBOL`.
+**Tilstande:** Fem varianter: `ok` (✓), `warn` (!), `danger` (×), `info` (i) og `none` (–). Symbolerne står i `Kit.SYMBOL`. Fra 2.4.0 er `danger` × (før ?, der læses som et spørgsmål eller "ukendt", ikke som en fejl). Banneret er uændret (`danger` har ! i banneret).
 
 **Tastatur:** Ingen; en chip er ikke klikbar.
 
@@ -347,7 +408,7 @@ Kit.knap({ t: 'kGem', variant: 'primary', ikon: 'gem', genvej: 'Ctrl+S', ved: ()
 <button type="button" class="btn primary"><svg class="ik">…</svg><span>Gem</span><span class="gv">Ctrl+S</span></button>
 ```
 
-**Tilstande:** Fire varianter: sekundær (ingen klasse), `primary`, `danger` og `ghost`. Hover. Deaktiveret (`disabled` eller `aria-disabled="true"`).
+**Tilstande:** Fire varianter: sekundær (ingen klasse), `primary`, `danger` og `ghost`. Hover. Deaktiveret (`disabled` eller `aria-disabled="true"`). Fra 2.4.0 ombrydes teksten aldrig (`white-space: nowrap`): knappen har fast højde, så en ombrudt tekst ville blive skåret over. Knappen bliver i stedet bredere; programmet sørger for plads.
 
 **Tastatur:** Tab, Enter og mellemrum (browserens egne).
 
