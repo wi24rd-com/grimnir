@@ -24,11 +24,10 @@
     a.input.setAttribute('data-t-aria', t);
     return a.rod;
   }
-  $('sag-valg').querySelector('legend').after(afkrydsning('sag-fremmede', 'valgFremmede'), afkrydsning('sag-oktet', 'valgOktet'));
-  S.anvend($('sag-valg'));
 
-  /* V-KITBRUG.1 N4: felterne og fejlfeltet i kittets dialoger (Ny sag, Omdøb, Udløb, Slet sag). Felterne er kittets TextField
-     (.felt), fejlfeltet er Grimnirs (role="alert"), og alt står i dialogens indhold i samme rækkefølge som før. */
+  /* V-KITBRUG.1 N4: felterne i kittets dialoger (Ny sag, Omdøb, Udløb) er kittets TextField (.felt) i samme rækkefølge
+     som før. V-KITBRUG.2 N1: fejlen står i kittets fejlfelt (G1: fejl: true, d.fejl; id <dialog>-fejl, role="alert"),
+     og knappens handling er et løfte (knappen venter, aria-busy; true lukker, afvist viser fejlen). */
   const FOELSOM = { spellcheck: 'false', autocomplete: 'off', autocorrect: 'off', autocapitalize: 'off' };
   function feltMed(id, etiket, type, attr, hj) {
     const f = document.createElement('div');
@@ -52,8 +51,6 @@
     return f;
   }
   function felter(...f) { const e = document.createElement('div'); e.className = 'dlg-felter'; e.append(...f); return e; }
-  function fejlFelt(id) { const p = document.createElement('p'); p.className = 'dlg-fejl'; p.id = id; p.setAttribute('role', 'alert'); return p; }
-  function samlet(...e) { const f = document.createDocumentFragment(); f.append(...e); return f; }
 
   /* ── Datoer ── */
   const to = n => String(n).padStart(2, '0');
@@ -120,28 +117,55 @@
     if (status.id) opdater();
   });
 
-  /* Titellinjens dialog: midlertidig sag (Gem som sag, Nulstil) eller navngiven (Skift sag, Luk sag). */
+  /* Titellinjens dialog: midlertidig sag (Gem som sag, Nulstil) eller navngiven (Skift sag, Luk sag). V-KITBRUG.2 N1:
+     kittets dialog med samme overskrift (dlg-sag-h), sætning (dlg-sag-p), valg, fejl og knapper som før; fejlen står i
+     kittets fejlfelt (G1). Knapperne er Luk, Nulstil sagen (farlig), Gem som sag (primær), Skift sag og Luk sag
+     (primær), og to af dem er skjult: en midlertidig sag viser Luk, Nulstil sagen og Gem som sag, en navngiven Luk,
+     Skift sag og Luk sag. Kittets regel (G4): skjulte knapper tæller ikke med i reglen om én primær; kittet flytter kun
+     den første primære (Gem som sag) yderst, og Luk sag står sidst i listen, så den også står yderst, når den vises. */
+  const sagValg = document.createElement('fieldset');
+  sagValg.className = 'valg lodret sag-valg';
+  sagValg.id = 'sag-valg';
+  const sagLegend = document.createElement('legend');
+  sagLegend.className = 'label';
+  sagLegend.setAttribute('data-t', 'sagValgH');
+  const sagValgHj = document.createElement('span');
+  sagValgHj.className = 'hj';
+  sagValgHj.id = 'sag-valg-hj';
+  sagValgHj.setAttribute('data-t', 'sagValgNye');
+  sagValg.append(sagLegend, afkrydsning('sag-fremmede', 'valgFremmede'), afkrydsning('sag-oktet', 'valgOktet'), sagValgHj);
+  const dSag = G.kitDialog({
+    id: 'dlg-sag', t: 'sagH', p: { t: 'sagP' }, indhold: sagValg, fejl: true,
+    knapper: [
+      { id: 'luk', t: 'luk' },
+      { id: 'nulstil', knapId: 'sag-nulstil', t: 'nulstilSag', variant: 'danger', ved: () => invoke('sag_nulstil').then(s => { anvend(s, true); return true; }, () => false) },
+      { id: 'gem-som', knapId: 'sag-gem-som', t: 'gemSomSag', variant: 'primary', ved: () => { aabnNySag('gem-som'); return false; } },
+      { id: 'skift', knapId: 'sag-skift', t: 'skiftSag', ved: () => { G.vis('sager'); } },
+      { id: 'luk-sag', knapId: 'sag-luk', t: 'lukSag', variant: 'primary', ved: () => invoke('sag_luk').then(s => { anvend(s, true); opdater(); return true; }, () => false) },
+    ],
+  });
   sagKnap.addEventListener('click', () => {
     const navngiven = Boolean(status.id);
-    const h = $('dlg-sag-h'), p = $('dlg-sag-p');
+    const h = dSag.overskrift, p = $('dlg-sag-p');
     h.setAttribute('data-t', navngiven ? 'sagNavngivenH' : 'sagH');
     h.setAttribute('data-v', navngiven ? status.navn : '');
     p.setAttribute('data-t', navngiven ? 'sagNavngivenP' : 'sagP');
     p.setAttribute('data-v', String(status.poster));
-    $('sag-nulstil').hidden = navngiven;
-    $('sag-gem-som').hidden = navngiven;
-    $('sag-skift').hidden = !navngiven;
-    $('sag-luk').hidden = !navngiven;
+    dSag.knap('nulstil').hidden = navngiven;
+    dSag.knap('gem-som').hidden = navngiven;
+    dSag.knap('skift').hidden = !navngiven;
+    dSag.knap('luk-sag').hidden = !navngiven;
     tegnValg();
-    S.anvend($('dlg-sag'));
-    G.aabnDialog('dlg-sag');
+    S.anvend(dSag.rod);
+    // Fokus som browserens: det første valg, eller Luk, når sagen ingen valg har (fieldset'et er skjult).
+    G.aabnDialog('dlg-sag', status.valg ? undefined : 'luk');
   });
 
   /* Sagens valg (D4, D5). En ændring i en sag med værdier gælder kun nye værdier; det står i dialogen. */
   const vFremmede = $('sag-fremmede'), vOktet = $('sag-oktet');
   function tegnValg() {
-    $('sag-valg').hidden = !status.valg;
-    $('sag-valg-fejl').textContent = '';
+    sagValg.hidden = !status.valg;
+    dSag.fejl(null);
     if (!status.valg) return;
     vFremmede.checked = status.valg.masker_fremmede;
     vOktet.checked = status.valg.bevar_sidste_oktet;
@@ -152,18 +176,11 @@
   function gemValg() {
     invoke('sag_valg', { maskerFremmede: vFremmede.checked, bevarSidsteOktet: vOktet.checked })
       .then(s => { anvend(s, false); tegnValg(); GM.M.analyserIgen(); })
-      .catch(e => { tegnValg(); $('sag-valg-fejl').textContent = S.t('bSagFejl', fejlTekst(e)); });
+      .catch(e => { tegnValg(); dSag.fejl(S.t('bSagFejl', fejlTekst(e))); });
   }
   vFremmede.addEventListener('change', gemValg);
   vOktet.addEventListener('change', gemValg);
-  $('sag-nulstil').addEventListener('click', () => {
-    invoke('sag_nulstil').then(s => { $('dlg-sag').close(); anvend(s, true); }).catch(() => { /* sagen er uændret */ });
-  });
-  $('sag-gem-som').addEventListener('click', () => aabnNySag('gem-som'));
-  $('sag-skift').addEventListener('click', () => { $('dlg-sag').close(); G.vis('sager'); });
-  $('sag-luk').addEventListener('click', () => {
-    invoke('sag_luk').then(s => { $('dlg-sag').close(); anvend(s, true); opdater(); }).catch(() => { /* uændret */ });
-  });
+  // Nulstil sagen og Luk sag: kan de ikke, er sagen uændret, og dialogen bliver åben (som før, uden besked).
 
   /* ═════════════════════════════ Sager-visningen ═════════════════════════════ */
   const d = G.dele.sager;
@@ -258,10 +275,8 @@
     const p = valgtPost();
     const kanIkke = p && p.fejl ? ['hvorforKanIkkeAabnes', fejlTekst({ art: 'sag', fejl: p.fejl })] : null;
     GM.kommando('sager', 'ny-sag', true);
-    for (const id of ['aabn-i-masker', 'omdoeb', 'udloeb']) {
-      GM.kommando('sager', id, p && !p.fejl, p ? 'hvorforKanIkkeAabnes' : 'hvorforVaelgSag');
-      if (p && kanIkke) { const b = G.dele.sager.bar.knap(id); b.setAttribute('data-v', kanIkke[1]); S.anvend(b); }
-    }
+    // Årsagen til, at en sag ikke kan åbnes, står som {v} i forklaringen (kittets værktøjstip, G11).
+    for (const id of ['aabn-i-masker', 'omdoeb', 'udloeb']) GM.kommando('sager', id, p && !p.fejl, p ? 'hvorforKanIkkeAabnes' : 'hvorforVaelgSag', null, kanIkke ? kanIkke[1] : null);
     GM.kommando('sager', 'slet-sag', Boolean(p), 'hvorforVaelgSag');
   }
   function tegnChip() {
@@ -313,19 +328,21 @@
   function aabnIgen() { if (status.id) aabn(status.id); }
 
   /* ── Dialogerne ── */
-  function visFejl(id, tekst) { const el = $(id); el.textContent = tekst || ''; }
-  function vedEnter(input, fn) { input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); fn(); } }); }
+  // Enter i et felt er det samme som et klik på dialogens primære knap (kittets knap venter på løftet og lukker selv).
+  function vedEnter(input, knap) { input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); knap.click(); } }); }
+  // En fejl fra Rust som tekst i kittets fejlfelt (et afvist løfte med en tekst).
+  const somTekst = e => { throw fejlTekst(e); };
 
   // Ny sag (også "Gem som sag" fra titellinjen og fra spørgsmålet ved lukning eller skift).
   let nyTil = 'sager';
-  const dNy = G.kitDialog('dlg-ny-sag', {
-    t: 'nySagH', p: { t: 'nySagP' },
-    indhold: samlet(felter(
-      feltMed('ny-sag-navn', 'feltNavn', 'text', { ...FOELSOM, maxlength: '120', 'data-t-aria': 'feltNavn', 'aria-describedby': 'ny-sag-fejl' }),
+  const dNy = G.kitDialog({
+    id: 'dlg-ny-sag', t: 'nySagH', p: { t: 'nySagP' }, fejl: true,
+    indhold: felter(
+      feltMed('ny-sag-navn', 'feltNavn', 'text', { ...FOELSOM, maxlength: '120', 'data-t-aria': 'feltNavn', 'aria-describedby': 'dlg-ny-sag-fejl' }),
       feltMed('ny-sag-udloeb', 'feltUdloebValgfri', 'date', { 'data-t-aria': 'feltUdloebValgfri', 'aria-describedby': 'ny-sag-udloeb-hj' }, 'hjUdloeb'),
-    ), fejlFelt('ny-sag-fejl')),
-    knapper: [{ id: 'annuller', t: 'annuller' }, { id: 'opret', t: 'opretSag', variant: 'primary', ved: () => { opret(); return false; } }],
-  }, { opret: 'ny-sag-opret' });
+    ),
+    knapper: [{ id: 'annuller', t: 'annuller' }, { id: 'opret', knapId: 'ny-sag-opret', t: 'opretSag', variant: 'primary', ved: () => opret() }],
+  });
   const nyNavn = $('ny-sag-navn'), nyUdloeb = $('ny-sag-udloeb');
   function aabnNySag(til) {
     nyTil = til;
@@ -334,67 +351,63 @@
     const dage = window.GrimnirIndst && window.GrimnirIndst.st.indst ? window.GrimnirIndst.st.indst.udloeb_dage : null;
     nyUdloeb.value = dage ? datoOmDage(dage) : '';
     nyUdloeb.min = iDag();
-    visFejl('ny-sag-fejl', '');
     const p = dNy.rod.querySelector('.modal-tekst');
     p.setAttribute('data-t', status.id ? 'nySagTomP' : status.poster > 0 ? 'nySagMedPosterP' : 'nySagP');
     p.setAttribute('data-v', String(status.poster));
-    S.anvend($('dlg-ny-sag'));
-    G.aabnDialog('dlg-ny-sag');
-    nyNavn.focus();
+    S.anvend(dNy.rod);
+    G.aabnDialog('dlg-ny-sag', nyNavn);
   }
   function opret() {
     const navn = nyNavn.value.trim();
-    if (!navn) { visFejl('ny-sag-fejl', S.t('fejlNavnTomt')); nyNavn.focus(); return; }
+    if (!navn) { dNy.fejl(S.t('fejlNavnTomt')); nyNavn.focus(); return false; }
     const fraNavngiven = Boolean(status.id);
-    invoke('sag_ny', { navn, udloeb: nyUdloeb.value || null }).then(s => {
-      $('dlg-ny-sag').close();
+    return invoke('sag_ny', { navn, udloeb: nyUdloeb.value || null }).then(s => {
       anvend(s, fraNavngiven);
       opdater();
       if (nyTil === 'afslut') invoke('program_afslut').catch(() => { /* programmet lukker */ });
       else if (nyTil.startsWith('aabn:')) aabn(nyTil.slice(5));
-    }).catch(e => visFejl('ny-sag-fejl', fejlTekst(e)));
+      return true;
+    }, somTekst);
   }
-  vedEnter(nyNavn, opret);
+  vedEnter(nyNavn, dNy.knap('opret'));
 
   // Omdøb
   let omdoebId = null;
-  G.kitDialog('dlg-omdoeb', {
-    t: 'omdoebH',
-    indhold: samlet(felter(feltMed('omdoeb-navn', 'feltNavn', 'text', { ...FOELSOM, maxlength: '120', 'data-t-aria': 'feltNavn', 'aria-describedby': 'omdoeb-fejl' })), fejlFelt('omdoeb-fejl')),
-    knapper: [{ id: 'annuller', t: 'annuller' }, { id: 'ok', t: 'kOmdoeb', variant: 'primary', ved: () => { omdoeb(); return false; } }],
-  }, { ok: 'omdoeb-ok' });
+  const dOmdoeb = G.kitDialog({
+    id: 'dlg-omdoeb', t: 'omdoebH', fejl: true,
+    indhold: felter(feltMed('omdoeb-navn', 'feltNavn', 'text', { ...FOELSOM, maxlength: '120', 'data-t-aria': 'feltNavn', 'aria-describedby': 'dlg-omdoeb-fejl' })),
+    knapper: [{ id: 'annuller', t: 'annuller' }, { id: 'ok', knapId: 'omdoeb-ok', t: 'kOmdoeb', variant: 'primary', ved: () => omdoeb() }],
+  });
   const omNavn = $('omdoeb-navn');
   function aabnOmdoeb() {
     const p = valgtPost();
     if (!p || p.fejl) return;
     omdoebId = p.id;
     omNavn.value = p.navn;
-    visFejl('omdoeb-fejl', '');
-    G.aabnDialog('dlg-omdoeb');
-    omNavn.focus();
+    G.aabnDialog('dlg-omdoeb', omNavn);
     omNavn.select();
   }
   function omdoeb() {
     const navn = omNavn.value.trim();
-    if (!navn) { visFejl('omdoeb-fejl', S.t('fejlNavnTomt')); return; }
-    invoke('sag_omdoeb', { id: omdoebId, navn }).then(() => {
-      $('dlg-omdoeb').close();
+    if (!navn) { dOmdoeb.fejl(S.t('fejlNavnTomt')); return false; }
+    return invoke('sag_omdoeb', { id: omdoebId, navn }).then(() => {
       opdater();
       if (omdoebId === status.id) invoke('sag_status').then(s => anvend(s, false)).catch(() => { /* uændret */ });
-    }).catch(e => visFejl('omdoeb-fejl', fejlTekst(e)));
+      return true;
+    }, somTekst);
   }
-  vedEnter(omNavn, omdoeb);
+  vedEnter(omNavn, dOmdoeb.knap('ok'));
 
   // Udløb
   let udloebId = null;
-  const dUdloeb = G.kitDialog('dlg-udloeb', {
-    t: 'udloebH', p: { t: 'udloebP' },
-    indhold: samlet(felter(
-      feltMed('udloeb-dato', 'feltUdloeb', 'date', { 'data-t-aria': 'feltUdloeb', 'aria-describedby': 'udloeb-fejl' }),
+  const dUdloeb = G.kitDialog({
+    id: 'dlg-udloeb', t: 'udloebH', p: { t: 'udloebP' }, fejl: true,
+    indhold: felter(
+      feltMed('udloeb-dato', 'feltUdloeb', 'date', { 'data-t-aria': 'feltUdloeb', 'aria-describedby': 'dlg-udloeb-fejl' }),
       afkrydsning('udloeb-ingen', 'ingenUdloeb'),
-    ), fejlFelt('udloeb-fejl')),
-    knapper: [{ id: 'annuller', t: 'annuller' }, { id: 'ok', t: 'gem', variant: 'primary', ved: () => { gemUdloeb(); return false; } }],
-  }, { ok: 'udloeb-ok' });
+    ),
+    knapper: [{ id: 'annuller', t: 'annuller' }, { id: 'ok', knapId: 'udloeb-ok', t: 'gem', variant: 'primary', ved: () => gemUdloeb() }],
+  });
   const udDato = $('udloeb-dato'), udIngen = $('udloeb-ingen');
   function aabnUdloeb() {
     const p = valgtPost();
@@ -404,57 +417,51 @@
     udIngen.checked = !p.udloeb;
     udDato.disabled = udIngen.checked;
     dUdloeb.rod.querySelector('.modal-tekst').setAttribute('data-v', p.navn);
-    visFejl('udloeb-fejl', '');
-    S.anvend($('dlg-udloeb'));
+    S.anvend(dUdloeb.rod);
     G.aabnDialog('dlg-udloeb', udIngen.checked ? udIngen : udDato);
   }
   udIngen.addEventListener('change', () => { udDato.disabled = udIngen.checked; if (!udIngen.checked) udDato.focus(); });
   function gemUdloeb() {
-    if (!udIngen.checked && !udDato.value) { visFejl('udloeb-fejl', S.t('fejlDatoMangler')); return; }
-    invoke('sag_udloeb', { id: udloebId, udloeb: udIngen.checked ? null : udDato.value }).then(() => {
-      $('dlg-udloeb').close();
+    if (!udIngen.checked && !udDato.value) { dUdloeb.fejl(S.t('fejlDatoMangler')); return false; }
+    return invoke('sag_udloeb', { id: udloebId, udloeb: udIngen.checked ? null : udDato.value }).then(() => {
       opdater();
       if (udloebId === status.id) invoke('sag_status').then(s => anvend(s, false)).catch(() => { /* uændret */ });
-    }).catch(e => visFejl('udloeb-fejl', fejlTekst(e)));
+      return true;
+    }, somTekst);
   }
 
-  // Slet: bekræftelsen nævner sagens navn. Kittets dialog som bekræftelse (ikke Kit.bekraeft: sletningen kan fejle, og
-  // fejlen står i dialogen, der bliver åben). Fokus står som før på Slet sag.
-  let sletId = null;
-  const dSlet = G.kitDialog('dlg-slet', {
-    t: 'sletH', p: { t: 'sletP' }, indhold: fejlFelt('slet-fejl'),
-    knapper: [{ id: 'annuller', t: 'annuller' }, { id: 'ok', t: 'kSletSag', variant: 'danger', ved: () => { slet(); return false; } }],
-  }, { ok: 'slet-ok' });
+  /* Slet: bekræftelsen nævner sagens navn. V-KITBRUG.2 N1: kittets bekræftelse, der kan fejle (Kit.bekraeft med ved,
+     G2): fejlen står i dialogen, der bliver åben. N2 (Jan): fokus står på Annullér (kittets standard ved en farlig
+     handling), så Enter ikke sletter uden et Tab. Dialogen laves ved åbning og fjernes ved lukning; id'et dlg-slet
+     sætter Grimnir selv (Kit.bekraeft har intet id; kit-ønske G12). */
   function aabnSlet() {
     const p = valgtPost();
     if (!p) return;
-    sletId = p.id;
-    dSlet.rod.querySelector('.modal-tekst').setAttribute('data-v', navnFor(p));
-    visFejl('slet-fejl', '');
-    S.anvend($('dlg-slet'));
-    G.aabnDialog('dlg-slet', 'ok');
-  }
-  function slet() {
-    const var_aaben = sletId === status.id;
-    invoke('sag_slet', { id: sletId }).then(s => {
-      $('dlg-slet').close();
+    const id = p.id, var_aaben = id === status.id;
+    let svar = null;
+    G.bekraeft({
+      t: 'sletH', p: { t: 'sletP' }, nej: { t: 'annuller' }, ja: { t: 'kSletSag' }, farlig: true,
+      udfyld: rod => { rod.id = 'dlg-slet'; rod.querySelector('.modal-tekst').setAttribute('data-v', navnFor(p)); S.anvend(rod); },
+      ved: () => invoke('sag_slet', { id }).then(s => { svar = s; }, somTekst),
+    }).then(ja => {
+      if (!ja) return;
       st.valgt = null;
-      anvend(s, var_aaben);
+      anvend(svar, var_aaben);
       opdater();
-    }).catch(e => visFejl('slet-fejl', fejlTekst(e)));
+    });
   }
 
   // "Gem den midlertidige sag?" ved lukning af programmet eller før en anden sag åbnes. Tre knapper som før: Annullér,
-  // Kassér (farlig) og Gem som sag (primær, har fokus).
+  // Kassér (farlig) og Gem som sag (primær, har fokus; kittets regel for et spørgsmål med tre svar, G4).
   let kasserTil = 'afslut';
-  const dKasser = G.kitDialog('dlg-kasser', {
-    t: 'kasserAfslutH', p: { t: 'kasserP' },
+  const dKasser = G.kitDialog({
+    id: 'dlg-kasser', t: 'kasserAfslutH', p: { t: 'kasserP' },
     knapper: [
       { id: 'annuller', t: 'annuller' },
-      { id: 'kasser', t: 'kasser', variant: 'danger', ved: () => { kasser(); return false; } },
-      { id: 'gem', t: 'gemSomSag', variant: 'primary', ved: () => { aabnNySag(kasserTil); return false; } },
+      { id: 'kasser', knapId: 'kasser-ok', t: 'kasser', variant: 'danger', ved: () => { kasser(); return false; } },
+      { id: 'gem', knapId: 'kasser-gem', t: 'gemSomSag', variant: 'primary', ved: () => { aabnNySag(kasserTil); return false; } },
     ],
-  }, { kasser: 'kasser-ok', gem: 'kasser-gem' });
+  });
   function visKasser(til) {
     kasserTil = til;
     dKasser.overskrift.setAttribute('data-t', til === 'afslut' ? 'kasserAfslutH' : 'kasserAabnH');

@@ -6,7 +6,7 @@
    V-LAAS.2: mens <html data-laast> står (laas.js), er visningsskiftet og båndet nedtonede, og ⌘1–⌘4 gør intet;
    Indstillinger (⌘, / Ctrl+,) og Om virker.
    Rust giver: kerne_version (fodlinjen), hændelsen 'menu' ("om" | "indstillinger" | "afslut"; "aabn" | "gem" håndteres
-   af maskering.js), hændelsen 'fuldskaerm'
+   af maskering.js; V-KITBRUG.2: "tekst-stoerre" | "tekst-mindre" | "tekst-normal" fra menuen Vis), hændelsen 'fuldskaerm'
    (true | false) og platformen (<html data-platform>). */
 (function () {
   'use strict';
@@ -36,7 +36,7 @@
   const VISNINGER = [
     {
       id: 'masker', t: 'vMasker', ikon: 'maske', soeg: 'soegMasker', chip: 'chipIntetIndsat', fod: 'fodMasker',
-      tom: ['tomMaskerH', 'tomMaskerP'],
+      tom: ['tomMaskerH', 'tomMaskerP'], modtager: 'ariaIndsaetTekst',
       grupper: [
         { t: 'gTekst', knapper: [aktiv('masker', 'indsaet', 'kIndsaet', 'indsaet', false, true), aktiv('masker', 'aabn-fil', 'kAabnFil', 'fil', false, true)] },
         { t: 'gMaskering', knapper: [aktiv('masker', 'analyser', 'kAnalyser', 'soeg'), aktiv('masker', 'gem-masker', 'kGemMasker', 'skjold', true), aktiv('masker', 'foer-efter', 'kFoerEfter', 'foerefter')] },
@@ -51,7 +51,7 @@
     },
     {
       id: 'demasker', t: 'vDemasker', ikon: 'oeje', soeg: 'soegDemasker', chip: 'chipIntetSvar', fod: 'fodDemasker',
-      tom: ['tomDemaskerH', 'tomDemaskerP'],
+      tom: ['tomDemaskerH', 'tomDemaskerP'], modtager: 'ariaIndsaetSvar', tilSager: true,
       grupper: [
         { t: 'gSvar', knapper: [aktiv('demasker', 'indsaet', 'kIndsaet', 'indsaet', false, true), aktiv('demasker', 'aabn-fil', 'kAabnFil', 'fil', false, true)] },
         { t: 'gDemaskering', knapper: [aktiv('demasker', 'demasker', 'kDemasker', 'oeje', true), senere('naeste-advarsel', 'kNaesteAdvarsel', 'naeste')] },
@@ -119,7 +119,8 @@
     const cmd = document.createElement('div');
     cmd.dataset.visning = v.id;
     baand.appendChild(cmd);
-    const bar = K.commandBar(cmd, { ariaT: 'cmdAria', faner: [{ id: 'start', t: 'faneStart', grupper: v.grupper }, visFane()] });
+    // V-KITBRUG.2 N3 (G11): "hvorfor" en kommando er slået fra, står i kittets værktøjstip (mus og tastatur), ikke i title.
+    const bar = K.commandBar(cmd, { ariaT: 'cmdAria', hvorforTip: true, faner: [{ id: 'start', t: 'faneStart', grupper: v.grupper }, visFane()] });
 
     // NavPane: overskrift og træ
     const nd = document.createElement('div');
@@ -164,9 +165,17 @@
     K.vaerktoejstip(fl, { t: 'hvorforFilter' });
     const flade = document.createElement('div');
     flade.className = 'flade';
-    // V-KITBRUG.1 N3: kittets tomme tilstand (ikon, overskrift og én sætning). Maskér og Demaskér gør den til en flade, der
-    // tager imod indsat tekst og en sluppet fil (maskering.js); knapperne i den lægges til af visningerne.
-    const tom = K.tomTilstand({ ikon: v.ikon, t: v.tom[0], p: { t: v.tom[1] } });
+    // V-KITBRUG.1 N3: kittets tomme tilstand (ikon, overskrift og én sætning); Sager og Ordbog lægger selv deres knap i den.
+    // V-KITBRUG.2 N3 (G8): i Maskér og Demaskér er den kittets flade, der tager imod (fokus, navn med ⌘V), med Åbn fil og
+    // i Demaskér "Åbn Sager" som den anden handling (vist af maskering.js, når der skal en sag til). Indsæt tager
+    // maskering.js imod på hele siden (også her), og en fil, der slippes, kommer fra Rust; .tomt-slip sætter maskering.js.
+    const tomO = { ikon: v.ikon, t: v.tom[0], p: { t: v.tom[1] } };
+    if (v.modtager) {
+      tomO.modtager = { ariaT: v.modtager, ariaV: mod + 'V' };
+      tomO.handling = { t: 'kAabnFil', ikon: 'fil', ved: e => { const h = HANDLINGER[v.id + ':aabn-fil']; if (h) h(e); } };
+      if (v.tilSager) tomO.anden = { t: 'kGaaTilSager', ikon: 'mappe', ved: () => gaaTil('sager') };
+    }
+    const tom = K.tomTilstand(tomO);
     const p = tom.querySelector('.tomt-p');
     flade.appendChild(tom);
     sek.append(vl, flade);
@@ -235,31 +244,28 @@
   indstKnap.appendChild(K.ikon('tandhjul', 'ik'));
   indstKnap.setAttribute('data-v', mod + ',');
 
-  /* Dialoger. V-KITBRUG.1 N4: en dialog bygget med kittets Kit.dialog får sit gamle id (dlg-…), knapperne deres gamle
-     id'er (knapId: { svar: id }), og den står i <body> fra start, så den kan findes, før den åbnes. Kun én dialog er
-     åben ad gangen: aabnDialog lukker de andre (kittets og Grimnirs egne .dlg) og åbner den ene; fokus kan peges på
-     (et knap-svar, et id eller et element), ellers vælger kittet. bekraeft er kittets Kit.bekraeft med samme regel. */
+  /* Dialoger. Alle Grimnirs dialoger er kittets (V-KITBRUG.2 N1: også Indstillinger, sagens dialog, Tilføj post, Prøv
+     på tekst og guiden). kitDialog bygger med Kit.dialog: id og knappernes id'er giver kittet (G3: id, knapId), fejlfeltet
+     giver kittet (G1: fejl, d.fejl), og en nøgle i fejlfeltet udfyldes af sproget. Dialogen står i <body> fra start, så
+     den kan findes, før den åbnes. Kun én dialog er åben ad gangen: aabnDialog lukker de andre og åbner den ene; fokus
+     kan peges på (et knap-svar, et id eller et element), ellers vælger kittet. bekraeft er kittets Kit.bekraeft med
+     samme regel (fra 2.5.0 med ved: en bekræftelse, der kan fejle, G2). */
   const KITDLG = {};
-  function kitDialog(id, o, knapId = {}) {
-    const dl = K.dialog(o);
-    dl.rod.id = id;
-    for (const [svar, kid] of Object.entries(knapId)) dl.knap(svar).id = kid;
+  function kitDialog(o) {
+    const dl = K.dialog({ udfyld: e => S.anvend(e), ...o });
     document.body.appendChild(dl.rod);
     S.anvend(dl.rod);
-    KITDLG[id] = dl;
+    KITDLG[o.id] = dl;
     return dl;
   }
   function lukAndre(d) { for (const andet of document.querySelectorAll('dialog[open]')) if (andet !== d) andet.close(); }
   function aabnDialog(id, fokus) {
-    const d = $(id);
-    lukAndre(d);
-    if (KITDLG[id]) KITDLG[id].aabn(fokus);
-    else if (!d.open) d.showModal();
+    lukAndre(KITDLG[id].rod);
+    KITDLG[id].aabn(fokus);
   }
   function bekraeft(o) { lukAndre(null); return K.bekraeft(o); }
-  for (const b of document.querySelectorAll('dialog [data-luk]')) b.addEventListener('click', () => b.closest('dialog').close());
 
-  // Om: navn, slogan, beskrivelse, versionerne og licensen, med kittets fletbånd øverst (ADR D16: ét sted).
+  // Om: navn, slogan, beskrivelse, versionerne og licensen, med kittets fletbånd øverst (ADR D16: ét sted; G5: foer).
   const elT = (tag, kl, t, id) => { const e = document.createElement(tag); if (kl) e.className = kl; if (t) e.setAttribute('data-t', t); if (id) e.id = id; return e; };
   const omIndhold = document.createElement('div');
   const identitet = elT('div', 'identitet');
@@ -270,21 +276,40 @@
   omKerne.setAttribute('data-v', '…');
   omTal.append(omVersion, omKerne, elT('li', null, 'licens'));
   omIndhold.append(identitet, elT('p', 'om-p', 'omP'), omTal);
-  const om = kitDialog('dlg-om', { t: 'omH', indhold: omIndhold, knapper: [{ id: 'luk', t: 'luk' }] });
   const omFlet = elT('div', 'om-flet', null, 'om-flet');
   omFlet.appendChild(K.fletbaand());
-  om.rod.prepend(omFlet);
+  kitDialog({ id: 'dlg-om', t: 'omH', foer: omFlet, indhold: omIndhold, knapper: [{ id: 'luk', t: 'luk' }] });
   indstKnap.addEventListener('click', () => aabnDialog('dlg-indst'));
   const MENU = { indstillinger: 'dlg-indst', om: 'dlg-om' };
 
+  /* V-KITBRUG.2 N4: tekststørrelsen med ⌘+ (⌘= tæller med), ⌘− og ⌘0 (Ctrl på Windows) og fra menuen Vis (hændelsen
+     'menu' med "tekst-stoerre", "tekst-mindre" og "tekst-normal"). Kittets Tekst stopper ved lille og stor og husker valget;
+     Indstillinger følger med (hændelsen grimnir-tekst). Virker også låst og med en dialog åben: tekststørrelsen er
+     visningens, ikke en handling på data. Tasterne fanges her på begge platforme og stoppes (preventDefault), så
+     menuens genvej ikke også slår til på macOS (WebKit giver siden tastetrykket før menuen): menuens accelerator kan
+     ikke være "+" (Tauri tager kun fysiske taster), og "+" og "=" ligger forskellige steder på danske og engelske
+     tastaturer. Rust gemmer intet om tekststørrelsen. */
+  const Tk = window.Tekst;
+  const TEKST_TAST = { '+': 'større', '=': 'større', '-': 'mindre', 0: 'nulstil' };
+  const TEKST_KODE = { NumpadAdd: 'større', NumpadSubtract: 'mindre', Numpad0: 'nulstil' };
+  const TEKST_MENU = { 'tekst-stoerre': 'større', 'tekst-mindre': 'mindre', 'tekst-normal': 'nulstil' };
+
   // Tastatur: ⌘1–⌘4 (Ctrl på Windows); Ctrl+, på Windows (på macOS fanger programmenuen ⌘,). Visningernes egne
-  // genveje (⌘↵, ⇧⌘C) står i maskering.js.
+  // genveje (⌘↵, ⇧⌘C) står i maskering.js. V-KITBRUG.2 N5: ⌘1–⌘4 gør intet, mens en dialog er åben (som de andre
+  // genveje): visningen bag dialogen skifter ikke.
   document.addEventListener('keydown', e => {
     const modTast = mac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey;
-    if (!modTast || e.altKey || e.shiftKey) return;
+    if (!modTast || e.altKey) return;
+    const tekst = TEKST_TAST[e.key] || TEKST_KODE[e.code];
+    if (tekst) {
+      e.preventDefault();
+      Tk[tekst]();
+      return;
+    }
+    if (e.shiftKey) return;
     const tal = /^Digit([1-9])$/.exec(e.code || '') || /^([1-9])$/.exec(e.key || '');
     if (tal && Number(tal[1]) <= ID.length) {
-      if (laast()) return;
+      if (laast() || document.querySelector('dialog[open]')) return;
       e.preventDefault();
       gaaTil(ID[Number(tal[1]) - 1]);
     } else if (!mac && (e.key === ',' || e.code === 'Comma')) {
@@ -304,7 +329,10 @@
     if (tauri.app && tauri.app.getVersion) tauri.app.getVersion().then(v => saetVersion(['fod-version', 'om-version'], v)).catch(() => { });
     if (tauri.core && tauri.core.invoke) tauri.core.invoke('kerne_version').then(v => saetVersion(['fod-kerne', 'om-kerne'], v)).catch(() => { });
     if (tauri.event && tauri.event.listen) {
-      tauri.event.listen('menu', e => { if (MENU[e.payload]) aabnDialog(MENU[e.payload]); });
+      tauri.event.listen('menu', e => {
+        if (TEKST_MENU[e.payload]) Tk[TEKST_MENU[e.payload]]();
+        else if (MENU[e.payload]) aabnDialog(MENU[e.payload]);
+      });
       // Fuldskærm på macOS: trafiklysene er skjult, og titellinjen giver ikke plads til dem (app.css).
       tauri.event.listen('fuldskaerm', e => document.documentElement.toggleAttribute('data-fuldskaerm', e.payload === true));
     }

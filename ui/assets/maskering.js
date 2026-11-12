@@ -59,28 +59,35 @@
   const mb = b => (b / 1048576).toFixed(1);
   const fokusIFelt = e => e && e.target && e.target.closest && e.target.closest('input[type="text"], input[type="search"], textarea, [contenteditable="true"]');
 
-  /* En kommando i båndet: aktiv (med genvej i title) eller nedtonet med en forklaring. */
-  function kommando(visning, id, on, hvorfor, genvej) {
-    const b = G.dele[visning].bar.knap(id);
+  /* En kommando i båndet: aktiv (med genvej i title) eller nedtonet med en forklaring. V-KITBRUG.2 N3 (G11): forklaringen
+     står i kittets værktøjstip (bar.saetDeaktiveret med hvorforTip; vises ved hover og ved Tab, læses efter navnet), ikke
+     i title. v er {v} i forklaringen (fx årsagen til, at en sag ikke kan åbnes); kittets saetDeaktiveret tager kun
+     nøglen, så Grimnir sætter data-v på tippet selv (kit-ønske G13). Tippet laves kun om, når forklaringen skifter, så
+     et tip, der er vist, ikke blinker ved hver ny tegning. Genvejen står stadig i title på en aktiv kommando (title må
+     gentage navnet). */
+  const FORKLARET = new WeakMap();
+  function kommando(visning, id, on, hvorfor, genvej, v) {
+    const bar = G.dele[visning].bar, b = bar.knap(id);
     if (!b) return;
+    const h = on ? null : hvorfor || 'hvorforIndsaetFoerst';
+    const noegle = on ? '' : h + '|' + (v == null ? '' : String(v));
+    if (FORKLARET.get(b) !== noegle) {
+      bar.saetDeaktiveret(id, !on, h);
+      FORKLARET.set(b, noegle);
+      const tip = !on && document.getElementById(b.getAttribute('aria-describedby') || '');
+      if (tip && v != null) tip.setAttribute('data-v', String(v));
+    }
     b.removeAttribute('title');
     b.removeAttribute('data-v');
-    if (on) {
-      b.removeAttribute('aria-disabled');
-      if (genvej) {
-        b.setAttribute('data-t-title', genvej[0]);
-        b.setAttribute('data-v', genvej[1]);
-        b.setAttribute('aria-keyshortcuts', genvej[2]);
-      } else {
-        b.removeAttribute('data-t-title');
-        b.removeAttribute('aria-keyshortcuts');
-      }
+    if (on && genvej) {
+      b.setAttribute('data-t-title', genvej[0]);
+      b.setAttribute('data-v', genvej[1]);
+      b.setAttribute('aria-keyshortcuts', genvej[2]);
     } else {
-      b.setAttribute('aria-disabled', 'true');
-      b.setAttribute('data-t-title', hvorfor || 'hvorforIndsaetFoerst');
+      b.removeAttribute('data-t-title');
       b.removeAttribute('aria-keyshortcuts');
     }
-    S.anvend(b);
+    S.anvend(b.parentElement);
   }
   const GV = {
     analyser: () => ['genvejTitel', G.mod + '↵', (G.mac ? 'Meta' : 'Control') + '+Enter'],
@@ -164,12 +171,12 @@
   const STATUS = { sikker: ['ok', 'stSikker'], ordbog: ['info', 'stOrdbog'], sandsynlig: ['warn', 'stSandsynlig'], tjek: ['danger', 'stTjek'], version: ['none', 'stVersion'] };
   const chip = (variant, t, v) => { const c = K.chip(variant, { t }); if (v != null) c.querySelector('.ord').setAttribute('data-v', String(v)); return c; };
 
-  /* Fælles opbygning af en arbejdsflade: tom tilstand (eksisterer) + bannere + delt flade. */
+  /* Fælles opbygning af en arbejdsflade: tom tilstand (eksisterer) + bannere + delt flade. Den tomme tilstand er kittets
+     flade, der tager imod (app.js, G8: fokus, navn med ⌘V, Åbn fil); indsæt tages imod på hele siden nedenfor. */
   function byggeFlade(visning, opsaet) {
     const d = G.dele[visning];
-    d.tom.tabIndex = 0;
-    d.tom.setAttribute('data-t-aria', visning === 'masker' ? 'ariaIndsaetTekst' : 'ariaIndsaetSvar');
-    d.tom.setAttribute('data-v', G.mod + 'V');
+    // V-KITBRUG.2 N5: arbejdet fylder fladen, og tekst og tabel deler højden (app.css: .flade.fyld).
+    d.flade.classList.add('fyld');
     const ark = el('div', 'arbejde');
     ark.hidden = true;
     const bannere = el('div', 'bannere');
@@ -185,9 +192,7 @@
     const filinfo = el('span', 'filinfo');
     filinfo.hidden = true;
     d.sek.querySelector('.vl').insertBefore(filinfo, d.hoejre);
-    const fladen = { d, ark, bannere, besked, tomBannere, filinfo, frem: null, arbTimer: null, vedAabn: null };
-    const aabnKnap = K.knap({ t: 'kAabnFil', ikon: 'fil', ved: () => { if (fladen.vedAabn) fladen.vedAabn(); } });
-    d.tom.appendChild(aabnKnap);
+    const fladen = { d, ark, bannere, besked, tomBannere, filinfo, frem: null, arbTimer: null };
     S.anvend(d.flade);
     return fladen;
   }
@@ -702,14 +707,10 @@
         kolonner: [{ t: 'kolMasker' }, { t: 'kolType' }, { t: 'kolVaerdi' }, { t: 'kolErstatning' }, { t: 'kolAntal', tal: true }, { t: 'kolStatus' }, { t: 'kolOrdbog' }],
         raekker: vis.map(r => {
           const on = valgt(r);
-          const cb = document.createElement('input');
-          cb.type = 'checkbox';
-          cb.className = 'afk-boks'; // V-KITBRUG.1 N3: kittets afkrydsning (tegningen); navnet står i aria-label
-          cb.checked = on;
-          cb.disabled = r.laast;
+          // V-KITBRUG.2 N3 (G7): kittets afkrydsning uden synlig tekst (boksen alene, 16 px); rækken er det synlige navn,
+          // og navnet står i aria-label ("Maskér 192.0.2.17"; en hemmelighed nævnes ved linjen, ikke ved værdien).
+          const cb = K.afkrydsning({ ariaT: r.hemmelig ? 'ariaMaskerHemmelig' : 'ariaMasker', ariaV: r.hemmelig ? String(r.linje) : r.vaerdier[0], valgt: on, deaktiveret: r.laast }).input;
           cb.setAttribute('data-felt', 'valg');
-          cb.setAttribute('data-t-aria', r.hemmelig ? 'ariaMaskerHemmelig' : 'ariaMasker');
-          cb.setAttribute('data-v', r.hemmelig ? String(r.linje) : r.vaerdier[0]);
           if (r.laast) cb.setAttribute('data-t-title', 'hvorforLaast');
           cb.addEventListener('change', () => {
             if (cb.checked) st.fravalgt.delete(r.id); else st.fravalgt.add(r.id);
@@ -817,7 +818,6 @@
     G.haandter('masker', 'aabn-fil', () => aabnFil());
     G.haandter('masker', 'gem-fil', () => gemFil(false));
     G.haandter('masker', 'kvittering', () => kopierKvittering());
-    f.vedAabn = () => aabnFil();
     d.soeg.addEventListener('input', () => { st.soeg = d.soeg.value; st.side = SIDE; if (st.fil) hentSide(); else tegnTabel(); });
     async function kopierResultat() {
       if (!st.resultat || st.travl) return;
@@ -872,11 +872,10 @@
       ark.append(delt, tabelPanel.p);
     });
     const d = f.d;
-    // Den tomme tilstand peger på Sager, når den aktuelle sag er tom, og der findes gemte sager (V-SAG.1).
-    const tilSager = K.knap({ t: 'kGaaTilSager', ikon: 'mappe', ved: () => G.vis('sager') });
+    // Den tomme tilstand peger på Sager, når den aktuelle sag er tom, og der findes gemte sager (V-SAG.1). V-KITBRUG.2 N3
+    // (G8): det er kittets anden handling ved siden af Åbn fil (app.js); den vises kun, når der skal en sag til.
+    const tilSager = d.tom.querySelector('.tomt-handlinger').lastElementChild;
     tilSager.hidden = true;
-    d.tom.appendChild(tilSager);
-    S.anvend(tilSager);
 
     function modtag(s) {
       f.tomBannere.textContent = '';
@@ -1075,7 +1074,6 @@
     G.haandter('demasker', 'indsaet', () => indsaetVia(st.tekst ? svar.pre : d.tom, f));
     G.haandter('demasker', 'aabn-fil', () => aabnFil());
     G.haandter('demasker', 'gem-fil', () => gemFil());
-    f.vedAabn = () => aabnFil();
     d.soeg.addEventListener('input', () => { st.soeg = d.soeg.value; tegnTabel(); });
     async function kopierResultat() {
       if (!st.resultat || st.travl) return;
@@ -1176,8 +1174,14 @@
     if (G.aktiv !== 'masker') G.vis('masker');
     return M;
   }
+  /* V-KITBRUG.2 N3 (G8): mens en fil trækkes over vinduet, viser den tomme tilstand det med kittets .tomt-slip (kittet læser
+     ingen filer; Rust melder trækket). Står der en tekst (den tomme tilstand er skjult), viser hele fladen det som før. */
   function traek(on) {
-    for (const v of ['masker', 'demasker']) G.dele[v].flade.toggleAttribute('data-traek', on && G.aktiv === v);
+    for (const v of ['masker', 'demasker']) {
+      const d = G.dele[v], her = on && G.aktiv === v;
+      d.tom.classList.toggle('tomt-slip', her && !d.tom.hidden);
+      d.flade.toggleAttribute('data-traek', her && d.tom.hidden);
+    }
   }
   if (G.tauri && G.tauri.event && G.tauri.event.listen) {
     // V-LAAS.2: låst gør Åbn og Gem fra menuen og træk og slip intet (Rust svarer også `laast`).

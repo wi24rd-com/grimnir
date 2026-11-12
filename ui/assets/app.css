@@ -1,37 +1,26 @@
 /* Grimnir — det, der kun gælder Grimnir. Kittet (kit.css) har AppShell og komponenterne; her står, hvordan Grimnir
-   lægger sine fire visninger ind i skallen, og Grimnirs egne dialoger (.dlg), til de er skiftet til kittets (V-KITBRUG.1:
-   den tomme tilstand, afkrydsningen, fremdriften og otte dialoger er kittets). Ingen farvekoder.
+   lægger sine fire visninger ind i skallen. V-KITBRUG.2: alle dialoger er kittets (.modal); Grimnirs egne .dlg-regler er
+   væk. Ingen farvekoder.
 
    V-KITBRUG.1 N2, tekststørrelsen: kittets zoom på <html> (0,9 ved lille, 1,125 ved stor) skalerer også vh, vw og px
-   (målt i WKWebView). --z er trinnet, og de mål her, der skal følge vinduet (højder i vh, bredder i vw, pladsen til
-   trafiklysene), deles med det, som kit.css gør for .vindue og .modal. Normal har --z: 1, og alt er som før. */
-:root { --z: 1; }
-:root[data-tekst="lille"] { --z: .9; }
-:root[data-tekst="stor"] { --z: 1.125; }
+   (målt i WKWebView). De mål her, der skal følge vinduet (højder i vh, pladsen til trafiklysene), deles med trinnet.
+   V-KITBRUG.2 N3 (G10): trinnet er kittets --tekst-zoom (1, .9, 1.125; sat i kit.css), ikke længere Grimnirs egen --z. */
 
 /* Hver visning har sin del af NavPane og arbejdsfladen; kun den aktive vises (app.js sætter hidden). */
 .navdele { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .navdel { display: flex; flex-direction: column; min-height: 0; }
 .visning { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 
-/* Grimnirs egne dialoger (Indstillinger, sagens dialog, Tilføj post, Prøv på tekst og guiden). */
-.dlg {
-  width: min(480px, calc(100vw / var(--z) - 2 * var(--space-6)));
-  padding: var(--space-6); border: 1px solid var(--border); border-radius: var(--radius-lg);
-  background: var(--surface); color: var(--text); box-shadow: var(--shadow-pop);
-}
-.dlg::backdrop { background: var(--rail); opacity: .45; }
-.dlg h2 { margin: 0 0 var(--space-3); font-size: var(--h2-size); line-height: var(--h2-line); font-weight: var(--h2-weight); }
-.dlg p { margin: 0 0 var(--space-4); }
 /* Om (kittets dialog). */
 .om-p { margin: 0 0 var(--space-4); }
 .om-tal { list-style: none; margin: 0 0 var(--space-4); padding: 0; color: var(--text-muted); }
 .om-tal li { padding: 2px 0; }
-.dlg-knapper { display: flex; justify-content: flex-end; gap: var(--space-2); }
+/* Hjælpetekst uden for et felt i en dialog (Første start i Indstillinger, sagens valg, guiden): som kittets .felt .hj.
+   En tom hjælpe- eller fejltekst fylder intet (heller ikke i et felt). */
+.modal .hj { font-size: var(--small-size); line-height: var(--small-line); color: var(--text-muted); }
+.modal .hj:empty { display: none; }
 
 /* ── Maskér og Demaskér (V-SKAL.2) ── */
-/* En tom tilstand, der tager imod ⌘V, kan have fokus; ringen følger kittets. */
-.tomt[tabindex] { border-radius: var(--radius-md); }
 .tom-bannere { padding: var(--space-3) var(--space-3) 0; }
 .arbejde { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-3); min-height: 100%; }
 .bannere { display: flex; flex-direction: column; gap: var(--space-2); }
@@ -51,18 +40,36 @@
 /* Teksten vises i et felt, der ikke kan redigeres: et <pre>, aldrig et <textarea> (det gør CRLF til LF). V-RET.1 R2: lange
    linjer brydes ikke (en log skal kunne læses linje for linje), og rullebjælkerne er altid synlige, så det ses, at der er
    mere til højre. Knappen "Ombryd" i panelhovedet skifter til ombrydning; valget huskes ikke. */
-.tekst { margin: 0; padding: var(--space-3); white-space: pre; overflow: auto; height: calc(62vh / var(--z)); min-height: 240px; }
+.tekst { margin: 0; padding: var(--space-3); white-space: pre; overflow: auto; }
 .tekst.ombryd { white-space: pre-wrap; overflow-wrap: anywhere; }
 .tekst::-webkit-scrollbar { width: 12px; height: 12px; }
 .tekst::-webkit-scrollbar-track, .tekst::-webkit-scrollbar-corner { background: var(--surface-raised); }
 .tekst::-webkit-scrollbar-thumb { background: var(--text-muted); border: 3px solid var(--surface-raised); border-radius: var(--radius-pill); }
-.delt.lige .tekst { height: calc(40vh / var(--z)); }
 .tekst:focus-visible { outline-offset: -2px; }
 .afkortet { margin: 0; padding: var(--space-2) var(--space-3); border-top: 1px solid var(--border); font-size: var(--small-size); color: var(--text-muted); }
-.tabelvaert { overflow: auto; height: calc(62vh / var(--z)); min-height: 240px; }
-.advarselpanel .tabelvaert { height: auto; max-height: calc(40vh / var(--z)); min-height: 0; }
+.tabelvaert { overflow: auto; }
 .tabel-tom { margin: 0; padding: var(--space-4) var(--space-3); color: var(--text-muted); }
 .flere { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-top: 1px solid var(--border); font-size: var(--small-size); color: var(--text-muted); }
+/* ── Tekst og tabel deler fladens højde (V-KITBRUG.2 N5) ──
+   I Maskér, Demaskér og Ordbog (.flade.fyld, sat af maskering.js og ordbog.js) fylder arbejdet præcis fladen, og tekst
+   og tabel deler det, der er tilbage efter bannerne, så fladen selv ikke ruller: tekstfeltet og tabellen ruller hver for
+   sig. Ingen faste vh: fordelingen er fleksibel (fr og flex), og kun mindstehøjderne er faste, så intet bliver ubrugeligt
+   lille. Er vinduet for lavt til mindstehøjderne, ruller fladen igen (intet skæres væk). Mindstehøjderne er px og følger
+   altså tekststørrelsen: --min-tekst 72 px er tekstfeltets luft (2 × 12) og vandrette rullebjælke (12) og knap to
+   linjer; --min-tabel 76 px er tabelhovedet og én række. Målt i WKWebView (HANDOFF-V-KITBRUG.2): fladen ruller ikke ved
+   900 × 560 og 1280 × 800 i de tre trin, undtagen Maskér med et banner ved stor i 900 × 560 (35 px). */
+.flade.fyld { display: flex; flex-direction: column; --min-tekst: 72px; --min-tabel: 76px; }
+.flade.fyld > .arbejde { flex: 1 1 0; min-height: 0; }
+.flade.fyld .delt { flex: 1 1 0; min-height: 0; grid-template-rows: minmax(min-content, 1fr); }
+.flade.fyld .panel > .tekst, .flade.fyld .panel > .tabelvaert { flex: 1 1 0; min-height: var(--min-tekst); }
+.flade.fyld .panel > .tabelvaert { min-height: var(--min-tabel); }
+/* Demaskér: advarslerne under de to tekster tager det, de skal bruge, højst 45 % af arbejdet; teksterne resten. */
+.flade.fyld .advarselpanel { flex: 0 0 auto; max-height: 45%; }
+.flade.fyld .advarselpanel > .tabelvaert { flex: 1 1 auto; min-height: 0; }
+/* Ordbog: tabellen er så høj som sine rækker og ruller selv, når den ikke kan være der; hjælpelinjen med Prøv på
+   tekst står altid synligt under den (før kunne den ligge under fladens kant ved 900 × 560). */
+.flade.fyld .ordbogflade > .tabelvaert { flex: 0 1 auto; min-height: var(--min-tabel); }
+.flade.fyld .ordbogflade > .hjaelpelinje { flex: none; }
 /* ── Tabellernes kolonner (V-RET.1 R1) ──
    Hver tabel sætter sine kolonnebredder som variabler: --k1 … --k7 er hele kolonnens bredde med polstring (WebKit giver en
    tabelcelle præcis sin bredde; målt i V-RET.1), en kolonne uden variabel får resten (auto), og --tabel-min er tabellens
@@ -143,17 +150,14 @@ html[lang="en"] .resttabel { --k2: 80px; --tabel-min: 498px; }
    hele bredden (ved 1200 px ville den ellers kun få 3/5 af fladen, ca. 557 px, og værdien ingen plads). V-LAAS.4 N3: før
    1400 px; med Erstatning på 224 px giver side om side først Fundet værdi mindst 240 px fra 1720 px (engelsk: 3/5 af
    1720 − 256 − 12 = 869 px tabel, 618 px faste kolonner, 251 px til værdien). */
+/* V-KITBRUG.2 N5: under hinanden deler tekst og fund fladens højde som før 24 : 44 (før 24vh og 44vh), nu som brøker af
+   den plads, der er (se "Tekst og tabel deler fladens højde" nedenfor). */
 @media (max-width: 1719px) {
-  :root:not([data-tekst="stor"]) .delt:not(.lige) { grid-template-columns: minmax(0, 1fr); }
-  :root:not([data-tekst="stor"]) .delt:not(.lige) .tekst { height: calc(24vh / var(--z)); min-height: 140px; }
-  :root:not([data-tekst="stor"]) .delt:not(.lige) .tabelvaert { height: calc(44vh / var(--z)); min-height: 220px; }
+  :root:not([data-tekst="stor"]) .delt:not(.lige) { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(min-content, 24fr) minmax(min-content, 44fr); }
 }
 @media (max-width: 1934px) {
-  :root[data-tekst="stor"] .delt:not(.lige) { grid-template-columns: minmax(0, 1fr); }
-  :root[data-tekst="stor"] .delt:not(.lige) .tekst { height: calc(24vh / var(--z)); min-height: 140px; }
-  :root[data-tekst="stor"] .delt:not(.lige) .tabelvaert { height: calc(44vh / var(--z)); min-height: 220px; }
+  :root[data-tekst="stor"] .delt:not(.lige) { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(min-content, 24fr) minmax(min-content, 44fr); }
 }
-.tabel td input[type="checkbox"] { width: 16px; height: 16px; padding: 0; margin: 0; }
 .tabel td input[readonly] { color: var(--text-muted); }
 .tabel td input[disabled] { opacity: .55; }
 .tabel td input[aria-invalid="true"] { border-color: var(--danger); }
@@ -195,12 +199,11 @@ html[lang="en"] .resttabel { --k2: 80px; --tabel-min: 498px; }
 /* ── Sager (V-SAG.1) ── */
 /* macOS med titleBarStyle "Overlay": trafiklysene står oven på titellinjen (V-KIT.1: flyttet hertil fra kit.css; det
    er dette programs vinduesopsætning og Rusts <html data-platform>, ikke kittets). */
-[data-platform="macos"] .titel { padding-left: calc(80px / var(--z)); } /* V-KITBRUG.1: 80 px på skærmen i alle trin */
+[data-platform="macos"] .titel { padding-left: calc(80px / var(--tekst-zoom)); } /* V-KITBRUG.1: 80 px på skærmen i alle trin */
 /* Fuldskærm på macOS: trafiklysene er skjult, så titellinjen holder ikke plads til dem (Rust melder "fuldskaerm"). */
 [data-platform="macos"][data-fuldskaerm] .titel { padding-left: var(--space-3); }
 .dlg-felter { display: flex; flex-direction: column; gap: var(--space-3); margin: 0 0 var(--space-3); }
 .dlg-fejl { margin: 0 0 var(--space-3); color: var(--danger); font-size: var(--small-size); line-height: var(--small-line); }
-.dlg-fejl:empty { display: none; }
 .sagtabel tbody tr { cursor: pointer; }
 /* Navn (resten), Værdier, Oprettet, Sidst brugt, Udløber, Status (V-RET.1 R1). Under 1100 px er datokolonnerne smallere:
    datoen og overskriften må gå over to linjer ("30. nov." / "2026"). */
@@ -219,7 +222,7 @@ html[lang="en"] .sagtabel { --k6: 160px; --tabel-min: 728px; }
 .sagnavn { display: flex; align-items: baseline; min-width: 0; }
 .sagnavn .kort { flex: 0 1 auto; min-width: 0; }
 .sagnavn .muted { flex: none; margin-left: var(--space-2); font-size: var(--small-size); }
-.sagtabel .tabelvaert, .sagliste .tabelvaert { height: auto; max-height: calc(70vh / var(--z)); }
+.sagtabel .tabelvaert, .sagliste .tabelvaert { height: auto; max-height: calc(70vh / var(--tekst-zoom)); min-height: 240px; }
 
 /* ── Ordbog, indstillinger og guiden (V-ORDBOG.1) ── */
 /* Maskér: rækkens vej til ordbogen og advarslen om egne koder. */
@@ -231,8 +234,6 @@ html[lang="en"] .sagtabel { --k6: 160px; --tabel-min: 728px; }
 .mini[disabled]:hover { background: var(--surface); }
 .raekkeadv { display: block; margin-top: 2px; color: var(--text-muted); font-size: var(--small-size); line-height: var(--small-line); }
 .raekkeadv::before { content: "! "; font-weight: 700; color: var(--warn); }
-/* Ordbog-visningen. */
-.ordbogflade .tabelvaert { height: auto; max-height: calc(62vh / var(--z)); min-height: 0; }
 /* Type, Værdi eller mønster (resten), Note (V-RET.1 R1). */
 .ordbogtabel { --k1: 160px; --k3: 34%; }
 .ordbogtabel td .muted { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
@@ -246,16 +247,8 @@ html[lang="en"] .sagtabel { --k6: 160px; --tabel-min: 728px; }
   border-radius: var(--radius-pill); background: var(--info); color: var(--surface); font-size: 12px; font-weight: 700;
 }
 .hjaelpelinje > span:nth-child(2) { flex: 1; }
-/* Bredere dialoger: Indstillinger, Prøv på tekst og guiden. */
-.dlg.dlg-bred { width: min(620px, calc(100vw / var(--z) - 2 * var(--space-6))); }
-.dlg.dlg-guide { width: min(820px, calc(100vw / var(--z) - 2 * var(--space-6))); padding: 0; }
-.dlg .felt { margin: 0 0 var(--space-3); }
-.dlg-felter .felt { margin: 0; }
-.dlg textarea { font-family: var(--mono-family); }
-.dlg .hj { font-size: var(--small-size); line-height: var(--small-line); color: var(--text-muted); }
-.dlg .hj.fejltekst { color: var(--danger); }
-.dlg .hj:empty { display: none; }
-.dlg .felt > select { padding: 0 6px; }
+/* Prøv på tekst: luft mellem feltet og svaret (felterne i .dlg-felter har deres egen afstand). */
+.modal-indhold > .felt { margin: 0 0 var(--space-3); }
 .indst { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); margin: 0 0 var(--space-3); }
 .indst .lodret { grid-column: 1 / -1; }
 .valg { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); margin: 0; padding: 0; border: 0; min-width: 0; }
@@ -264,7 +257,7 @@ html[lang="en"] .sagtabel { --k6: 160px; --tabel-min: 728px; }
 .valg > .hj { margin: -4px 0 0 24px; }
 .valg .felt { margin: var(--space-1) 0 0; max-width: 260px; }
 .sag-valg { margin: 0 0 var(--space-3); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-md); }
-.proev-svar { display: flex; flex-direction: column; gap: var(--space-2); margin: 0 0 var(--space-3); max-height: calc(40vh / var(--z)); overflow: auto; }
+.proev-svar { display: flex; flex-direction: column; gap: var(--space-2); margin: 0 0 var(--space-3); max-height: calc(40vh / var(--tekst-zoom)); overflow: auto; }
 .proev-svar:empty { display: none; }
 .proev-svar .besked, .proev-svar .dlg-fejl { margin: 0; }
 .proevtabel { --k1: 132px; --k4: 64px; --k5: 64px; }
@@ -312,6 +305,9 @@ html[data-laast] .laasskaerm {
 .laasskaerm > .laas-besked.fejl { color: var(--danger); }
 /* Nedtonet: båndet og NavPane kan ikke bruges, mens der er låst (inaktive kontroller; forklaringen står i title). */
 html[data-laast] #baand, html[data-laast] .nav { opacity: .45; }
+/* V-KITBRUG.2 N3 (G11): låst viser båndet intet værktøjstip (båndet er inert, så hverken mus eller Tab når det; denne regel
+   gælder også i en WebKit uden inert). Forklaringen står i title på båndet ("Grimnir er låst"). */
+html[data-laast] #baand .tip { display: none; }
 /* L3: banneret, når maskinen ikke kan bekræfte brugeren. Vedvarende og afdæmpet (Oplysning). */
 .laas-banner { flex: none; padding: var(--space-2) var(--space-3); background: var(--surface); border-bottom: 1px solid var(--border); }
 .laas-banner:empty { display: none; }

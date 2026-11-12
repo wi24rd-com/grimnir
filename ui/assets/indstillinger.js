@@ -32,6 +32,30 @@
      data-tekst>; normal sætter ingen attribut). Afkrydsningerne (Kit.afkrydsning) og valglisterne (Kit.valgliste) har de
      samme id'er som før, og hver knap og liste har stadig sit navn i aria-label. */
   const Tk = window.Tekst;
+  /* V-KITBRUG.2 N1: Indstillinger er kittets dialog (Kit.dialog, bred: 620 px) med samme overskrift, indhold, fejl og
+     knap som før: tema, sprog og tekststørrelse øverst, Nye sager, Lås og Første start; fejlen står i kittets fejlfelt
+     (G1, dlg-indst-fejl, role="alert"); én knap, Luk. Fokus ved åbning som browserens: det første valg. */
+  function el(tag, kl, t, id) {
+    const e = document.createElement(tag);
+    if (kl) e.className = kl;
+    if (t) e.setAttribute('data-t', t);
+    if (id) e.id = id;
+    return e;
+  }
+  function gruppe(id, legend) {
+    const f = el('fieldset', 'valg lodret', null, id);
+    f.appendChild(el('legend', 'label', legend));
+    return f;
+  }
+  const indstValg = el('div', 'indst', null, 'indst-valg');
+  const indstGuide = gruppe(null, 'indstGuide');
+  const guideKnapRamme = document.createElement('div');
+  const guideKnapEl = el('button', 'btn', 'visGuideIgen', 'indst-guide');
+  guideKnapEl.type = 'button';
+  guideKnapRamme.appendChild(guideKnapEl);
+  indstGuide.append(el('span', 'hj', 'hjGuide'), guideKnapRamme);
+  indstValg.append(gruppe('indst-nye', 'indstNyeSager'), gruppe('indst-laasvalg', 'indstLaas'), indstGuide);
+  const dIndst = G.kitDialog({ id: 'dlg-indst', t: 'indstH', bred: true, indhold: indstValg, fejl: true, knapper: [{ id: 'luk', t: 'luk' }] });
   function radiogruppe(navn, etiket, valg, valgt, ved) {
     const g = K.radiogruppe({ navn, etiket: { t: etiket }, valg, valgt, vandret: true, vedValg: ved });
     for (const i of g.inputs) i.setAttribute('data-t-aria', valg.find(v => v.id === i.value).t);
@@ -76,13 +100,13 @@
   function gem(aendring) {
     if (!st.indst) return Promise.resolve(null);
     const ny = { ...st.indst, ...aendring };
-    $('indst-fejl').textContent = '';
+    dIndst.fejl(null);
     return invoke('indstillinger_gem', { indstillinger: ny })
       .then(i => { st.indst = i; tegnIndst(); return i; })
       .catch(e => {
         tegnIndst();
         const f = e && e.art === 'indstillinger' && e.fejl ? GM.sagFejlTekst({ art: 'sag', fejl: e.fejl }) : S.t('sagfejl_andet');
-        $('indst-fejl').textContent = S.t('bIndstIkkeGemt', f);
+        dIndst.fejl(S.t('bIndstIkkeGemt', f));
         return null;
       });
   }
@@ -94,7 +118,7 @@
   $('indst-guide').addEventListener('click', () => { $('dlg-indst').close(); visGuide(); });
   document.addEventListener('grimnir-tema', tegnIndst);
   document.addEventListener('grimnir-tekst', tegnIndst);
-  document.addEventListener('grimnir-sprog', () => { tegnIndst(); if ($('dlg-guide').open) tegnLister(); });
+  document.addEventListener('grimnir-sprog', () => { tegnIndst(); if (dGuide.aaben) tegnLister(); });
 
   /* ═════════════════════════════ Guiden (kittets Wizard) ═════════════════════════════ */
   function tekst(tag, kl, t) {
@@ -175,9 +199,15 @@
   // V-LAAS.5 N3 (ADR D22): navn, slogan og beskrivelse (ens på dansk og engelsk; teksterne står i sprog.js).
   const identitet = tekst('div', 'identitet');
   identitet.append(tekst('p', 'id-navn', 'appNavn'), tekst('p', 'id-slogan', 'slogan'), tekst('p', 'id-beskrivelse', 'beskrivelse'));
+  /* V-KITBRUG.2 N1: guiden står i kittets brede dialog til en guide (G6: Kit.dialog med guide: true, 820 px uden luft),
+     navngivet af guidens overskrift (guide-h), som får fokus ved åbning. Esc er det samme som Spring over (svaret 'esc'
+     i vedLuk); lukkes den på anden måde (en anden dialog åbner oven på den, svaret 'kode'), er den hverken afsluttet
+     eller sprunget over. */
+  const guideRod = el('div', null, null, 'guide');
+  const dGuide = G.kitDialog({ id: 'dlg-guide', guide: true, ariaLabelledby: 'guide-h', indhold: guideRod, vedLuk: svar => { if (svar === 'esc') afslut(); } });
   // vedSkift kaldes også, mens guiden bygges; derfor let og en kontrol.
   let wiz = null;
-  wiz = K.guide($('guide'), {
+  wiz = K.guide(guideRod, {
     hId: 'guide-h',
     trin: [
       { t: 'guideT1', h: 'guideH1', p: 'guideP1', indhold: trin1 },
@@ -194,15 +224,13 @@
   function visGuide() {
     wiz.gaaTil(0);
     G.aabnDialog('dlg-guide');
-    wiz.overskrift.focus();
   }
   /* Afsluttet eller sprunget over: huskes i indstillingerne, så guiden ikke vises igen af sig selv. */
   // Lukkes guiden på anden måde (en anden dialog åbner oven på den), er den hverken afsluttet eller sprunget over.
   function afslut() {
-    if ($('dlg-guide').open) $('dlg-guide').close();
+    dGuide.luk('slut');
     if (st.indst && !st.indst.guide_vist) gem({ guide_vist: true });
   }
-  $('dlg-guide').addEventListener('cancel', e => { e.preventDefault(); afslut(); });
 
   /* ═════════════════════════════ Start ═════════════════════════════ */
   tegnIndst();

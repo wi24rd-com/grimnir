@@ -68,6 +68,8 @@
   hjaelp.append(hjS, hjT, hjKnap);
   ark.append(bannere, vaert, hjaelp);
   d.flade.appendChild(ark);
+  // V-KITBRUG.2 N5: tabellen deler fladens højde med hjælpelinjen, så Prøv på tekst altid kan ses (app.css: .flade.fyld).
+  d.flade.classList.add('fyld');
   const tomKnap = K.knap({ t: 'kTilfoejPost', ikon: 'plus', variant: 'primary', ved: () => aabnPost('ny') });
   d.tom.appendChild(tomKnap);
   S.anvend(ark);
@@ -200,11 +202,54 @@
   const tilfoej = (type, vaerdi, note) => aendring('ordbog_tilfoej', { type, vaerdi, note: note || null });
 
   /* ═════════════════════════════ Tilføj og Ret ═════════════════════════════ */
+  /* V-KITBRUG.2 N1: Tilføj post er kittets dialog med samme overskrift (skifter: Tilføj post, Ret posten, Maskér altid),
+     sætning (kun fra Maskér), felter, fejl og knapper som før. Fejl i et felt står under feltet; andre fejl i kittets
+     fejlfelt (G1, dlg-opost-fejl). Knappen venter på Rust (et løfte); Enter i et felt er et klik på den. Lukkes dialogen
+     på en anden måde end ved at gemme (Annullér, Esc, en anden dialog), får Maskérs ventende løfte false (vedLuk). */
+  function felt(id, etiket, attr, under) {
+    const f = document.createElement('div');
+    f.className = 'felt';
+    const l = document.createElement('label');
+    l.className = 'label';
+    l.htmlFor = id;
+    l.setAttribute('data-t', etiket);
+    const i = document.createElement('input');
+    i.id = id;
+    i.type = 'text';
+    for (const [k, v] of Object.entries(attr)) i.setAttribute(k, v);
+    f.append(l, i, ...under);
+    return f;
+  }
+  function span(kl, id, attr = {}) {
+    const s = document.createElement('span');
+    s.className = kl;
+    s.id = id;
+    for (const [k, v] of Object.entries(attr)) s.setAttribute(k, v);
+    return s;
+  }
+  const FOELSOM = { spellcheck: 'false', autocomplete: 'off', autocorrect: 'off', autocapitalize: 'off' };
   // V-KITBRUG.1 N3: Type er kittets valgliste (Kit.valgliste) med samme id, valg, navn og hjælpetekst (opost-type-hj).
   const lType = K.valgliste({ id: 'opost-type', etiket: { t: 'feltType' }, valg: ['domaene', 'netbios', 'navnemoenster', 'eget_net', 'ord', 'person', 'aldrig'].map(x => ({ id: x, t: 'type_' + x })), hjaelp: { t: 'hjt_domaene' } });
   lType.select.setAttribute('data-t-aria', 'feltType');
-  $('dlg-opost').querySelector('.dlg-felter').prepend(lType.rod);
-  S.anvend(lType.rod);
+  const postFelter = document.createElement('div');
+  postFelter.className = 'dlg-felter';
+  const advSpan = span('raekkeadv', 'opost-vaerdi-adv', { role: 'status' });
+  advSpan.hidden = true;
+  postFelter.append(
+    lType.rod,
+    felt('opost-vaerdi', 'feltVaerdi', { class: 'mono', maxlength: '253', 'data-t-aria': 'feltVaerdi', ...FOELSOM, 'aria-describedby': 'opost-vaerdi-fejl opost-vaerdi-adv' }, [span('hj fejltekst', 'opost-vaerdi-fejl'), advSpan]),
+    felt('opost-note', 'feltNote', { maxlength: '200', 'data-t-aria': 'feltNote', ...FOELSOM, 'aria-describedby': 'opost-note-fejl' }, [span('hj fejltekst', 'opost-note-fejl')]),
+  );
+  const dPost = G.kitDialog({
+    id: 'dlg-opost', t: 'opostTilfoejH', p: { t: 'opostP' }, indhold: postFelter, fejl: true,
+    knapper: [{ id: 'annuller', t: 'annuller' }, { id: 'ok', knapId: 'opost-ok', t: 'kTilfoejPost', variant: 'primary', ved: () => gemPost() }],
+    vedLuk: svar => {
+      $('opost-vaerdi-adv').hidden = true;
+      const f = post.efter;
+      post.efter = null;
+      if (f) f(svar === 'ok');
+    },
+  });
   const pType = $('opost-type'), pVaerdi = $('opost-vaerdi'), pNote = $('opost-note');
   let post = { tilstand: 'ny', id: null, efter: null };
   function feltFejl(felt, tekst) {
@@ -212,7 +257,7 @@
     span.textContent = tekst || '';
     if (tekst) inp.setAttribute('aria-invalid', 'true'); else inp.removeAttribute('aria-invalid');
   }
-  function nulstilFejl() { feltFejl('vaerdi', ''); feltFejl('note', ''); $('opost-fejl').textContent = ''; tegnAdvarsel(); }
+  function nulstilFejl() { feltFejl('vaerdi', ''); feltFejl('note', ''); dPost.fejl(null); tegnAdvarsel(); }
   function visTypeHjaelp() {
     const hj = $('opost-type-hj');
     hj.setAttribute('data-t', 'hjt_' + pType.value);
@@ -230,45 +275,44 @@
     pType.disabled = tilstand === 'ret';
     pVaerdi.value = p ? p.vaerdi : o.vaerdi || '';
     pNote.value = p ? p.note || '' : '';
-    const h = $('dlg-opost-h'), lead = $('dlg-opost-p');
+    const h = dPost.overskrift, lead = $('dlg-opost-p');
     h.setAttribute('data-t', tilstand === 'ret' ? 'opostRetH' : tilstand === 'masker' ? 'opostMaskerH' : 'opostTilfoejH');
+    // Sætningen står kun, når der er kommet fra Maskér; ellers beskriver den heller ikke dialogen (aria-describedby).
     lead.hidden = tilstand !== 'masker';
+    if (lead.hidden) dPost.rod.removeAttribute('aria-describedby'); else dPost.rod.setAttribute('aria-describedby', lead.id);
     $('opost-ok').setAttribute('data-t', tilstand === 'ret' ? 'gem' : 'kTilfoejPost');
     nulstilFejl();
     visTypeHjaelp();
-    S.anvend($('dlg-opost'));
-    G.aabnDialog('dlg-opost');
-    (tilstand === 'masker' ? pType : pVaerdi).focus();
+    S.anvend(dPost.rod);
+    G.aabnDialog('dlg-opost', tilstand === 'masker' ? pType : pVaerdi);
   }
   pType.addEventListener('change', () => { visTypeHjaelp(); feltFejl('vaerdi', ''); });
+  /* Knappens handling: false (tom værdi) eller et løfte, der giver true (gemt: dialogen lukker med svaret 'ok', og
+     Maskérs ventende løfte får true i vedLuk) eller false (Rusts fejl står under feltet eller i fejlfeltet). */
   function gemPost() {
     nulstilFejl();
-    if (!pVaerdi.value.trim()) { feltFejl('vaerdi', S.t('ofejl_tom')); pVaerdi.focus(); return; }
+    if (!pVaerdi.value.trim()) { feltFejl('vaerdi', S.t('ofejl_tom')); pVaerdi.focus(); return false; }
     const note = pNote.value.trim() || null;
     const kald = post.tilstand === 'ret'
       ? aendring('ordbog_ret', { id: post.id, vaerdi: pVaerdi.value, note })
       : tilfoej(pType.value, pVaerdi.value, note);
-    kald.then(() => {
-      const efter = post.efter;
-      post.efter = null;
-      $('dlg-opost').close();
+    return kald.then(() => {
       if (post.tilstand === 'ny') { const ny = st.poster[st.poster.length - 1]; if (ny) { st.valgt = ny.id; tegnTabel(); tegnKommandoer(); } }
-      if (efter) efter(true);
-    }).catch(e => {
+      return true;
+    }, e => {
       if (e && e.art === 'ordbog') {
         for (const f of e.fejl) {
           if (f.felt === 'vaerdi' || f.felt === 'note') feltFejl(f.felt, feltTekst(f));
-          else $('opost-fejl').textContent = feltTekst(f);
+          else dPost.fejl(feltTekst(f));
         }
         (e.fejl.some(f => f.felt === 'vaerdi') ? pVaerdi : pNote).focus();
       } else {
-        $('opost-fejl').textContent = fejlTekst(e);
+        dPost.fejl(fejlTekst(e));
       }
+      return false;
     });
   }
-  $('opost-ok').addEventListener('click', gemPost);
-  for (const inp of [pVaerdi, pNote]) inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); gemPost(); } });
-  $('dlg-opost').addEventListener('close', () => { if (post.efter) { const f = post.efter; post.efter = null; f(false); } });
+  for (const inp of [pVaerdi, pNote]) inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); dPost.knap('ok').click(); } });
 
   /* Et ord, der ligner en adgangskode (V-FIL.1 F5): mindst 8 tegn uden mellemrum med både bogstaver, cifre og andre tegn.
      Kun for de frie typer (ord, person, maskér aldrig); de andre har deres egen syntaks. Advarslen blokerer ikke. */
@@ -281,64 +325,76 @@
   }
   pVaerdi.addEventListener('input', tegnAdvarsel);
   pType.addEventListener('change', tegnAdvarsel);
-  $('dlg-opost').addEventListener('close', () => { $('opost-vaerdi-adv').hidden = true; });
 
   /* ═════════════════════════════ Start forfra (V-FIL.1 F5) ═════════════════════════════ */
   const iDag = () => { const d0 = new Date(); return `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}-${String(d0.getDate()).padStart(2, '0')}`; };
-  /* V-KITBRUG.1 N4: Start forfra og Fjern post er kittets dialog som bekræftelse (ikke Kit.bekraeft: handlingen kan fejle,
-     og fejlen står i dialogen, der bliver åben, i et felt med role="alert"). Fokus som før: Annullér i Start forfra,
-     Fjern post i Fjern post. */
-  function fejlFelt(id) { const p = document.createElement('p'); p.className = 'dlg-fejl'; p.id = id; p.setAttribute('role', 'alert'); return p; }
-  const dForfra = G.kitDialog('dlg-oforfra', {
-    t: 'oforfraH', p: { t: 'oforfraP' }, indhold: fejlFelt('oforfra-fejl'),
-    knapper: [{ id: 'nej', t: 'annuller' }, { id: 'ok', t: 'hStartForfra', variant: 'danger', ved: () => { startForfra(); return false; } }],
-  }, { nej: 'oforfra-nej', ok: 'oforfra-ok' });
+  /* V-KITBRUG.2 N1: Start forfra og Fjern post er kittets bekræftelse, der kan fejle (Kit.bekraeft med ved, G2): fejlen
+     står i dialogen, der bliver åben, i kittets felt med role="alert". Fokus på Annullér i begge (N2, Jan: også i Fjern
+     post, så Enter ikke fjerner uden et Tab). Dialogen laves ved åbning og fjernes ved lukning; id'erne dlg-oforfra og
+     dlg-ofjern sætter Grimnir selv (Kit.bekraeft har intet id; kit-ønske G12). */
+  const somTekst = e => { throw fejlTekst(e); };
+  function bekraeft(id, t, p, v, ja, ved) {
+    return G.bekraeft({
+      t, p: { t: p }, nej: { t: 'annuller' }, ja: { t: ja }, farlig: true, ved,
+      udfyld: rod => { rod.id = id; rod.querySelector('.modal-tekst').setAttribute('data-v', v); S.anvend(rod); },
+    });
+  }
   function aabnStartForfra() {
     if (!st.fejl) return;
-    dForfra.rod.querySelector('.modal-tekst').setAttribute('data-v', iDag());
-    $('oforfra-fejl').textContent = '';
-    S.anvend($('dlg-oforfra'));
-    G.aabnDialog('dlg-oforfra', 'nej');
-  }
-  function startForfra() {
-    invoke('ordbog_start_forfra', { dato: iDag() }).then(r => {
-      $('dlg-oforfra').close();
-      st.infoBanner = r.flyttet_til || null;
-      anvendSvar(r.ordbog);
-    }).catch(e => { $('oforfra-fejl').textContent = fejlTekst(e); });
+    let r = null;
+    bekraeft('dlg-oforfra', 'oforfraH', 'oforfraP', iDag(), 'hStartForfra', () => invoke('ordbog_start_forfra', { dato: iDag() }).then(svar => { r = svar; }, somTekst))
+      .then(ja => {
+        if (!ja) return;
+        st.infoBanner = r.flyttet_til || null;
+        anvendSvar(r.ordbog);
+      });
   }
 
   /* ═════════════════════════════ Fjern post ═════════════════════════════ */
-  let fjernId = null;
-  const dFjern = G.kitDialog('dlg-ofjern', {
-    t: 'ofjernH', p: { t: 'ofjernP' }, indhold: fejlFelt('ofjern-fejl'),
-    knapper: [{ id: 'annuller', t: 'annuller' }, { id: 'ok', t: 'kFjernPost', variant: 'danger', ved: () => { fjern(); return false; } }],
-  }, { ok: 'ofjern-ok' });
   function aabnFjern() {
     const p = valgtPost();
     if (!p || st.fejl) return;
-    fjernId = p.id;
-    dFjern.rod.querySelector('.modal-tekst').setAttribute('data-v', p.vaerdi);
-    $('ofjern-fejl').textContent = '';
-    S.anvend($('dlg-ofjern'));
-    G.aabnDialog('dlg-ofjern', 'ok');
-  }
-  function fjern() {
-    aendring('ordbog_fjern', { id: fjernId }).then(() => {
-      $('dlg-ofjern').close();
-      st.valgt = null;
-      tegn();
-    }).catch(e => { $('ofjern-fejl').textContent = fejlTekst(e); });
+    const id = p.id;
+    bekraeft('dlg-ofjern', 'ofjernH', 'ofjernP', p.vaerdi, 'kFjernPost', () => aendring('ordbog_fjern', { id }).catch(somTekst))
+      .then(ja => {
+        if (!ja) return;
+        st.valgt = null;
+        tegn();
+      });
   }
 
   /* ═════════════════════════════ Prøv på tekst ═════════════════════════════ */
-  const prTekst = $('proev-tekst'), prSvar = $('proev-svar');
+  /* V-KITBRUG.2 N1: kittets brede dialog (620 px) med samme overskrift, sætning, felt, svar (role="status", også fejlen)
+     og knapper som før. Teksten gemmes ikke: den slettes, når dialogen lukkes, også når en anden dialog lukker den
+     (vedLuk kaldes ved hver lukning). */
+  const proevFelt = document.createElement('div');
+  proevFelt.className = 'felt';
+  const proevLabel = document.createElement('label');
+  proevLabel.className = 'label';
+  proevLabel.htmlFor = 'proev-tekst';
+  proevLabel.setAttribute('data-t', 'feltTekst');
+  const prTekst = document.createElement('textarea');
+  prTekst.id = 'proev-tekst';
+  prTekst.className = 'mono';
+  prTekst.rows = 6;
+  for (const [k, v] of Object.entries({ 'data-t-aria': 'feltTekst', ...FOELSOM })) prTekst.setAttribute(k, v);
+  proevFelt.append(proevLabel, prTekst);
+  const prSvar = document.createElement('div');
+  prSvar.className = 'proev-svar';
+  prSvar.id = 'proev-svar';
+  prSvar.setAttribute('role', 'status');
+  const proevIndhold = document.createDocumentFragment();
+  proevIndhold.append(proevFelt, prSvar);
   let prNr = 0;
+  const dProev = G.kitDialog({
+    id: 'dlg-proev', t: 'proevH', p: { t: 'proevP' }, bred: true, indhold: proevIndhold,
+    knapper: [{ id: 'luk', t: 'luk' }, { id: 'proev', knapId: 'proev-ok', t: 'kProevKoer', variant: 'primary', ved: () => { proev(); return false; } }],
+    vedLuk: () => { prTekst.value = ''; prSvar.textContent = ''; prNr++; },
+  });
   function aabnProev() {
     prTekst.value = '';
     prSvar.textContent = '';
-    G.aabnDialog('dlg-proev');
-    prTekst.focus();
+    G.aabnDialog('dlg-proev', prTekst);
   }
   function proev() {
     prSvar.textContent = '';
@@ -346,7 +402,7 @@
     if (!tekst) { visProevBesked('bIngenTekstProev'); prTekst.focus(); return; }
     const nr = ++prNr;
     invoke('ordbog_proev', { tekst }).then(svar => {
-      if (nr !== prNr || !$('dlg-proev').open) return;
+      if (nr !== prNr || !dProev.aaben) return;
       tegnProev(svar);
     }).catch(e => {
       if (nr !== prNr) return;
@@ -387,10 +443,7 @@
     prSvar.appendChild(t);
     S.anvend(prSvar);
   }
-  $('proev-ok').addEventListener('click', proev);
   prTekst.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); proev(); } });
-  // Teksten gemmes ikke: den slettes, når dialogen lukkes.
-  $('dlg-proev').addEventListener('close', () => { prTekst.value = ''; prSvar.textContent = ''; prNr++; });
 
   /* ═════════════════════════════ Fra Maskér til ordbogen (O4) ═════════════════════════════ */
   /* Rækkens art → ordbogens type. Entydige arter lægges direkte i ordbogen; for de tvetydige spørges der om typen (med et

@@ -1,5 +1,5 @@
 //! Programmenuen: Grimnir (Om Grimnir · Indstillinger… ⌘, · Tjenester · Skjul · Afslut ⌘Q), Arkiv (Åbn… ⌘O · Gem… ⌘S,
-//! V-FIL.1), Rediger (uden den virker ⌘C/⌘V ikke i tekstfelter på macOS) og Vindue. Et klik på Om eller Indstillinger udsender hændelsen `menu` med
+//! V-FIL.1), Rediger (uden den virker ⌘C/⌘V ikke i tekstfelter på macOS), Vis (tekststørrelsen, V-KITBRUG.2) og Vindue. Et klik på Om eller Indstillinger udsender hændelsen `menu` med
 //! "om" eller "indstillinger" til webvisningen, som åbner dialogen. Menuen følger UI'ets sprog: webvisningen kalder
 //! kommandoen `menu_sprog` ved start og ved hvert sprogskift, og menuen bygges igen med [`DA`] eller [`EN`].
 //! Visningsskiftet (⌘1–⌘4) ligger ikke i menuen: rammen fanger genvejene med `keydown`, så de virker ens på macOS og Windows.
@@ -22,6 +22,23 @@ pub const GENVEJ_AABN: &str = "CmdOrCtrl+O";
 /// Genvejen til Gem….
 pub const GENVEJ_GEM: &str = "CmdOrCtrl+S";
 
+/// Vis → Større tekst, Mindre tekst og Normal tekststørrelse (V-KITBRUG.2 N4): hændelsen `menu` med "tekst-stoerre",
+/// "tekst-mindre" og "tekst-normal"; webvisningen skifter trinnet med kittets `Tekst` (og husker det selv). Rust gemmer
+/// intet om tekststørrelsen.
+pub const TEKST_STOERRE: &str = "pm-tekst-stoerre";
+/// Vis → Mindre tekst.
+pub const TEKST_MINDRE: &str = "pm-tekst-mindre";
+/// Vis → Normal tekststørrelse.
+pub const TEKST_NORMAL: &str = "pm-tekst-normal";
+/// Genvejen til Større tekst. Tauri læser genvejen som en fysisk tast og dropper uden fejl en, den ikke kender ("Plus"
+/// og "+" findes ikke; "=" er tasten, der giver + med Skift på et engelsk tastatur). ⌘+, ⌘= og ⌘− fanger webvisningen
+/// selv på begge platforme (app.js), så tastaturets sprog ikke afgør, om genvejen virker.
+pub const GENVEJ_TEKST_STOERRE: &str = "CmdOrCtrl+=";
+/// Genvejen til Mindre tekst.
+pub const GENVEJ_TEKST_MINDRE: &str = "CmdOrCtrl+-";
+/// Genvejen til Normal tekststørrelse.
+pub const GENVEJ_TEKST_NORMAL: &str = "CmdOrCtrl+0";
+
 /// Genvejen til Indstillinger (Tauris accelerator-syntaks).
 pub const GENVEJ_INDSTILLINGER: &str = "CmdOrCtrl+,";
 /// Genvejen til Afslut.
@@ -35,6 +52,9 @@ pub fn handling(id: &str) -> Option<&'static str> {
         AFSLUT => Some("afslut"),
         AABN => Some("aabn"),
         GEM => Some("gem"),
+        TEKST_STOERRE => Some("tekst-stoerre"),
+        TEKST_MINDRE => Some("tekst-mindre"),
+        TEKST_NORMAL => Some("tekst-normal"),
         _ => None,
     }
 }
@@ -64,6 +84,11 @@ pub struct Tekster {
     pub kopier: &'static str,
     pub saet_ind: &'static str,
     pub vaelg_alt: &'static str,
+    /// Menuen Vis med tekststørrelsen (V-KITBRUG.2 N4).
+    pub vis: &'static str,
+    pub tekst_stoerre: &'static str,
+    pub tekst_mindre: &'static str,
+    pub tekst_normal: &'static str,
     pub vindue: &'static str,
     pub minimer: &'static str,
     pub zoom: &'static str,
@@ -93,6 +118,10 @@ pub const DA: Tekster = Tekster {
     kopier: "Kopiér",
     saet_ind: "Sæt ind",
     vaelg_alt: "Vælg alt",
+    vis: "Vis",
+    tekst_stoerre: "Større tekst",
+    tekst_mindre: "Mindre tekst",
+    tekst_normal: "Normal tekststørrelse",
     vindue: "Vindue",
     minimer: "Minimér",
     zoom: "Zoom",
@@ -122,6 +151,10 @@ pub const EN: Tekster = Tekster {
     kopier: "Copy",
     saet_ind: "Paste",
     vaelg_alt: "Select All",
+    vis: "View",
+    tekst_stoerre: "Larger Text",
+    tekst_mindre: "Smaller Text",
+    tekst_normal: "Normal Text Size",
     vindue: "Window",
     minimer: "Minimise",
     zoom: "Zoom",
@@ -134,6 +167,15 @@ pub fn tekster(sprog: &str) -> &'static Tekster {
         "en" => &EN,
         _ => &DA,
     }
+}
+
+/// Menuen Vis: (id, tekst, genvej) for hvert punkt i menuens rækkefølge. `byg` bygger punkterne herfra. Ren funktion.
+pub fn vis_punkter(t: &Tekster) -> [(&'static str, &'static str, &'static str); 3] {
+    [
+        (TEKST_STOERRE, t.tekst_stoerre, GENVEJ_TEKST_STOERRE),
+        (TEKST_MINDRE, t.tekst_mindre, GENVEJ_TEKST_MINDRE),
+        (TEKST_NORMAL, t.tekst_normal, GENVEJ_TEKST_NORMAL),
+    ]
 }
 
 /// Bygger programmenuen på det givne sprog.
@@ -180,6 +222,9 @@ pub fn byg(app: &tauri::AppHandle, t: &Tekster) -> tauri::Result<tauri::menu::Me
             &P::select_all(app, Some(t.vaelg_alt))?,
         ],
     )?;
+    let punkt = |(id, tekst, genvej): (&'static str, &'static str, &'static str)| MenuItem::with_id(app, id, tekst, true, Some(genvej));
+    let [stoerre, mindre, normal] = vis_punkter(t);
+    let vis = Submenu::with_items(app, t.vis, true, &[&punkt(stoerre)?, &punkt(mindre)?, &punkt(normal)?])?;
     let vindue = Submenu::with_items(
         app,
         t.vindue,
@@ -191,7 +236,7 @@ pub fn byg(app: &tauri::AppHandle, t: &Tekster) -> tauri::Result<tauri::menu::Me
             &P::close_window(app, Some(t.luk))?,
         ],
     )?;
-    Menu::with_items(app, &[&program, &arkiv, &rediger, &vindue])
+    Menu::with_items(app, &[&program, &arkiv, &rediger, &vis, &vindue])
 }
 
 /// Webvisningen får platformen som `<html data-platform>` (og `window.__GRIMNIR_PLATFORM__`), så rammen kan give plads
@@ -248,6 +293,43 @@ mod tests {
         assert_eq!(tekster("en").rediger, "Edit");
         assert_eq!(tekster("da").rediger, "Rediger");
         assert_eq!(tekster("noget-andet").rediger, "Rediger");
+    }
+
+    #[test]
+    fn vis_menuen_har_tekststoerrelsen_paa_begge_sprog() {
+        assert_eq!(handling(TEKST_STOERRE), Some("tekst-stoerre"));
+        assert_eq!(handling(TEKST_MINDRE), Some("tekst-mindre"));
+        assert_eq!(handling(TEKST_NORMAL), Some("tekst-normal"));
+        assert_eq!(
+            vis_punkter(&DA),
+            [
+                ("pm-tekst-stoerre", "Større tekst", "CmdOrCtrl+="),
+                ("pm-tekst-mindre", "Mindre tekst", "CmdOrCtrl+-"),
+                ("pm-tekst-normal", "Normal tekststørrelse", "CmdOrCtrl+0"),
+            ]
+        );
+        assert_eq!(
+            vis_punkter(&EN),
+            [
+                ("pm-tekst-stoerre", "Larger Text", "CmdOrCtrl+="),
+                ("pm-tekst-mindre", "Smaller Text", "CmdOrCtrl+-"),
+                ("pm-tekst-normal", "Normal Text Size", "CmdOrCtrl+0"),
+            ]
+        );
+        assert_eq!((DA.vis, EN.vis, tekster("en").vis), ("Vis", "View", "View"));
+    }
+
+    #[test]
+    fn tekstmenuens_genveje_er_taster_tauri_kender() {
+        // Tauri læser en genvej som en fysisk tast og dropper en ukendt uden fejl (menupunktet får så ingen genvej).
+        // "Plus" og "+" kender den ikke; "=", "-" og "0" er fysiske taster.
+        for (_, _, genvej) in vis_punkter(&DA) {
+            let tast = genvej.strip_prefix("CmdOrCtrl+").expect("CmdOrCtrl som de andre genveje");
+            assert!(["=", "-", "0"].contains(&tast), "{genvej}");
+        }
+        // Ingen af de tre er en genvej, menuen har i forvejen.
+        let andre = [GENVEJ_AABN, GENVEJ_GEM, GENVEJ_INDSTILLINGER, GENVEJ_AFSLUT];
+        assert!(vis_punkter(&EN).iter().all(|(_, _, g)| !andre.contains(g)));
     }
 
     #[test]
