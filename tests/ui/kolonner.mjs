@@ -43,7 +43,8 @@ const VAERDI_MIN = 140;
 // V-LAAS.4 N3: 1920 er med som bred skærm; overgangene er de brudpunkter, CSS'en har (1100, 1200 og 1720; 1200 står i BREDDER).
 const BREDDER = [900, 1200, 1600, 1920];
 // V-PUDS.1 N3: 1839/1840, hvor ordet i Altid/Aldrig kommer igen, når fundene står side om side.
-const OVERGANGE = [1099, 1100, 1199, 1719, 1720, 1839, 1840];
+// V-PUDS.3 N3: 943/944, hvor cellerne i Maskér får deres almindelige polstring igen, og 1013 (Erstatning: 15 tegn derfra).
+const OVERGANGE = [943, 944, 1013, 1099, 1100, 1199, 1719, 1720, 1839, 1840];
 /* V-LAAS.4 N3: fra 1200 px skal Erstatning kunne vise 24 tegn i feltets skrift, og Fundet værdi skal have mindst 240 px.
    Feltets skrift er JetBrains Mono (pakket med). Fremføringen er målt i ui/assets/fonts/jetbrains-mono-latin-wght-normal.woff2
    (hhea/hmtx/cmap efter brotli-udpakning): alle 95 tegn fra U+0020 til U+007E har 600 enheder ved unitsPerEm 1000, altså
@@ -224,7 +225,8 @@ for (const sprog of ['da', 'en']) for (const W of [...BREDDER, ...OVERGANGE]) {
 
 const rapport = [];
 // V-KITBRUG.1 N2: overgangene ved stor (grænserne × 1,125) og hvor layoutet når 900 px (1012/1013 px vindue).
-const OVERGANGE_STOR = [1012, 1013, 1237, 1238, 1349, 1350, 1934, 1935, 2069, 2070];
+// V-PUDS.3 N3: 1061/1062 (943/944 × 1,125).
+const OVERGANGE_STOR = [1012, 1013, 1061, 1062, 1237, 1238, 1349, 1350, 1934, 1935, 2069, 2070];
 for (const trin of TRIN) for (const tb of TABELLER) {
   const n = tb.kol.length;
   const tn = trin.navn === 'normal' ? '' : ' ' + trin.navn;
@@ -296,6 +298,54 @@ for (const trin of TRIN) for (const tb of TABELLER) {
     }
   }
 }
+
+/* V-PUDS.3 N3: Erstatning viser mindst 15 tegn i feltets skrift i alle tre trin ved hver vinduesbredde fra 1013 px (under
+   1013 px ved stor ruller tabellen vandret; det er godkendt). Regnet for hver hele px fra 1013 til 2600 i begge sprog, med
+   de øvrige krav ved samme bredde: værdien har mindst 140 px, tabellen ruller ikke vandret, når layoutet er mindst 900 px,
+   og hver overskrift, chip og type kan være i sin kolonne. */
+const ERSTATNING_MIN_TEGN = 15, ERSTATNING_MIN_FRA = 1013;
+function fundRegn(sprog, W, trin) {
+  const tb = TABELLER[0];
+  const v = variabler(tb.klasse, sprog, W, trin.navn);
+  const celle = px(v['--celle']) ?? px('var(--space-3)');
+  const kol = [...Array(7)].map((_, i) => (v['--k' + (i + 1)] ? px(v['--k' + (i + 1)]) : null));
+  const plads = vaertBredde(tb.vaert, W, 0, trin);
+  const tabel = Math.max(plads, px(v['--tabel-min']) ?? 0);
+  kol[2] = tabel - kol.reduce((a, b) => a + (b || 0), 0);
+  const indhold = i => kol[i] - celle - (i === 0 ? px('var(--space-1)') : celle);
+  const for_brede = [];
+  tb.kol.forEach((k, i) => { for (const d of [T[sprog][k]]) if (MAALT_TH[d] > indhold(i)) for_brede.push(`«${d}»`); });
+  for (const [i, nl] of Object.entries(tb.chips)) for (const k of nl) if (MAALT_CHIP[T[sprog][k]] > indhold(i - 1)) for_brede.push(`chip «${T[sprog][k]}»`);
+  for (const [i, nl] of Object.entries(tb.ord)) for (const k of nl) if (MAALT_ORD[T[sprog][k]] > indhold(i - 1)) for_brede.push(`typen «${T[sprog][k]}»`);
+  if (ordbogBredde(sprog, W, trin.navn) > indhold(6)) for_brede.push('Altid/Aldrig');
+  return { felt: kol[3] - 2 * celle - FELT_EKSTRA, vaerdi: kol[2], rul: tabel > plads + 0.01, layout: W / trin.z, for_brede };
+}
+tjek(`V-PUDS.3 N3: ${ERSTATNING_MIN_TEGN} tegn i feltets skrift er ${Math.round(ERSTATNING_MIN_TEGN * TEGN_PX * 10) / 10} px (JetBrains Mono 13 px, 0,6 em pr. tegn)`, Math.abs(ERSTATNING_MIN_TEGN * TEGN_PX - 117) < 1e-9);
+for (const trin of TRIN) for (const sprog of ['da', 'en']) {
+  const brud = { felt: [], vaerdi: [], rul: [], plads: [] };
+  let mindst = Infinity, n = 0;
+  for (let W = ERSTATNING_MIN_FRA; W <= 2600; W++) {
+    const r = fundRegn(sprog, W, trin);
+    n++;
+    mindst = Math.min(mindst, r.felt);
+    if (r.felt < ERSTATNING_MIN_TEGN * TEGN_PX - 1e-9) brud.felt.push(W);
+    if (r.vaerdi < VAERDI_MIN) brud.vaerdi.push(W);
+    if (r.layout >= 900 && r.rul) brud.rul.push(W);
+    if (r.for_brede.length) brud.plads.push(W + ' ' + r.for_brede.join(' '));
+  }
+  const vis = l => l.length ? `${l.length} bredder, fx ${l.slice(0, 4).join(', ')}` : '';
+  tjek(`V-PUDS.3 N3: ${trin.navn} ${sprog}: Erstatning viser mindst ${ERSTATNING_MIN_TEGN} tegn ved hver bredde fra ${ERSTATNING_MIN_FRA} til 2600 px (${n} bredder; mindst ${Math.round(mindst * 10) / 10} px)`, brud.felt.length === 0, vis(brud.felt));
+  tjek(`V-PUDS.3 N3: ${trin.navn} ${sprog}: … og Fundet værdi har stadig mindst ${VAERDI_MIN} px ved hver af dem`, brud.vaerdi.length === 0, vis(brud.vaerdi));
+  tjek(`V-PUDS.3 N3: ${trin.navn} ${sprog}: … og tabellen ruller ikke vandret ved nogen af dem`, brud.rul.length === 0, vis(brud.rul));
+  tjek(`V-PUDS.3 N3: ${trin.navn} ${sprog}: … og overskrifter, chips, typer og Altid/Aldrig kan være i deres kolonne ved hver af dem`, brud.plads.length === 0, vis(brud.plads));
+}
+// Ved de opdigtede koder fra vinduesprøven (198.18.0.41 og d01.example, 11 tegn) ved stor i 1200 px: før 9 tegn.
+for (const sprog of ['da', 'en']) {
+  const r = fundRegn(sprog, 1200, TRIN[2]);
+  tjek(`V-PUDS.3 N3: stor ${sprog} 1200 px (vinduesprøven): Erstatning har plads til ${Math.floor(r.felt / TEGN_PX + 1e-9)} tegn, så "198.18.0.41" og "d01.example" står hele`, r.felt >= 11 * TEGN_PX);
+}
+// Reglen for smalle vinduer findes for begge trin-grupper, ved grænser, der passer sammen (stor = (943 + 1) × 1,125 − 1).
+tjek('V-PUDS.3 N3: den smalle regel for fundtabellen står ved max-width 943 px (normal og lille) og 1061 px (stor)', APP.some(r => r.media && r.media.max === 943 && har(r, '.fundtabel', 'da', 'normal') && r.decl['--k4']) && APP.some(r => r.media && r.media.max === 1061 && har(r, '.fundtabel', 'da', 'stor') && r.decl['--k4']) && (943 + 1) * 1.125 - 1 === 1061);
 
 console.log('\nKolonnebredder (px i layoutet, med polstring), regnet ud fra CSS\'en uden rullebjælke (lille og stor: V-KITBRUG.1):');
 for (const l of rapport) console.log('  ' + l);

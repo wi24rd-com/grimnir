@@ -57,6 +57,29 @@
     return e;
   }
   const mb = b => (b / 1048576).toFixed(1);
+  /* V-PUDS.3 N5: linjetallet tælles i webvisningen, så snart teksten er indsat (før stod der "…" til analysen), efter
+     samme regel som Rusts fil::antal_linjer (V-RET.1 R3): LF, CRLF og et enligt CR tæller hver som ét linjeskift, plus
+     én, hvis teksten ikke slutter med et linjeskift; en tom tekst har 0. \r og \n er ét tegn i både UTF-16 og UTF-8 og
+     indgår aldrig i et andet tegn, så tallet er det samme som Rusts. Teksten sendes ingen steder hen. Efter analysen
+     (og for en fil) vises Rusts tal som før. tests/ui/ui-roeg.mjs prøver reglen mod tabellen i fil.rs. */
+  function antalLinjer(s) {
+    if (!s) return 0;
+    let n = 0, i = -1;
+    while ((i = s.indexOf('\n', i + 1)) !== -1) n++;
+    i = -1;
+    while ((i = s.indexOf('\r', i + 1)) !== -1) if (s.charCodeAt(i + 1) !== 10) n++;
+    const sidste = s.charCodeAt(s.length - 1);
+    return n + (sidste === 10 || sidste === 13 ? 0 : 1);
+  }
+  /* V-PUDS.3 N5: tekstens størrelse i panelhovedet i en enhed, der passer: bytes under 1 kB, hele kB under 0,1 MB og MB
+     med én decimal derfra (1 kB = 1024 bytes og 1 MB = 1024 × 1024 bytes, som MAKS_BYTES), med sprogets talformat
+     ("0,1 MB" på dansk, "0.1 MB" på engelsk). Før stod der "0.0 MB" for en lille tekst. */
+  function stoerrelse(b) {
+    const fmt = (n, d) => Number(n).toLocaleString(S.lang === 'en' ? 'en-GB' : 'da-DK', { minimumFractionDigits: d, maximumFractionDigits: d });
+    if (b >= 0.1 * 1048576) return S.t('strMB', fmt(b / 1048576, 1));
+    if (b >= 1024) return S.t('strKB', fmt(Math.round(b / 1024), 0));
+    return S.t('strB', fmt(b, 0));
+  }
   const fokusIFelt = e => e && e.target && e.target.closest && e.target.closest('input[type="text"], input[type="search"], textarea, [contenteditable="true"]');
 
   /* En kommando i båndet: aktiv (med genvej i title) eller nedtonet med en forklaring. V-KITBRUG.2 N3 (G11): forklaringen
@@ -279,7 +302,7 @@
   /* ═════════════════════════════ Maskér ═════════════════════════════ */
   const M = (function () {
     // fil: den åbne fil (FilInfo fra Rust) eller null; så er tekst Rusts uddrag, og analyse.side er rækkerne fra Rust.
-    const st = { tekst: null, bytes: 0, fil: null, analyse: null, fravalgt: new Set(), rort: new Map(), rettelser: new Map(), fejl: new Map(), resultat: null, foerEfter: false, visRester: false, spoergRester: false, filter: 'alle', soeg: '', vist: new Set(), side: SIDE, nr: 0, sideNr: 0, travl: false, venter: null };
+    const st = { tekst: null, bytes: 0, linjer: null, fil: null, analyse: null, fravalgt: new Set(), rort: new Map(), rettelser: new Map(), fejl: new Map(), resultat: null, foerEfter: false, visRester: false, spoergRester: false, filter: 'alle', soeg: '', vist: new Set(), side: SIDE, nr: 0, sideNr: 0, travl: false, venter: null };
     let tv, tabelvaert, flere, flereTekst, tekstPanel, tabelPanel, delt;
     const f = byggeFlade('masker', ark => {
       delt = el('div', 'delt');
@@ -317,6 +340,7 @@
       nulstilValg();
       st.tekst = s;
       st.bytes = bytes;
+      st.linjer = antalLinjer(s);
       tegn();
       tv.pre.focus();
     }
@@ -541,11 +565,16 @@
       tekstPanel.h.setAttribute('data-t', efter ? 'pMaskeret' : 'pTekst');
       tekstPanel.p.setAttribute('data-t-aria', efter ? 'pMaskeret' : 'pTekst');
       tv.pre.setAttribute('data-t-aria', efter ? 'ariaMaskeret' : 'ariaTekst');
-      tekstPanel.info.setAttribute('data-t', 'tekstInfo');
-      tekstPanel.info.setAttribute('data-v', st.fil ? String(st.fil.linjer) : st.analyse ? String(st.analyse.linjer) : '…');
-      tekstPanel.info.setAttribute('data-w', mb(st.bytes));
-      S.anvend(tekstPanel.p);
+      tegnInfo();
       G.dele.masker.bar.knap('foer-efter').setAttribute('aria-pressed', String(Boolean(efter)));
+    }
+    /* Panelhovedet: linjer og størrelse. V-PUDS.3 N5: før analysen webvisningens tal (samme regel som Rust), derefter
+       Rusts; for en fil Rusts med det samme. Kaldes også ved sprogskift (talformatet). */
+    function tegnInfo() {
+      tekstPanel.info.setAttribute('data-t', 'tekstInfo');
+      tekstPanel.info.setAttribute('data-v', st.fil ? String(st.fil.linjer) : st.analyse ? String(st.analyse.linjer) : st.linjer != null ? String(st.linjer) : '…');
+      tekstPanel.info.setAttribute('data-w', stoerrelse(st.bytes));
+      S.anvend(tekstPanel.p);
     }
 
     function valgt(r) { return r.laast || !st.fravalgt.has(r.id); }
@@ -841,7 +870,7 @@
     document.addEventListener('grimnir-ordbog', () => analyserIgen());
 
     return {
-      st, modtag, analyser, analyserIgen, gem, kopierResultat, kopierKvittering, tegn, tegnFod, tegnTabel,
+      st, modtag, analyser, analyserIgen, gem, kopierResultat, kopierKvittering, tegn, tegnFod, tegnTabel, tegnInfo,
       genvejEnter() { return st.analyse ? gem() : analyser(); },
       filter(id) { st.filter = id === 'denne' ? 'alle' : id; st.visRester = false; st.side = SIDE; if (st.fil) hentSide(); else tegnTabel(); tegnBannere(); },
       aabnFil, gemFil, modtagFil,
@@ -853,7 +882,7 @@
 
   /* ═════════════════════════════ Demaskér ═════════════════════════════ */
   const D = (function () {
-    const st = { tekst: null, bytes: 0, fil: null, resultat: null, filter: 'alle', soeg: '', nr: 0, travl: false };
+    const st = { tekst: null, bytes: 0, linjer: null, fil: null, resultat: null, filter: 'alle', soeg: '', nr: 0, travl: false };
     let svar, ud, svarPanel, udPanel, tabelvaert, tabelPanel;
     const f = byggeFlade('demasker', ark => {
       const delt = el('div', 'delt lige');
@@ -884,7 +913,7 @@
       const bytes = utf8Laengde(s);
       if (bytes > MAKS_DEMASKER) { banner(st.tekst ? f.bannere : f.tomBannere, 'danger', 'bForStorDemasker', mb(bytes)); return; }
       slipFil();
-      st.tekst = s; st.bytes = bytes; st.resultat = null; st.nr++; st.travl = false;
+      st.tekst = s; st.bytes = bytes; st.linjer = antalLinjer(s); st.resultat = null; st.nr++; st.travl = false;
       tegn();
       svar.pre.focus();
     }
@@ -990,13 +1019,17 @@
       ud.vis(st.resultat ? st.resultat.tekst : '', st.fil && st.resultat ? st.resultat.ikkeVist : null);
       udPanel.info.setAttribute('data-t', st.resultat ? 'blivPaaMaskinen' : 'tryk');
       udPanel.info.setAttribute('data-v', G.mod + '↵');
-      svarPanel.info.setAttribute('data-t', 'tekstInfo');
-      // V-RET.1 R3: linjetallet kommer altid fra Rust (fil::antal_linjer), som i Maskér: for en fil med det samme, for en
-      // indsat tekst med demaskeringen (indtil da "…").
-      svarPanel.info.setAttribute('data-v', st.fil ? String(st.fil.linjer) : st.resultat && st.resultat.linjer != null ? String(st.resultat.linjer) : '…');
-      svarPanel.info.setAttribute('data-w', mb(st.bytes));
-      S.anvend(svarPanel.p);
+      tegnInfo();
       S.anvend(udPanel.p);
+    }
+    /* Svarets panelhoved: linjer og størrelse (kaldes også ved sprogskift). */
+    function tegnInfo() {
+      svarPanel.info.setAttribute('data-t', 'tekstInfo');
+      // V-RET.1 R3: linjetallet efter Rusts regel (fil::antal_linjer), som i Maskér: for en fil Rusts med det samme, for en
+      // indsat tekst Rusts efter demaskeringen. V-PUDS.3 N5: indtil da webvisningens tal efter samme regel (før "…").
+      svarPanel.info.setAttribute('data-v', st.fil ? String(st.fil.linjer) : st.resultat && st.resultat.linjer != null ? String(st.resultat.linjer) : st.linjer != null ? String(st.linjer) : '…');
+      svarPanel.info.setAttribute('data-w', stoerrelse(st.bytes));
+      S.anvend(svarPanel.p);
     }
     function raekker() {
       if (!st.resultat) return [];
@@ -1087,7 +1120,7 @@
       if (ok === true) invoke('udklip_kopieret', { fil }).catch(() => { /* låst eller uden Rust: intet at huske */ });
     }
     return {
-      st, modtag, demasker, kopierResultat, tegn, tegnFod, aabnFil, gemFil, modtagFil,
+      st, modtag, demasker, kopierResultat, tegn, tegnFod, tegnInfo, aabnFil, gemFil, modtagFil,
       aabnSluppet() { return aabnFil('fil_aabn_sluppet'); },
       slipAfvist(art) { fejlBanner = [art === 'mappe' ? 'bSlipMappe' : 'bSlipFlere', null]; tegnBannere(); },
       opdater() { tegnFlade(); tegnBannere(); tegnKommandoer(); },
@@ -1123,12 +1156,22 @@
 
   /* Indsæt-kommandoen: fokus på visningens felt og systemets Indsæt (samme vej som ⌘V). Kan webvisningen ikke selv
      hente udklipsholderen, står der, hvilken tast der virker. */
+  /* V-PUDS.3 N6: uden en tekst er arbejdet (.arbejde, hvor beskeden står) skjult; før blev "Tryk ⌘V" så skrevet i et
+     skjult element, og et klik på Indsæt så ud til at gøre intet. Nu står beskeden over den tomme flade (som de andre
+     beskeder før en tekst, f.tomBannere), indtil der kommer en tekst. */
   function indsaetVia(maal, f) {
     if (maal && maal.focus) maal.focus();
     let ok = false;
     try { ok = document.execCommand('paste'); } catch (e) { ok = false; }
-    if (!ok) besked(f, 'bTrykModV');
-    if (!ok) { f.besked.setAttribute('data-v', G.mod + 'V'); S.anvend(f.besked); }
+    if (ok) return;
+    if (f.ark.hidden) {
+      f.tomBannere.textContent = '';
+      banner(f.tomBannere, 'info', 'bTrykModV', G.mod + 'V');
+      return;
+    }
+    besked(f, 'bTrykModV');
+    f.besked.setAttribute('data-v', G.mod + 'V');
+    S.anvend(f.besked);
   }
 
   /* ⌘V (og menuens Indsæt) i Maskér og Demaskér: teksten fra clipboardData, uændret. I søgefeltet og i en erstatning
@@ -1204,9 +1247,11 @@
   /* Programmenuen følger UI'ets sprog. */
   const menuSprog = () => invoke('menu_sprog', { sprog: S.lang }).catch(() => { /* ingen menu (Windows) */ });
   document.addEventListener('grimnir-sprog', menuSprog);
+  // V-PUDS.3 N5: størrelsen i panelhovedet står med sprogets talformat (data-w er en færdig tekst), så den laves om.
+  document.addEventListener('grimnir-sprog', () => { if (M.st.tekst) M.tegnInfo(); if (D.st.tekst) D.tegnInfo(); });
 
   M.tegn();
   D.tegn();
   menuSprog();
-  window.GrimnirMaskering = { M, D, utf8Laengde, MAKS_BYTES, MAKS_DEMASKER, saetSag, saetGemteSager, kommando, sagFejlTekst, filFejlTekst, banner, get poster() { return poster; } };
+  window.GrimnirMaskering = { M, D, utf8Laengde, antalLinjer, stoerrelse, MAKS_BYTES, MAKS_DEMASKER, saetSag, saetGemteSager, kommando, sagFejlTekst, filFejlTekst, banner, get poster() { return poster; } };
 })();

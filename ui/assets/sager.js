@@ -359,7 +359,8 @@
   }
   function opret() {
     const navn = nyNavn.value.trim();
-    if (!navn) { dNy.fejl(S.t('fejlNavnTomt')); nyNavn.focus(); return false; }
+    // V-PUDS.3 N4: fejlen hører til Navn og ryddes, når der skrives i det (app.js, kitDialog).
+    if (!navn) { dNy.fejl(S.t('fejlNavnTomt'), nyNavn); nyNavn.focus(); return false; }
     const fraNavngiven = Boolean(status.id);
     return invoke('sag_ny', { navn, udloeb: nyUdloeb.value || null }).then(s => {
       anvend(s, fraNavngiven);
@@ -389,7 +390,7 @@
   }
   function omdoeb() {
     const navn = omNavn.value.trim();
-    if (!navn) { dOmdoeb.fejl(S.t('fejlNavnTomt')); return false; }
+    if (!navn) { dOmdoeb.fejl(S.t('fejlNavnTomt'), omNavn); return false; }
     return invoke('sag_omdoeb', { id: omdoebId, navn }).then(() => {
       opdater();
       if (omdoebId === status.id) invoke('sag_status').then(s => anvend(s, false)).catch(() => { /* uændret */ });
@@ -422,7 +423,8 @@
   }
   udIngen.addEventListener('change', () => { udDato.disabled = udIngen.checked; if (!udIngen.checked) udDato.focus(); });
   function gemUdloeb() {
-    if (!udIngen.checked && !udDato.value) { dUdloeb.fejl(S.t('fejlDatoMangler')); return false; }
+    // V-PUDS.3 N4: fejlen handler om udløbet: den ryddes af en dato og af "Ingen udløb".
+    if (!udIngen.checked && !udDato.value) { dUdloeb.fejl(S.t('fejlDatoMangler'), [udDato, udIngen]); return false; }
     return invoke('sag_udloeb', { id: udloebId, udloeb: udIngen.checked ? null : udDato.value }).then(() => {
       opdater();
       if (udloebId === status.id) invoke('sag_status').then(s => anvend(s, false)).catch(() => { /* uændret */ });

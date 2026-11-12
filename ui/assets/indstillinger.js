@@ -150,6 +150,8 @@
         .catch(e => { fejl.textContent = GO.fejlTekst(e); inp.setAttribute('aria-invalid', 'true'); inp.focus(); });
     };
     inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); ok(); } });
+    // V-PUDS.3 N4: fejlen under feltet ryddes, når der skrives i det.
+    inp.addEventListener('input', () => { fejl.textContent = ''; inp.removeAttribute('aria-invalid'); });
     const knap = K.knap({ t: 'kTilfoej', ikon: 'plus', ved: ok });
     knap.setAttribute('data-t-aria', 'ariaTilfoej' + id.replace('guide-', '').replace(/^./, c => c.toUpperCase()));
     linje.append(inp, knap);

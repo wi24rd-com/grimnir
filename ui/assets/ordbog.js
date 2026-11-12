@@ -313,6 +313,9 @@
     });
   }
   for (const inp of [pVaerdi, pNote]) inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); dPost.knap('ok').click(); } });
+  // V-PUDS.3 N4: en fejl under et felt ryddes, når der skrives i feltet (fejlfeltet for hele dialogen: app.js, kitDialog).
+  pVaerdi.addEventListener('input', () => feltFejl('vaerdi', ''));
+  pNote.addEventListener('input', () => feltFejl('note', ''));
 
   /* Et ord, der ligner en adgangskode (V-FIL.1 F5): mindst 8 tegn uden mellemrum med både bogstaver, cifre og andre tegn.
      Kun for de frie typer (ord, person, maskér aldrig); de andre har deres egen syntaks. Advarslen blokerer ikke. */

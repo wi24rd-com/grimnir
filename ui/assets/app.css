@@ -47,7 +47,10 @@
 .tekst::-webkit-scrollbar-thumb { background: var(--text-muted); border: 3px solid var(--surface-raised); border-radius: var(--radius-pill); }
 .tekst:focus-visible { outline-offset: -2px; }
 .afkortet { margin: 0; padding: var(--space-2) var(--space-3); border-top: 1px solid var(--border); font-size: var(--small-size); color: var(--text-muted); }
-.tabelvaert { overflow: auto; }
+/* V-PUDS.3 N7: tabellens rullefelt er forfader med position (som kittets .tabel-rul), så en skjult tekst (kittets
+   .skjult-tekst, position: absolute; fx ordet i Altid/Aldrig) placeres i rullefeltet og ikke efter vinduet: før trak den
+   dokumentets rullehøjde med (målt i WKWebView: 2790 px i et vindue på 560 px med 60 fund), så hele siden kunne rulle. */
+.tabelvaert { position: relative; overflow: auto; }
 .tabel-tom { margin: 0; padding: var(--space-4) var(--space-3); color: var(--text-muted); }
 .flere { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-top: 1px solid var(--border); font-size: var(--small-size); color: var(--text-muted); }
 /* ── Tekst og tabel deler fladens højde (V-KITBRUG.2 N5) ──
@@ -93,11 +96,28 @@
 .tabel td .kort { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Maskér: ✓, Type, Fundet værdi (resten), Erstatning, Antal, Status, Ordbog. Tæt polstring; Altid/Aldrig er ikonknapper
    (V-PUDS.1 N3: med ordet ved ikonet ved brede tabeller, se nedenfor). */
-.fundtabel { --celle: var(--space-2); --k1: 28px; --k2: 108px; --k4: 106px; --k5: 60px; --k6: 108px; --k7: 68px; --tabel-min: 618px; }
-html[lang="en"] .fundtabel { --k2: 80px; --k6: 134px; --k7: 92px; --tabel-min: 640px; }
+/* V-PUDS.3 N3: Erstatning viser mindst 15 tegn i alle trin og ved alle vinduesbredder (15 × 7,8 px = 117 px + feltets
+   polstring og kant 18 px + cellens polstring 2 × 8 px = 151 px → 152 px; før 106 px, 9 tegn, så fx "198.18.0.41" blev
+   til "198.18.0." ved stor i 1200 px). Pladsen kommer fra Fundet værdi, som under 1200 px havde mere end sine 140 px. */
+.fundtabel { --celle: var(--space-2); --k1: 28px; --k2: 108px; --k4: 152px; --k5: 60px; --k6: 108px; --k7: 68px; --tabel-min: 664px; }
+html[lang="en"] .fundtabel { --k2: 80px; --k6: 134px; --k7: 92px; --tabel-min: 686px; }
+/* V-PUDS.3 N3: under 944 px (stor: 1062 px; layoutet under 944 px) kan 15 tegn i Erstatning, de andre kolonner og 140 px til
+   værdien ikke være der med 8 px polstring i cellerne. Der er cellernes polstring 4 px, og hver fast kolonne er så smal,
+   som dens målte indhold tillader (tests/ui/kolonner.mjs, MAALT_*): ✓ 4 + 16 + 4; Type "Hemmelighed" 92 (en: "Machine"
+   57 + luft) + 8; Erstatning 117 + 18 + 8 + 1; Antal "Count" 44 + 8; Status "Sandsynlig" 91 (en: "From dictionary" 117)
+   + 8; Ordbog knapperne 52 (en: "Dictionary" 76) + 8. Ved 900 px er der så 642 px til tabellen: værdien får 162 px
+   (en: 140). Ved stor gælder det fra 1013 px vindue, hvor layoutet er 900 px; smallere ruller tabellen vandret. */
+@media (max-width: 943px) {
+  :root:not([data-tekst="stor"]) .fundtabel { --celle: var(--space-1); --k1: 24px; --k2: 100px; --k4: 144px; --k5: 52px; --k6: 100px; --k7: 60px; --tabel-min: 620px; }
+  :root:not([data-tekst="stor"])[lang="en"] .fundtabel { --k2: 72px; --k6: 126px; --k7: 84px; --tabel-min: 642px; }
+}
+@media (max-width: 1061px) {
+  :root[data-tekst="stor"] .fundtabel { --celle: var(--space-1); --k1: 24px; --k2: 100px; --k4: 144px; --k5: 52px; --k6: 100px; --k7: 60px; --tabel-min: 620px; }
+  :root[data-tekst="stor"][lang="en"] .fundtabel { --k2: 72px; --k6: 126px; --k7: 84px; --tabel-min: 642px; }
+}
 /* V-LAAS.4 N3: fra 1200 px har Erstatning plads til 24 tegn i feltets skrift (JetBrains Mono 13 px: 600/1000 em = 7,8 px
    pr. tegn → 187,2 px + feltets polstring og kant 18 px + cellens polstring 16 px = 221,2 px), så fx
-   "user0001, USER0001" og "198.18.0.11" står hele. Under 1200 px beholder den 106 px (900 px ruller ikke vandret). */
+   "user0001, USER0001" og "198.18.0.11" står hele. Under 1200 px: 15 tegn (V-PUDS.3 N3, ovenfor). */
 /* V-KITBRUG.1 N2: mediegrænserne måler vinduet, ikke layoutet (målt i WKWebView: @media og @container følger ikke zoom).
    Ved stor er der 1/1,125 af vinduet til layoutet, så hver grænse gælder dér fra vinduesbredden × 1,125 (1100 → 1238,
    1200 → 1350, 1720 → 1935, 1840 → 2070 px); reglerne står derfor to gange: med :root:not([data-tekst="stor"]) som før og med
@@ -254,8 +274,16 @@ html[lang="en"] .sagtabel { --k6: 160px; --tabel-min: 728px; }
 .valg { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); margin: 0; padding: 0; border: 0; min-width: 0; }
 .valg legend { padding: 0; margin: 0 0 var(--space-2); }
 .valg.lodret { flex-direction: column; gap: var(--space-2); }
-.valg > .hj { margin: -4px 0 0 24px; }
-.valg .felt { margin: var(--space-1) 0 0; max-width: 260px; }
+/* V-PUDS.3 N1: en hjælpetekst direkte i en gruppe står ved gruppens venstrekant (som etiketten og legend). Kun efter en
+   afkrydsning står den 24 px inde under afkrydsningens tekst (som kittets .afk-hj); det gælder sagens valg. Før stod
+   hjælpen under "Første start" i Indstillinger rykket ind uden en afkrydsning over sig. */
+.valg > .hj { margin: 0; }
+.valg > .afk-felt + .hj { margin: -4px 0 0 24px; }
+/* V-PUDS.3 N1: kun selve valglisten er højst 260 px; feltet og dets hjælpetekst (kittets valgliste lægger .hj i .felt,
+   V-KITBRUG.1) har gruppens bredde. Før var hele feltet 260 px, så hjælpen under "Lås efter stilstand" stod som en smal
+   søjle (målt i WKWebView: 13 linjer ved 1200 × 800). */
+.valg .felt { margin: var(--space-1) 0 0; }
+.valg .felt > .vliste { max-width: 260px; }
 .sag-valg { margin: 0 0 var(--space-3); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-md); }
 .proev-svar { display: flex; flex-direction: column; gap: var(--space-2); margin: 0 0 var(--space-3); max-height: calc(40vh / var(--tekst-zoom)); overflow: auto; }
 .proev-svar:empty { display: none; }

@@ -1890,7 +1890,8 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   const dsek = d.querySelector('section[data-visning="demasker"]');
   const info = () => dsek.querySelector('.panel .panel-hoved .muted').textContent;
   indsaet(w, dsek.querySelector('.tomt'), 'a\r\nb\r\nc\r\nd\r\n');
-  tjek('R3: Demaskér før demaskering: linjetallet venter på Rust ("…")', info().startsWith('… linjer'), info());
+  // V-PUDS.3 N5: før "…" til Rust svarede; nu tælles der straks i webvisningen efter Rusts regel (fil::antal_linjer).
+  tjek('R3 (V-PUDS.3 N5): Demaskér før demaskering: linjetallet står straks, efter Rusts regel (4 linjer, afsluttende CRLF)', info().startsWith('4 linjer · '), info());
   s.tast('Enter', { metaKey: true }); await vent(5);
   tjek('R3: Demaskér efter demaskering: 4 linjer fra Rust (tekst med afsluttende CRLF)', info().startsWith('4 linjer'), info());
   const m = ui('assets/maskering.js');
@@ -1935,7 +1936,7 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
     ['da', 'bAdvarsler', [0, '0 steder i svaret'], [1, '1 sted i svaret'], [2, '2 steder i svaret']],
     ['en', 'bAdvarsler', [0, '0 places in the reply'], [1, '1 place in the reply'], [2, '2 places in the reply']],
     ['da', 'restInfo', [0, '0 steder'], [1, '1 sted'], [2, '2 steder']],
-    ['da', 'tekstInfo', [0, '0 linjer · 0.1 MB'], [1, '1 linje · 0.1 MB'], [2, '2 linjer · 0.1 MB']],
+    ['da', 'tekstInfo', [0, '0 linjer · 0,1 MB'], [1, '1 linje · 0,1 MB'], [2, '2 linjer · 0,1 MB']],
     ['en', 'tekstInfo', [0, '0 lines · 0.1 MB'], [1, '1 line · 0.1 MB'], [2, '2 lines · 0.1 MB']],
     ['da', 'chipSager', [0, '0 sager'], [1, '1 sag'], [2, '2 sager']],
     ['en', 'chipPoster', [0, '0 entries'], [1, '1 entry'], [2, '2 entries']],
@@ -1950,7 +1951,8 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   const forskel = [];
   for (const [sprog, k, ...par] of FORVENTET) {
     S.saet(sprog);
-    for (const [n, f] of par) { const ud = S.t(k, n, k === 'tekstInfo' ? '0.1' : n); if (!ud.includes(f)) forskel.push(`${sprog}.${k}(${n}): «${ud}» ≠ «${f}»`); }
+    // V-PUDS.3 N5: størrelsen i tekstInfo er en færdig tekst med enhed og sprogets talformat ({w}).
+    for (const [n, f] of par) { const ud = S.t(k, n, k === 'tekstInfo' ? (sprog === 'da' ? '0,1 MB' : '0.1 MB') : n); if (!ud.includes(f)) forskel.push(`${sprog}.${k}(${n}): «${ud}» ≠ «${f}»`); }
   }
   tjek('R4: udvalgte tekster ved 0, 1 og 2 (bl.a. "1 sted" / "2 steder")', forskel.length === 0, forskel.join(' | '));
   S.saet('da');
@@ -3338,6 +3340,338 @@ const esc = (w, dlg) => { const ev = new w.Event('cancel', { cancelable: true })
   await vent(20);
   tjek('V-KITBRUG.2 N5: Maskér, Demaskér og Ordbog har .fyld på fladen; Sager har ikke', ['masker', 'demasker', 'ordbog'].every(v => s.d.querySelector(`section[data-visning="${v}"] > .flade`).classList.contains('fyld')) && !s.d.querySelector('section[data-visning="sager"] > .flade').classList.contains('fyld'));
   tjek('V-KITBRUG.2 N5: Ordbog: Prøv på tekst står i hjælpelinjen efter tabellen i den flade, der fylder (synlig uden at rulle; målt)', (() => { const a = s.d.querySelector('section[data-visning="ordbog"] .ordbogflade'); return a && a.lastElementChild.classList.contains('hjaelpelinje') && a.lastElementChild.querySelector('button').textContent === 'Prøv på tekst'; })() && /\.flade\.fyld \.ordbogflade > \.hjaelpelinje \{ flex: none; \}/.test(app));
+}
+
+// ══════════════════ V-PUDS.3: rettelser efter vinduesprøven 2026-11-12 (N1–N7) ══════════════════
+// En lille kaskade over kit.css og app.css uden @media (grundtilstanden), fordi jsdom ikke selv lægger CSS på: den regel,
+// der passer på elementet (el.matches) og har størst specificitet (id, klasse/attribut/pseudoklasse, element), og ved lige
+// specificitet den sidste. Regler, jsdom ikke kan læse (::backdrop, ::-webkit-…), springes over.
+const CSS_REGLER = (() => {
+  const ud = [];
+  let nr = 0;
+  for (const fil of ['assets/kit.css', 'assets/app.css']) {
+    const t = ui(fil).replace(/\/\*[\s\S]*?\*\//g, '');
+    let u = '', i = 0;
+    while (i < t.length) {
+      const m = t.indexOf('@', i);
+      if (m < 0) { u += t.slice(i); break; }
+      u += t.slice(i, m);
+      const a = t.indexOf('{', m), semi = t.indexOf(';', m);
+      if (semi >= 0 && (a < 0 || semi < a)) { i = semi + 1; continue; }
+      let dyb = 1, j = a + 1;
+      while (dyb && j < t.length) { if (t[j] === '{') dyb++; else if (t[j] === '}') dyb--; j++; }
+      i = j;
+    }
+    for (const m of u.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+      const decl = {};
+      for (const dd of m[2].split(';')) { const k = dd.indexOf(':'); if (k > 0) decl[dd.slice(0, k).trim()] = dd.slice(k + 1).trim(); }
+      for (const sel of m[1].split(',').map(x => x.trim()).filter(Boolean)) ud.push({ sel, decl, nr: nr++ });
+    }
+  }
+  return ud;
+})();
+const specificitet = sel => {
+  const id = (sel.match(/#[\w-]+/g) || []).length;
+  const kl = (sel.match(/\.[\w-]+|\[[^\]]+\]|:(?!:)[\w-]+/g) || []).length;
+  const el = (sel.replace(/\[[^\]]*\]/g, '').match(/(^|[\s>+~(])[a-z][\w-]*/gi) || []).length;
+  return id * 10000 + kl * 100 + el;
+};
+function cssVaerdi(e, prop) {
+  let bedst = null;
+  for (const r of CSS_REGLER) {
+    if (!(prop in r.decl)) continue;
+    let passer = false;
+    try { passer = e.matches(r.sel); } catch (x) { passer = false; }
+    if (!passer) continue;
+    const sp = specificitet(r.sel);
+    if (!bedst || sp > bedst.sp || (sp === bedst.sp && r.nr > bedst.nr)) bedst = { sp, nr: r.nr, v: r.decl[prop] };
+  }
+  return bedst ? bedst.v : null;
+}
+const elNavn = e => e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') + (e.className && typeof e.className === 'string' && e.className.trim() ? '.' + e.className.trim().split(/\s+/).join('.') : '');
+{
+  // Kontrol af kaskaden: kendte værdier fra kit.css og app.css.
+  const { d } = side();
+  await vent(5);
+  const sp = d.createElement('span');
+  sp.className = 'skjult-tekst';
+  d.body.appendChild(sp);
+  const tv = d.createElement('div');
+  tv.className = 'tabelvaert';
+  d.body.appendChild(tv);
+  tjek('V-PUDS.3: kontrol: testens kaskade læser kit.css og app.css (.skjult-tekst er absolute, .tabelvaert har overflow: auto, et <p> uden regel har ingen position)', cssVaerdi(sp, 'position') === 'absolute' && cssVaerdi(tv, 'overflow') === 'auto' && cssVaerdi(d.createElement('p'), 'position') === null && CSS_REGLER.length > 300, String(CSS_REGLER.length));
+  sp.remove();
+  tv.remove();
+}
+
+// ── N1: hjælpeteksterne i Indstillinger har dialogens bredde; de andre dialoger gennemgået ──
+{
+  const s = side({ rust: falskOrdbogRust({ indst: { guide_vist: true } }) });
+  const { d } = s;
+  await vent(20);
+  s.emit('menu', 'indstillinger'); await vent(5);
+  const dlg = d.getElementById('dlg-indst');
+  // Elementet og dets forfædre inde i dialogen: hvilke har en max-width (andet end none og 100 %)?
+  const smal = e => { const ud = []; for (let a = e; a && !a.classList.contains('modal'); a = a.parentElement) { const v = cssVaerdi(a, 'max-width'); if (v && v !== 'none' && v !== '100%') ud.push(elNavn(a) + ': ' + v); } return ud; };
+  const hj = d.getElementById('indst-stilstand-hj'), liste = d.getElementById('indst-stilstand');
+  tjek('V-PUDS.3 N1: Indstillinger: hjælpen under "Lås efter stilstand" har dialogens bredde (ingen max-width på teksten eller en forfader i dialogen)', aaben(d, 'dlg-indst') && hj && smal(hj).length === 0, hj ? smal(hj).join(' | ') : 'ingen hjælp');
+  tjek('V-PUDS.3 N1: … selve listen er stadig højst 260 px', cssVaerdi(liste.closest('.vliste'), 'max-width') === '260px' && smal(liste).join() === 'span.vliste: 260px', smal(liste).join(' | '));
+  tjek('V-PUDS.3 N1: … og listens aria-describedby peger stadig på hjælpen (macOS: hjLaas)', liste.getAttribute('aria-describedby') === 'indst-stilstand-hj' && hj.textContent.startsWith('Grimnir låser altid, når den starter'));
+  const guideHj = [...dlg.querySelectorAll('.valg > .hj')].find(h => h.getAttribute('data-t') === 'hjGuide');
+  tjek('V-PUDS.3 N1: hjælpen under "Første start" står ved gruppens venstrekant (margin 0, ikke rykket 24 px ind) og har dialogens bredde', guideHj && cssVaerdi(guideHj, 'margin') === '0' && cssVaerdi(guideHj, 'margin-left') === null && smal(guideHj).length === 0, guideHj ? cssVaerdi(guideHj, 'margin') : 'ingen');
+  const sagHj = d.getElementById('sag-valg-hj');
+  tjek('V-PUDS.3 N1: kontrol: sagens dialog: hjælpen efter de to afkrydsninger står stadig 24 px inde under deres tekst (som før)', sagHj && sagHj.previousElementSibling.classList.contains('afk-felt') && cssVaerdi(sagHj, 'margin') === '-4px 0 0 24px');
+  // Gennemgang af alle dialoger, der står i DOM'en fra start (de ti kittets dialoger; bekræftelserne har ingen felter).
+  const dialoger = [...d.querySelectorAll('dialog.modal')];
+  const tekster = dialoger.flatMap(x => [...x.querySelectorAll('.hj, .afk-hj, .fejltekst, .modal-fejl, .raekkeadv')]);
+  const smalle = tekster.filter(t => smal(t).length).map(t => `${t.closest('dialog').id} ${elNavn(t)}: ${smal(t).join(', ')}`);
+  tjek(`V-PUDS.3 N1: gennemgang: ingen hjælpe- eller fejltekst i de ${dialoger.length} dialoger er smallere end dialogen (${tekster.length} tekster)`, dialoger.length >= 10 && tekster.length >= 15 && smalle.length === 0, smalle.join(' | '));
+  tjek('V-PUDS.3 N1: app.css: ingen regel giver .valg .felt en max-width (kun .vliste i den)', !CSS_REGLER.some(r => r.sel === '.valg .felt' && 'max-width' in r.decl) && CSS_REGLER.some(r => r.sel === '.valg .felt > .vliste' && r.decl['max-width'] === '260px'));
+}
+
+// ── N2: "Næste advarsel" i Demaskér er en pladsholder (ingen fejl) ──
+{
+  const s = side({ rust: falskRust() });
+  const { d, w } = s;
+  await vent(5);
+  indsaet(w, d.querySelector('section[data-visning="masker"] .tomt'), TEKST);
+  s.tast('Enter', { metaKey: true }); await vent(5);
+  s.tast('Enter', { metaKey: true }); await vent(5);
+  w.location.hash = 'demasker'; await vent(5);
+  indsaet(w, d.querySelector('section[data-visning="demasker"] .tomt'), 'Prøv 198.18.0.11 og h0099');
+  s.tast('Enter', { metaKey: true }); await vent(5);
+  const b = knapI(d, 'demasker', 'naeste-advarsel');
+  const GM = w.GrimnirMaskering;
+  tjek('V-PUDS.3 N2: Demaskér med advarsler: Næste advarsel er slået fra med forklaringen "Kommer i en senere version af Grimnir" (en pladsholder siden V-SKAL.1; spørgsmål til Jan)', GM.D.st.resultat && GM.D.st.resultat.advarsler.length === 2 && !kommandoAktiv(d, 'demasker', 'naeste-advarsel') && forklaring(b) === 'Kommer i en senere version af Grimnir');
+  tjek('V-PUDS.3 N2: … kommandoen har ingen handling: app.js bygger den med senere(…), ikke aktiv(…), og maskering.js registrerer ingen', /senere\('naeste-advarsel', 'kNaesteAdvarsel', 'naeste'\)/.test(ui('assets/app.js')) && !/naeste-advarsel/.test(ui('assets/maskering.js')));
+}
+
+// ── N4: fejlen i en dialog ryddes, når feltet, den handler om, ændres ──
+{
+  const rust = falskSagRust({ sager: SAGER() });
+  const s = side({ hash: '#sager', rust });
+  const { d, w } = s;
+  await vent(10);
+  klik(w, knapI(d, 'sager', 'ny-sag'));
+  const fe = d.getElementById('dlg-ny-sag-fejl'), navn = d.getElementById('ny-sag-navn'), udl = d.getElementById('ny-sag-udloeb');
+  klik(w, d.getElementById('ny-sag-opret')); await vent(5);
+  tjek('V-PUDS.3 N4: Ny sag: tomt navn giver "Skriv et navn." (som før)', aaben(d, 'dlg-ny-sag') && fe.textContent === 'Skriv et navn.');
+  udl.value = '2027-01-31';
+  udl.dispatchEvent(new w.Event('input', { bubbles: true }));
+  udl.dispatchEvent(new w.Event('change', { bubbles: true }));
+  tjek('V-PUDS.3 N4: Ny sag: fejlen hører til Navn og bliver stående, når Udløb ændres', fe.textContent === 'Skriv et navn.');
+  skriv(w, navn, 'S');
+  tjek('V-PUDS.3 N4: Ny sag: fejlen forsvinder, så snart der skrives i Navn (dialogen er stadig åben)', fe.textContent === '' && aaben(d, 'dlg-ny-sag'));
+  skriv(w, navn, '');
+  klik(w, d.getElementById('ny-sag-opret')); await vent(5);
+  tjek('V-PUDS.3 N4: Ny sag: et nyt forsøg med tomt navn viser fejlen igen', fe.textContent === 'Skriv et navn.');
+  rust.sag_ny = () => { throw { art: 'sag', fejl: { art: 'disk', hvad: 'PermissionDenied' } }; };
+  skriv(w, navn, 'Supportsag 0099');
+  klik(w, d.getElementById('ny-sag-opret')); await vent(10);
+  const rustFejl = fe.textContent;
+  tjek('V-PUDS.3 N4: Ny sag: en fejl fra Rust efter et forsøg vises som før (fejlfeltet, dialogen åben)', rustFejl.length > 10 && rustFejl !== 'Skriv et navn.' && aaben(d, 'dlg-ny-sag'), rustFejl);
+  udl.value = '2027-02-28';
+  udl.dispatchEvent(new w.Event('change', { bubbles: true }));
+  tjek('V-PUDS.3 N4: … og ryddes, når et vilkårligt felt ændres (her Udløb), fordi den ikke hører til ét felt', fe.textContent === '');
+  // Åbnet igen efter "Skriv et navn.": kittet tømmer fejlfeltet ved åbning, og en fejl fra Rust gælder hele dialogen.
+  skriv(w, navn, '');
+  klik(w, d.getElementById('ny-sag-opret')); await vent(5);
+  klik(w, d.querySelector('#dlg-ny-sag [data-svar="annuller"]'));
+  klik(w, knapI(d, 'sager', 'ny-sag'));
+  const tomVedAabning = fe.textContent === '';
+  skriv(w, navn, 'Supportsag 0100');
+  klik(w, d.getElementById('ny-sag-opret')); await vent(10);
+  const igen = fe.textContent;
+  udl.value = '2027-03-31';
+  udl.dispatchEvent(new w.Event('change', { bubbles: true }));
+  tjek('V-PUDS.3 N4: Ny sag åbnet igen efter "Skriv et navn.": fejlfeltet er tomt, og en fejl fra Rust ryddes stadig af et vilkårligt felt (her Udløb)', tomVedAabning && igen === rustFejl && fe.textContent === '', `${tomVedAabning} «${igen}» «${fe.textContent}»`);
+  klik(w, d.querySelector('#dlg-ny-sag [data-svar="annuller"]'));
+  // Omdøb
+  klik(w, sagRaekke(d, hexId(1)).children[0]);
+  klik(w, knapI(d, 'sager', 'omdoeb'));
+  const ofe = d.getElementById('dlg-omdoeb-fejl'), onavn = d.getElementById('omdoeb-navn');
+  skriv(w, onavn, '   ');
+  klik(w, d.getElementById('omdoeb-ok')); await vent(5);
+  tjek('V-PUDS.3 N4: Omdøb: tomt navn giver fejlen (som før)', aaben(d, 'dlg-omdoeb') && ofe.textContent === 'Skriv et navn.');
+  skriv(w, onavn, 'Supportsag 0043');
+  tjek('V-PUDS.3 N4: Omdøb: fejlen forsvinder, så snart der skrives i Navn', ofe.textContent === '');
+  klik(w, d.querySelector('#dlg-omdoeb [data-svar="annuller"]'));
+  // Udløb: fejlen handler om udløbet; både en dato og "Ingen udløb" rydder den.
+  klik(w, knapI(d, 'sager', 'udloeb'));
+  const ufe = d.getElementById('dlg-udloeb-fejl'), uingen = d.getElementById('udloeb-ingen'), udato = d.getElementById('udloeb-dato');
+  const saetIngen = v => { uingen.checked = v; uingen.dispatchEvent(new w.Event('change', { bubbles: true })); };
+  saetIngen(false);
+  klik(w, d.getElementById('udloeb-ok')); await vent(5);
+  tjek('V-PUDS.3 N4: Udløb: uden dato og uden flueben giver fejlen (som før)', ufe.textContent === 'Vælg en dato, eller sæt flueben ved Ingen udløb.');
+  saetIngen(true);
+  tjek('V-PUDS.3 N4: Udløb: fejlen forsvinder ved flueben i Ingen udløb', ufe.textContent === '');
+  saetIngen(false);
+  klik(w, d.getElementById('udloeb-ok')); await vent(5);
+  udato.value = datoOm(20);
+  udato.dispatchEvent(new w.Event('input', { bubbles: true }));
+  tjek('V-PUDS.3 N4: Udløb: … og når en dato vælges', ufe.textContent === '' && aaben(d, 'dlg-udloeb'));
+  klik(w, d.querySelector('#dlg-udloeb [data-svar="annuller"]'));
+}
+{
+  // Tilføj post (fejl under feltet og i fejlfeltet), Indstillinger (fejl fra Rust) og guiden (fejl under feltet).
+  const rust = falskOrdbogRust({ indst: { guide_vist: true }, gemFejl: true });
+  const s = side({ hash: '#ordbog', rust });
+  const { d, w } = s;
+  await vent(20);
+  klik(w, knapI(d, 'ordbog', 'tilfoej-post'));
+  const vaerdi = d.getElementById('opost-vaerdi'), note = d.getElementById('opost-note'), vfe = d.getElementById('opost-vaerdi-fejl'), pfe = d.getElementById('dlg-opost-fejl');
+  klik(w, d.getElementById('opost-ok')); await vent(5);
+  tjek('V-PUDS.3 N4: Tilføj post: tom værdi giver fejlen under Værdi (som før)', vfe.textContent === 'Skriv en værdi.' && vaerdi.getAttribute('aria-invalid') === 'true');
+  skriv(w, note, 'n');
+  tjek('V-PUDS.3 N4: Tilføj post: fejlen under Værdi bliver stående, når Note ændres', vfe.textContent === 'Skriv en værdi.');
+  skriv(w, vaerdi, 'k');
+  tjek('V-PUDS.3 N4: Tilføj post: fejlen under Værdi forsvinder, så snart der skrives i Værdi (også aria-invalid)', vfe.textContent === '' && !vaerdi.hasAttribute('aria-invalid'));
+  skriv(w, vaerdi, 'kontor.test');
+  klik(w, d.getElementById('opost-ok')); await vent(10);
+  const pf = pfe.textContent;
+  tjek('V-PUDS.3 N4: Tilføj post: en fejl fra Rust, der ikke hører til et felt, står i fejlfeltet (som før)', pf.length > 10 && aaben(d, 'dlg-opost'), pf);
+  skriv(w, note, 'arbejdsstationer');
+  tjek('V-PUDS.3 N4: … og ryddes, når et vilkårligt felt ændres (her Note)', pfe.textContent === '');
+  klik(w, d.querySelector('#dlg-opost [data-svar="annuller"]'));
+  // Indstillinger: en fejl fra Rust efter en ændring; næste ændring rydder den.
+  s.emit('menu', 'indstillinger'); await vent(5);
+  const ife = d.getElementById('dlg-indst-fejl'), fremmede = d.getElementById('indst-fremmede');
+  fremmede.checked = !fremmede.checked;
+  fremmede.dispatchEvent(new w.Event('change', { bubbles: true })); await vent(10);
+  tjek('V-PUDS.3 N4: Indstillinger: en fejl fra Rust efter en ændring vises som før', ife.textContent.length > 10, ife.textContent);
+  const lys = d.querySelector('input[name="indst-tema"][value="moerk"]');
+  lys.checked = true;
+  lys.dispatchEvent(new w.Event('change', { bubbles: true }));
+  tjek('V-PUDS.3 N4: … og ryddes ved næste ændring i dialogen (her Tema, som ikke går til Rust)', ife.textContent === '');
+  // Guiden: fejlen under feltet ryddes, når der skrives i det.
+  klik(w, d.getElementById('indst-guide')); await vent(5);
+  klik(w, [...d.querySelectorAll('#dlg-guide .fod button')][2]); await vent(5);
+  const gf = d.getElementById('guide-domaene'), gfe = d.getElementById('guide-domaene-fejl');
+  klik(w, gf.closest('.guide-felt').querySelector('button'));
+  tjek('V-PUDS.3 N4: guiden: tomt felt giver fejlen under feltet (som før)', gfe.textContent === 'Skriv en værdi.' && gf.getAttribute('aria-invalid') === 'true');
+  skriv(w, gf, 'e');
+  tjek('V-PUDS.3 N4: guiden: fejlen forsvinder, så snart der skrives i feltet', gfe.textContent === '' && !gf.hasAttribute('aria-invalid'));
+  tjek('V-PUDS.3 N4: lytteren står i opsamlingsfasen på dialogen (input og change), så et felts egen fejl ved samme ændring bliver stående', /addEventListener\('input', ryd, true\)/.test(ui('assets/app.js')) && /addEventListener\('change', ryd, true\)/.test(ui('assets/app.js')));
+}
+
+// ── N5: linjetal straks og størrelse i en enhed, der passer ──
+{
+  const { w } = side();
+  await vent(5);
+  const GM = w.GrimnirMaskering;
+  const rs = fs.readFileSync(path.join(repo, 'src-tauri', 'src', 'fil.rs'), 'utf8');
+  const fra = rs.indexOf('fn antal_linjer_efter_reglen');
+  const blok = rs.slice(fra, rs.indexOf('for &(t, n) in tilfaelde', fra));
+  const tilf = [...blok.matchAll(/\("((?:[^"\\]|\\.)*)", (\d+)\)/g)].map(m => [m[1].replace(/\\(.)/g, (_, c) => ({ r: '\r', n: '\n', t: '\t' }[c] ?? c)), Number(m[2])]);
+  const forkert = tilf.filter(([t, n]) => GM.antalLinjer(t) !== n).map(([t, n]) => `${JSON.stringify(t)}: ${GM.antalLinjer(t)} ≠ ${n}`);
+  tjek(`V-PUDS.3 N5: webvisningens linjetal følger Rusts regel i alle ${tilf.length} tilfælde i fil.rs (antal_linjer_efter_reglen)`, fra > 0 && tilf.length >= 16 && forkert.length === 0, forkert.join(' | '));
+  // Tilfældige tekster af LF, CR, CRLF, bogstaver, æ og et tegn uden for BMP mod reglen skrevet som i Rust (linjeskift_ved).
+  const rustRegel = t => { if (!t) return 0; let n = 0; for (let i = 0; i < t.length; i++) { if (t[i] === '\n' || (t[i] === '\r' && t[i + 1] !== '\n')) n++; } return n + (/[\r\n]$/.test(t) ? 0 : 1); };
+  let frø = 7, afv = [];
+  const tilfaeldig = () => { frø = (frø * 1103515245 + 12345) % 2147483648; return frø / 2147483648; };
+  const ALFA = ['a', 'b', '\r', '\n', '\r\n', 'æ', '😀', ' '];
+  for (let k = 0; k < 3000; k++) {
+    let t = '';
+    const n = Math.floor(tilfaeldig() * 12);
+    for (let i = 0; i < n; i++) t += ALFA[Math.floor(tilfaeldig() * ALFA.length)];
+    if (GM.antalLinjer(t) !== rustRegel(t)) afv.push(JSON.stringify(t));
+  }
+  tjek('V-PUDS.3 N5: … og i 3000 tilfældige tekster af LF, CR, CRLF, æ og 😀 (samme regel skrevet tegn for tegn)', afv.length === 0, afv.slice(0, 3).join(' | '));
+  const S = w.Sprog;
+  const str = b => GM.stoerrelse(b);
+  S.saet('da');
+  const da = [0, 1, 2, 1023, 1024, 1535, 1536, 104857, 104858, 5 * 1048576, 8 * 1048576].map(str);
+  tjek('V-PUDS.3 N5: størrelsen på dansk: bytes under 1 kB, hele kB under 0,1 MB, MB med én decimal og komma', da.join(' | ') === '0 bytes | 1 byte | 2 bytes | 1.023 bytes | 1 kB | 1 kB | 2 kB | 102 kB | 0,1 MB | 5,0 MB | 8,0 MB', da.join(' | '));
+  S.saet('en');
+  const en = [0, 1, 1023, 1024, 104857, 104858, 5 * 1048576].map(str);
+  tjek('V-PUDS.3 N5: … og på engelsk med punktum og komma som tusindtalsskille', en.join(' | ') === '0 bytes | 1 byte | 1,023 bytes | 1 kB | 102 kB | 0.1 MB | 5.0 MB', en.join(' | '));
+  S.saet('da');
+}
+{
+  const s = side({ rust: falskRust() });
+  const { d, w } = s;
+  await vent(5);
+  const GM = w.GrimnirMaskering;
+  const sek = d.querySelector('section[data-visning="masker"]');
+  const info = () => sek.querySelector('.panel .panel-hoved .muted').textContent;
+  const kaldFoer = s.kald.length;
+  indsaet(w, sek.querySelector('.tomt'), TEKST);
+  const n = GM.utf8Laengde(TEKST);
+  tjek(`V-PUDS.3 N5: Maskér før analysen: panelhovedet viser linjetallet straks og størrelsen i bytes ("3 linjer · ${n} bytes")`, info() === `3 linjer · ${n} bytes`, info());
+  tjek('V-PUDS.3 N5: … uden et kald til Rust (teksten sendes ingen steder hen for at blive talt)', s.kald.length === kaldFoer, JSON.stringify(s.kald.slice(kaldFoer).map(k => k[0])));
+  s.tast('Enter', { metaKey: true }); await vent(5);
+  tjek('V-PUDS.3 N5: … og efter analysen det samme tal fra Rust', info() === `3 linjer · ${n} bytes` && s.kald.some(k => k[0] === 'analyser'), info());
+  const stor = 'x'.repeat(200000) + '\n' + 'y'.repeat(10);
+  indsaet(w, sek.querySelector('pre.tekst'), stor);
+  tjek('V-PUDS.3 N5: en tekst på 200.011 bytes: "2 linjer · 0,2 MB"', info() === '2 linjer · 0,2 MB', info());
+  w.Sprog.saet('en'); await vent(5);
+  tjek('V-PUDS.3 N5: sprogskift: talformatet følger med ("2 lines · 0.2 MB")', info() === '2 lines · 0.2 MB', info());
+  w.Sprog.saet('da'); await vent(5);
+  w.location.hash = 'demasker'; await vent(5);
+  const dsek = d.querySelector('section[data-visning="demasker"]');
+  indsaet(w, dsek.querySelector('.tomt'), 'Prøv h0099\n');
+  tjek('V-PUDS.3 N5: Demaskér før demaskering: "1 linje · 12 bytes" (det samme i Demaskér)', dsek.querySelector('.panel .panel-hoved .muted').textContent === '1 linje · 12 bytes', dsek.querySelector('.panel .panel-hoved .muted').textContent);
+  tjek('V-PUDS.3 N5: sprog.js: tekstInfo har størrelsen som en færdig tekst ({w}) og enhederne bytes, kB og MB i begge sprog', ['da', 'en'].every(sp => /· \{w\}'?$/.test(w.Sprog.TEKST[sp].tekstInfo) && w.Sprog.TEKST[sp].strB === '{v} {v:byte|bytes}' && w.Sprog.TEKST[sp].strKB === '{v} kB' && w.Sprog.TEKST[sp].strMB === '{v} MB'));
+}
+
+// ── N6: Indsæt i båndet ──
+{
+  const s = side({ rust: falskRust() });
+  const { d, w } = s;
+  await vent(5);
+  const kaldt = [];
+  // jsdom indsætter ikke selv: som en webvisning, der ikke må hente udklipsholderen (execCommand giver false).
+  d.execCommand = c => { kaldt.push(c); return false; };
+  const sek = d.querySelector('section[data-visning="masker"]');
+  const arb = sek.querySelector('.arbejde'), tb = sek.querySelector('.tom-bannere');
+  const synlig = e => { for (let a = e; a; a = a.parentElement) if (a.hidden) return false; return true; };
+  // Bannerets tekst (kittets banner har et symbol foran ordene).
+  const ord = e => { const o = e && e.querySelector('.ban .ord'); return o ? o.textContent : null; };
+  klik(w, knapI(d, 'masker', 'indsaet'));
+  tjek('V-PUDS.3 N6: Indsæt kalder execCommand("paste") i selve klikket (en brugerhandling), samme vej som ⌘V', kaldt.join() === 'paste');
+  tjek('V-PUDS.3 N6: Indsæt uden tekst: kan webvisningen ikke hente udklipsholderen, står "Tryk ⌘V for at indsætte." synligt over den tomme flade', arb.hidden && ord(tb) === 'Tryk ⌘V for at indsætte.' && synlig(tb.querySelector('.ban')), tb.textContent);
+  tjek('V-PUDS.3 N6: … ikke i det skjulte arbejde (det var fejlen: beskeden stod i .arbejde .besked, som er skjult uden en tekst)', sek.querySelector('.arbejde .besked').textContent === '');
+  klik(w, knapI(d, 'masker', 'indsaet'));
+  tjek('V-PUDS.3 N6: et nyt klik giver stadig én besked, ikke to', tb.children.length === 1);
+  indsaet(w, sek.querySelector('.tomt'), TEKST);
+  tjek('V-PUDS.3 N6: … og beskeden forsvinder, når teksten kommer (⌘V)', tb.textContent === '' && !arb.hidden);
+  klik(w, knapI(d, 'masker', 'indsaet'));
+  const besk = sek.querySelector('.arbejde .besked');
+  tjek('V-PUDS.3 N6: med en tekst står beskeden som før over teksten (synlig)', besk.textContent === 'Tryk ⌘V for at indsætte.' && synlig(besk) && tb.textContent === '');
+  w.location.hash = 'demasker'; await vent(5);
+  const dsek = d.querySelector('section[data-visning="demasker"]');
+  klik(w, knapI(d, 'demasker', 'indsaet'));
+  tjek('V-PUDS.3 N6: det samme i Demaskér uden tekst', dsek.querySelector('.arbejde').hidden && ord(dsek.querySelector('.tom-bannere')) === 'Tryk ⌘V for at indsætte.');
+  d.execCommand = c => { kaldt.push(c); return true; };
+  dsek.querySelector('.tom-bannere').textContent = '';
+  klik(w, knapI(d, 'demasker', 'indsaet'));
+  tjek('V-PUDS.3 N6: indsætter webvisningen selv (execCommand giver true), står der ingen besked', dsek.querySelector('.tom-bannere').textContent === '' && dsek.querySelector('.arbejde .besked').textContent === '');
+  const sw = side({ platform: 'windows' });
+  await vent(5);
+  sw.d.execCommand = () => false;
+  klik(sw.w, knapI(sw.d, 'masker', 'indsaet'));
+  tjek('V-PUDS.3 N6: Windows: "Tryk Ctrl+V for at indsætte."', ord(sw.d.querySelector('section[data-visning="masker"] .tom-bannere')) === 'Tryk Ctrl+V for at indsætte.', sw.d.querySelector('section[data-visning="masker"] .tom-bannere').textContent);
+}
+
+// ── N7: skjult tekst i en tabel trækker ikke siden med ──
+{
+  const rust = falskOrdbogRust({ poster: [{ type: 'ord', vaerdi: 'Uglebo' }], indst: { guide_vist: true } });
+  const s = side({ rust: { ...falskRust(), ...rust } });
+  const { d, w } = s;
+  await vent(20);
+  indsaet(w, d.querySelector('section[data-visning="masker"] .tomt'), TEKST);
+  s.tast('Enter', { metaKey: true }); await vent(10);
+  const iTabel = [...d.querySelectorAll('table .skjult-tekst')].filter(e => cssVaerdi(e, 'position') === 'absolute');
+  const udenForfader = e => { for (let a = e.parentElement; a; a = a.parentElement) { const p = cssVaerdi(a, 'position'); if (p && p !== 'static') return false; if (a.classList.contains('tabelvaert')) return true; } return true; };
+  const uden = iTabel.filter(udenForfader);
+  tjek('V-PUDS.3 N7: ingen absolut placeret skjult tekst i en tabel mangler en forfader med position (inden for tabellens rullefelt)', iTabel.length >= 10 && uden.length === 0, `${iTabel.length} i tabeller, ${uden.length} uden: ${uden.slice(0, 2).map(e => elNavn(e.parentElement)).join(', ')}`);
+  tjek('V-PUDS.3 N7: rullefeltet (.tabelvaert) har position: relative, som kittets .tabel-rul', cssVaerdi(d.querySelector('section[data-visning="masker"] .tabelvaert'), 'position') === 'relative' && CSS_REGLER.some(r => r.sel === '.tabel-rul' && r.decl.position === 'relative'));
+  // Gennemgang: alle skjulte tekster i Grimnirs visninger (alle fire, med indhold), også uden for tabeller.
+  w.location.hash = 'ordbog'; await vent(10);
+  w.location.hash = 'masker'; await vent(5);
+  const alle = [...d.querySelectorAll('.skjult-tekst')].filter(e => cssVaerdi(e, 'position') === 'absolute');
+  const udenNogen = alle.filter(e => { for (let a = e.parentElement; a; a = a.parentElement) { const p = cssVaerdi(a, 'position'); if (p && p !== 'static') return false; } return true; });
+  tjek(`V-PUDS.3 N7: gennemgang: hver af de ${alle.length} skjulte tekster i Grimnir har en forfader med position`, alle.length >= 10 && udenNogen.length === 0, udenNogen.map(e => elNavn(e.parentElement)).join(', '));
 }
 
 console.log(`\n${ok + fejl} tjek: ${ok} ok, ${fejl} fejl`);

@@ -250,11 +250,34 @@
      den kan findes, før den åbnes. Kun én dialog er åben ad gangen: aabnDialog lukker de andre og åbner den ene; fokus
      kan peges på (et knap-svar, et id eller et element), ellers vælger kittet. bekraeft er kittets Kit.bekraeft med
      samme regel (fra 2.5.0 med ved: en bekræftelse, der kan fejle, G2). */
+  /* V-PUDS.3 N4: fejlen i fejlfeltet ryddes, når brugeren ændrer det felt, den handler om (d.fejl(tekst, felt), også en
+     liste af felter), eller et vilkårligt felt i dialogen, når den ikke hører til ét felt (d.fejl(tekst) og en fejl fra
+     Rust efter et forsøg, som kittet selv viser). Feltet hører kun til den tekst, det blev sat med: en fejl, kittet
+     selv har sat (fra Rust, eller fejlfeltet tømt ved åbning), gælder hele dialogen. Lytteren står i opsamlingsfasen,
+     så en fejl, som feltets egen lytter sætter ved samme ændring, bliver stående. Kittet har det ikke (kit-ønske G17). */
   const KITDLG = {};
   function kitDialog(o) {
     const dl = K.dialog({ udfyld: e => S.anvend(e), ...o });
     document.body.appendChild(dl.rod);
     S.anvend(dl.rod);
+    if (o.fejl) {
+      const kitFejl = dl.fejl, fejlEl = dl.rod.querySelector('.modal-fejl');
+      let fejlFelt = null, fejlTekst = null;
+      dl.fejl = (v, felt) => {
+        kitFejl(v);
+        fejlFelt = v != null && felt ? [].concat(felt) : null;
+        fejlTekst = fejlFelt ? fejlEl.textContent : null;
+      };
+      const ryd = e => {
+        if (!fejlEl.textContent) return;
+        const felt = fejlFelt && fejlEl.textContent === fejlTekst ? fejlFelt : null;
+        if (felt && !felt.includes(e.target)) return;
+        fejlFelt = null;
+        kitFejl(null);
+      };
+      dl.rod.addEventListener('input', ryd, true);
+      dl.rod.addEventListener('change', ryd, true);
+    }
     KITDLG[o.id] = dl;
     return dl;
   }
