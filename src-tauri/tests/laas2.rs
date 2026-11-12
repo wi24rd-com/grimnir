@@ -23,6 +23,8 @@ use grimnir_lib::maskering::{
 };
 // V-KVIT.1: den nye kommando `kvittering` står i listen over kommandoer, der svarer `laast` (`alle_kommandoer`).
 use grimnir_lib::maskering::kvittering;
+// V-MANUEL.2: den nye kommando `sag_indhold` står også i listen (`alle_kommandoer`).
+use grimnir_lib::maskering::{sag_indhold, IndholdValg};
 use grimnir_lib::sager::{HukommelsesLager, Noegle, Noeglelager, SagFejl, SagsId};
 
 /// En midlertidig mappe, der slettes igen.
@@ -145,6 +147,9 @@ fn alle_kommandoer(t: &Tilstand, fil: &std::path::Path, id: &str) -> Vec<(&'stat
         ("udklip_kopieret", j(udklip_kopieret(t, false).map(|x| v(&x)))),
         // V-KVIT.1.
         ("kvittering", j(kvittering(t, false, "da").map(|x| v(&x)))),
+        // V-MANUEL.2: sagens indhold (den åbne og en sag på disk).
+        ("sag_indhold", j(sag_indhold(t, None, &IndholdValg::default()).map(|x| v(&x)))),
+        ("sag_indhold", j(sag_indhold(t, Some(id), &IndholdValg::default()).map(|x| v(&x)))),
     ]
 }
 

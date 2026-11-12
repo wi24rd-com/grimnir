@@ -1,0 +1,40 @@
+2026-11-10 08:00:00 db1: job startet af jdoe, projekt Nordlys
+2026-11-10 08:00:07 kunde Havblik A/S ringede om printer-gang2 (kontakt: bpro)
+2026-11-10 08:00:14 fejl: ADM-CARLA har ikke adgang til printer-gang2
+2026-11-10 08:00:21 fejl: BPRO har ikke adgang til db1
+2026-11-10 08:00:28 pc-17: job startet af adm-carla, projekt Nordlys
+2026-11-10 08:00:35 kunde Havblik A/S ringede om db1 (kontakt: svc-backup)
+2026-11-10 08:00:42 kunde Havblik A/S ringede om pc-17 (kontakt: bpro)
+2026-11-10 08:00:49 kunde Havblik A/S ringede om kasse3 (kontakt: atest)
+2026-11-10 08:00:56 fejl: JDOE har ikke adgang til kasse3
+2026-11-10 08:01:03 fejl: ADM-CARLA har ikke adgang til pc-17
+2026-11-10 08:01:10 db1: job startet af jdoe, projekt Nordlys
+2026-11-10 08:01:17 login adm-carla fra 10.20.30.37
+2026-11-10 08:01:24 fejl: BPRO har ikke adgang til pc-17
+2026-11-10 08:01:31 fejl: SVC-BACKUP har ikke adgang til kasse3
+2026-11-10 08:01:38 kunde Havblik A/S ringede om pc-17 (kontakt: jdoe)
+2026-11-10 08:01:45 pc-17: job startet af svc-backup, projekt Nordlys
+2026-11-10 08:01:52 fejl: JDOE har ikke adgang til kasse3
+2026-11-10 08:01:59 kunde Havblik A/S ringede om db1 (kontakt: bpro)
+2026-11-10 08:02:06 db1: job startet af jdoe, projekt Nordlys
+2026-11-10 08:02:13 login adm-carla fra 10.20.31.190
+2026-11-10 08:02:20 pc-17: job startet af bpro, projekt Nordlys
+2026-11-10 08:02:27 pc-17: job startet af bpro, projekt Nordlys
+2026-11-10 08:02:34 db1: job startet af adm-carla, projekt Nordlys
+2026-11-10 08:02:41 login jdoe fra 10.20.31.238
+2026-11-10 08:02:48 login jdoe fra 10.20.40.174
+2026-11-10 08:02:55 login adm-carla fra 10.20.30.87
+2026-11-10 08:03:02 printer-gang2: job startet af bpro, projekt Nordlys
+2026-11-10 08:03:09 kunde Havblik A/S ringede om pc-17 (kontakt: adm-carla)
+2026-11-10 08:03:16 kasse3: job startet af svc-backup, projekt Nordlys
+2026-11-10 08:03:23 fejl: SVC-BACKUP har ikke adgang til printer-gang2
+2026-11-10 08:03:30 kasse3: job startet af adm-carla, projekt Nordlys
+2026-11-10 08:03:37 kunde Havblik A/S ringede om kasse3 (kontakt: bpro)
+2026-11-10 08:03:44 kunde Havblik A/S ringede om printer-gang2 (kontakt: atest)
+2026-11-10 08:03:51 fejl: BPRO har ikke adgang til printer-gang2
+2026-11-10 08:03:58 kunde Havblik A/S ringede om db1 (kontakt: adm-carla)
+2026-11-10 08:04:05 kunde Havblik A/S ringede om db1 (kontakt: adm-carla)
+2026-11-10 08:04:12 login adm-carla fra 10.20.31.228
+2026-11-10 08:04:19 printer-gang2: job startet af jdoe, projekt Nordlys
+2026-11-10 08:04:26 kasse3: job startet af svc-backup, projekt Nordlys
+2026-11-10 08:04:33 printer-gang2: job startet af svc-backup, projekt Nordlys

@@ -75,6 +75,10 @@ struct Ctx<'a> {
     ordbog: &'a Ordbog,
     opslag: &'a Opslag,
     dns: Vec<String>,
+    /// V-MANUEL.2 N2: sikkerheden for et FQDN under hvert domæne i `dns` (samme plads): ordbogens domæner er
+    /// [`Sikkerhed::Ordbog`], domæner fra tekstens mailadresser [`Sikkerhed::Sikker`] og domæner fra værtskolonnen i en
+    /// syslog-linje [`Sikkerhed::Sandsynlig`].
+    dns_sikkerhed: Vec<Sikkerhed>,
     netbios: Vec<String>,
     k: Vec<Kandidat>,
 }
@@ -164,23 +168,53 @@ impl Ctx<'_> {
         Vec::new()
     }
 
-    /// Opdeler `vaert.under.domaene` i vært og domæne, hvis det ender på et af ordbogens domæner.
+    /// Opdeler `vaert.under.domaene` i vært og domæne, hvis det ender på et af ordbogens domæner eller (V-MANUEL.2 N2) et
+    /// domæne, teksten selv viser ([`tekstens_domaener`]). Første led er maskinen; resten (mellemled og domænet) er ét
+    /// domæne, som for ordbogens domæner før.
     fn fqdn_dele(&self, start: usize, slut: usize) -> Option<Vec<Fund>> {
         let s = self.t[start..slut].to_ascii_lowercase();
-        for d in &self.dns {
+        for (i, d) in self.dns.iter().enumerate() {
             let d = d.as_bytes();
+            let sikkerhed = self.dns_sikkerhed.get(i).copied().unwrap_or(Sikkerhed::Ordbog);
             if s == d {
-                return Some(vec![fund(start, slut, Art::Domaene, Sikkerhed::Ordbog, None)]);
+                return Some(vec![fund(start, slut, Art::Domaene, sikkerhed, None)]);
             }
             if s.len() > d.len() + 1 && s.ends_with(d) && s[s.len() - d.len() - 1] == b'.' {
                 let p = s.iter().position(|b| *b == b'.').unwrap_or(0);
                 return Some(vec![
-                    fund(start, start + p, Art::Vaert, Sikkerhed::Ordbog, Some(Sammensat::Fqdn)),
-                    fund(start + p + 1, slut, Art::Domaene, Sikkerhed::Ordbog, Some(Sammensat::Fqdn)),
+                    fund(start, start + p, Art::Vaert, sikkerhed, Some(Sammensat::Fqdn)),
+                    fund(start + p + 1, slut, Art::Domaene, sikkerhed, Some(Sammensat::Fqdn)),
                 ]);
             }
         }
         None
+    }
+
+    /// V-MANUEL.2 N2: lægger et domæne, teksten viser, til listen over domæner, så et FQDN under det deles i maskine og
+    /// domæne. Et domæne, ordbogen har, et domæne på "maskér aldrig" og et domæne med en kodes form (`d01.example`) springes
+    /// over. Første led bliver et kendt NetBIOS-navn (`EKSEMPEL` i `EKSEMPEL\bruger`), som for ordbogens domæner.
+    fn tekstdomaene(&mut self, d: &[u8], sikkerhed: Sikkerhed) {
+        let d = d.to_ascii_lowercase();
+        if !d.contains(&b'.') || self.opslag.aldrig_tekst(&d) || har_kodeform(&d) {
+            return;
+        }
+        let Ok(d) = String::from_utf8(d) else { return };
+        if let Some(i) = self.dns.iter().position(|x| *x == d) {
+            // Samme domæne set flere steder: den stærkeste sammenhæng gælder (mail før værtskolonne).
+            if sikkerhed < self.dns_sikkerhed[i] && self.dns_sikkerhed[i] != Sikkerhed::Ordbog {
+                self.dns_sikkerhed[i] = sikkerhed;
+            }
+            return;
+        }
+        if let Some(f) = d
+            .split('.')
+            .next()
+            .filter(|f| !f.is_empty() && !self.netbios.iter().any(|n| n == f))
+        {
+            self.netbios.push(f.to_string());
+        }
+        self.dns.push(d);
+        self.dns_sikkerhed.push(sikkerhed);
     }
 }
 
@@ -274,7 +308,27 @@ const VERSIONSORD: [&str; 10] = [
     "version", "ver", "v", "build", "release", "firmware", "fw", "rev", "revision", "versjon",
 ];
 const MASKEORD: [&str; 4] = ["mask", "netmask", "subnetmask", "wildcard"];
-pub(crate) const STOPORD: [&str; 18] = [
+/// Almindelige ord, der ikke søges alene (afledte former, sagens kendte originaler). V-MANUEL.2 N2: også almindelige
+/// tjenestenavne forrest i et FQDN (`portal`, `vpn`, `smtp` …): i FQDN'et maskeres de som maskinens navn, men alene er de
+/// almindelige ord.
+pub(crate) const STOPORD: [&str; 35] = [
+    "portal",
+    "vpn",
+    "smtp",
+    "imap",
+    "pop",
+    "pop3",
+    "ftp",
+    "sftp",
+    "ns1",
+    "ns2",
+    "dns",
+    "web",
+    "webmail",
+    "intranet",
+    "proxy",
+    "gateway",
+    "api",
     "admin",
     "administrator",
     "root",
@@ -327,17 +381,23 @@ const NETBIOS_UNDTAGET: [&str; 16] = [
 pub fn analyser(tekst: &str, ordbog: &Ordbog) -> Vec<Fund> {
     let t = tekst.as_bytes();
     let opslag = ordbog.opslag();
+    let dns = ordbog.dns_domaener();
     let mut c = Ctx {
         t,
         ordbog,
         opslag: &opslag,
-        dns: ordbog.dns_domaener(),
+        dns_sikkerhed: vec![Sikkerhed::Ordbog; dns.len()],
+        dns,
         netbios: ordbog.netbios(),
         k: Vec::new(),
     };
 
     adresser(&mut c);
     hemmeligheder(&mut c);
+    // V-MANUEL.2 N2: mailadresser og værtskolonnen først, så deres domæner er kendt, når FQDN'er, URL'er, UNC-stier og
+    // nøgleord deles op.
+    mails(&mut c);
+    maskinnavne(&mut c);
     sammensatte(&mut c);
     noegleord(&mut c);
     ordbogen(&mut c);
@@ -361,17 +421,21 @@ pub fn analyser(tekst: &str, ordbog: &Ordbog) -> Vec<Fund> {
     let mut daekket = Daekning::ny(t.len());
     let mut ud = Vec::new();
     loes(sikre, &mut daekket, &mut ud);
-    afledte(t, &opslag, &mut daekket, &mut ud);
+    afledte(t, &opslag, &mut daekket, &mut ud, false);
     let mut c2 = Ctx {
         t,
         ordbog,
         opslag: &opslag,
         dns: Vec::new(),
+        dns_sikkerhed: Vec::new(),
         netbios: Vec::new(),
         k: tjek,
     };
     tjek_selv(&mut c2);
     loes(c2.k, &mut daekket, &mut ud);
+    // V-MANUEL.2 N3: et maskinnavn med svag sammenhæng ("Tjek selv") findes også de andre steder, det står, så hele navnet er
+    // én række, og et valg af rækken maskerer alle steder.
+    afledte(t, &opslag, &mut daekket, &mut ud, true);
 
     // Sikring: et fund skal stå ved grænser efter den fælles grænseregel, ellers kan koden ikke findes igen.
     ud.retain(|f| {
@@ -382,6 +446,17 @@ pub fn analyser(tekst: &str, ordbog: &Ordbog) -> Vec<Fund> {
     });
     ud.sort_by_key(|f| (f.start, f.slut));
     ud.dedup_by_key(|f| (f.start, f.slut));
+    // To fund lige op ad hinanden (kun muligt, når de begynder eller slutter med et grænsetegn, fx en tilføjet værdi `=` i
+    // `==`) ville give to koder uden grænse imellem (`h0001h0001`), som demaskeringen ikke kan finde. Det andet tages ikke
+    // med; det står urørt (fundet af egenskabstesten i V-MANUEL.2, fejlen er fra V-MANUEL.1).
+    let mut slut = usize::MAX;
+    ud.retain(|f| {
+        let ok = f.start != slut;
+        if ok {
+            slut = f.slut;
+        }
+        ok
+    });
     ud
 }
 
@@ -401,10 +476,16 @@ fn loes(mut k: Vec<Kandidat>, daekket: &mut Daekning, ud: &mut Vec<Fund>) {
 }
 
 /// Afledte former: dele af sammensatte værdier (brugernavn, kort værtsnavn, domæne) søges som ord i hele teksten.
-fn afledte(t: &[u8], opslag: &Opslag, daekket: &mut Daekning, ud: &mut Vec<Fund>) {
+///
+/// `tjek`: V-MANUEL.2 N3: kun maskinnavne med status "Tjek selv" (de findes med samme status); ellers alle andre.
+fn afledte(t: &[u8], opslag: &Opslag, daekket: &mut Daekning, ud: &mut Vec<Fund>, tjek: bool) {
     let mut ord: HashMap<Vec<u8>, (Art, Sikkerhed)> = HashMap::new();
     for f in ud.iter() {
-        if !matches!(f.art, Art::Vaert | Art::Bruger | Art::NetbiosDomaene | Art::Domaene) {
+        let er_tjek = f.sikkerhed == Sikkerhed::TjekSelv;
+        if !matches!(f.art, Art::Vaert | Art::Bruger | Art::NetbiosDomaene | Art::Domaene)
+            || er_tjek != tjek
+            || (tjek && (f.art != Art::Vaert || f.afledt))
+        {
             continue;
         }
         let s = t[f.start..f.slut].to_ascii_lowercase();
@@ -542,7 +623,9 @@ fn hemmeligheder(c: &mut Ctx) {
     }
 }
 
-fn sammensatte(c: &mut Ctx) {
+/// Mail og UPN (også URL-kodet): bruger og domæne. V-MANUEL.2 N2: domænerne er tekstens egne domæner (sikre), så et FQDN
+/// under dem deles i maskine og domæne.
+fn mails(c: &mut Ctx) {
     let t = c.t;
     let mut nye: Vec<(usize, usize, u8, Vec<Fund>)> = Vec::new();
 
@@ -599,6 +682,363 @@ fn sammensatte(c: &mut Ctx) {
             ],
         ));
     }
+
+    for (s, e, p, d) in nye {
+        for f in d.iter().filter(|f| f.art == Art::Domaene) {
+            c.tekstdomaene(&t[f.start..f.slut], Sikkerhed::Sikker);
+        }
+        c.tilfoej(s, e, p, d);
+    }
+}
+
+/// V-MANUEL.2 N3: ord, der står hvor en maskine plejer at stå, men aldrig er en maskine (logniveauer, handlinger, ord fra
+/// en logs faste tekst). Små bogstaver.
+const IKKE_VAERT: [&str; 44] = [
+    "info",
+    "information",
+    "warn",
+    "warning",
+    "error",
+    "err",
+    "debug",
+    "trace",
+    "notice",
+    "crit",
+    "critical",
+    "alert",
+    "emerg",
+    "emergency",
+    "fatal",
+    "severe",
+    "verbose",
+    "kernel",
+    "system",
+    "localhost",
+    "local",
+    "unknown",
+    "none",
+    "null",
+    "true",
+    "false",
+    "fejl",
+    "advarsel",
+    "accept",
+    "drop",
+    "deny",
+    "allow",
+    "reject",
+    "block",
+    "ok",
+    "fail",
+    "failed",
+    "success",
+    "audit",
+    "cron",
+    "sshd",
+    "sudo",
+    "systemd",
+    "login",
+];
+
+/// V-MANUEL.2 N3: sand, hvis tokenet har et maskinnavns form: begynder med et bogstav, har kun bogstaver, cifre og `-`, slutter
+/// med et bogstav eller ciffer, er højst 63 tegn og står ikke på listen over ord, der aldrig er en maskine. Navne som
+/// netkort (`eth0`, `ens33`), teknik (`ipv6`, `utf-8`, `sha256`) og rene hextegn regnes ikke med.
+fn ligner_maskine(v: &[u8]) -> bool {
+    if v.len() < 2 || v.len() > 63 || !v[0].is_ascii_alphabetic() || !v[v.len() - 1].is_ascii_alphanumeric() {
+        return false;
+    }
+    if !v.iter().all(|b| b.is_ascii_alphanumeric() || *b == b'-') {
+        return false;
+    }
+    let l = v.to_ascii_lowercase();
+    let ls = String::from_utf8_lossy(&l);
+    if IKKE_VAERT.contains(&ls.as_ref()) || STOPORD.contains(&ls.as_ref()) {
+        return false;
+    }
+    let teknik = statisk!(concat!(
+        r"^(?:(?:eth|ens|enp|eno|wlan|wlp|lo|em|bond|br|vlan|tun|tap|wg|ppp|docker|veth)[0-9]",
+        r"|ipv[46]|utf-?(?:8|16|32)|sha-?[0-9]+|md5|x86|x64|amd64|arm64|i[3-6]86|win(?:32|64)|base64|http[0-9]|tls[0-9]",
+        r"|ssl[0-9]|ext[234]|fat32|v[0-9]+$|[0-9a-f]{8,}$",
+        // Tråde og trin i et programs log (`Thread-12`, `worker-3`, `pool-1-thread-2`, `step2`).
+        r"|(?:thread|worker|pool|task|job|executor|main|step|phase|stage|part|chunk|batch|item|run|try|attempt|retry|round|pass)-?[0-9])"
+    ));
+    !teknik.is_match(&l)
+}
+
+/// Sand, hvis tokenet har både et bogstav og et ciffer (`srv-db02`, `pc-17`, `dc01`): navnet på en maskine, ikke et ord.
+fn har_ciffer(v: &[u8]) -> bool {
+    v.iter().any(u8::is_ascii_digit) && v.iter().any(u8::is_ascii_alphabetic)
+}
+
+/// Sand, hvis hele teksten har en kodes form (`d01.example`, `h0001`).
+fn har_kodeform(v: &[u8]) -> bool {
+    let mut hel = false;
+    find_navnekoder(v, |s, e, _| hel |= s == 0 && e == v.len());
+    hel
+}
+
+/// V-MANUEL.2 N3: værtskolonnen i en syslog-linje: (start, slut, kolon lige efter, slutningen af mellemrummet efter) for
+/// tokenet efter tidsstemplet, eller `None`. Tidsstemplet er RFC 3164 (`Nov 10 08:00:00`, også efter `<PRI>`) eller ISO
+/// (`2026-11-10 08:00:00`, `2026-11-10T08:00:00.123+01:00`, også efter RFC 5424's `<PRI>1 `). Tokenet er
+/// `[A-Za-z0-9][A-Za-z0-9._-]{0,252}`, eventuelt med `:` lige efter, og følges af mellemrum eller linjens slutning (med
+/// eller uden `\r`). Skrevet i hånden i stedet for et regulært udtryk pr. linje (ydelse, se HANDOFF-V-MANUEL.2).
+fn vaertskolonne(l: &[u8]) -> Option<(usize, usize, bool, usize)> {
+    let ciffer = |k: usize| l.get(k).is_some_and(u8::is_ascii_digit);
+    let blank = |k: usize| matches!(l.get(k), Some(b' ' | b'\t'));
+    let mut i = 0;
+    if l.first() == Some(&b'<') {
+        let mut j = 1;
+        while j <= 3 && ciffer(j) {
+            j += 1;
+        }
+        if j == 1 || l.get(j) != Some(&b'>') {
+            return None;
+        }
+        i = j + 1;
+        if l.get(i) == Some(&b'1') && l.get(i + 1) == Some(&b' ') {
+            i += 2;
+        }
+    }
+    let tid = |j: usize| {
+        ciffer(j)
+            && ciffer(j + 1)
+            && l.get(j + 2) == Some(&b':')
+            && ciffer(j + 3)
+            && ciffer(j + 4)
+            && l.get(j + 5) == Some(&b':')
+            && ciffer(j + 6)
+            && ciffer(j + 7)
+    };
+    let mut j;
+    if l.get(i).is_some_and(u8::is_ascii_uppercase) {
+        // Nov 10 08:00:00
+        if !(l.get(i + 1).is_some_and(u8::is_ascii_lowercase) && l.get(i + 2).is_some_and(u8::is_ascii_lowercase) && blank(i + 3)) {
+            return None;
+        }
+        j = i + 3;
+        while blank(j) {
+            j += 1;
+        }
+        let d = j;
+        while ciffer(j) && j - d < 2 {
+            j += 1;
+        }
+        if j == d || !blank(j) {
+            return None;
+        }
+        while blank(j) {
+            j += 1;
+        }
+        if !tid(j) {
+            return None;
+        }
+        j += 8;
+    } else {
+        // 2026-11-10 08:00:00 eller 2026-11-10T08:00:00(.fff)(Z|+01:00)
+        let dato = (0..4).all(|k| ciffer(i + k))
+            && l.get(i + 4) == Some(&b'-')
+            && ciffer(i + 5)
+            && ciffer(i + 6)
+            && l.get(i + 7) == Some(&b'-')
+            && ciffer(i + 8)
+            && ciffer(i + 9)
+            && matches!(l.get(i + 10), Some(b'T' | b' '));
+        if !dato || !tid(i + 11) {
+            return None;
+        }
+        j = i + 19;
+        if matches!(l.get(j), Some(b'.' | b',')) && ciffer(j + 1) {
+            let s = j + 1;
+            let mut k = s;
+            while ciffer(k) && k - s < 9 {
+                k += 1;
+            }
+            j = k;
+        }
+        if l.get(j) == Some(&b'Z') {
+            j += 1;
+        } else if matches!(l.get(j), Some(b'+' | b'-')) && ciffer(j + 1) && ciffer(j + 2) {
+            let k = if l.get(j + 3) == Some(&b':') { j + 4 } else { j + 3 };
+            if ciffer(k) && ciffer(k + 1) {
+                j = k + 2;
+            }
+        }
+    }
+    if !blank(j) {
+        return None;
+    }
+    while blank(j) {
+        j += 1;
+    }
+    let s = j;
+    if !l.get(s).is_some_and(u8::is_ascii_alphanumeric) {
+        return None;
+    }
+    let mut e = s + 1;
+    while e < l.len() && e - s < 253 && (l[e].is_ascii_alphanumeric() || matches!(l[e], b'.' | b'_' | b'-')) {
+        e += 1;
+    }
+    let kolon = l.get(e) == Some(&b':');
+    let mut k = e + usize::from(kolon);
+    let slut = k >= l.len() || (l[k] == b'\r' && k + 1 == l.len());
+    if !slut && !blank(k) {
+        return None;
+    }
+    while blank(k) {
+        k += 1;
+    }
+    Some((s, e, kolon, k))
+}
+
+/// V-MANUEL.2 N3: maskinnavne efter, hvor de står.
+///
+/// 1. **Værtskolonnen i en syslog-linje**: tokenet lige efter tidsstemplet (RFC 3164 `Nov 10 08:00:00`, ISO
+///    `2026-11-10 08:00:00` eller `2026-11-10T08:00:00Z`, også efter `<PRI>` og RFC 5424's `1`).
+///    - Et navn med cifre (`srv-db02`, `pc-17`) er **Sandsynlig**; står der kolon lige efter (`db1:`), kan tokenet også
+///      være et programnavn, og det er **Tjek selv**.
+///    - Et ord uden cifre kan kun være en maskine, når et program står efter (`web sshd[42]:`, `kernel:`,
+///      `postfix/smtp:`): **Tjek selv** (`backup kernel:` kan være en maskine eller et ord). Ellers intet (`INFO`, `ACCEPT`,
+///      `fejl:`).
+///    - Et FQDN med mindst tre led (`dc01.intern.eksempel-firma.example`) deles i maskine og domæne (**Sandsynlig**), og
+///      domænet bliver et af tekstens domæner, så det også deler FQDN'er andre steder.
+/// 2. **Foran et program med proces-id eller `kernel:`** et andet sted på linjen (`srv-web03 sshd[812]:`): et navn med
+///    cifre er **Sandsynlig**; et ord uden cifre tages ikke (`the daemon sshd[100]:`).
+///
+/// Ord, der aldrig er en maskine ([`IKKE_VAERT`], [`STOPORD`]), adresser og tekniske navne ([`ligner_maskine`]) tages ikke.
+/// UNC-stier og nøgleord (`host=`, `ComputerName`, `server=`) har deres egne genkendere.
+fn maskinnavne(c: &mut Ctx) {
+    let t = c.t;
+    let mut nye: Vec<(usize, usize, Vec<Fund>)> = Vec::new();
+    let mut domaener: Vec<(usize, usize)> = Vec::new();
+    let program = statisk!(r"^(?:[A-Za-z][A-Za-z0-9_./-]{0,40}\[[0-9]{1,10}\]|kernel|[A-Za-z][A-Za-z0-9_-]{0,30}/[A-Za-z0-9_./-]{1,40}):");
+    let mut ls = 0;
+    while ls < t.len() {
+        let le = t[ls..].iter().position(|b| *b == b'\n').map_or(t.len(), |p| ls + p);
+        let naeste = le + 1;
+        let Some((vs, ve, kolon, efter)) = vaertskolonne(&t[ls..le]) else {
+            ls = naeste;
+            continue;
+        };
+        let (s, mut e, efter) = (ls + vs, ls + ve, ls + efter);
+        ls = naeste;
+        while e > s && matches!(t[e - 1], b'.' | b'-' | b'_') {
+            e -= 1;
+        }
+        let token = &t[s..e];
+        if laes_ipv4(token).is_some() || laes_ipv6(token).is_some() {
+            continue;
+        }
+        if token.contains(&b'.') {
+            // Et FQDN: første led er maskinen, resten domænet (mindst to led, sidste led er bogstaver).
+            let led: Vec<&[u8]> = token.split(|b| *b == b'.').collect();
+            let tld = led[led.len() - 1];
+            if kolon
+                || led.len() < 3
+                || tld.len() < 2
+                || !tld.iter().all(u8::is_ascii_alphabetic)
+                || led
+                    .iter()
+                    .any(|l| l.is_empty() || l.len() > 63 || !l.iter().all(|b| b.is_ascii_alphanumeric() || *b == b'-'))
+                || !ligner_maskine(led[0])
+            {
+                continue;
+            }
+            let p = s + led[0].len();
+            domaener.push((p + 1, e));
+            let f = Some(Sammensat::Fqdn);
+            nye.push((
+                s,
+                e,
+                vec![
+                    fund(s, p, Art::Vaert, Sikkerhed::Sandsynlig, f),
+                    fund(p + 1, e, Art::Domaene, Sikkerhed::Sandsynlig, f),
+                ],
+            ));
+            continue;
+        }
+        if !ligner_maskine(token) {
+            continue;
+        }
+        let sikkerhed = if har_ciffer(token) {
+            if kolon {
+                Sikkerhed::TjekSelv
+            } else {
+                Sikkerhed::Sandsynlig
+            }
+        } else if !kolon && program.is_match(&t[efter..]) {
+            Sikkerhed::TjekSelv
+        } else {
+            continue;
+        };
+        nye.push((s, e, vec![fund(s, e, Art::Vaert, sikkerhed, None)]));
+    }
+
+    // Foran et program med proces-id eller kernel: et andet sted (ikke i værtskolonnen, som er taget ovenfor). Ankrene
+    // (`]:` og `kernel:`) findes først; derfra læses programmet og navnet foran baglæns.
+    static ANKRE: OnceLock<Option<AhoCorasick>> = OnceLock::new();
+    let kolonnen: Vec<(usize, usize)> = nye.iter().map(|(s, e, _)| (*s, *e)).collect();
+    let mut foran: Vec<(usize, usize)> = Vec::new();
+    if let Some(ac) = ANKRE.get_or_init(|| AhoCorasick::new(["]:", "kernel:"]).ok()) {
+        for a in ac.find_iter(t) {
+            // Programmets start: `navn[123]:` eller `kernel:` ved en grænse.
+            let mut p = a.start();
+            if a.pattern().as_usize() == 0 {
+                let mut q = p;
+                while q > 0 && t[q - 1].is_ascii_digit() {
+                    q -= 1;
+                }
+                if q == p || q == 0 || t[q - 1] != b'[' {
+                    continue;
+                }
+                p = q - 1;
+                while p > 0 && (t[p - 1].is_ascii_alphanumeric() || matches!(t[p - 1], b'_' | b'.' | b'/' | b'-')) {
+                    p -= 1;
+                }
+                if p == q - 1 || !t[p].is_ascii_alphabetic() {
+                    continue;
+                }
+            } else if p > 0 && t[p - 1].is_ascii_alphanumeric() {
+                continue;
+            }
+            // Mellemrum og navnet foran.
+            let mut e = p;
+            while e > 0 && matches!(t[e - 1], b' ' | b'\t') {
+                e -= 1;
+            }
+            if e == p {
+                continue;
+            }
+            let mut s = e;
+            while s > 0 && (t[s - 1].is_ascii_alphanumeric() || t[s - 1] == b'-') {
+                s -= 1;
+            }
+            if s == e || (s > 0 && !matches!(t[s - 1], b' ' | b'\t' | b'\n')) {
+                continue;
+            }
+            let token = &t[s..e];
+            let i = kolonnen.partition_point(|x| x.1 <= s);
+            if !ligner_maskine(token) || !har_ciffer(token) || kolonnen.get(i).is_some_and(|x| x.0 < e) || foran.last() == Some(&(s, e)) {
+                continue;
+            }
+            foran.push((s, e));
+        }
+    }
+    for (s, e) in foran {
+        nye.push((s, e, vec![fund(s, e, Art::Vaert, Sikkerhed::Sandsynlig, None)]));
+    }
+
+    for (s, e) in domaener {
+        c.tekstdomaene(&t[s..e], Sikkerhed::Sandsynlig);
+    }
+    // Prioritet 39: under ordbogens navnemønstre (40), så brugerens eget mønster giver status "Ordbog" for samme spænd.
+    for (s, e, d) in nye {
+        c.tilfoej(s, e, 39, d);
+    }
+}
+
+fn sammensatte(c: &mut Ctx) {
+    let t = c.t;
+    let mut nye: Vec<(usize, usize, u8, Vec<Fund>)> = Vec::new();
 
     // URL: bruger, adgangskode og vært
     let url = statisk!(r"(?i)[a-z][a-z0-9+.-]{1,15}://(?:([^\s/@:]+)(?::([^\s/@]*))?@)?(\[[0-9a-f:.]+\]|[A-Za-z0-9._-]+)");
@@ -806,10 +1246,26 @@ fn sammensatte(c: &mut Ctx) {
         let alle: Vec<String> = c.dns.iter().map(|d| regex::escape(d)).collect();
         let fqdn = re(&format!(r"(?i)(?:[a-z0-9][a-z0-9-]*\.)*(?:{})", alle.join("|")));
         for m in fqdn.find_iter(t) {
-            if ved_graense(t, m.start(), m.end(), N) {
-                if let Some(d) = c.fqdn_dele(m.start(), m.end()) {
-                    nye.push((m.start(), m.end(), 50, d));
+            if !ved_graense(t, m.start(), m.end(), N) {
+                continue;
+            }
+            // V-MANUEL.2: `$pc.intern.kontor.test` (PowerShell) og `%pc%.…`: første led er en variabel, ikke en maskine. Kun
+            // resten er et navn (domænet), og variablen står urørt.
+            if m.start() > 0 && matches!(t[m.start() - 1], b'$' | b'%') {
+                if let Some(p) = t[m.start()..m.end()].iter().position(|b| *b == b'.') {
+                    let s = m.start() + p + 1;
+                    let i = c.dns.iter().position(|d| {
+                        t[s..m.end()].eq_ignore_ascii_case(d.as_bytes()) || t[s..m.end()].to_ascii_lowercase().ends_with(d.as_bytes())
+                    });
+                    if let Some(i) = i {
+                        let sikkerhed = c.dns_sikkerhed.get(i).copied().unwrap_or(Sikkerhed::Ordbog);
+                        nye.push((s, m.end(), 50, vec![fund(s, m.end(), Art::Domaene, sikkerhed, None)]));
+                    }
                 }
+                continue;
+            }
+            if let Some(d) = c.fqdn_dele(m.start(), m.end()) {
+                nye.push((m.start(), m.end(), 50, d));
             }
         }
     }
@@ -827,6 +1283,7 @@ fn noegleord(c: &mut Ctx) {
     let vaerter: [&Regex; 4] = [
         statisk!(concat!(
             r"(?i)(?:hostname|host-name|devname|computername|computer_name|servername|server_name|machinename|machine_name",
+            r"|shost|dhost|dvchost|src_host|dst_host|srchost|dsthost",
             r#"|workstation|nodename|host)"?\s*[:=]\s*["']?([A-Za-z0-9][A-Za-z0-9._-]*)"#
         )),
         statisk!(r#"(?i)(?:hostname|devname|set\s+alias)\s+["']?([A-Za-z0-9][A-Za-z0-9._-]*)"#),

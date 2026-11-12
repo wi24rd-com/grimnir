@@ -6,7 +6,12 @@
    Webvisningen får kun hovederne (navn, antal værdier, datoer, udløb) og aldrig nøgler eller originaler. Navnet vises,
    fordi brugeren selv har skrevet det. Intet her skriver til konsollen eller til localStorage.
 
-   Rust-kommandoer: sag_status, sag_liste, sag_ny, sag_aabn, sag_luk, sag_nulstil, sag_omdoeb, sag_udloeb, sag_slet,
+   V-MANUEL.2 N1: "Vis indhold" (båndet, Enter eller dobbeltklik på rækken, sagens dialog i titellinjen, og den tomme flade i
+   Maskér og Demaskér) viser sagens poster: type, kode, rigtig værdi og tidligere koder, i sider fra Rust (sag_indhold), med
+   søgning og type i venstre side. Værdierne hentes først, når visningen åbnes, og står kun i DOM'en og i denne fil, mens
+   den er åben; Tilbage, Esc, en anden visning og en lås (genindlæsningen) fjerner dem. En hemmelighed hentes først, når
+   brugeren trykker Vis, og skjules igen, når visningen forlades. En anden sag end den åbne læses kun (den åbne skiftes ikke).
+   Rust-kommandoer: sag_status, sag_liste, sag_ny, sag_aabn, sag_luk, sag_nulstil, sag_omdoeb, sag_udloeb, sag_slet, sag_indhold,
    program_afslut og (V-ORDBOG.1) sag_valg: sagens valg for fremmede adresser (D4) og sidste oktet (D5) i titellinjens
    dialog. V-LAAS.2: intet hentes, før Grimnir er låst op (window.GrimnirLaas.klar). Ny sag foreslår standardudløbet fra indstillingerne (indstillinger.js). Hændelsen 'menu' med "afslut" kommer, når programmet lukkes med en midlertidig sag med poster. */
 (function () {
@@ -108,6 +113,8 @@
     GM.saetSag(status.poster);
     tegnTitel();
     tegn();
+    // Viser indholdet den åbne sag, er den skiftet eller ændret: hent igen (en anden sag på disk er uændret).
+    if (ind.aktiv && (ind.id === null || ind.id === status.id || nulstil)) hentIndhold();
   }
   // Maskér har gemt: antallet af poster er ændret (også i en navngiven sag).
   document.addEventListener('grimnir-poster', e => {
@@ -115,6 +122,7 @@
     status.poster = e.detail;
     tegnTitel();
     if (status.id) opdater();
+    if (ind.aktiv && (ind.id === null || ind.id === status.id)) hentIndhold();
   });
 
   /* Titellinjens dialog: midlertidig sag (Gem som sag, Nulstil) eller navngiven (Skift sag, Luk sag). V-KITBRUG.2 N1:
@@ -140,6 +148,8 @@
       { id: 'luk', t: 'luk' },
       { id: 'nulstil', knapId: 'sag-nulstil', t: 'nulstilSag', variant: 'danger', ved: () => invoke('sag_nulstil').then(s => { anvend(s, true); return true; }, () => false) },
       { id: 'gem-som', knapId: 'sag-gem-som', t: 'gemSomSag', variant: 'primary', ved: () => { aabnNySag('gem-som'); return false; } },
+      // V-MANUEL.2 N1: sagens indhold, når den har værdier.
+      { id: 'vis-indhold', knapId: 'sag-vis-indhold', t: 'kVisIndhold', ved: () => { visIndhold(status.id); return true; } },
       { id: 'skift', knapId: 'sag-skift', t: 'skiftSag', ved: () => { G.vis('sager'); } },
       { id: 'luk-sag', knapId: 'sag-luk', t: 'lukSag', variant: 'primary', ved: () => invoke('sag_luk').then(s => { anvend(s, true); opdater(); return true; }, () => false) },
     ],
@@ -154,6 +164,7 @@
     dSag.knap('nulstil').hidden = navngiven;
     dSag.knap('gem-som').hidden = navngiven;
     dSag.knap('skift').hidden = !navngiven;
+    dSag.knap('vis-indhold').hidden = !(status.poster > 0);
     dSag.knap('luk-sag').hidden = !navngiven;
     tegnValg();
     S.anvend(dSag.rod);
@@ -211,12 +222,13 @@
   function tegn() { tegnFlade(); tegnTabel(); tegnTrae(); tegnKommandoer(); tegnChip(); tegnFod(); }
   function tegnFlade() {
     const har = st.liste.length > 0;
-    d.tom.hidden = har;
-    ark.hidden = !har;
-    d.soeg.disabled = !har;
+    d.tom.hidden = har || ind.aktiv;
+    ark.hidden = !har || ind.aktiv;
+    indArk.hidden = !ind.aktiv;
+    d.soeg.disabled = !har && !ind.aktiv;
     bannere.textContent = '';
     if (st.fejl) GM.banner(bannere, 'danger', 'bSagFejl', st.fejl);
-    if (st.fejl && !har) { ark.hidden = false; }
+    if (st.fejl && !har && !ind.aktiv) { ark.hidden = false; }
   }
   function tegnTabel() {
     vaert.textContent = '';
@@ -250,8 +262,10 @@
     const tr = [...t.querySelectorAll('tbody tr')];
     r.forEach((p, i) => {
       tr[i].setAttribute('data-id', p.id);
-      tr[i].addEventListener('dblclick', () => { st.valgt = p.id; aabnValgt(); });
-      tr[i].addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); st.valgt = p.id; aabnValgt(); } });
+      // V-MANUEL.2 N1: Enter og dobbeltklik viser sagens indhold (Åbn i Maskér står i båndet). En sag, der ikke kan åbnes,
+      // viser hvorfor.
+      tr[i].addEventListener('dblclick', () => { st.valgt = p.id; visIndhold(p.id); });
+      tr[i].addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); st.valgt = p.id; visIndhold(p.id); } });
     });
     vaert.appendChild(t);
     if (!r.length && st.liste.length) {
@@ -275,6 +289,8 @@
     const p = valgtPost();
     const kanIkke = p && p.fejl ? ['hvorforKanIkkeAabnes', fejlTekst({ art: 'sag', fejl: p.fejl })] : null;
     GM.kommando('sager', 'ny-sag', true);
+    // V-MANUEL.2 N1: Vis indhold for enhver valgt sag (en sag, der ikke kan åbnes, viser årsagen i visningen).
+    GM.kommando('sager', 'vis-indhold', Boolean(p), 'hvorforVaelgSag');
     // Årsagen til, at en sag ikke kan åbnes, står som {v} i forklaringen (kittets værktøjstip, G11).
     for (const id of ['aabn-i-masker', 'omdoeb', 'udloeb']) GM.kommando('sager', id, p && !p.fejl, p ? 'hvorforKanIkkeAabnes' : 'hvorforVaelgSag', null, kanIkke ? kanIkke[1] : null);
     GM.kommando('sager', 'slet-sag', Boolean(p), 'hvorforVaelgSag');
@@ -289,6 +305,7 @@
   }
   function tegnFod() {
     if (G.aktiv !== 'sager') return;
+    if (ind.aktiv) { tegnIndholdFod(); return; }
     const fod = $('fod-venstre'), n = st.liste.length;
     fod.setAttribute('data-t', 'fodSagerTal');
     fod.setAttribute('data-v', String(n));
@@ -306,6 +323,194 @@
       st.fejl = fejlTekst(e);
       tegn();
     });
+  }
+
+  /* ═════════════════════════════ Sagens indhold (V-MANUEL.2 N1) ═════════════════════════════ */
+  /* Tabellen er til at læse: type, kode, rigtig værdi og tidligere koder (D18). Sagen gemmer ikke, hvor mange steder en
+     værdi stod, så den kolonne er der ikke (panelhovedet siger det). Ingen redigering, sletning eller kopiering af enkelte
+     værdier i denne udgave. id null er den åbne sag (også den midlertidige); en anden sag læses kun. */
+  const SIDE = 500;
+  const ind = { aktiv: false, id: null, type: '', soeg: '', vist: new Set(), antal: SIDE, svar: null, fejl: null, nr: 0, foerSoeg: '', foerFilter: null };
+  const indArk = document.createElement('div');
+  indArk.className = 'arbejde sagliste sagindhold';
+  indArk.hidden = true;
+  const indTop = document.createElement('div');
+  indTop.className = 'indhold-top';
+  const tilbageKnap = K.knap({ t: 'kTilbageTilSager', ariaT: 'ariaTilbageTilSager', ved: () => lukIndhold(true) });
+  tilbageKnap.id = 'indhold-tilbage';
+  indTop.appendChild(tilbageKnap);
+  const indBannere = document.createElement('div');
+  indBannere.className = 'bannere';
+  const indPanel = document.createElement('section');
+  indPanel.className = 'panel indholdpanel';
+  const indHoved = document.createElement('div');
+  indHoved.className = 'panel-hoved';
+  const indH = document.createElement('h3');
+  const indInfo = document.createElement('span');
+  indInfo.className = 'muted';
+  indHoved.append(indH, indInfo);
+  const indVaert = document.createElement('div');
+  indVaert.className = 'tabelvaert';
+  const indFlere = document.createElement('div');
+  indFlere.className = 'flere';
+  const indFlereTekst = document.createElement('span');
+  const indFlereKnap = K.knap({ t: 'visFlere', ved: () => { ind.antal += SIDE; hentIndhold(); } });
+  indFlereKnap.classList.add('mini');
+  indFlere.append(indFlereTekst, indFlereKnap);
+  indPanel.append(indHoved, indVaert, indFlere);
+  indArk.append(indTop, indBannere, indPanel);
+  d.flade.appendChild(indArk);
+  // Esc i visningen går tilbage til listen (også fra tabellen og knapperne).
+  indArk.addEventListener('keydown', e => { if (e.key === 'Escape' && !document.querySelector('dialog[open]')) { e.preventDefault(); lukIndhold(true); } });
+
+  // Venstre side: Sagers træ viser typerne med antal, mens indholdet vises (kittets saetPunkter; valget kommer som
+  // 'grimnir-trae'), og listens punkter igen bagefter.
+  const LISTE_PUNKTER = G.VISNINGER.find(v => v.id === 'sager').trae;
+  function vaelgType(id) { ind.type = id === 'i-alle' ? '' : id.slice(2); ind.antal = SIDE; tegnFilterTekst(); hentIndhold(); }
+  S.anvend(indArk);
+  function tegnFilterTekst() {
+    d.flTekst.setAttribute('data-t', ind.type ? 'art_' + ind.type : 'tIndhold');
+    S.anvend(d.flTekst);
+  }
+
+  /* Viser sagens indhold: id er sagens id (null: den åbne sag i hukommelsen). */
+  function visIndhold(id) {
+    if (G.laast) return;
+    const var_aktiv = ind.aktiv;
+    Object.assign(ind, { aktiv: true, id: id || null, type: '', soeg: '', vist: new Set(), antal: SIDE, svar: null, fejl: null });
+    if (id) st.valgt = id;
+    if (!var_aktiv) {
+      ind.foerSoeg = d.soeg.value;
+      ind.foerFilter = d.flTekst.getAttribute('data-t');
+    }
+    d.soeg.value = '';
+    d.soeg.setAttribute('data-t-ph', 'soegIndhold');
+    d.soeg.setAttribute('data-t-aria', 'soegIndhold');
+    S.anvend(d.soeg.parentElement);
+    d.trae.saetPunkter([{ id: 'i-alle', t: 'tIndhold', antal: 0 }], 'i-alle');
+    S.anvend(d.nd);
+    tegnFilterTekst();
+    if (G.aktiv !== 'sager') G.vis('sager');
+    tegnIndhold();
+    tegn();
+    tilbageKnap.focus();
+    return hentIndhold();
+  }
+  /* Tilbage til listen. Værdierne fjernes fra DOM'en og fra hukommelsen her; viste hemmeligheder er skjult næste gang. */
+  function lukIndhold(fokus) {
+    if (!ind.aktiv) return;
+    Object.assign(ind, { aktiv: false, svar: null, fejl: null, vist: new Set(), soeg: '', type: '' });
+    ind.nr++;
+    indVaert.textContent = '';
+    indBannere.textContent = '';
+    d.soeg.value = ind.foerSoeg;
+    d.soeg.setAttribute('data-t-ph', 'soegSager');
+    d.soeg.setAttribute('data-t-aria', 'soegSager');
+    S.anvend(d.soeg.parentElement);
+    d.trae.saetPunkter(LISTE_PUNKTER, st.filter);
+    S.anvend(d.nd);
+    if (ind.foerFilter) d.flTekst.setAttribute('data-t', ind.foerFilter); else d.flTekst.removeAttribute('data-t');
+    S.anvend(d.flTekst);
+    tegn();
+    if (fokus) {
+      const tr = vaert.querySelector(`tr[data-id="${st.valgt}"]`);
+      (tr || vaert.querySelector('tbody tr') || d.soeg).focus();
+    }
+  }
+  function hentIndhold() {
+    if (!ind.aktiv) return Promise.resolve();
+    const nr = ++ind.nr;
+    return invoke('sag_indhold', { id: ind.id, valg: { type: ind.type, soeg: ind.soeg, vist: [...ind.vist], antal: ind.antal } })
+      .then(svar => { if (nr !== ind.nr || !ind.aktiv) return; ind.svar = svar; ind.fejl = null; tegnIndhold(); })
+      .catch(e => { if (nr !== ind.nr || !ind.aktiv) return; ind.svar = null; ind.fejl = fejlTekst(e); tegnIndhold(); });
+  }
+  function celle(tekst, mono) {
+    const c = document.createElement('span');
+    c.className = (mono ? 'mono ' : '') + 'kort';
+    c.textContent = tekst;
+    c.title = tekst;
+    return c;
+  }
+  function vaerdiCelle(p) {
+    const c = document.createElement('span');
+    c.className = 'vaerdi';
+    if (p.hemmelig && p.vaerdi == null) {
+      const prik = document.createElement('span');
+      prik.className = 'prikker';
+      prik.setAttribute('data-t', 'skjultVaerdi');
+      c.appendChild(prik);
+    } else {
+      c.appendChild(celle(p.vaerdi == null ? '' : p.vaerdi, true));
+    }
+    if (p.hemmelig) {
+      const skjult = p.vaerdi == null;
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'mini';
+      b.setAttribute('data-t', skjult ? 'vis' : 'skjul');
+      b.setAttribute('data-t-aria', skjult ? 'ariaVisKode' : 'ariaSkjulKode');
+      b.setAttribute('data-v', p.kode);
+      b.setAttribute('data-felt', 'vis');
+      b.addEventListener('click', () => {
+        if (ind.vist.has(p.nr)) ind.vist.delete(p.nr); else ind.vist.add(p.nr);
+        hentIndhold().then(() => { const n = indVaert.querySelector(`tr[data-nr="${p.nr}"] [data-felt="vis"]`); if (n) n.focus(); });
+      });
+      c.appendChild(b);
+    }
+    return c;
+  }
+  function tegnIndhold() {
+    indBannere.textContent = '';
+    indVaert.textContent = '';
+    const svar = ind.svar;
+    indH.setAttribute('data-t', svar && svar.navn ? 'pSagIndhold' : svar || ind.id === null ? 'pMidlIndhold' : 'tIndhold');
+    if (svar && svar.navn) indH.setAttribute('data-v', svar.navn); else indH.removeAttribute('data-v');
+    indPanel.setAttribute('data-t-aria', indH.getAttribute('data-t'));
+    if (indH.hasAttribute('data-v')) indPanel.setAttribute('data-v', indH.getAttribute('data-v')); else indPanel.removeAttribute('data-v');
+    indInfo.hidden = !svar;
+    if (svar) { indInfo.setAttribute('data-t', 'indholdInfo'); indInfo.setAttribute('data-v', String(svar.i_alt)); }
+    if (ind.fejl) GM.banner(indBannere, 'danger', 'bIndholdFejl', ind.fejl);
+    if (svar && !svar.aaben) {
+      if (status.navn) GM.banner(indBannere, 'info', 'bIndholdLaest', status.navn); else GM.banner(indBannere, 'info', 'bIndholdLaestMidl');
+    }
+    if (svar && svar.udloeb && dageTil(svar.udloeb) < 0) GM.banner(indBannere, 'warn', 'bIndholdUdloebet', fmtDato(svar.udloeb));
+    indFlere.hidden = true;
+    if (svar) {
+      const t = K.tabel({
+        ariaT: 'tIndhold', raekkeHandling: 'ingen',
+        kolonner: [{ t: 'kolType' }, { t: 'kolKode' }, { t: 'kolRigtigVaerdi' }, { t: 'kolTidligereKoder' }],
+        raekker: svar.raekker.map(p => {
+          const type = document.createElement('span');
+          type.setAttribute('data-t', 'art_' + p.type);
+          return { celler: [type, celle(p.kode, true), vaerdiCelle(p), p.aliaser.length ? celle(p.aliaser.join(', '), true) : '—'], data: p.nr, attr: { 'data-nr': String(p.nr) } };
+        }),
+      });
+      t.classList.add('indholdtabel');
+      indVaert.appendChild(t);
+      if (!svar.raekker.length) {
+        const tom = document.createElement('p');
+        tom.className = 'tabel-tom';
+        tom.setAttribute('data-t', svar.i_alt ? 'ingenIIndhold' : 'indholdTom');
+        indVaert.appendChild(tom);
+      }
+      indFlere.hidden = svar.fundet <= svar.raekker.length;
+      indFlereTekst.setAttribute('data-t', 'visesAf');
+      indFlereTekst.setAttribute('data-v', String(svar.raekker.length));
+      indFlereTekst.setAttribute('data-w', String(svar.fundet));
+      const valgt = ind.type ? 'i-' + ind.type : 'i-alle';
+      d.trae.saetPunkter([{ id: 'i-alle', t: 'tIndhold', antal: svar.i_alt, boern: svar.typer.map(x => ({ id: 'i-' + x.type, t: 'art_' + x.type, antal: x.antal })) }], valgt);
+      S.anvend(d.nd);
+    }
+    S.anvend(indArk);
+    tegnIndholdFod();
+  }
+  function tegnIndholdFod() {
+    if (G.aktiv !== 'sager' || !ind.aktiv) return;
+    const fod = $('fod-venstre');
+    fod.setAttribute('data-t', 'fodIndholdTal');
+    fod.setAttribute('data-v', String(ind.svar ? ind.svar.i_alt : 0));
+    fod.setAttribute('data-w', String(ind.svar ? ind.svar.raekker.length : 0));
+    S.anvend(fod);
   }
 
   /* ── Åbn en sag ── */
@@ -483,14 +688,25 @@
   G.haandter('sager', 'omdoeb', () => aabnOmdoeb());
   G.haandter('sager', 'udloeb', () => aabnUdloeb());
   G.haandter('sager', 'slet-sag', () => aabnSlet());
-  d.soeg.addEventListener('input', () => { st.soeg = d.soeg.value; tegnTabel(); });
+  d.soeg.addEventListener('input', () => {
+    if (ind.aktiv) { ind.soeg = d.soeg.value; ind.antal = SIDE; hentIndhold(); return; }
+    st.soeg = d.soeg.value;
+    tegnTabel();
+  });
+  G.haandter('sager', 'vis-indhold', () => { const p = valgtPost(); if (p) visIndhold(p.id); });
   document.addEventListener('grimnir-trae', e => {
     if (e.detail.visning !== 'sager') return;
+    // V-MANUEL.2 N1: mens indholdet vises, er træets punkter sagens typer.
+    if (ind.aktiv) { vaelgType(e.detail.id); return; }
     st.filter = e.detail.id === 'sager' ? 'alle' : e.detail.id;
     tegnTabel();
   });
-  document.addEventListener('grimnir-visning', e => { if (e.detail === 'sager' && !G.laast) { opdater(); tegnFod(); } });
-  document.addEventListener('grimnir-sprog', () => { tegnTabel(); tegnTitel(); });
+  document.addEventListener('grimnir-visning', e => {
+    // V-MANUEL.2 N1: forlades Sager, lukkes indholdet (værdierne fjernes, og en vist hemmelighed er skjult igen).
+    if (e.detail !== 'sager') lukIndhold(false);
+    if (e.detail === 'sager' && !G.laast) { opdater(); tegnFod(); }
+  });
+  document.addEventListener('grimnir-sprog', () => { tegnTabel(); tegnTitel(); if (ind.aktiv) tegnIndhold(); });
   if (G.tauri && G.tauri.event && G.tauri.event.listen) {
     G.tauri.event.listen('menu', e => { if (e.payload === 'afslut') visKasser('afslut'); });
   }
@@ -501,5 +717,5 @@
     invoke('sag_status').then(s => anvend(s, false)).catch(() => anvend({ poster: 0 }, false));
     opdater();
   });
-  window.GrimnirSager = { st, aabnIgen, opdater, get status() { return status; }, statusFor, dageTil };
+  window.GrimnirSager = { st, aabnIgen, opdater, get status() { return status; }, statusFor, dageTil, ind, visIndhold, lukIndhold };
 })();

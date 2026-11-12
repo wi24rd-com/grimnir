@@ -43,7 +43,7 @@
   const VISNINGER = [
     {
       id: 'masker', t: 'vMasker', ikon: 'maske', soeg: 'soegMasker', chip: 'chipIntetIndsat', fod: 'fodMasker',
-      tom: ['tomMaskerH', 'tomMaskerP'], modtager: 'ariaIndsaetTekst',
+      tom: ['tomMaskerH', 'tomMaskerP'], modtager: 'ariaIndsaetTekst', anden: { t: 'kVisSagensIndhold', ikon: 'mappe' },
       grupper: [
         // V-MANUEL.1: Ryd i Tekst; Fortryd og Gentag i en egen gruppe (Rediger, som menuen); Maskér dette først i Maskering.
         { t: 'gTekst', knapper: [aktiv('masker', 'indsaet', 'kIndsaet', 'indsaet', false, true), aktiv('masker', 'aabn-fil', 'kAabnFil', 'fil', false, true), aktiv('masker', 'ryd', 'kRyd', 'ryd')] },
@@ -54,13 +54,14 @@
       ],
       trae: [
         { id: 'denne', t: 'tDenneTekst', boern: [{ id: 'alle', t: 'tAlleFund', antal: 0 }, { id: 'tjek', t: 'tSkalTjekkes', antal: 0 }, { id: 'hemmelig', t: 'tHemmeligheder', antal: 0 }] },
-        { id: 'seneste', t: 'tSenesteISagen', antal: 0 },
+        // V-MANUEL.2: "Kendt fra sagen" (før "Seneste i sagen"): fundene i denne tekst, sagen kendte i forvejen.
+        { id: 'seneste', t: 'tKendtFraSagen', antal: 0 },
       ],
       valgt: 'alle',
     },
     {
       id: 'demasker', t: 'vDemasker', ikon: 'oeje', soeg: 'soegDemasker', chip: 'chipIntetSvar', fod: 'fodDemasker',
-      tom: ['tomDemaskerH', 'tomDemaskerP'], modtager: 'ariaIndsaetSvar', tilSager: true,
+      tom: ['tomDemaskerH', 'tomDemaskerP'], modtager: 'ariaIndsaetSvar', anden: { t: 'kGaaTilSager', ikon: 'mappe' },
       grupper: [
         // V-MANUEL.1: Ryd i Svar; Næste advarsel er bygget (N4) og styres af maskering.js som de andre.
         { t: 'gSvar', knapper: [aktiv('demasker', 'indsaet', 'kIndsaet', 'indsaet', false, true), aktiv('demasker', 'aabn-fil', 'kAabnFil', 'fil', false, true), aktiv('demasker', 'ryd', 'kRyd', 'ryd')] },
@@ -76,7 +77,8 @@
       id: 'sager', t: 'vSager', ikon: 'mappe', soeg: 'soegSager', chip: 'chipIngenSager', fod: 'fodSager',
       tom: ['tomSagerH', 'tomSagerP'],
       grupper: [
-        { t: 'gSag', knapper: [aktiv('sager', 'ny-sag', 'kNySag', 'plus', true, true), aktiv('sager', 'aabn-i-masker', 'kAabnIMasker', 'aabn'), aktiv('sager', 'omdoeb', 'kOmdoeb', 'rediger'), aktiv('sager', 'udloeb', 'kUdloeb', 'kalender')] },
+        // V-MANUEL.2 N1: Vis indhold (sagens koder og rigtige værdier; Enter og dobbeltklik på rækken gør det samme).
+        { t: 'gSag', knapper: [aktiv('sager', 'ny-sag', 'kNySag', 'plus', true, true), aktiv('sager', 'vis-indhold', 'kVisIndhold', 'oeje'), aktiv('sager', 'aabn-i-masker', 'kAabnIMasker', 'aabn'), aktiv('sager', 'omdoeb', 'kOmdoeb', 'rediger'), aktiv('sager', 'udloeb', 'kUdloeb', 'kalender')] },
         { t: 'gDeling', knapper: [senere('eksporter', 'kEksporter', 'eksport'), senere('importer', 'kImporter', 'import')] },
         { t: 'gOprydning', knapper: [aktiv('sager', 'slet-sag', 'kSletSag', 'slet')] },
       ],
@@ -167,11 +169,14 @@
     // V-KITBRUG.2 N3 (G8): i Maskér og Demaskér er den kittets flade, der tager imod (fokus, navn med ⌘V), med Åbn fil og
     // i Demaskér "Åbn Sager" som den anden handling (vist af maskering.js, når der skal en sag til). Indsæt tager
     // maskering.js imod på hele siden (også her), og en fil, der slippes, kommer fra Rust; .tomt-slip sætter maskering.js.
+    // V-MANUEL.2 N1: også Maskér har en anden handling, "Vis sagens indhold", når sagen har værdier, og i Demaskér bliver
+    // den anden handling "Vis sagens indhold", når sagen har koder (maskering.js viser, skjuler og navngiver den; handlingen
+    // er visningens 'tom-anden'). Uden en registreret handling går den til Sager som før.
     const tomO = { ikon: v.ikon, t: v.tom[0], p: { t: v.tom[1] } };
     if (v.modtager) {
       tomO.modtager = { ariaT: v.modtager, ariaV: mod + 'V' };
       tomO.handling = { t: 'kAabnFil', ikon: 'fil', ved: e => { const h = HANDLINGER[v.id + ':aabn-fil']; if (h) h(e); } };
-      if (v.tilSager) tomO.anden = { t: 'kGaaTilSager', ikon: 'mappe', ved: () => gaaTil('sager') };
+      if (v.anden) tomO.anden = { ...v.anden, ved: e => { const h = HANDLINGER[v.id + ':tom-anden']; if (h) h(e); else gaaTil('sager'); } };
     }
     const tom = K.tomTilstand(tomO);
     const p = tom.querySelector('.tomt-p');

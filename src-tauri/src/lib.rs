@@ -65,8 +65,8 @@ mod programmenu;
 use indstillinger::Indstillinger;
 use laas::Udloeser;
 use maskering::{
-    AnalyseMed, Demaskering, FilAnalyse, FilDemaskering, FilInfo, FilMaskering, LaasStatus, LaasSvar, Maskering, OrdbogUd, Proeve,
-    RaekkeSide, Rettelse, SagListePost, SagStatus, SideValg, StartForfra, Tilfoejet, Tilstand, UiFejl, Visning,
+    AnalyseMed, Demaskering, FilAnalyse, FilDemaskering, FilInfo, FilMaskering, IndholdValg, LaasStatus, LaasSvar, Maskering, OrdbogUd,
+    Proeve, RaekkeSide, Rettelse, SagIndhold, SagListePost, SagStatus, SideValg, StartForfra, Tilfoejet, Tilstand, UiFejl, Visning,
 };
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -122,6 +122,13 @@ fn gem_og_masker(
 fn demasker(tilstand: State<'_, Tilstand>, tekst: String) -> Result<Demaskering, UiFejl> {
     let _travl = tilstand.travl();
     maskering::demasker(&tilstand, &tekst)
+}
+
+/// V-MANUEL.2 N1: én side af en sags poster (kode, type og rigtig værdi). `id`: en sag på disk, der kun læses; udeladt:
+/// den åbne sag. Hemmeligheder kun, når de er vist (`valg.vist`).
+#[tauri::command(async)]
+fn sag_indhold(tilstand: State<'_, Tilstand>, id: Option<String>, valg: IndholdValg) -> Result<SagIndhold, UiFejl> {
+    maskering::sag_indhold(&tilstand, id.as_deref(), &valg)
 }
 
 /// Antal poster i sagen. V-FIL.1: `async` (ikke på hovedtråden), fordi sagens lås kan være optaget af en lang
@@ -589,6 +596,7 @@ pub fn run() {
         laas_op,
         aktivitet,
         kvittering,
+        sag_indhold,
         udklip_kopieret
     ]);
     tauri::Builder::default()

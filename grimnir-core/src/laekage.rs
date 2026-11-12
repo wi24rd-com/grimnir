@@ -5,15 +5,27 @@ use aho_corasick::{AhoCorasick, MatchKind};
 use crate::analyse::analyser;
 use crate::foreslaa::skal_maskeres;
 use crate::graense::ved_graense;
+use crate::kodeform::find_navnekoder;
 use crate::ordbog::Ordbog;
 use crate::sag::Sag;
-use crate::typer::{Rest, RestArt};
+use crate::typer::{Art, Klasse, Rest, RestArt};
 
 /// Finder alt i det maskerede resultat, der ikke er en af sagens koder, men burde være maskeret.
+///
+/// V-MANUEL.2 N4: en rest meldes kun uden for sagens koder. Et ord, der også står i en kodes skabelon (`example` i
+/// `d01.example`, `user` i `user0001`), er ikke en original, der står tilbage, når det står inde i en af sagens koder:
+/// demaskeringen erstatter hele koden. Koderne findes med samme søgning som demaskeringen ([`Sag::find_koder`]: koder og
+/// aliaser ved grænser).
 pub fn laekagetjek(maskeret: &str, sag: &Sag, ordbog: &Ordbog) -> Vec<Rest> {
     let t = maskeret.as_bytes();
     let opslag = ordbog.opslag();
     let mut rester = Vec::new();
+    let koder = sag.find_koder(t);
+    // Sand, hvis spændet ligger helt inde i en af sagens koder (koderne er sorteret og overlapper ikke).
+    let i_kode = |s: usize, e: usize| {
+        let i = koder.partition_point(|k| k.1 <= s);
+        koder.get(i).is_some_and(|k| k.0 <= s && e <= k.1)
+    };
 
     // 1. Sagens originaler, uafhængigt af store/små bogstaver
     let poster = sag.poster();
@@ -26,7 +38,11 @@ pub fn laekagetjek(maskeret: &str, sag: &Sag, ordbog: &Ordbog) -> Vec<Rest> {
             for m in ac.find_iter(t) {
                 let p = m.pattern().as_usize();
                 let tekst = &maskeret[m.start()..m.end()];
-                if poster[p].original.is_empty() || sag.opslag(tekst).is_some() || opslag.aldrig_tekst(tekst.as_bytes()) {
+                if poster[p].original.is_empty()
+                    || sag.opslag(tekst).is_some()
+                    || opslag.aldrig_tekst(tekst.as_bytes())
+                    || i_kode(m.start(), m.end())
+                {
                     continue;
                 }
                 if ved_graense(t, m.start(), m.end(), sag.moenster_af(p)) {
@@ -43,7 +59,7 @@ pub fn laekagetjek(maskeret: &str, sag: &Sag, ordbog: &Ordbog) -> Vec<Rest> {
     // 2. Genkenderne igen: alt, der ville blive maskeret, og som ikke er en kode
     let valg = sag.valg();
     for f in analyser(maskeret, ordbog) {
-        if !skal_maskeres(&f, &valg) || sag.opslag(&maskeret[f.start..f.slut]).is_some() {
+        if !skal_maskeres(&f, &valg) || sag.opslag(&maskeret[f.start..f.slut]).is_some() || i_kode(f.start, f.slut) {
             continue;
         }
         if rester.iter().any(|r: &Rest| r.start < f.slut && f.start < r.slut) {
@@ -54,6 +70,46 @@ pub fn laekagetjek(maskeret: &str, sag: &Sag, ordbog: &Ordbog) -> Vec<Rest> {
             slut: f.slut,
             art: RestArt::NytFund(f.art),
         });
+    }
+    // 3. V-MANUEL.2 N2: maskindelen af et FQDN, hvor domænet er en af sagens koder (`srv-db02.intern.d01.example`): hvert
+    // led foran domænekoden, der ikke selv er en kode, er en rest (første led en maskine, de andre en del af domænet). En
+    // variabel foran (`$pc.d01.example`) er ikke et navn.
+    for &(s, _, p) in &koder {
+        if sag.klasse_af(p) != Klasse::Domaene || s < 2 || t[s - 1] != b'.' {
+            continue;
+        }
+        let mut ls = s - 1;
+        while ls > 0 && (t[ls - 1].is_ascii_alphanumeric() || matches!(t[ls - 1], b'-' | b'.')) {
+            ls -= 1;
+        }
+        if ls > 0 && matches!(t[ls - 1], b'$' | b'%' | b'@') {
+            continue;
+        }
+        let mut pos = ls;
+        let mut foerste = true;
+        for led in t[ls..s - 1].split(|b| *b == b'.') {
+            let (a, b) = (pos, pos + led.len());
+            pos = b + 1;
+            let er_foerste = std::mem::replace(&mut foerste, false);
+            if led.is_empty() || !led.iter().any(u8::is_ascii_alphanumeric) {
+                continue;
+            }
+            let tekst = &maskeret[a..b];
+            // En kode (også en, sagen ikke kender: den har en kodes form og er "ligner en kode", ikke en rest).
+            let mut kodeform = false;
+            find_navnekoder(led, |a, b, _| kodeform |= a == 0 && b == led.len());
+            if sag.opslag(tekst).is_some() || sag.kode_smaa(tekst).is_some() || kodeform || opslag.aldrig_tekst(led) {
+                continue;
+            }
+            if rester.iter().any(|r: &Rest| r.start < b && a < r.slut) {
+                continue;
+            }
+            rester.push(Rest {
+                start: a,
+                slut: b,
+                art: RestArt::NytFund(if er_foerste { Art::Vaert } else { Art::Domaene }),
+            });
+        }
     }
     rester.sort_by_key(|r| (r.start, r.slut));
     rester

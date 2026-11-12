@@ -143,6 +143,7 @@ fn masker_fil(t: &Tilstand, m: &Mappe) {
         advarsler: a.advarsler,
         bytes: 0,
         linjer: a.linjer,
+        moenstre: a.moenstre,
     };
     let (fra, ret) = valg(&a);
     let r = fil_gem_og_masker(t, &fra, &ret).unwrap();

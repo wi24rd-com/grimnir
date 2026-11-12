@@ -247,6 +247,17 @@ html[lang="en"] .sagtabel { --k6: 160px; --tabel-min: 728px; }
 .sagnavn .muted { flex: none; margin-left: var(--space-2); font-size: var(--small-size); }
 .sagtabel .tabelvaert, .sagliste .tabelvaert { height: auto; max-height: calc(70vh / var(--tekst-zoom)); min-height: 240px; }
 
+/* ── V-MANUEL.2 N1: sagens indhold i Sager ── */
+/* Visningen er .sagliste som listen (samme højde på tabellen). Tilbage-knappen over tabellen; tabellen er til at læse
+   (kittets tabel uden rækkevalg). Type, Kode, Rigtig værdi (resten)
+   og Tidligere koder. Bredderne er ikke målt i WebKit (tests/ui/kolonner.mjs har ikke tabellen; se HANDOFF-V-MANUEL.2):
+   typeordene er de samme som i Maskér (højst 92 px), koderne er monospace og forkortes med … (hele koden står i title). */
+.indhold-top { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+.indholdtabel { --k1: 132px; --k2: 168px; --k4: 168px; --tabel-min: 608px; }
+html[lang="en"] .indholdtabel { --k1: 136px; }
+/* V-MANUEL.2 N3: forslaget til et navnemønster har to knapper (Læg i ordbogen og Ikke nu, kit-ønske G24). */
+.ban.moenster-forslag { flex-wrap: wrap; }
+
 /* ── Ordbog, indstillinger og guiden (V-ORDBOG.1) ── */
 /* Maskér: rækkens vej til ordbogen og advarslen om egne koder. */
 .ordbogknapper { display: flex; gap: var(--space-1); }

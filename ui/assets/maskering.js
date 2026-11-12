@@ -303,8 +303,13 @@
   function saetSag(n) {
     poster = n;
     D.opdater();
+    M.tegnTom();
     document.dispatchEvent(new CustomEvent('grimnir-poster', { detail: n }));
   }
+  /* V-MANUEL.2 N1: den åbne sag (navn og id fra sager.js) til den tomme flade. Kun navnet, som brugeren selv har skrevet. */
+  const sagNu = () => (window.GrimnirSager ? window.GrimnirSager.status : { poster, id: null, navn: null });
+  /* V-MANUEL.2 N1: "Vis sagens indhold" fra Maskér og Demaskér: Sager-visningen med den åbne sags poster. */
+  const visSagensIndhold = () => { if (window.GrimnirSager) window.GrimnirSager.visIndhold(null); };
   function saetGemteSager(n) { gemteSager = n; D.opdater(); }
 
   /* ═════════════════════════════ Maskér ═════════════════════════════ */
@@ -312,7 +317,7 @@
     // fil: den åbne fil (FilInfo fra Rust) eller null; så er tekst Rusts uddrag, og analyse.side er rækkerne fra Rust.
     // V-MANUEL.1: tilfoejede er brugerens egne værdier ({ vaerdi, art }) fra "Maskér dette"; resultatBrugt: resultatet er
     // kopieret eller gemt (Ryd spørger ellers); meld: den værdi, der lige er tilføjet (meldes, når analysen svarer).
-    const st = { tekst: null, bytes: 0, linjer: null, fil: null, analyse: null, fravalgt: new Set(), rort: new Map(), rettelser: new Map(), fejl: new Map(), resultat: null, foerEfter: false, visRester: false, spoergRester: false, filter: 'alle', soeg: '', vist: new Set(), side: SIDE, nr: 0, sideNr: 0, travl: false, venter: null, tilfoejede: [], resultatBrugt: false, meld: null, visNy: null };
+    const st = { tekst: null, bytes: 0, linjer: null, fil: null, analyse: null, fravalgt: new Set(), rort: new Map(), rettelser: new Map(), fejl: new Map(), resultat: null, foerEfter: false, visRester: false, spoergRester: false, filter: 'alle', soeg: '', vist: new Set(), side: SIDE, nr: 0, sideNr: 0, travl: false, venter: null, tilfoejede: [], resultatBrugt: false, meld: null, visNy: null, afviste: new Set() };
     /* V-MANUEL.1 N2: Fortryd og Gentag. Hvert trin er et øjebliksbillede af brugerens valg FØR ændringen (fravalg, rørte
        rækker, rettelser og tilføjede værdier) og hvad der blev gjort ved hvilken værdi (til meldingen). Fortryd lægger
        valgene tilbage og analyserer igen; analysen er den samme for samme valg, så tabellen bliver som før. Kun valg i
@@ -454,6 +459,8 @@
 
     function nulstilValg() {
       st.tilfoejede = []; st.resultatBrugt = false; st.meld = null; st.visNy = null; hist.bag = []; hist.frem = []; husket = null; lukMenu();
+      // V-MANUEL.2 N3: et afvist forslag til et mønster kommer ikke igen for samme tekst; en ny tekst begynder forfra.
+      st.afviste = new Set();
       st.analyse = null; st.fravalgt = new Set(); st.rort = new Map(); st.rettelser = new Map(); st.fejl = new Map(); st.resultat = null;
       st.foerEfter = false; st.visRester = false; st.spoergRester = false; st.vist = new Set(); st.side = SIDE; st.nr++; st.travl = false;
       if (st.venter) { clearTimeout(st.venter); st.venter = null; }
@@ -715,6 +722,54 @@
       f.ark.hidden = !st.tekst;
       d.soeg.disabled = !st.analyse;
       tegnFilinfo(f, st.fil);
+      tegnTom();
+    }
+    /* V-MANUEL.2 N1: uden tekst siger den tomme flade, hvilken sag der er åben, og hvor mange værdier den har, og "Vis sagens
+       indhold" står som kittets anden handling ved siden af Åbn fil. Uden værdier i sagen er den som før. */
+    const visSag = d.tom.querySelector('.tomt-handlinger') ? d.tom.querySelector('.tomt-handlinger').lastElementChild : null;
+    function tegnTom() {
+      const sag = sagNu(), n = poster;
+      if (n > 0 && sag.navn) { d.tomP.setAttribute('data-t', 'tomMaskerSagP'); d.tomP.setAttribute('data-v', sag.navn); d.tomP.setAttribute('data-w', String(n)); }
+      else if (n > 0) { d.tomP.setAttribute('data-t', 'tomMaskerMidlP'); d.tomP.setAttribute('data-v', String(n)); d.tomP.removeAttribute('data-w'); }
+      else { d.tomP.setAttribute('data-t', 'tomMaskerP'); d.tomP.removeAttribute('data-v'); d.tomP.removeAttribute('data-w'); }
+      if (visSag) visSag.hidden = !(n > 0);
+      S.anvend(d.tom);
+    }
+    /* V-MANUEL.2 N3: forslaget til et navnemønster (det første, brugeren ikke har afvist for denne tekst) som et banner over
+       tabellen med "Læg i ordbogen" og "Ikke nu" (kittets banner har én handling; "Ikke nu" er kittets knap ved siden af,
+       kit-ønske G24). Kun før Gem og maskér. Læg i ordbogen bruger ordbogens egen vej (ordbog.js), der melder ordbogen ændret,
+       så teksten analyseres igen med mønsteret. */
+    function moensterForslag() {
+      if (!st.analyse || st.resultat || !st.analyse.moenstre) return null;
+      return st.analyse.moenstre.find(m => !st.afviste.has(m.moenster)) || null;
+    }
+    function tegnMoenster() {
+      const m = moensterForslag();
+      if (!m) return;
+      const GO = window.GrimnirOrdbog;
+      const b = banner(f.bannere, 'info', 'bMoenster', m.navne, {
+        t: 'kLaegIOrdbogen',
+        ved: () => {
+          if (!GO) return;
+          st.afviste.add(m.moenster);
+          GO.tilfoej('navnemoenster', m.moenster, null).then(() => {
+            besked(f, 'bMoensterLagt');
+            f.besked.setAttribute('data-v', m.moenster);
+            S.anvend(f.besked);
+          }).catch(e => {
+            st.afviste.delete(m.moenster);
+            fejlBanner = ['bMoensterFejl', GO.fejlTekst(e)];
+            tegnBannere();
+          });
+          tegnBannere();
+        },
+      });
+      b.classList.add('moenster-forslag');
+      b.querySelector('.ord').setAttribute('data-w', m.moenster);
+      const nej = K.knap({ t: 'kIkkeNu', variant: 'ghost', ved: () => { st.afviste.add(m.moenster); tegnBannere(); } });
+      nej.classList.add('ikke-nu');
+      b.appendChild(nej);
+      S.anvend(b);
     }
     function tegnBannere() {
       f.bannere.textContent = '';
@@ -730,12 +785,16 @@
         banner(f.bannere, 'info', 'bValgAendret');
       }
       if (st.analyse && st.analyse.advarsler.length && !st.resultat) banner(f.bannere, 'warn', 'bOverloeb', st.analyse.advarsler.length);
+      tegnMoenster();
     }
     function tegnTekst() {
       const efter = st.foerEfter && st.resultat;
       tv.vis(efter ? st.resultat.maskeret : st.tekst || '', st.fil ? (efter ? st.resultat.ikkeVist : st.fil.ikke_vist) : null);
-      tekstPanel.h.setAttribute('data-t', efter ? 'pMaskeret' : 'pTekst');
-      tekstPanel.p.setAttribute('data-t-aria', efter ? 'pMaskeret' : 'pTekst');
+      // V-MANUEL.2 N1: for en åben fil hedder panelet "Fil · <filnavn>", ikke "Indsat tekst".
+      const fil = st.fil && !efter;
+      tekstPanel.h.setAttribute('data-t', efter ? 'pMaskeret' : fil ? 'pFil' : 'pTekst');
+      tekstPanel.p.setAttribute('data-t-aria', efter ? 'pMaskeret' : fil ? 'ariaFilPanel' : 'pTekst');
+      for (const e of [tekstPanel.h, tekstPanel.p]) { if (fil) e.setAttribute('data-v', st.fil.navn); else e.removeAttribute('data-v'); }
       tv.pre.setAttribute('data-t-aria', efter ? 'ariaMaskeret' : 'ariaTekst');
       tegnInfo();
       G.dele.masker.bar.knap('foer-efter').setAttribute('aria-pressed', String(Boolean(efter)));
@@ -1148,7 +1207,7 @@
           // og navnet står i aria-label ("Maskér 192.0.2.17"; en hemmelighed nævnes ved linjen, ikke ved værdien).
           const cb = K.afkrydsning({ ariaT: r.hemmelig ? 'ariaMaskerHemmelig' : 'ariaMasker', ariaV: r.hemmelig ? String(r.linje) : r.vaerdier[0], valgt: on, deaktiveret: r.laast || r.nul }).input;
           cb.setAttribute('data-felt', 'valg');
-          if (r.laast) cb.setAttribute('data-t-title', 'hvorforLaast');
+          if (r.laast) cb.setAttribute('data-t-title', 'hvorforRaekkeLaast');
           if (r.nul) cb.setAttribute('data-t-title', 'hvorforNulSteder');
           cb.addEventListener('change', () => {
             husk('valg', navnAf(r));
@@ -1173,7 +1232,8 @@
       const tr = [...t.querySelectorAll('tbody tr')];
       vis.forEach((r, i) => { tr[i].setAttribute('data-id', String(r.id)); if (r.nul || !valgt(r)) tr[i].classList.add('fra'); if (tilfoejetAf(r)) tr[i].classList.add('tilfoejet'); });
       tabelvaert.appendChild(t);
-      if (!vis.length) tabelvaert.appendChild(el('p', 'tabel-tom', (side ? side.antal.alle : st.analyse.raekker.length) ? 'ingenIFilter' : 'ingenFund'));
+      // V-MANUEL.2: et tomt "Kendt fra sagen" siger, hvad filteret er.
+      if (!vis.length) tabelvaert.appendChild(el('p', 'tabel-tom', !(side ? side.antal.alle : st.analyse.raekker.length) ? 'ingenFund' : st.filter === 'seneste' && !st.soeg.trim() ? 'ingenKendtFraSagen' : 'ingenIFilter'));
       flere.hidden = iAlt <= vis.length;
       flereTekst.setAttribute('data-t', 'visesAf');
       flereTekst.setAttribute('data-v', String(vis.length));
@@ -1272,6 +1332,7 @@
     G.haandter('masker', 'fortryd', () => fortryd());
     G.haandter('masker', 'gentag', () => gentag());
     G.haandter('masker', 'ryd', () => ryd());
+    G.haandter('masker', 'tom-anden', () => visSagensIndhold());
     /* Båndets Maskér dette må ikke tage markeringen eller fokus fra teksten ved musetrykket (klikket virker som før). */
     G.dele.masker.bar.knap('masker-dette').addEventListener('mousedown', e => e.preventDefault());
     d.soeg.addEventListener('input', () => { st.soeg = d.soeg.value; st.side = SIDE; if (st.fil) hentSide(); else tegnTabel(); });
@@ -1309,6 +1370,8 @@
       hist, maskerDette, fortryd, gentag, ryd, kanMarkere, markering, markeringAendret, tegnMaskerDette, flyt, menu,
       tegnFilinfo() { tegnFilinfo(f, st.fil); },
       lukMenu,
+      // V-MANUEL.2
+      tegnTom, moensterForslag,
     };
   })();
 
@@ -1434,7 +1497,10 @@
       tegnFilinfo(f, st.fil);
       d.tomP.setAttribute('data-t', poster > 0 ? 'tomDemaskerP' : gemteSager > 0 ? 'tomDemaskerAabnSagP' : 'tomDemaskerTomSagP');
       S.anvend(d.tomP);
-      tilSager.hidden = !(poster === 0 && gemteSager > 0);
+      // V-MANUEL.2 N1: har sagen koder, er den anden handling "Vis sagens indhold"; ellers "Åbn Sager", når der er gemte sager.
+      tilSager.hidden = !(poster > 0 || gemteSager > 0);
+      tilSager.querySelector('span').setAttribute('data-t', poster > 0 ? 'kVisSagensIndhold' : 'kGaaTilSager');
+      S.anvend(tilSager);
     }
     function tegnBannere() {
       f.bannere.textContent = '';
@@ -1541,6 +1607,8 @@
     }
 
     G.haandter('demasker', 'demasker', () => demasker());
+    // V-MANUEL.2 N1: den tomme flades anden handling: sagens indhold, når sagen har koder; ellers Sager (som før).
+    G.haandter('demasker', 'tom-anden', () => { if (poster > 0) visSagensIndhold(); else G.vis('sager'); });
     G.haandter('demasker', 'kopier-resultat', () => kopierResultat());
     G.haandter('demasker', 'indsaet', () => indsaetVia(st.tekst ? svar.pre : d.tom, f));
     G.haandter('demasker', 'aabn-fil', () => aabnFil());

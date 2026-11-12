@@ -73,8 +73,8 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::ThreadId;
 
 use grimnir_core::{
-    analyser as kerne_analyser, demasker_med_steder as kerne_demasker, foreslaa_med_ordbog, laekagetjek, masker, Advarsel, AdvarselArt,
-    AfledtArt, Art, Erstatning, Fejl, Fund, Klasse, Ordbog, Pulje, RestArt, Sag, Sikkerhed, Valg,
+    analyser as kerne_analyser, demasker_med_steder as kerne_demasker, foreslaa_med_ordbog, foreslaa_moenstre, laekagetjek, masker,
+    Advarsel, AdvarselArt, AfledtArt, Art, Erstatning, Fejl, Fund, Klasse, Ordbog, Pulje, RestArt, Sag, SagData, Sikkerhed, Valg,
 };
 use serde::{Deserialize, Serialize};
 
@@ -754,6 +754,17 @@ pub struct Analyse {
     pub bytes: usize,
     /// Antal linjer.
     pub linjer: usize,
+    /// V-MANUEL.2 N3: forslag til navnemønstre ud fra tekstens maskinnavne ([`grimnir_core::foreslaa_moenstre`]).
+    pub moenstre: Vec<MoensterUd>,
+}
+
+/// V-MANUEL.2 N3: et forslag til et navnemønster, som brugeren kan lægge i ordbogen med ét valg (type `navnemoenster`).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct MoensterUd {
+    /// Mønsteret i ordbogens form (`srv-*`, `pc-###`).
+    pub moenster: String,
+    /// Antal forskellige maskinnavne i teksten med formen.
+    pub navne: usize,
 }
 
 /// V-MANUEL.1: svaret fra [`analyser_med`]: analysen og hvad der blev af hver tilføjet værdi. Webvisningen får ét objekt
@@ -1061,6 +1072,8 @@ struct Beregning {
     linjer: Linjer,
     /// V-KVIT.1: spændene for analysens fund (med brugerens ordbog), i tekstens rækkefølge.
     fund_spaend: Vec<(usize, usize)>,
+    /// V-MANUEL.2 N3: forslag til navnemønstre.
+    moenstre: Vec<MoensterUd>,
 }
 
 /// Hvilke rækker der maskeres.
@@ -1082,6 +1095,13 @@ enum Udvalg<'a> {
 fn beregn(sag: &Sag, tekst: &str, udvalg: Udvalg<'_>, rettelser: &[Rettelse], ordbog: &Ordbog) -> Result<Beregning, UiFejl> {
     let linjer = Linjer::ny(tekst);
     let fund = kerne_analyser(tekst, ordbog);
+    let moenstre = foreslaa_moenstre(tekst, &fund, ordbog)
+        .into_iter()
+        .map(|m| MoensterUd {
+            moenster: m.moenster,
+            navne: m.navne,
+        })
+        .collect();
     let fund_ved: HashMap<(usize, usize), &Fund> = fund.iter().map(|f| ((f.start, f.slut), f)).collect();
     let fremmede = sag.valg().masker_fremmede;
 
@@ -1320,6 +1340,7 @@ fn beregn(sag: &Sag, tekst: &str, udvalg: Udvalg<'_>, rettelser: &[Rettelse], or
         fravalgte,
         linjer,
         fund_spaend: fund.iter().map(|f| (f.start, f.slut)).collect(),
+        moenstre,
     })
 }
 
@@ -1549,6 +1570,7 @@ fn analyser_i(
             raekker: b.raekker,
             fejl: b.fejl,
             bytes: tekst.len(),
+            moenstre: b.moenstre,
         },
         tilfoejede: tilfoejet_ud,
     };
@@ -1943,6 +1965,192 @@ pub fn sag_valg(t: &Tilstand, masker_fremmede: bool, bevar_sidste_oktet: bool) -
     let aaben = aktuel.aaben.take();
     erstat(aktuel, ny, aaben);
     Ok(status(aktuel))
+}
+
+// ------------------------------------------------------------------------------------------------------- sagens indhold (V-MANUEL.2)
+
+/// V-MANUEL.2 N1: type, søgning, viste hemmeligheder og sidestørrelse for sagens poster (som [`SideValg`] for rækkerne).
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct IndholdValg {
+    /// Typen (klassens navn som i [`SagPost::type_`]: `vaert`, `bruger`, `ipv4_egen` …); tom: alle.
+    #[serde(rename = "type")]
+    pub type_: String,
+    /// Søgeteksten: koder, gamle koder og værdier (en hemmelighed kun, når den er vist).
+    pub soeg: String,
+    /// Hemmeligheder, brugeren har trykket Vis på (postens `nr`); kun deres værdi sendes, og kun dem søges der i.
+    pub vist: Vec<usize>,
+    /// Antal poster, der sendes (500, 1000 …; højst [`MAKS_SIDE`]).
+    pub antal: usize,
+}
+
+/// V-MANUEL.2 N1: én post i sagen: én stavemåde og dens kode. Har bevidst ingen `Debug`: `vaerdi` er en original.
+#[derive(Clone, Serialize)]
+pub struct SagPost {
+    /// Postens plads i sagen (fast, så længe sagen ikke ændres).
+    pub nr: usize,
+    /// Klassens navn (`vaert`, `domaene`, `bruger`, `hemmelighed`, `ipv4_egen` …; som rækkernes `art`).
+    #[serde(rename = "type")]
+    pub type_: &'static str,
+    /// Koden.
+    pub kode: String,
+    /// Den rigtige værdi. `None` for en hemmelighed, brugeren ikke har trykket Vis på.
+    pub vaerdi: Option<String>,
+    /// Hemmelighed: vises som prikker, til brugeren trykker Vis.
+    pub hemmelig: bool,
+    /// Tidligere koder (ADR D18): koder, posten havde, før brugeren rettede den; de demaskeres stadig.
+    pub aliaser: Vec<String>,
+    /// Brugeren har rettet koden.
+    pub rettet: bool,
+}
+
+/// V-MANUEL.2 N1: antal poster af én type (træet i venstre side).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct TypeAntal {
+    /// Klassens navn.
+    #[serde(rename = "type")]
+    pub type_: &'static str,
+    /// Antal poster.
+    pub antal: usize,
+}
+
+/// V-MANUEL.2 N1: svaret fra [`sag_indhold`]: én side af sagens poster. Sagen har ikke tallet for, hvor mange steder en
+/// værdi stod (det tælles kun i den tekst, der maskeres eller demaskeres), så det står ikke her. Ingen `Debug`.
+#[derive(Clone, Serialize)]
+pub struct SagIndhold {
+    /// Sagens id (`None`: den midlertidige sag).
+    pub id: Option<String>,
+    /// Navnet (`None`: den midlertidige sag).
+    pub navn: Option<String>,
+    /// Sagen er den, der er åben i dette vindue (ellers er den kun læst og ikke åbnet).
+    pub aaben: bool,
+    /// Udløbsdato `ÅÅÅÅ-MM-DD`.
+    pub udloeb: Option<String>,
+    /// Antal poster i sagen i alt.
+    pub i_alt: usize,
+    /// Antal poster pr. type (i klassernes faste rækkefølge; kun typer med poster).
+    pub typer: Vec<TypeAntal>,
+    /// Antal poster efter type og søgning.
+    pub fundet: usize,
+    /// De første `antal` poster efter type og søgning, sorteret efter type og kode.
+    pub raekker: Vec<SagPost>,
+}
+
+/// En side af sagens poster efter `valg` (se [`sag_indhold`]).
+fn indhold_af(d: &SagData, valg: &IndholdValg) -> (usize, Vec<TypeAntal>, usize, Vec<SagPost>) {
+    let klasse = |i: usize| d.enheder.get(d.poster[i].enhed).map_or(Klasse::Ord, |e| e.klasse);
+    let mut orden: Vec<usize> = (0..d.poster.len()).collect();
+    orden.sort_by(|a, b| (klasse(*a).nr(), &d.poster[*a].kode).cmp(&(klasse(*b).nr(), &d.poster[*b].kode)));
+    let mut typer: Vec<TypeAntal> = Vec::new();
+    for k in Klasse::ALLE {
+        let n = (0..d.poster.len()).filter(|i| klasse(*i) == k).count();
+        if n > 0 {
+            typer.push(TypeAntal {
+                type_: klasse_navn(k),
+                antal: n,
+            });
+        }
+    }
+    let q = valg.soeg.trim().to_lowercase();
+    let vist: HashSet<usize> = valg.vist.iter().copied().collect();
+    let aliaser_af = |i: usize| -> Vec<String> { d.aliaser.iter().filter(|(_, p)| *p == i).map(|(k, _)| k.clone()).collect() };
+    let antal_side = valg.antal.clamp(1, MAKS_SIDE);
+    let mut fundet = 0;
+    let mut raekker = Vec::new();
+    for i in orden {
+        let k = klasse(i);
+        if !valg.type_.is_empty() && klasse_navn(k) != valg.type_ {
+            continue;
+        }
+        let p = &d.poster[i];
+        let hemmelig = k == Klasse::Hemmelighed;
+        let kan_ses = !hemmelig || vist.contains(&i);
+        let passer = q.is_empty()
+            || p.kode.to_lowercase().contains(&q)
+            || d.aliaser.iter().any(|(a, x)| *x == i && a.to_lowercase().contains(&q))
+            || (kan_ses && p.original.som_tekst().to_lowercase().contains(&q));
+        if !passer {
+            continue;
+        }
+        fundet += 1;
+        if raekker.len() < antal_side {
+            raekker.push(SagPost {
+                nr: i,
+                type_: klasse_navn(k),
+                kode: p.kode.clone(),
+                vaerdi: kan_ses.then(|| p.original.som_tekst().to_string()),
+                hemmelig,
+                aliaser: aliaser_af(i),
+                rettet: p.rettet,
+            });
+        }
+    }
+    (d.poster.len(), typer, fundet, raekker)
+}
+
+/// V-MANUEL.2 N1: én side af sagens poster (kode, type og rigtig værdi). `id`: en sag på disk; `None` eller den åbne
+/// sags id: den åbne sag (også den midlertidige) i hukommelsen.
+///
+/// **En anden sag end den åbne læses kun** (filen dekrypteres for denne side og slippes igen; nøgle og data nulstilles):
+/// den åbne sag skiftes ikke stiltiende, og en midlertidig sag med poster går ikke tabt. Vil brugeren arbejde i den, er
+/// det "Åbn i Maskér". En sag uden nøgle, der er beskadiget eller ikke findes, svarer med årsagen ([`UiFejl::Sag`]).
+/// En udløbet sag kan læses som før (den kan også åbnes); UI'et siger, at den er udløbet.
+///
+/// Værdierne hentes først, når visningen beder om dem, og en hemmelighed kun, når brugeren har trykket Vis på den
+/// ([`IndholdValg::vist`]). Låst: [`UiFejl::Laast`], før noget læses; porten tjekkes igen, før svaret gives. Intet skrives
+/// til disk eller log.
+pub fn sag_indhold(t: &Tilstand, id: Option<&str>, valg: &IndholdValg) -> Result<SagIndhold, UiFejl> {
+    t.aaben()?;
+    let id = id.map(id_af).transpose()?;
+    {
+        let a = t.sag();
+        let den_aabne = a.aaben.as_ref().map(|x| x.id);
+        if id.is_none() || id == den_aabne {
+            let (i_alt, typer, fundet, raekker) = indhold_af(a.sag.data(), valg);
+            let ud = SagIndhold {
+                id: a.aaben.as_ref().map(|x| x.id.hex()),
+                navn: a.aaben.as_ref().map(|x| x.hoved.navn.clone()),
+                aaben: true,
+                udloeb: a.aaben.as_ref().and_then(|x| x.hoved.udloeb.clone()),
+                i_alt,
+                typer,
+                fundet,
+                raekker,
+            };
+            drop(a);
+            t.aaben()?;
+            return Ok(ud);
+        }
+    }
+    let id = id.ok_or(UiFejl::IngenArkiv)?;
+    let (aaben, data) = t.arkiv()?.aabn(&id)?;
+    let (i_alt, typer, fundet, raekker) = indhold_af(&data, valg);
+    nulstil(data);
+    let ud = SagIndhold {
+        id: Some(aaben.id.hex()),
+        navn: Some(aaben.hoved.navn.clone()),
+        aaben: false,
+        udloeb: aaben.hoved.udloeb.clone(),
+        i_alt,
+        typer,
+        fundet,
+        raekker,
+    };
+    drop(aaben);
+    if let Err(f) = t.aaben() {
+        nulstil_indhold(ud);
+        return Err(f);
+    }
+    Ok(ud)
+}
+
+/// Nulstiller værdierne i et svar, der ikke udleveres (låst imens).
+fn nulstil_indhold(ud: SagIndhold) {
+    for mut p in ud.raekker {
+        if let Some(v) = p.vaerdi.as_mut() {
+            zeroize::Zeroize::zeroize(v);
+        }
+    }
 }
 
 // ------------------------------------------------------------------------------------------------------- ordbogen
@@ -2831,6 +3039,8 @@ pub struct FilAnalyse {
     pub linjer: usize,
     /// Alle rækker, der ikke maskeres (id'er), så webvisningen kender valget uden at have alle rækker.
     pub fravalgt: Vec<usize>,
+    /// V-MANUEL.2 N3: forslag til navnemønstre.
+    pub moenstre: Vec<MoensterUd>,
 }
 
 /// `analyser` for den åbne fil i Maskér. `rort` (vinder over `fravalgt`): kernens standard undtagen rækker, brugeren
@@ -2863,6 +3073,7 @@ pub fn fil_analyser(
         advarsler: a.advarsler,
         bytes: h.fil.bytes,
         linjer: a.linjer,
+        moenstre: a.moenstre,
     })
 }
 

@@ -39,6 +39,7 @@ const KOMMANDOER: &[&str] = &[
     "aktivitet",
     "udklip_kopieret",
     "kvittering",
+    "sag_indhold",
 ];
 
 fn main() {

@@ -12,3 +12,4 @@ cc b8de17d310a50e4f3115c7acae8da6649cf98bcbf22d27541a05114a8d89fd6f # shrinks to
 cc b1a8e8a43486f00f5c15710eea3596ab9ec6896c70b96ecc6d76e314b143e137 # shrinks to a = "10.20.30.1 10.20.30.1 G:2001:db8::1.", b = "fd00:0:0:1::5 "
 cc d7203c712168a186045b5e893d8837dc5d7281eb98804c9236e7fa7f88eddc51 # shrinks to a = "FD00:0:0:1::5.", b = "2001:db8::1:5 "
 cc 3fe771d34b01564879c6032cdafa879b3dae8e6911bf6a109e4aca60dcbe9d4a # shrinks to a = "10.20.30.1 ", b = "", valg = 0, hele_enheden = false, ny = "a-0"
+cc abbc4777ab38d77663353fa4162c725e5c8cad9f26d86f97a257c5e79abab2fb # shrinks to t = "2001:db8::1:5 A Server=sqlsrv01;Database=Kunde_DB; Server=sqlsrv01;Database=Kunde_DB;.password=Hemmelig1\"AAA0a:1b:2c:3d:4e:5f.==", valg = [(2086, 1, 0)]
