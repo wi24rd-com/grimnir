@@ -14,8 +14,8 @@ Tankerne bag kittet (principper, farvernes betydning, sprogtone) står i `../REA
 | `tokens/wi24rd-ui-kit-2.tokens.json` | Kilden til alle tokens: farver i lyst og mørkt tema (også ok, mærker, dataserier, skala og kort fra 2.1.0; tekst, der er slået fra, og hover på mærker fra 2.4.0), skrift, luft, radier, skygger |
 | `tokens/tokens.css` | Samme tokens som CSS-variabler (genereret) |
 | `tokens/Tokens.xaml` | Samme tokens som WPF-ressourcer (genereret) |
-| `web/kit.css` | Komponenternes udseende (fra 2.2.0 også vælger, sidepanel og segmentknap; fra 2.3.0 dialog, afkrydsning, kontakt, radiogruppe, valgliste, StatusTile, kasse, tom tilstand, fremdrift, værktøjstip, filterchip, tabellens sortering og sideskift, og tekststørrelsen; fra 2.4.0 tabellens rulleramme, faste bredder og skillelinjer) |
-| `web/kit.js` | Komponenternes opførsel (`window.Kit`), også `Kit.vaelger`, `Kit.sidepanel` og `Kit.segment` fra 2.2.0, og fra 2.3.0 `Kit.dialog`, `Kit.bekraeft`, `Kit.afkrydsning`, `Kit.kontakt`, `Kit.radiogruppe`, `Kit.valgliste`, `Kit.statusflise`, `Kit.statusfliser`, `Kit.kasse`, `Kit.tomTilstand`, `Kit.fremdrift`, `Kit.vaerktoejstip`, `Kit.filterchip`, `Kit.filterchips` og `Kit.sideskift`, og fra 2.4.0 `Kit.tabelRul` |
+| `web/kit.css` | Komponenternes udseende (fra 2.2.0 også vælger, sidepanel og segmentknap; fra 2.3.0 dialog, afkrydsning, kontakt, radiogruppe, valgliste, StatusTile, kasse, tom tilstand, fremdrift, værktøjstip, filterchip, tabellens sortering og sideskift, og tekststørrelsen; fra 2.4.0 tabellens rulleramme, faste bredder og skillelinjer; fra 2.5.0 statusdelen i fodlinjen, mærket med programmets billede, titellinjeknappernes tilstande, dialogens fejlfelt og guide-udgave, flisens valg og to mål, filteret, der kan fjernes, den tomme flade, der tager imod, og `--tekst-zoom`) |
+| `web/kit.js` | Komponenternes opførsel (`window.Kit`), også `Kit.vaelger`, `Kit.sidepanel` og `Kit.segment` fra 2.2.0, og fra 2.3.0 `Kit.dialog`, `Kit.bekraeft`, `Kit.afkrydsning`, `Kit.kontakt`, `Kit.radiogruppe`, `Kit.valgliste`, `Kit.statusflise`, `Kit.statusfliser`, `Kit.kasse`, `Kit.tomTilstand`, `Kit.fremdrift`, `Kit.vaerktoejstip`, `Kit.filterchip`, `Kit.filterchips` og `Kit.sideskift`, og fra 2.4.0 `Kit.tabelRul`, og fra 2.5.0 `Kit.fodstatus` |
 | `web/tema.js` | Lyst, mørkt eller som systemet (`window.Tema`), og fra 2.3.0 tekststørrelsen i tre trin (`window.Tekst`) |
 | `web/sprogmotor.js` | Sprogets mekanik: opslag, ental og flertal, sprogskift (`window.KitSprog`) |
 | `web/fonts/` | Inter og JetBrains Mono (woff2) med deres OFL-licenser |
@@ -103,7 +103,7 @@ Har programmet allerede sit eget sprogmodul, kan det beholde det. Kittet kræver
 
 ### 5. Byg skærmen
 
-Start med skallen i `KOMPONENTER.md` (AppShell) og fyld den med `Kit.commandBar`, `Kit.navTrae`, `Kit.visningsskift` og `Kit.tabel`. Til valg for hele skærmen er der `Kit.vaelger` (titellinje, værktøjslinje, bånd) og `Kit.segment`; til hjælp og detaljer ved siden af arbejdet `Kit.sidepanel`. Et program med få kommandoer bruger båndet uden faner (`udenFaner: true`). Fra 2.3.0 er der dialoger (`Kit.dialog`, `Kit.bekraeft`), formularens valg (`Kit.afkrydsning`, `Kit.kontakt`, `Kit.radiogruppe`, `Kit.valgliste`; se "Hvilken kontrol hvornår" i `KOMPONENTER.md`), fliser (`Kit.statusfliser`), kasser (`Kit.kasse`), tom tilstand, fremdrift, værktøjstip, filterchips og tabellens sortering og sideskift. Fra 2.4.0 kan tabellens rækker åbne noget i stedet for at blive valgt, eller slet ikke reagere (`raekkeHandling`), og tabellen kan have rækkehoved, faste bredder, skillelinjer, en `caption`, følge indholdet og rulle vandret med første kolonne fast (`Kit.tabelRul`). Demoens `demo/index.html` og `demo/demo.js` er et lille, komplet eksempel.
+Start med skallen i `KOMPONENTER.md` (AppShell) og fyld den med `Kit.commandBar`, `Kit.navTrae`, `Kit.visningsskift` og `Kit.tabel`. Til valg for hele skærmen er der `Kit.vaelger` (titellinje, værktøjslinje, bånd) og `Kit.segment`; til hjælp og detaljer ved siden af arbejdet `Kit.sidepanel`. Et program med få kommandoer bruger båndet uden faner (`udenFaner: true`). Fra 2.3.0 er der dialoger (`Kit.dialog`, `Kit.bekraeft`), formularens valg (`Kit.afkrydsning`, `Kit.kontakt`, `Kit.radiogruppe`, `Kit.valgliste`; se "Hvilken kontrol hvornår" i `KOMPONENTER.md`), fliser (`Kit.statusfliser`), kasser (`Kit.kasse`), tom tilstand, fremdrift, værktøjstip, filterchips og tabellens sortering og sideskift. Fra 2.4.0 kan tabellens rækker åbne noget i stedet for at blive valgt, eller slet ikke reagere (`raekkeHandling`), og tabellen kan have rækkehoved, faste bredder, skillelinjer, en `caption`, følge indholdet og rulle vandret med første kolonne fast (`Kit.tabelRul`). Fra 2.5.0 har fodlinjen en statusdel med fremdrift (`Kit.fodstatus`), og skallen, kontrollerne, fliserne og dialogen har de indstillinger, Huginn and Muninn og Grimnir bad om (se CHANGELOG og afsnittene "fra 2.5.0" i `KOMPONENTER.md`). Demoens `demo/index.html` og `demo/demo.js` er et lille, komplet eksempel.
 
 Det, kittet forventer af programmet:
 
@@ -112,6 +112,21 @@ Det, kittet forventer af programmet:
 - Titellinjen er programmets: mærke, navn og det, der står til højre (`.hoejre`). Har vinduet styresystemets knapper oven på titellinjen (fx macOS med overlejret titellinje), giver programmet selv plads til dem i sin egen CSS.
 - Mindste vindue er 900 × 560 px. Dér er der plads til otte visninger i visningsskiftet (se NavPane i `KOMPONENTER.md`).
 - Alt, der kan aktiveres, skal have synlig hover, kunne nås med Tab og have en `aria-label`, der siger, hvad der sker.
+
+### Det, Grimnir selv kan skifte til (fra 2.5.0)
+
+Grimnirs egne løsninger, der nu er kittets. Grimnir ser ud og opfører sig som før med 2.5.0; skiftet er Grimnirs egen cyklus.
+
+| Grimnir i dag | Kittet fra 2.5.0 |
+|---|---|
+| Fem dialoger med eget fejlfelt (`p.dlg-fejl` med `role="alert"` i indholdet) og knapper, der giver `false` og lukker selv ved succes: Ny sag, Omdøb, Udløb, Slet sag, Fjern post (og Start forfra) | `fejl: true` og `d.fejl(…)`, og `ved`, der giver et løfte (`true` lukker); Slet sag og Fjern post kan være `Kit.bekraeft({ ved })` |
+| `kitDialog` sætter `rod.id` og `knap.id` bagefter | `id` og `knapId` |
+| Om sætter fletbåndet foran `.modal-top` | `foer: Kit.fletbaand()` |
+| Guiden i sin egen `<dialog class="dlg dlg-guide">` (820 px uden luft, `cancel` fanget) | `Kit.dialog({ guide: true, ariaLabelledby, indhold })`; Esc kommer som `'esc'` i `vedLuk` |
+| Afkrydsningen i fundtabellen bygget som `<input class="afk-boks">` med `data-t-aria` | `Kit.afkrydsning({ ariaT, ariaV })` |
+| Den tomme tilstand i Maskér og Demaskér får `tabIndex`, `aria-label` og en ekstra knap bagefter | `modtager: { ariaT, ariaV }` og `anden`; Grimnir sætter selv `.tomt-slip` fra sine træk-hændelser (kittet læser ingen filer) |
+| `--z` i `app.css` | `--tekst-zoom` fra `kit.css` (samme tal) |
+| Båndets `hvorfor` i `title` | `hvorforTip: true` (ændrer båndets markup; Grimnirs UI-test skal følge med) |
 
 ### Ingen inline-stil
 

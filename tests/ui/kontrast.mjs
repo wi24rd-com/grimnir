@@ -326,6 +326,38 @@ export const PAR = [
   ...['map-sea', 'map-land', 'seq-5', 'danger-mark', 'data-3'].map(u => ['text', `mix(surface 92%, ${u})`, TEKST, `2.4.0 tekst på næsten dækkende flade over ${u}`]),
   ['danger', 'mix(surface 92%, map-sea)', TEKST, '2.4.0 demoens forklaring på kortet: angreb'],
   ['info', 'mix(surface 92%, map-sea)', TEKST, '2.4.0 demoens forklaring på kortet: bue'],
+  // 2.5.0 (K23): titellinjeknapper. Slået fra er .rk med opacity .6 (mix 60 % over titellinjen); aria-current har en streg
+  // i --accent-on-rail og aria-expanded en ring i --rail-text på den aktive flade.
+  ['mix(rail-text 60%, rail)', 'rail', TEKST, '2.5.0 titellinjeknap slået fra (opacity .6)'],
+  ['accent-on-rail', 'rail-active', KANT, '2.5.0 titellinjeknap med aria-current: stregen forneden'],
+  ['rail-text', 'rail-active', KANT, '2.5.0 titellinjeknap med aria-expanded: ringen'],
+  ['rail-strong', 'rail-active', TEKST, '2.5.0 titellinjeknap med aria-current eller aria-expanded: ikonet'],
+  // 2.5.0 (K24): visningsskiftet. Tallet, der kræver handling, er danger på danger-soft med kant i danger; et punkt slået fra
+  // er nedtonet (opacity .5; slået fra er undtaget fra 4,5:1, men ikonet og ordet skal stadig ses: 3:1).
+  ['danger', 'danger-soft', TEKST, '2.5.0 visningsskiftets tal, der kræver handling'],
+  ['danger', 'surface-raised', KANT, '2.5.0 kanten om tallet, der kræver handling, mod visningsskiftet'],
+  ['danger', 'border', KANT, '2.5.0 kanten om tallet, der kræver handling, på den aktive visning'],
+  ['text-muted', 'surface-raised', TEKST, '2.5.0 visningsskiftets almindelige tal'],
+  ['mix(text 50%, surface-raised)', 'surface-raised', KANT, '2.5.0 et punkt i visningsskiftet slået fra (opacity .5)'],
+  // 2.5.0 (K25): statusdelen i fodlinjen (surface-raised; surface ved hover på knappen).
+  ...['ok', 'warn', 'danger', 'info'].map(v => [v, 'surface-raised', TEKST, `2.5.0 fodstatus: symbolet for ${v}`]),
+  ...['ok', 'warn', 'danger', 'info'].map(v => [v, 'surface', TEKST, `2.5.0 fodstatus: symbolet for ${v} ved hover`]),
+  ['text', 'surface', TEKST, '2.5.0 fodstatus: teksten i knappen ved hover'],
+  ['accent', 'border', KANT, '2.5.0 fodstatus: fremdriften (accent på border)'],
+  ['accent', 'surface-raised', KANT, '2.5.0 fodstatus: ringen, der snurrer (accent)'],
+  ['info', 'surface-raised', KANT, '2.5.0 fodstatus: fokusring på knappen'],
+  // 2.5.0 (K32, K33, K34, G8): kassens ikon, den valgte flise og flisens andet mål, filteret, der kan fjernes, og den tomme
+  // flade, mens filer trækkes over.
+  ['accent', 'surface-raised', KANT, '2.5.0 kassens ikon i overskriften'],
+  ['accent', 'surface', KANT, '2.5.0 kanten om den valgte flise og om et aktivt filter'],
+  ['accent', 'bg', KANT, '2.5.0 kanten om den valgte flise mod baggrunden'],
+  ['text', 'accent-soft', TEKST, '2.5.0 tal og navn på den valgte flise; ordet i et aktivt filter'],
+  ['text-muted', 'accent-soft', TEKST, '2.5.0 flisens navn på den valgte flise'],
+  ['info', 'accent-soft', TEKST, '2.5.0 flisens andet mål (link) på den valgte flise'],
+  ['info', 'surface', TEKST, '2.5.0 flisens andet mål (link)'],
+  ['info', 'surface-raised', TEKST, '2.5.0 flisens andet mål ved hover på flisen'],
+  ['accent', 'accent-soft', KANT, '2.5.0 den stiplede kant om en tom flade, mens filer trækkes over'],
+  ['danger', 'surface', TEKST, '2.5.0 dialogens fejlfelt'],
 ];
 
 /* En farve fra et tokennavn eller fra mix(A N%, B): A og B blandet i srgb, N % af A. */

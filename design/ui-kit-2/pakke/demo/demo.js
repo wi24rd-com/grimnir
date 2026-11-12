@@ -103,6 +103,7 @@
         h240: 'Hover, buer og svage flader', p240: 'Fra 2.4.0. Søjlerne skifter til mærkets hover-farve under musen (mærket blandet med tekstens farve). Under dem mærkernes svage flade (18 %) med tekst på. På kortet er buen, der er et angreb, rød som ringen; den blå bue betyder ingenting ud over vejen. Forklaringen står på en næsten dækkende flade (92 %).',
         svagTekst: 'Tekst på svag flade', kortAngreb: 'Angreb (danger-mark)', kortBue: 'Bue uden betydning (map-arc)',
         kasseSager: 'Seneste sager', kasseNet: 'Egne net', visAlle: 'Vis alle', kasseFod: 'Opdateret for 2 minutter siden', sag1: 'Supportsag 0042', sag2: 'Leverandør 0007', sag3: 'Test 0001', netTekst: 'Adresser i 192.0.2.0/24 og 2001:db8::/32 maskeres altid.',
+        h250Titel: 'Mærke og titellinjeknapper (fra 2.5.0)', p250Titel: 'Mærket er programmets eget (her en maske af striber i titellinjens mærkefarve). Frem er slået fra, tandhjulet peger på det viste (streg forneden), og hjælp har sit panel åbent (ring); klik på hjælp for at skifte.', ariaFrem: 'Frem', ariaIndst: 'Indstillinger', ariaHjaelp: 'Hjælp', hjaelpAaben: 'Hjælp: panelet er åbent', hjaelpLukket: 'Hjælp: panelet er lukket', h250Hvorfor: 'Hvorfor i et værktøjstip (fra 2.5.0)', p250Hvorfor: 'Med hvorforTip: true står forklaringen i et værktøjstip, der vises ved Tab og læses op. Knappen under slår Kopiér til og fra.', kSlaaTil: 'Slå Kopiér til eller fra', h250Nav: 'Træ, der bygges om, og visningsskift med tal (fra 2.5.0)', p250Nav: 'Byg om skifter domænerne uden at miste valg, foldning eller fokus (og uden at kalde vedValg). Siden sidst har et tal, der kræver handling; Angreb er slået fra og siger hvorfor i et værktøjstip.', tSamlet: 'Alle domæner', vOversigt: 'Oversigt', vSiden: 'Siden sidst', vAngreb: 'Angreb', kraeverHandling: '{v} kræver handling', hvorforToken: 'Kræver en API-nøgle under Indstillinger.', kByggOm: 'Byg træet om', kSlaaAngreb: 'Slå Angreb til eller fra', h250Fod: 'Status med fremdrift (fra 2.5.0)', p250Fod: 'Statusdelen i fodlinjen: mærke, kort tekst, tynd fremdrift og en knap. Et trin læses ikke op; en ny tekst gør (høfligt).', koeHenter: 'Henter …', koeFaerdig: 'Alt er hentet', koeFejl: 'Hentningen fejlede', aabnOverblik: 'Åbn Overblik', kEtTrin: 'Et trin', kUbestemt: 'Ubestemt', kFaerdig: 'Færdig', kFejl: 'Fejl', h250Fliser: 'Valgt flise, to mål og frit indhold (fra 2.5.0)', p250Fliser: 'Klik på en flise for at vise den (aria-current, flade og dobbelt kant). Underteksten i den første er sit eget mål. Den sidste har to datoer med hvert sit link.', fliser250Aria: 'Afviste', flIGaar: 'Afvist i går', flIDag: 'Afvist i dag', iDagHidtil: 'I dag hidtil: 3', flSet: 'Først og sidst set', foerst: 'Først', sidst: 'Sidst', h250Kasse: 'Ikon i overskriften (fra 2.5.0)', p250Kasse: 'Et ikon i accent foran kassens overskrift.', kasseLaas: 'Lås', kasseLaasTekst: 'Låsen slår til efter 5 minutter uden brug.', h250Tom: 'En tom flade, der tager imod, og to handlinger (fra 2.5.0)', p250Tom: 'Fladen kan få fokus og tager imod ⌘V; den anden handling hjælper videre ad en anden vej.', tomModtagerH: 'Indsæt en tekst', tomModtagerP: 'Klik her og tryk ⌘V.', ariaModtager: 'Indsæt tekst med {v}', kAabnSager: 'Åbn Sager', modtaget: 'Modtaget: {v} tegn', h250Dialog: 'Dialoger, der kan fejle, og guiden (fra 2.5.0)', p250Dialog: 'Ny sag og Slet fejler første gang og lykkes anden gang: knappen venter, og fejlen står over fodlinjen. Om har fletbåndet over overskriften; guiden står i en bred dialog; Tre svar følger reglen for et spørgsmål med tre svar.', dlgNySag: 'Ny sag (kan fejle)', dlgNySagH: 'Ny sag', dlgNySagP: 'Første forsøg fejler, andet lykkes.', dlgNySagFejl: 'Der findes allerede en sag med det navn.', opretSag: 'Opret sag', dlgSletVent: 'Slet (kan fejle)', dlgSletVentP: 'Sletningen fejler første gang.', dlgSletFejl: 'Sagen kunne ikke slettes. Prøv igen.', dlgOm: 'Om', dlgOmH: 'Om demoen', dlgOmP: 'Fletbåndet står over overskriften; overskriften navngiver stadig dialogen.', kLuk: 'Luk', dlgGuide: 'Guide i dialog', dlgTre: 'Tre svar', dlgTreH: 'Gem den midlertidige sag?', dlgTreP: 'Den har 3 poster. Kassér sletter dem.', kKasser: 'Kassér', kGemSomSag: 'Gem som sag', h250Seg: 'Uden valg (fra 2.5.0)', p250Seg: 'Ved siden af et eget interval er intet valgt; et klik vælger og meldes.', pEget: 'Eget interval', h250Fjern: 'Aktive filtre, der kan fjernes (fra 2.5.0)', p250Fjern: 'Hele chippen fjerner filtret; fokus går til nabochippen. Nulstil lægger dem tilbage.', aktiveFiltre: 'Aktive filtre', fjernFilter: 'Fjern filter: {v}', fjernet: 'Fjernet: {v}', kNulstil: 'Nulstil', fltLand: 'Danmark', fltDato: '1.–4. november', h250Afk: 'Afkrydsning i en tabelrække (fra 2.5.0)', p250Afk: 'Boksen alene, 16 px; navnet siger, hvad den gør med rækken.', afk250Aria: 'Værdier, der maskeres', kolMaskeres: 'Maskér', kolVaerdi250: 'Værdi', ariaMaskerV: 'Maskér {v}', h250Raekke: 'Navn uden for komponenten (fra 2.5.0)', p250Raekke: 'Etiketten står i rækkens venstre side og navngiver kontrollen med aria-labelledby.', rTema: 'Tema', rTemaNote: 'Gælder kun dette vindue.', rSprog: 'Sprog', rAutostart: 'Start ved login', tekstZoom: '--tekst-zoom er {v} (fra 2.5.0)',
       },
       en: {
         dokTitel: 'Wi24rd UI Kit 2 — demo', appNavn: 'Wi24rd UI Kit 2', undertitel: 'Demo · package {v}',
@@ -198,6 +199,7 @@
         h240: 'Hover, arcs and faint surfaces', p240: 'From 2.4.0. The bars change to the hover colour of the mark under the mouse (the mark mixed with the text colour). Below them the faint surface of each mark (18 %) with text on it. On the map the arc that is an attack is red like the ring; the blue arc means nothing but the route. The legend stands on an almost opaque surface (92 %).',
         svagTekst: 'Text on a faint surface', kortAngreb: 'Attack (danger-mark)', kortBue: 'Arc without meaning (map-arc)',
         kasseSager: 'Latest cases', kasseNet: 'Own networks', visAlle: 'Show all', kasseFod: 'Updated 2 minutes ago', sag1: 'Support case 0042', sag2: 'Supplier 0007', sag3: 'Test 0001', netTekst: 'Addresses in 192.0.2.0/24 and 2001:db8::/32 are always masked.',
+        h250Titel: 'Mark and title bar buttons (from 2.5.0)', p250Titel: 'The mark is the program’s own (here a mask of stripes in the title bar’s mark colour). Forward is disabled, the gear points to what is shown (line below), and help has its panel open (ring); click help to switch.', ariaFrem: 'Forward', ariaIndst: 'Settings', ariaHjaelp: 'Help', hjaelpAaben: 'Help: the panel is open', hjaelpLukket: 'Help: the panel is closed', h250Hvorfor: 'Why in a tooltip (from 2.5.0)', p250Hvorfor: 'With hvorforTip: true the explanation is in a tooltip that shows on Tab and is read out. The button below turns Copy on and off.', kSlaaTil: 'Turn Copy on or off', h250Nav: 'A tree that is rebuilt, and a view switcher with counts (from 2.5.0)', p250Nav: 'Rebuild changes the domains without losing the selection, folding or focus (and without calling vedValg). Since last time has a count that requires action; Attacks is disabled and says why in a tooltip.', tSamlet: 'All domains', vOversigt: 'Overview', vSiden: 'Since last time', vAngreb: 'Attacks', kraeverHandling: '{v} require action', hvorforToken: 'Requires an API key under Settings.', kByggOm: 'Rebuild the tree', kSlaaAngreb: 'Turn Attacks on or off', h250Fod: 'Status with progress (from 2.5.0)', p250Fod: 'The status part of the footer: mark, short text, thin progress and a button. A step is not read out; a new text is (politely).', koeHenter: 'Fetching …', koeFaerdig: 'Everything is fetched', koeFejl: 'Fetching failed', aabnOverblik: 'Open Overview', kEtTrin: 'One step', kUbestemt: 'Indeterminate', kFaerdig: 'Done', kFejl: 'Error', h250Fliser: 'Selected tile, two targets and free content (from 2.5.0)', p250Fliser: 'Click a tile to show it (aria-current, surface and double border). The subtext of the first is its own target. The last has two dates with a link each.', fliser250Aria: 'Rejected', flIGaar: 'Rejected yesterday', flIDag: 'Rejected today', iDagHidtil: 'Today so far: 3', flSet: 'First and last seen', foerst: 'First', sidst: 'Last', h250Kasse: 'Icon in the heading (from 2.5.0)', p250Kasse: 'An icon in accent before the box heading.', kasseLaas: 'Lock', kasseLaasTekst: 'The lock turns on after 5 minutes without use.', h250Tom: 'An empty surface that receives, and two actions (from 2.5.0)', p250Tom: 'The surface can take focus and receives ⌘V; the second action helps on another way.', tomModtagerH: 'Paste a text', tomModtagerP: 'Click here and press ⌘V.', ariaModtager: 'Paste text with {v}', kAabnSager: 'Open Cases', modtaget: 'Received: {v} characters', h250Dialog: 'Dialogs that can fail, and the guide (from 2.5.0)', p250Dialog: 'New case and Delete fail the first time and succeed the second: the button waits, and the error stands above the footer. About has the braid above the heading; the guide is in a wide dialog; Three answers follows the rule for a question with three answers.', dlgNySag: 'New case (can fail)', dlgNySagH: 'New case', dlgNySagP: 'The first attempt fails, the second succeeds.', dlgNySagFejl: 'A case with that name already exists.', opretSag: 'Create case', dlgSletVent: 'Delete (can fail)', dlgSletVentP: 'Deleting fails the first time.', dlgSletFejl: 'The case could not be deleted. Try again.', dlgOm: 'About', dlgOmH: 'About the demo', dlgOmP: 'The braid stands above the heading; the heading still names the dialog.', kLuk: 'Close', dlgGuide: 'Guide in a dialog', dlgTre: 'Three answers', dlgTreH: 'Save the temporary case?', dlgTreP: 'It has 3 entries. Discard deletes them.', kKasser: 'Discard', kGemSomSag: 'Save as case', h250Seg: 'Without a selection (from 2.5.0)', p250Seg: 'Next to a custom range nothing is selected; a click selects and is reported.', pEget: 'Custom range', h250Fjern: 'Active filters that can be removed (from 2.5.0)', p250Fjern: 'The whole chip removes the filter; focus goes to the neighbouring chip. Reset puts them back.', aktiveFiltre: 'Active filters', fjernFilter: 'Remove filter: {v}', fjernet: 'Removed: {v}', kNulstil: 'Reset', fltLand: 'Denmark', fltDato: '1–4 November', h250Afk: 'Checkbox in a table row (from 2.5.0)', p250Afk: 'The box alone, 16 px; the name says what it does with the row.', afk250Aria: 'Values that are masked', kolMaskeres: 'Mask', kolVaerdi250: 'Value', ariaMaskerV: 'Mask {v}', h250Raekke: 'Name outside the component (from 2.5.0)', p250Raekke: 'The label stands in the left side of the row and names the control with aria-labelledby.', rTema: 'Theme', rTemaNote: 'Applies to this window only.', rSprog: 'Language', rAutostart: 'Start at login', tekstZoom: '--tekst-zoom is {v} (from 2.5.0)',
       },
     },
   });
@@ -537,10 +539,10 @@
     ],
   }));
 
-  $('demo-tom-stor').appendChild(K.tomTilstand({ ikon: 'mappe', t: 'tomSagerH', p: 'tomSagerP', handling: { t: 'nySag', variant: 'primary', ved: () => meld('tom-valgt', 'nySag') } }));
+  $('demo-tom-stor').appendChild(K.tomTilstand({ ikon: 'mappe', t: 'tomSagerH', p: { t: 'tomSagerP' }, handling: { t: 'nySag', variant: 'primary', ved: () => meld('tom-valgt', 'nySag') } }));
   $('demo-tom-tabel').append(
     K.tabel({ ariaT: 'hTomTabel', kolonner: [{ t: 'kolNavn' }, { t: 'kolOprettet' }], raekker: [] }),
-    K.tomTilstand({ lille: true, ikon: 'soeg', t: 'ingenTraef', p: 'ingenTraefP', handling: { t: 'rydFilter', ved: () => meld('tom-valgt', 'rydFilter') } }),
+    K.tomTilstand({ lille: true, ikon: 'soeg', t: 'ingenTraef', p: { t: 'ingenTraefP' }, handling: { t: 'rydFilter', ved: () => meld('tom-valgt', 'rydFilter') } }),
   );
 
   const fremRamme = $('demo-frem');
@@ -602,7 +604,7 @@
   function svaret(v) { const p = $('dialog-valgt'); p.setAttribute('data-t', 'svaret'); p.setAttribute('data-v', v); S.anvend(p); }
   const navnFelt = K.felt({ etiket: { t: 'dlgNavn' }, vaerdi: 'Supportsag 0042', foelsom: true });
   const omdoeb = K.dialog({
-    t: 'dlgOmdoebH', p: 'dlgOmdoebP', indhold: navnFelt, luk: { ariaT: 'lukAria' },
+    t: 'dlgOmdoebH', p: { t: 'dlgOmdoebP' }, indhold: navnFelt, luk: { ariaT: 'lukAria' },
     knapper: [{ id: 'gem', t: 'gem', variant: 'primary', ved: () => {
       const inp = navnFelt.querySelector('input'), hj = navnFelt.querySelector('.hj');
       const tomt = !inp.value.trim();
@@ -615,7 +617,7 @@
   });
   $('demo-dialog').append(
     K.knap({ t: 'dlgOmdoeb', ved: () => { S.anvend(omdoeb.rod); omdoeb.aabn(); } }),
-    K.knap({ t: 'dlgSlet', variant: 'danger', ikon: 'slet', ved: () => K.bekraeft({ t: 'dlgSletH', p: 'dlgSletP', nej: { t: 'annuller' }, ja: { t: 'slet' }, farlig: true, udfyld: rod => S.anvend(rod) }).then(ja => svaret(String(ja))) }),
+    K.knap({ t: 'dlgSlet', variant: 'danger', ikon: 'slet', ved: () => K.bekraeft({ t: 'dlgSletH', p: { t: 'dlgSletP' }, nej: { t: 'annuller' }, ja: { t: 'slet' }, farlig: true, udfyld: rod => S.anvend(rod) }).then(ja => svaret(String(ja))) }),
   );
 
   /* Tekststørrelse: kittets funktioner (tema.js), demoens egen segmentknap og genveje. */
@@ -751,6 +753,194 @@
     b.className = 'bue';
     forkl.append(a, b);
     $('demo-kort240').append(svg, forkl);
+  }
+
+  /* ── 2.5.0: skallen, kontrollerne, fliserne og dialogen (K22–K26, K28, K31–K35, G1–G11) ── */
+  const tEl = (tag, t, v, kl) => { const e = document.createElement(tag); if (kl) e.className = kl; if (t) e.setAttribute('data-t', t); if (v != null) e.setAttribute('data-v', String(v)); return e; };
+  {
+    // K22 og K23: titellinjen.
+    const titel = $('demo-titel250');
+    const mrk = document.createElement('span');
+    mrk.className = 'mrk-maske demo-maske';
+    mrk.setAttribute('aria-hidden', 'true');
+    const rk = (ikonNavn, ariaT) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'rk'; b.setAttribute('data-t-aria', ariaT); b.appendChild(K.ikon(ikonNavn, 'ik')); return b; };
+    const frem = rk('hoejre', 'ariaFrem');
+    frem.disabled = true;
+    const indst = rk('tandhjul', 'ariaIndst');
+    indst.setAttribute('aria-current', 'page');
+    indst.addEventListener('click', () => meld('titel250-valgt', 'ariaIndst'));
+    const hj = rk('bog', 'ariaHjaelp');
+    hj.setAttribute('aria-expanded', 'true');
+    hj.addEventListener('click', () => {
+      const aaben = hj.getAttribute('aria-expanded') !== 'true';
+      hj.setAttribute('aria-expanded', String(aaben));
+      meld('titel250-valgt', aaben ? 'hjaelpAaben' : 'hjaelpLukket');
+    });
+    const hoejre = document.createElement('span');
+    hoejre.className = 'hoejre';
+    hoejre.append(frem, indst, hj);
+    titel.append(mrk, tEl('b', 'appNavn'), hoejre);
+  }
+  {
+    // G11: hvorfor i et værktøjstip.
+    const bt = K.commandBar($('demo-baand-tip'), { ariaT: 'cmdAria', udenFaner: true, hvorforTip: true, faner: [{ id: 'start', t: 'faneStart', grupper: [
+      { t: 'gEksempel', knapper: [{ id: 'aabn', t: 'kAabn', ikon: 'fil', pri: true }, { id: 'kopier', t: 'kKopier', ikon: 'kopier', deaktiveret: true, hvorfor: 'hvorforIntetValgt' }] },
+    ] }] });
+    let fra = true;
+    $('demo-baand-tip-knapper').appendChild(K.knap({ t: 'kSlaaTil', ved: () => { fra = !fra; bt.saetDeaktiveret('kopier', fra, 'hvorforIntetValgt'); S.anvend(bt.rod); } }));
+  }
+  {
+    // K26 og K24: træet, der bygges om, og visningsskiftet med tal og et punkt slået fra.
+    let flere = false;
+    const navne = () => (flere ? ['eksempel.dk', 'shop.eksempel.dk', 'blog.eksempel.dk', 'api.eksempel.dk'] : ['eksempel.dk', 'shop.eksempel.dk']);
+    const punkter = () => [{ id: 'samlet', t: 'tSamlet', antal: navne().length, boern: navne().map(n => ({ id: n, tekst: n })) }];
+    const trae250 = K.navTrae($('demo-trae250'), punkter(), { ariaT: 'traeAria', valgt: 'samlet', kunBrugerValg: true, vedValg: id => meld('nav250-valgt', null, id) });
+    const skift250 = K.visningsskift($('demo-skift250'), [
+      { id: 'oversigt', t: 'vOversigt', ikon: 'skaerm' },
+      { id: 'siden', t: 'vSiden', ikon: 'kalender', antal: 3, kraever: true, antalAriaT: 'kraeverHandling' },
+      { id: 'angreb', t: 'vAngreb', ikon: 'skjold', antal: 12, deaktiveret: true, hvorfor: 'hvorforToken' },
+    ], { ariaT: 'visninger' });
+    skift250.markér('oversigt');
+    $('demo-skift250').addEventListener('click', e => {
+      const a = e.target.closest('.vs');
+      if (!a) return;
+      e.preventDefault();
+      if (a.getAttribute('aria-disabled') === 'true') return;
+      skift250.markér(a.dataset.visning);
+      meld('nav250-valgt', { oversigt: 'vOversigt', siden: 'vSiden', angreb: 'vAngreb' }[a.dataset.visning]);
+    });
+    let angrebFra = true;
+    $('demo-nav250-knapper').append(
+      K.knap({ t: 'kByggOm', ved: () => { flere = !flere; trae250.saetPunkter(punkter()); S.anvend($('demo-trae250')); } }),
+      K.knap({ t: 'kSlaaAngreb', ved: () => { angrebFra = !angrebFra; skift250.saetPunkt('angreb', { deaktiveret: angrebFra }); S.anvend($('demo-skift250')); } }),
+    );
+  }
+  {
+    // K25: status med fremdrift i fodlinjen.
+    const koe = K.fodstatus({ status: 'henter', t: 'koeHenter', fremdrift: { maks: 8, vaerdi: 3 }, handling: { t: 'aabnOverblik', ved: () => meld('fod250-valgt', 'aabnOverblik') } });
+    const venstre = tEl('span', 'fodVenstre', 16);
+    venstre.setAttribute('data-w', '13');
+    $('demo-fod250').append(koe.rod, venstre);
+    let trin = 3;
+    const aabn = { t: 'aabnOverblik', ved: () => meld('fod250-valgt', 'aabnOverblik') };
+    const saet = n => { koe.saet(n); S.anvend(koe.rod); };
+    $('demo-fod250-knapper').append(
+      K.knap({ t: 'kEtTrin', ved: () => { trin = trin >= 8 ? 1 : trin + 1; saet({ status: 'henter', t: 'koeHenter', fremdrift: { maks: 8, vaerdi: trin }, handling: aabn }); } }),
+      K.knap({ t: 'kUbestemt', ved: () => saet({ status: 'henter', t: 'koeHenter', fremdrift: 'ubestemt', handling: aabn }) }),
+      K.knap({ t: 'kFaerdig', ved: () => saet({ status: 'ok', t: 'koeFaerdig', fremdrift: null, handling: null }) }),
+      K.knap({ t: 'kFejl', ved: () => saet({ status: 'danger', t: 'koeFejl', fremdrift: null, handling: aabn }) }),
+    );
+  }
+  {
+    // K33 og K35: valgt flise, flise med to mål og flise med frit indhold.
+    const dato = (t, v) => { const d = document.createElement('span'); const b = document.createElement('button'); b.type = 'button'; b.className = 'demo-tal'; b.textContent = v; b.addEventListener('click', () => meld('fliser250-valgt', null, v)); d.append(tEl('span', t), document.createTextNode(' '), b); return d; };
+    const datoer = document.createElement('div');
+    datoer.append(dato('foerst', '2026-10-02'), dato('sidst', '2026-11-11'));
+    let liste = null;
+    const vis = (i, t) => {
+      for (const [j, m] of [...liste.querySelectorAll('.sflise-maal, button.sflise')].entries()) {
+        if (j === i) m.setAttribute('aria-current', 'true');
+        else m.removeAttribute('aria-current');
+      }
+      meld('fliser250-valgt', t);
+    };
+    liste = K.statusfliser({ ariaT: 'fliser250Aria', fliser: [
+      { t: 'flIGaar', tal: 12, status: { variant: 'warn', t: 'stHoldOeje' }, valgt: true, ved: () => vis(0, 'flIGaar'), under: { t: 'iDagHidtil', ved: () => meld('fliser250-valgt', 'iDagHidtil') } },
+      { t: 'flIDag', tal: 3, status: { variant: 'ok', t: 'stRoligt' }, ved: () => vis(1, 'flIDag') },
+      { t: 'flSet', indhold: datoer },
+    ] });
+    $('demo-fliser250').appendChild(liste);
+  }
+  // K32: ikon i kassens overskrift.
+  $('demo-kasser250').appendChild(K.kasse({ t: 'kasseLaas', ikon: 'laas', niveau: 3, indhold: tEl('p', 'kasseLaasTekst') }).rod);
+  // G8: en tom flade, der tager imod, og to handlinger.
+  $('demo-tom250').appendChild(K.tomTilstand({
+    ikon: 'indsaet', t: 'tomModtagerH', p: { t: 'tomModtagerP' }, niveau: 3,
+    handling: { t: 'kAabn', ikon: 'fil', ved: () => meld('tom250-valgt', 'kAabn') },
+    anden: { t: 'kAabnSager', variant: 'ghost', ved: () => meld('tom250-valgt', 'kAabnSager') },
+    modtager: { ariaT: 'ariaModtager', ariaV: '⌘V', vedIndsaet: tekst => meldV('tom250-valgt', 'modtaget', tekst.length) },
+  }));
+  {
+    // G1, G2, G3, G5, G6 og G4: dialoger, der kan fejle, indhold over overskriften, guiden og et spørgsmål med tre svar.
+    const svar250 = s => meldV('dialog250-valgt', 'svaret', s);
+    const efter = (forsoeg, fejlT) => () => new Promise((ok, nej) => setTimeout(() => (++forsoeg.n % 2 ? nej({ t: fejlT }) : ok(true)), 400));
+    const nyF = { n: 0 }, sletF = { n: 0 };
+    const nyFelt = K.felt({ etiket: { t: 'dlgNavn' }, vaerdi: 'Supportsag 0043', foelsom: true });
+    const nySag = K.dialog({
+      id: 'demo-dlg-ny', t: 'dlgNySagH', p: { t: 'dlgNySagP' }, indhold: nyFelt, fejl: true, udfyld: e => S.anvend(e),
+      knapper: [{ id: 'annuller', t: 'annuller' }, { id: 'opret', knapId: 'demo-dlg-ny-opret', t: 'opretSag', variant: 'primary', ved: efter(nyF, 'dlgNySagFejl') }],
+      vedLuk: svar250,
+    });
+    const om = K.dialog({ t: 'dlgOmH', p: { t: 'dlgOmP' }, foer: K.fletbaand(), knapper: [{ id: 'luk', t: 'kLuk' }], vedLuk: svar250 });
+    const tre = K.dialog({ t: 'dlgTreH', p: { t: 'dlgTreP' }, fokus: 'gem', knapper: [{ id: 'annuller', t: 'annuller' }, { id: 'kasser', t: 'kKasser', variant: 'danger' }, { id: 'gem', t: 'kGemSomSag', variant: 'primary' }], vedLuk: svar250 });
+    const guideRod250 = document.createElement('div');
+    const guideDlg = K.dialog({ guide: true, ariaLabelledby: 'demo-guide250-h', indhold: guideRod250, vedLuk: svar250 });
+    const guide250 = K.guide(guideRod250, {
+      hId: 'demo-guide250-h',
+      trin: [{ t: 'wT1', h: 'wH1', p: 'wP1' }, { t: 'wT2', h: 'wH2', p: 'wP2' }, { t: 'wT3', h: 'wH3', p: 'wP3' }],
+      naeste: { t: 'naeste' }, tilbage: { t: 'tilbage' }, slut: { t: 'faerdig' }, spring: { t: 'springOver' },
+      vedSkift: () => S.anvend(guideRod250), vedSlut: () => guideDlg.luk('slut'), vedSpring: () => guideDlg.luk('spring'),
+    });
+    const aabn = d => () => { S.anvend(d.rod); d.aabn(); };
+    $('demo-dialog250').append(
+      K.knap({ t: 'dlgNySag', ved: aabn(nySag) }),
+      K.knap({ t: 'dlgSletVent', variant: 'danger', ikon: 'slet', ved: () => K.bekraeft({ t: 'dlgSletH', p: { t: 'dlgSletVentP' }, nej: { t: 'annuller' }, ja: { t: 'slet' }, farlig: true, udfyld: rod => S.anvend(rod), ved: efter(sletF, 'dlgSletFejl') }).then(ja => svar250(String(ja))) }),
+      K.knap({ t: 'dlgOm', ved: aabn(om) }),
+      K.knap({ t: 'dlgGuide', ved: () => { guide250.gaaTil(0); aabn(guideDlg)(); } }),
+      K.knap({ t: 'dlgTre', ved: aabn(tre) }),
+    );
+  }
+  {
+    // K28: segmentknap uden valg.
+    const P = { 7: 'p7', 30: 'p30' };
+    const seg = K.segment({ ariaT: 'periodeAria', valgt: null, valg: [{ id: '7', t: 'p7' }, { id: '30', t: 'p30' }], vedValg: id => meld('segment250-valgt', P[id]) });
+    $('demo-segment250').append(seg.rod, K.knap({ t: 'pEget', variant: 'ghost', ved: () => { seg.vaelg(null); meld('segment250-valgt', 'pEget'); } }));
+  }
+  {
+    // K34: aktive filtre, der kan fjernes.
+    const ramme = document.createElement('div');
+    ramme.className = 'fchips';
+    ramme.setAttribute('role', 'group');
+    ramme.setAttribute('data-t-aria', 'aktiveFiltre');
+    const byg = () => {
+      ramme.textContent = '';
+      for (const [id, t] of [['land', 'fltLand'], ['domaene', null], ['dato', 'fltDato']]) {
+        const tekst = t ? S.t(t) : 'shop.eksempel.dk';
+        const c = K.filterchip({ id, tekst, ariaT: 'fjernFilter', ariaV: tekst, vedFjern: () => { c.remove(); meldV('fjern250-valgt', 'fjernet', tekst); } });
+        ramme.appendChild(c);
+      }
+      S.anvend(ramme);
+    };
+    byg();
+    document.addEventListener('kit-demo-sprog', byg);
+    $('demo-fjern250').append(ramme, K.knap({ t: 'kNulstil', variant: 'ghost', ved: byg }));
+  }
+  {
+    // G7: afkrydsning i en tabelrække.
+    const VAERDIER = ['192.0.2.17', '192.0.2.44', 'srv-app01.eksempel.dk'];
+    const tabel250 = K.tabel({ ariaT: 'afk250Aria', raekkeHandling: 'ingen', kolonner: [{ t: 'kolMaskeres', bredde: 's' }, { t: 'kolVaerdi250' }],
+      raekker: VAERDIER.map((v, i) => ({ celler: [K.afkrydsning({ ariaT: 'ariaMaskerV', ariaV: v, valgt: i !== 1 }).rod, v], mono: [1] })) });
+    $('demo-afk250').appendChild(tabel250);
+  }
+  {
+    // K31: navn uden for komponenten, i rækker med etiketten til venstre.
+    const raekke = (id, t, kontrol) => { const d = document.createElement('div'); d.className = 'demo-r'; const e = tEl('span', t); e.id = id; d.append(e, kontrol); return d; };
+    const TEMA = { lys: 'kLys', moerk: 'kMoerk', system: 'kSystem' };
+    $('demo-raekker250').append(
+      raekke('demo-r-tema', 'rTema', K.radiogruppe({ ariaLabelledby: 'demo-r-tema', vandret: true, hjaelp: { t: 'rTemaNote' }, valgt: 'system', valg: [{ id: 'lys', t: 'kLys' }, { id: 'moerk', t: 'kMoerk' }, { id: 'system', t: 'kSystem' }], vedValg: id => meld('raekker250-valgt', TEMA[id]) }).rod),
+      raekke('demo-r-sprog', 'rSprog', K.valgliste({ ariaLabelledby: 'demo-r-sprog', valgt: 'da', valg: [{ id: 'da', t: 'kDansk' }, { id: 'en', t: 'kEngelsk' }], vedValg: id => meld('raekker250-valgt', id === 'da' ? 'kDansk' : 'kEngelsk') }).rod),
+      raekke('demo-r-auto', 'rAutostart', K.kontakt({ ariaLabelledby: 'demo-r-auto', til: true, ord: { til: { t: 'til' }, fra: { t: 'fra' } }, vedSkift: til => meld('raekker250-valgt', til ? 'til' : 'fra') }).rod),
+    );
+  }
+  {
+    // G10: trinnet som tal.
+    const vis = () => {
+      let v = '';
+      try { v = getComputedStyle(document.documentElement).getPropertyValue('--tekst-zoom').trim(); } catch (e) { v = ''; }
+      meldV('tekstzoom250', 'tekstZoom', v || '–');
+    };
+    document.addEventListener('kit-demo-tekst', vis);
+    vis();
   }
 
   /* ── Start: udfyld teksterne, vis den rigtige visning ── */

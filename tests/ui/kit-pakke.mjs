@@ -28,9 +28,58 @@ const V200_TABEL = {"tabel": "<table class=\"tabel\" role=\"grid\" data-t-aria=\
 // Pakke 2.4.0 (K36–K38, K18–K21, K29, K30): de nye navne. Det, der ikke står her, V200_*, 2.2.0's eller V230_*, må ikke findes.
 const V240_FUNKTIONER = ['Kit.tabelRul'];
 const V240_KLASSER = ['uden-valg', 'kol-xs', 'kol-s', 'kol-m', 'kol-l', 'kol-xl', 'kol-skille', 'layout-auto', 'tabel-rul', 'fast-foerste'];
+// Pakke 2.5.0 (K22–K26, K28, K31–K35, G1–G11): de nye navne. Det, der ikke står her, V200_*, 2.2.0's, V230_* eller V240_*, må ikke findes.
+const V250_FUNKTIONER = ['Kit.fodstatus'];
+const V250_KLASSER = ['mrk-billede', 'mrk-maske', 'ant-kraever', 'fodstatus', 'fodstatus-maal', 'fodstatus-mrk', 'fodstatus-tekst', 'fodstatus-bjaelke', 'fchip-fjern', 'fchip-x', 'kasse-ikon', 'sflise-to', 'sflise-maal', 'sflise-under-maal', 'sflise-indhold', 'tomt-handlinger', 'tomt-modtager', 'tomt-slip', 'modal-fejl', 'modal-foer', 'modal-guide'];
 const V240_FARVER = ['text-disabled', 'ok-mark-hover', 'warn-mark-hover', 'danger-mark-hover', 'info-mark-hover', 'none-mark-hover'];
 const V230_KLASSER = ['fchips', 'fchip', 'fchip-mark', 'kasse', 'kasse-top', 'kasse-handling', 'kasse-indhold', 'fyld', 'kasse-fod', 'sfliser', 'sflise', 'sflise-navn', 'sflise-tal', 'sflise-under', 'sflise-pil', 'tomt', 'tomt-ikon', 'tomt-h', 'tomt-p', 'lille', 'frem', 'ubestemt', 'frem-tekst', 'frem-bjaelke', 'snurr', 'tip-plads', 'tip', 'under', 'venstre-kant', 'afk-felt', 'afk', 'afk-boks', 'afk-tekst', 'afk-hj', 'valgsaet', 'vandret', 'tilfra', 'tilfra-ord', 'tilfra-til', 'tilfra-fra', 'vliste', 'modal', 'bred', 'modal-top', 'modal-luk', 'modal-tekst', 'modal-indhold', 'modal-fod', 'sorter', 'sorter-pil', 'kolgruppe', 'sideskift', 'sideskift-nr', 'sideskift-pr'];
 
+// V-KIT.6: 26 eksempler bygget af 2.4.0's kit.js (git show 48b8dbd:design/ui-kit-2/pakke/web/kit.js) med bygV240 herunder,
+// uden 2.5.0's indstillinger. 2.5.0 skal bygge dem byte for byte ens.
+const V240_UDSEENDE = {"dialog":"<dialog class=\"modal\" aria-labelledby=\"kit-dlg1-h\" aria-describedby=\"kit-dlg1-p\"><div class=\"modal-top\"><h2 data-t=\"h\" id=\"kit-dlg1-h\" tabindex=\"-1\"></h2><button class=\"modal-luk\" type=\"button\" data-t-aria=\"luk\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M6 6l12 12M18 6L6 18\"></path></svg></button></div><p class=\"modal-tekst\" data-t=\"p\" id=\"kit-dlg1-p\"></p><div class=\"modal-indhold\"><div></div></div><div class=\"modal-fod\"><button class=\"btn\" type=\"button\" data-svar=\"annuller\"><span data-t=\"annuller\"></span></button><button class=\"btn danger\" type=\"button\" data-svar=\"slet\"><span data-t=\"slet\"></span></button><button class=\"btn primary\" type=\"button\" data-svar=\"gem\"><span data-t=\"gem\"></span></button></div></dialog>","dialogTekst":"<dialog class=\"modal bred\" aria-labelledby=\"kit-dlg2-h\" aria-describedby=\"kit-dlg2-p\"><div class=\"modal-top\"><h2 id=\"kit-dlg2-h\" tabindex=\"-1\">Omdøb</h2></div><p class=\"modal-tekst\" id=\"kit-dlg2-p\">Navnet ses kun her.</p><div class=\"modal-indhold\"></div><div class=\"modal-fod\"><button class=\"btn\" type=\"button\" data-svar=\"ok\"><span>OK</span></button></div></dialog>","bekraeft":"<dialog class=\"modal\" aria-labelledby=\"kit-dlg3-h\" aria-describedby=\"kit-dlg3-p\" open=\"\"><div class=\"modal-top\"><h2 data-t=\"h\" id=\"kit-dlg3-h\" tabindex=\"-1\"></h2></div><p class=\"modal-tekst\" data-t=\"p\" id=\"kit-dlg3-p\"></p><div class=\"modal-indhold\"></div><div class=\"modal-fod\"><button class=\"btn\" type=\"button\" data-svar=\"nej\"><span data-t=\"nej\"></span></button><button class=\"btn danger\" type=\"button\" data-svar=\"ja\"><span data-t=\"ja\"></span></button></div></dialog>","kontakt":"<div class=\"afk-felt\"><label class=\"afk\"><input type=\"checkbox\" id=\"kit-tf-1\" class=\"tilfra\" role=\"switch\" aria-describedby=\"kit-tf-1-hj\"><span class=\"afk-tekst\" data-t=\"k\"></span><span class=\"tilfra-ord\" aria-hidden=\"true\"><span class=\"tilfra-til\" data-t=\"til\"></span><span class=\"tilfra-fra\" data-t=\"fra\"></span></span></label><span class=\"afk-hj\" data-t=\"hj\" id=\"kit-tf-1-hj\"></span></div>","kontaktUden":"<div class=\"afk-felt\"><label class=\"afk\"><input type=\"checkbox\" id=\"kit-tf-2\" class=\"tilfra\" role=\"switch\"><span class=\"afk-tekst\"></span></label></div>","radio":"<fieldset class=\"valgsaet vandret\" aria-describedby=\"kit-radio-3-hj\"><legend class=\"label\" data-t=\"e\"></legend><div class=\"afk-felt\"><label class=\"afk\"><input type=\"radio\" id=\"kit-radio-3-1\" class=\"afk-boks\" name=\"kit-radio-3\" value=\"a\"><span class=\"afk-tekst\" data-t=\"a\"></span></label></div><div class=\"afk-felt\"><label class=\"afk\"><input type=\"radio\" id=\"kit-radio-3-2\" class=\"afk-boks\" name=\"kit-radio-3\" value=\"b\" aria-describedby=\"kit-radio-3-2-hj\"><span class=\"afk-tekst\">B</span></label><span class=\"afk-hj\" id=\"kit-radio-3-2-hj\">x</span></div><span class=\"afk-hj\" data-t=\"hj\" id=\"kit-radio-3-hj\"></span></fieldset>","radioUden":"<fieldset class=\"valgsaet\"><legend class=\"label\"></legend><div class=\"afk-felt\"><label class=\"afk\"><input type=\"radio\" id=\"kit-radio-4-1\" class=\"afk-boks\" name=\"kit-radio-4\" value=\"a\"><span class=\"afk-tekst\">A</span></label></div></fieldset>","valgliste":"<div class=\"felt\"><label class=\"label\" data-t=\"e\" for=\"kit-vl-5\"></label><span class=\"vliste\"><select id=\"kit-vl-5\" aria-describedby=\"kit-vl-5-hj\" aria-invalid=\"true\"><option value=\"1\" data-t=\"en\"></option><option value=\"2\" disabled=\"\">To</option></select><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M6 9l6 6 6-6\"></path></svg></span><span class=\"hj fejltekst\" data-t=\"f\" id=\"kit-vl-5-hj\"></span></div>","afk":"<div class=\"afk-felt\"><label class=\"afk\"><input type=\"checkbox\" id=\"kit-afk-6\" class=\"afk-boks\" aria-describedby=\"kit-afk-6-hj\"><span class=\"afk-tekst\" data-t=\"a\"></span></label><span class=\"afk-hj\" data-t=\"hj\" id=\"kit-afk-6-hj\"></span></div>","afkAria":"<div class=\"afk-felt\"><label class=\"afk\"><input type=\"checkbox\" id=\"kit-afk-7\" class=\"afk-boks\"><span class=\"afk-tekst\" data-t=\"b\"></span></label></div>","flise":"<button class=\"sflise warn\" type=\"button\" data-t-aria=\"x\"><span class=\"sflise-navn\" data-t=\"n\"></span><span class=\"sflise-tal\">3</span><span class=\"chip warn\"><span aria-hidden=\"true\">!</span><span class=\"ord\" data-t=\"s\"></span></span><span class=\"sflise-under\" data-t=\"u\"></span></button>","fliseHref":"<a class=\"sflise\" href=\"#a\"><span class=\"sflise-navn\">N</span><span class=\"sflise-tal\">–</span><span class=\"sflise-under\"><span class=\"sflise-pil\" aria-hidden=\"true\">↑</span><span data-t=\"u\"></span></span></a>","fliseDiv":"<div class=\"sflise\"><span class=\"sflise-navn\" data-t=\"n\"></span><span class=\"sflise-tal\">0</span><span class=\"sflise-under\">tekst</span></div>","fliser":"<ul class=\"sfliser\" role=\"list\" data-t-aria=\"a\"><li><div class=\"sflise\"><span class=\"sflise-navn\" data-t=\"n\"></span><span class=\"sflise-tal\">1</span></div></li></ul>","tom":"<div class=\"tomt\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\" class=\"tomt-ikon\"><path d=\"M3 7h6l2 2h10v10H3z\"></path></svg><h2 class=\"tomt-h\" data-t=\"h\"></h2><p class=\"tomt-p\" data-t=\"p\"></p><button class=\"btn primary\" type=\"button\"><span data-t=\"h\"></span></button></div>","tomLille":"<div class=\"tomt lille\" role=\"status\"><p class=\"tomt-h\" data-t=\"h\"></p><p class=\"tomt-p\">tekst</p></div>","kasse":"<section class=\"kasse\" id=\"k\" aria-labelledby=\"k-h\"><div class=\"kasse-top\"><h3 data-t=\"h\" id=\"k-h\"></h3><div class=\"kasse-handling\"><button></button></div></div><div class=\"kasse-indhold fyld\"><p></p></div><div class=\"kasse-fod\"><span></span></div></section>","fchip":"<button class=\"fchip\" type=\"button\" data-chip=\"a\" aria-pressed=\"true\"><span class=\"fchip-mark\" aria-hidden=\"true\">✓</span><span data-t=\"a\"></span><span class=\"ant\">3</span></button>","fchips":"<div class=\"fchips\" role=\"group\" aria-label=\"Vis\"><button class=\"fchip\" type=\"button\" data-chip=\"a\" aria-pressed=\"false\"><span class=\"fchip-mark\" aria-hidden=\"true\">✓</span><span>A</span></button><button class=\"fchip\" type=\"button\" data-chip=\"b\" aria-pressed=\"true\" disabled=\"\"><span class=\"fchip-mark\" aria-hidden=\"true\">✓</span><span>B</span></button></div>","seg":"<div class=\"seg\" role=\"radiogroup\" aria-label=\"P\"><button class=\"seg-v\" data-t=\"p7\" type=\"button\" role=\"radio\" data-valg=\"7\" aria-checked=\"false\" tabindex=\"-1\"></button><button class=\"seg-v\" data-t=\"p30\" type=\"button\" role=\"radio\" data-valg=\"30\" aria-checked=\"true\" tabindex=\"0\"></button></div>","segUden":"<div class=\"seg\" role=\"radiogroup\" aria-label=\"P\"><button class=\"seg-v\" data-t=\"p7\" type=\"button\" role=\"radio\" data-valg=\"7\" aria-checked=\"true\" tabindex=\"0\"></button><button class=\"seg-v\" data-t=\"p30\" type=\"button\" role=\"radio\" data-valg=\"30\" aria-checked=\"false\" tabindex=\"-1\"></button></div>","skift8":"<div class=\"skift taet\" role=\"group\"><a class=\"vs\" href=\"#v0\" data-visning=\"v0\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 7h6l2 2h10v10H3z\"></path></svg><span>V0</span><kbd aria-hidden=\"true\">0</kbd></a><a class=\"vs\" href=\"#v1\" data-visning=\"v1\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 7h6l2 2h10v10H3z\"></path></svg><span>V1</span><kbd aria-hidden=\"true\">1</kbd></a><a class=\"vs\" href=\"#v2\" data-visning=\"v2\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 7h6l2 2h10v10H3z\"></path></svg><span>V2</span><kbd aria-hidden=\"true\">2</kbd></a><a class=\"vs on\" href=\"#v3\" data-visning=\"v3\" aria-current=\"page\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 7h6l2 2h10v10H3z\"></path></svg><span>V3</span><kbd aria-hidden=\"true\">3</kbd></a><a class=\"vs\" href=\"#v4\" data-visning=\"v4\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 7h6l2 2h10v10H3z\"></path></svg><span>V4</span><kbd aria-hidden=\"true\">4</kbd></a><a class=\"vs\" href=\"#v5\" data-visning=\"v5\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 7h6l2 2h10v10H3z\"></path></svg><span>V5</span><kbd aria-hidden=\"true\">5</kbd></a><a class=\"vs\" href=\"#v6\" data-visning=\"v6\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 7h6l2 2h10v10H3z\"></path></svg><span>V6</span><kbd aria-hidden=\"true\">6</kbd></a><a class=\"vs\" href=\"#v7\" data-visning=\"v7\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 7h6l2 2h10v10H3z\"></path></svg><span>V7</span><kbd aria-hidden=\"true\">7</kbd></a></div>","trae":"<ul class=\"trae\" role=\"tree\" data-t-aria=\"t\"><li role=\"none\"><button class=\"tr\" type=\"button\" data-punkt=\"a\" role=\"treeitem\" aria-level=\"1\" tabindex=\"-1\" aria-expanded=\"true\" aria-selected=\"false\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M6 9l6 6 6-6\"></path></svg><span data-t=\"a\"></span><span class=\"ant\">2</span></button><ul role=\"group\"><li role=\"none\"><button class=\"tr\" type=\"button\" data-punkt=\"b\" role=\"treeitem\" aria-level=\"2\" tabindex=\"-1\" aria-selected=\"false\"><span data-t=\"b\"></span></button></li><li role=\"none\"><button class=\"tr\" type=\"button\" data-punkt=\"c\" role=\"treeitem\" aria-level=\"2\" tabindex=\"-1\" aria-expanded=\"true\" aria-selected=\"false\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M6 9l6 6 6-6\"></path></svg><span data-t=\"c\"></span></button><ul role=\"group\"><li role=\"none\"><button class=\"tr on\" type=\"button\" data-punkt=\"d\" role=\"treeitem\" aria-level=\"3\" tabindex=\"0\" aria-selected=\"true\" aria-current=\"true\"><span>D</span></button></li></ul></li></ul></li></ul>","baandEnkel":"<div class=\"cmd enkel\" role=\"group\" data-t-aria=\"c\"><div class=\"grupper\" id=\"kit-cb1-panel-a\" data-fane=\"a\"><div class=\"grp\" role=\"group\" aria-labelledby=\"kit-cb1-grp-1\"><div class=\"kn\"><button class=\"cb\" type=\"button\" data-kommando=\"k\" aria-disabled=\"true\" data-t-title=\"hv\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><rect x=\"8\" y=\"8\" width=\"12\" height=\"12\" rx=\"2\"></rect><path d=\"M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2\"></path></svg><span data-t=\"k\"></span></button><div class=\"baand-el\"><span></span></div></div><span class=\"cap\" data-t=\"g\" id=\"kit-cb1-grp-1\"></span></div></div></div>","tip":"<span class=\"tip-plads\"><button aria-describedby=\"kit-tip1\"></button><span class=\"tip\" data-t=\"tip\" id=\"kit-tip1\" role=\"tooltip\" hidden=\"\"></span></span>","frem":"<div class=\"frem\"><span class=\"frem-tekst\" data-t=\"f\" id=\"kit-frem1\" role=\"status\"></span><progress class=\"frem-bjaelke\" max=\"8\" value=\"3\" aria-labelledby=\"kit-frem1\"></progress></div>"};
+function bygV240(K, d) {
+  const u = {};
+  u.dialog = K.dialog({ t: 'h', p: { t: 'p' }, indhold: d.createElement('div'), luk: { ariaT: 'luk' }, knapper: [{ id: 'gem', t: 'gem', variant: 'primary' }, { id: 'annuller', t: 'annuller' }, { id: 'slet', t: 'slet', variant: 'danger' }] }).rod.outerHTML;
+  u.dialogTekst = K.dialog({ tekst: 'Omdøb', p: 'Navnet ses kun her.', bred: true, knapper: [{ id: 'ok', tekst: 'OK' }] }).rod.outerHTML;
+  K.bekraeft({ t: 'h', p: { t: 'p' }, nej: { t: 'nej' }, ja: { t: 'ja' }, farlig: true });
+  u.bekraeft = d.querySelector('dialog[open]').outerHTML;
+  d.querySelector('dialog[open]').close();
+  u.kontakt = K.kontakt({ t: 'k', til: true, ord: { til: { t: 'til' }, fra: { t: 'fra' } }, hjaelp: { t: 'hj' } }).rod.outerHTML;
+  u.kontaktUden = K.kontakt({}).rod.outerHTML;
+  u.radio = K.radiogruppe({ etiket: { t: 'e' }, vandret: true, valgt: 'b', hjaelp: { t: 'hj' }, valg: [{ id: 'a', t: 'a' }, { id: 'b', tekst: 'B', hjaelp: 'x' }] }).rod.outerHTML;
+  u.radioUden = K.radiogruppe({ valg: [{ id: 'a', tekst: 'A' }] }).rod.outerHTML;
+  u.valgliste = K.valgliste({ etiket: { t: 'e' }, fejl: { t: 'f' }, valgt: '2', valg: [{ id: '1', t: 'en' }, { id: '2', tekst: 'To', deaktiveret: true }] }).rod.outerHTML;
+  u.afk = K.afkrydsning({ t: 'a', valgt: true, delvis: true, hjaelp: { t: 'hj' } }).rod.outerHTML;
+  u.afkAria = K.afkrydsning({ ariaT: 'a', t: 'b' }).rod.outerHTML;
+  u.flise = K.statusflise({ t: 'n', tal: 3, status: { variant: 'warn', t: 's' }, under: { t: 'u' }, ved: () => {}, ariaT: 'x' }).outerHTML;
+  u.fliseHref = K.statusflise({ tekst: 'N', tal: null, udvikling: { retning: 'op', t: 'u' }, href: '#a' }).outerHTML;
+  u.fliseDiv = K.statusflise({ t: 'n', tal: 0, under: 'tekst' }).outerHTML;
+  u.fliser = K.statusfliser({ ariaT: 'a', fliser: [{ t: 'n', tal: 1 }] }).outerHTML;
+  u.tom = K.tomTilstand({ ikon: 'mappe', t: 'h', p: { t: 'p' }, handling: { t: 'h', variant: 'primary' } }).outerHTML;
+  u.tomLille = K.tomTilstand({ lille: true, t: 'h', p: 'tekst', niveau: 3 }).outerHTML;
+  u.kasse = K.kasse({ id: 'k', t: 'h', niveau: 3, handling: d.createElement('button'), indhold: d.createElement('p'), fod: d.createElement('span'), fyld: true }).rod.outerHTML;
+  u.fchip = K.filterchip({ id: 'a', t: 'a', antal: 3, valgt: true }).outerHTML;
+  u.fchips = K.filterchips({ aria: 'Vis', chips: [{ id: 'a', tekst: 'A' }, { id: 'b', tekst: 'B', deaktiveret: true }], valgt: ['b'] }).rod.outerHTML;
+  u.seg = K.segment({ aria: 'P', valg: [{ id: '7', t: 'p7' }, { id: '30', t: 'p30' }], valgt: '30' }).rod.outerHTML;
+  u.segUden = K.segment({ aria: 'P', valg: [{ id: '7', t: 'p7' }, { id: '30', t: 'p30' }] }).rod.outerHTML;
+  const s8 = d.createElement('div');
+  K.visningsskift(s8, Array.from({ length: 8 }, (_, i) => ({ id: 'v' + i, tekst: 'V' + i, ikon: 'mappe', genvej: String(i) }))).markér('v3');
+  u.skift8 = s8.outerHTML;
+  const ul = d.createElement('ul');
+  const tr = K.navTrae(ul, [{ id: 'a', t: 'a', antal: 2, boern: [{ id: 'b', t: 'b' }, { id: 'c', t: 'c', boern: [{ id: 'd', tekst: 'D' }] }] }], { ariaT: 't', valgt: 'c' });
+  tr.vaelg('d');
+  u.trae = ul.outerHTML;
+  const cb = d.createElement('div');
+  K.commandBar(cb, { ariaT: 'c', udenFaner: true, faner: [{ id: 'a', t: 'a', grupper: [{ t: 'g', knapper: [{ id: 'k', t: 'k', ikon: 'kopier', deaktiveret: true, hvorfor: 'hv' }, { id: 'e', element: d.createElement('span') }] }] }] });
+  u.baandEnkel = cb.outerHTML;
+  const maal = d.createElement('button');
+  d.body.appendChild(maal);
+  K.vaerktoejstip(maal, { t: 'tip' });
+  u.tip = maal.parentElement.outerHTML;
+  const fr = d.createElement('div');
+  u.frem = K.fremdrift({ t: 'f', maks: 8, vaerdi: 3, omraade: fr }).rod.outerHTML;
+  return u;
+}
 // ── N1: én kilde ──
 {
   tjek('pakken ligger i design/ui-kit-2/pakke', path.relative(repo, PAKKE) === path.join('design', 'ui-kit-2', 'pakke'));
@@ -58,7 +107,7 @@ const V230_KLASSER = ['fchips', 'fchip', 'fchip-mark', 'kasse', 'kasse-top', 'ka
   const mangler = skal.filter(f => !fs.existsSync(path.join(PAKKE, f)));
   tjek('pakken har alle sine filer', mangler.length === 0, mangler.join(', '));
   // V-KVIT.1 N4: pakken er 2.0.1 (kun dokumenter: licensteksten, beslutningen om Huginn and Muninn, noten om Sandbox).
-  tjek('VERSION er 2.4.0', VERSION === '2.4.0' && pk('VERSION') === '2.4.0\n', JSON.stringify(pk('VERSION')));
+  tjek('VERSION er 2.5.0', VERSION === '2.5.0' && pk('VERSION') === '2.5.0\n', JSON.stringify(pk('VERSION')));
   const log = pk('CHANGELOG.md');
   const foerste = /^## (\d+\.\d+\.\d+) — (\d{4}-\d{2}-\d{2})$/m.exec(log);
   tjek('CHANGELOG: første post er pakkens version med en dato', Boolean(foerste) && foerste[1] === VERSION, foerste ? foerste[0] : 'ingen post');
@@ -306,8 +355,8 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
   for (const f of ['tema.js', 'sprogmotor.js', 'kit.js']) dom.window.eval(pk('web/' + f));
   const w = dom.window;
   const kodeFunktioner = new Set([...Object.keys(w.Kit).map(k => 'Kit.' + k), ...Object.keys(w.Tema).map(k => 'Tema.' + k), ...Object.keys(w.KitSprog).map(k => 'KitSprog.' + k), ...Object.keys(w.Tekst).map(k => 'Tekst.' + k)]);
-  tjek('kittet stiller Kit (33 navne fra 2.4.0), Tema (3), KitSprog (1) og fra 2.3.0 Tekst (6) til rådighed', Object.keys(w.Kit).length === 33 && Object.keys(w.Tema).length === 3 && Object.keys(w.KitSprog).length === 1 && Object.keys(w.Tekst).length === 6, [...kodeFunktioner].join(', '));
-  tjek('kit.css har 154 klasser i sine vælgere fra 2.4.0 (kontrol af læsningen)', cssKlasser.size === 154 && cssKlasser.has('btn') && cssKlasser.has('skjult-tekst') && !cssKlasser.has('woff2'), String(cssKlasser.size));
+  tjek('kittet stiller Kit (34 navne fra 2.5.0), Tema (3), KitSprog (1) og fra 2.3.0 Tekst (6) til rådighed', Object.keys(w.Kit).length === 34 && Object.keys(w.Tema).length === 3 && Object.keys(w.KitSprog).length === 1 && Object.keys(w.Tekst).length === 6, [...kodeFunktioner].join(', '));
+  tjek('kit.css har 175 klasser i sine vælgere fra 2.5.0 (kontrol af læsningen)', cssKlasser.size === 175 && cssKlasser.has('btn') && cssKlasser.has('skjult-tekst') && !cssKlasser.has('woff2'), String(cssKlasser.size));
 
   const uden = afsnit.filter(a => klasserI(a).length + funktionerI(a).length === 0).map(a => a.navn);
   tjek('hver komponent i KOMPONENTER.md nævner mindst én klasse eller funktion', uden.length === 0, uden.join(', '));
@@ -429,9 +478,9 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
   tjek('2.2.0: hver klasse i kit.css fra 2.0.0 findes stadig (65)', V200_KLASSER.length === 65 && mKl.length === 0, mKl.join(', '));
   tjek('2.2.0: hver funktion i Kit, Tema og KitSprog fra 2.0.0 findes stadig (18)', V200_FUNKTIONER.length === 18 && mFn.length === 0, mFn.join(', '));
   tjek('2.2.0: hvert ikon fra 2.0.0 findes stadig (27), og der er ingen nye', V200_IKONER.length === 27 && mIk.length === 0 && JSON.stringify(Object.keys(K.IKONER)) === JSON.stringify(V200_IKONER), mIk.join(', '));
-  tjek('2.2.0: de nye navne er Kit.vaelger, Kit.sidepanel og Kit.segment (og fra 2.3.0 og 2.4.0 kun dem i V230_FUNKTIONER og V240_FUNKTIONER)', JSON.stringify(fn.filter(f => !V200_FUNKTIONER.includes(f) && !V230_FUNKTIONER.includes(f) && !V240_FUNKTIONER.includes(f))) === JSON.stringify(['Kit.vaelger', 'Kit.sidepanel', 'Kit.segment']), fn.filter(f => !V200_FUNKTIONER.includes(f)).join(', '));
+  tjek('2.2.0: de nye navne er Kit.vaelger, Kit.sidepanel og Kit.segment (og fra 2.3.0, 2.4.0 og 2.5.0 kun dem i V230_FUNKTIONER, V240_FUNKTIONER og V250_FUNKTIONER)', JSON.stringify(fn.filter(f => !V200_FUNKTIONER.includes(f) && !V230_FUNKTIONER.includes(f) && !V240_FUNKTIONER.includes(f) && !V250_FUNKTIONER.includes(f))) === JSON.stringify(['Kit.vaelger', 'Kit.sidepanel', 'Kit.segment']), fn.filter(f => !V200_FUNKTIONER.includes(f)).join(', '));
   const nyeKl = ['enkel', 'baand-el', 'taet', 'vlg', 'vlg-knap', 'vlg-vaerdi', 'vlg-pop', 'op', 'hoejre-kant', 'vlg-soeg', 'vlg-liste', 'vlg-p', 'aktiv', 'vlg-mark', 'vlg-boks', 'vlg-alle', 'vlg-navn', 'vlg-ingen', 'sidepanel', 'over', 'sp-top', 'sp-luk', 'sp-indhold', 'seg', 'seg-v'];
-  tjek('2.2.0: kit.css har de 25 nye klasser og ingen andre nye (ud over dem i V230_KLASSER fra 2.3.0 og V240_KLASSER fra 2.4.0)', nyeKl.length === 25 && JSON.stringify([...cssKlasser].filter(k => !V200_KLASSER.includes(k) && !V230_KLASSER.includes(k) && !V240_KLASSER.includes(k)).sort()) === JSON.stringify([...nyeKl].sort()), [...cssKlasser].filter(k => !V200_KLASSER.includes(k)).join(', '));
+  tjek('2.2.0: kit.css har de 25 nye klasser og ingen andre nye (ud over dem i V230_KLASSER fra 2.3.0, V240_KLASSER fra 2.4.0 og V250_KLASSER fra 2.5.0)', nyeKl.length === 25 && JSON.stringify([...cssKlasser].filter(k => !V200_KLASSER.includes(k) && !V230_KLASSER.includes(k) && !V240_KLASSER.includes(k) && !V250_KLASSER.includes(k)).sort()) === JSON.stringify([...nyeKl].sort()), [...cssKlasser].filter(k => !V200_KLASSER.includes(k)).join(', '));
   function bygEksempler(K2, d2) {
     const b = d2.createElement('div');
     K2.commandBar(b, { ariaT: 'cmdAria', valgt: 'vis', faner: [
@@ -1069,7 +1118,7 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
   })();
   tjek('K17: et gemt valg sættes, så snart tema.js kører (i <head>, før første tegning)', wGemt.document.documentElement.getAttribute('data-tekst') === 'lille' && wGemt.Tekst.valg === 'lille' && /getAttribute\('data-kit-praefiks'\) \|\| 'wi24rd'\) \+ '-tekst'/.test(temaJs));
   wGemt.close();
-  tjek('K17 (CSS): én fælles skala med zoom på roden (.9 og 1.125); normal har ingen regel; .vindue, vælgerens liste og dialogen deler de mål, der følger vinduet, med trinnet; .vindue selv er uændret', /:root\[data-tekst="lille"\] \{ zoom: \.9; \}/.test(css) && /:root\[data-tekst="stor"\] \{ zoom: 1\.125; \}/.test(css) && !/data-tekst="normal"/.test(css) && /:root\[data-tekst="stor"\] \.vindue \{ height: calc\(100vh \/ 1\.125\); min-width: calc\(900px \/ 1\.125\); min-height: calc\(560px \/ 1\.125\); \}/.test(css) && /:root\[data-tekst="lille"\] \.vindue \{ height: calc\(100vh \/ \.9\); min-width: calc\(900px \/ \.9\); min-height: calc\(560px \/ \.9\); \}/.test(css) && /:root\[data-tekst="stor"\] \.vlg-pop \{/.test(css) && /:root\[data-tekst="lille"\] \.modal \{/.test(css) && /(?:^|\n)\.vindue \{ display: flex; flex-direction: column; height: 100vh; min-width: 900px; min-height: 560px; background: var\(--bg\); overflow: hidden; \}/.test(css) && (css.match(/zoom:/g) || []).length === 2);
+  tjek('K17 (CSS): én fælles skala med zoom på roden (.9 og 1.125); normal har ingen regel; .vindue, vælgerens liste og dialogen deler de mål, der følger vinduet, med trinnet; .vindue selv er uændret', /:root\[data-tekst="lille"\] \{ zoom: \.9; \}/.test(css) && /:root\[data-tekst="stor"\] \{ zoom: 1\.125; \}/.test(css) && !/data-tekst="normal"/.test(css) && /:root\[data-tekst="stor"\] \.vindue \{ height: calc\(100vh \/ 1\.125\); min-width: calc\(900px \/ 1\.125\); min-height: calc\(560px \/ 1\.125\); \}/.test(css) && /:root\[data-tekst="lille"\] \.vindue \{ height: calc\(100vh \/ \.9\); min-width: calc\(900px \/ \.9\); min-height: calc\(560px \/ \.9\); \}/.test(css) && /:root\[data-tekst="stor"\] \.vlg-pop \{/.test(css) && /:root\[data-tekst="lille"\] \.modal \{/.test(css) && /(?:^|\n)\.vindue \{ display: flex; flex-direction: column; height: 100vh; min-width: 900px; min-height: 560px; background: var\(--bg\); overflow: hidden; \}/.test(css) && (css.match(/(?<![\w-])zoom:/g) || []).length === 2);
   const tekstAfsnit = afsnitAf('Tekststørrelse');
   tjek('KOMPONENTER.md: Tekststørrelse har formål, markup, tilstande, tastatur og krav; mekanismen (zoom), målingen i WKWebView og at WebView2 ikke er målt', harDele('Tekststørrelse', DELE.filter(x => x !== '**Klasser:**')) && /zoom/.test(tekstAfsnit) && /\*\*Målt i WKWebView\*\*/.test(tekstAfsnit) && /\*\*WebView2 \(Chromium, Windows\) er ikke målt\.\*\*/.test(tekstAfsnit) && /900 × 560/.test(tekstAfsnit) && /Jans valg/.test(tekstAfsnit));
   // ── Pakken 2.3.0: CHANGELOG, README, KOMPONENTER og flyttevejledningen ──
@@ -1083,7 +1132,7 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
   tjek('KOMPONENTER.md: "Findes ikke endnu" er rettet: StatusTile, Dialog, Værktøjstip, Tom tilstand, Fremdrift, afkrydsning, kontakt og valgliste står ikke længere som manglende', !/\| (StatusTile|Dialog|Værktøjstip|Tom tilstand|Fremdrift) \|/.test(findes) && !/\| Afkrydsning, kontakt/.test(findes) && /\| Cover \|/.test(findes) && /\| Menu \|/.test(findes) && /Fra 2\.3\.0 er Dialog, Afkrydsning, Kontakt, Radiogruppe, Valgliste, StatusTile, Kasse \(kort\), Tom tilstand, Fremdrift, Værktøjstip, Filterchip og Tekststørrelse kode/.test(findes));
   const hm = pk('flytning/HUGINN-MUNINN.md');
   tjek('flytning/HUGINN-MUNINN.md: K10–K17 står som opfyldt i 2.3.0 med hvad de afløser; det siges, at alle 17 er opfyldt; tekststørrelse og komponenterne står ikke længere som umulige at flytte', ['K10', 'K11', 'K12', 'K13', 'K14', 'K15', 'K16', 'K17'].every(k => new RegExp('\\| ' + k + ' [^|]*\\| 2\\.3\\.0 \\|[^\\n]*Afløser').test(hm)) && /\*\*Alle 17 ønsker \(K1–K17\) er opfyldt med 2\.3\.0\.\*\*/.test(hm) && !/\| Tekststørrelse i tre trin \(`data-density`\) \| Kit 2 har én størrelse/.test(hm) && !/\| Dialoger, afkrydsning/.test(hm) && /compact` → `lille`/.test(hm) && /K18–K21/.test(hm));
-  tjek('demo 2.3.0: versionen på siden er 2.3.0 eller nyere (fra 2.4.0: 2.4.0)', (pk('demo/index.html').match(/data-v="2\.[34]\.0"/g) || []).length === 3);
+  tjek('demo 2.3.0: versionen på siden er 2.3.0 eller nyere (fra 2.5.0: 2.5.0)', (pk('demo/index.html').match(/data-v="2\.[345]\.0"/g) || []).length === 3);
   tjek('KOMPONENTER.md: Filterchip har alle syv dele og siger, at .chip ikke kan klikkes', harDele('Filterchip') && /aria-pressed/.test(afsnitAf('Filterchip')) && /kan ikke klikkes/.test(afsnitAf('Filterchip')));
 
   w.close();
@@ -1334,7 +1383,7 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
   tjek('CHANGELOG 2.4.0: første post med kun dato; Nyt og Ændret; K29 og K30 under Ændret; K36–K38 og K18–K21 under Nyt; intet omdøbt eller fjernet', log.indexOf('## 2.4.0 — 2026-11-12') > 0 && log.indexOf('## 2.4.0') < log.indexOf('## 2.3.0') && /### Nyt[\s\S]*### Ændret/.test(a240) && /### Ændret[\s\S]*\(K29\)[\s\S]*\(K30\)/.test(a240) && ['K36', 'K37', 'K38', 'K18', 'K19', 'K20', 'K21'].every(k => a240.slice(0, a240.indexOf('### Ændret')).includes(k)) && /Intet er omdøbt eller fjernet/.test(a240));
   tjek('CHANGELOG: "Ikke udgivet endnu" er lagt ind under 2.4.0 (dokumentrettelserne efter Wi24rd FTP\'s fase A)', !/## Ikke udgivet endnu/.test(log) && /### Dokumenter/.test(a240) && /Wi24rd FTP's fase A/.test(a240) && /`flytning\/WI24RD-FTP\.md`: det gamle trin 2/.test(a240));
   const hm = pk('flytning/HUGINN-MUNINN.md');
-  tjek('flytning/HUGINN-MUNINN.md: K18–K21, K29, K30 og K36–K38 står som opfyldt i 2.4.0; B2d kan flyttes; K22–K26, K28 og K31–K35 venter på 2.5.0; K27 er 3.0.0', ['K18', 'K19', 'K20', 'K21', 'K29', 'K30', 'K36', 'K37', 'K38'].every(k => new RegExp('\\| ' + k + ' [^|]*\\| 2\\.4\\.0 \\|').test(hm)) && /\*\*B2d\*\*/.test(hm) && /\*\*Venter på 2\.5\.0\*\*/.test(hm) && ['K22', 'K23', 'K24', 'K25', 'K26', 'K28', 'K31', 'K32', 'K33', 'K34', 'K35'].every(k => hm.slice(hm.indexOf('**Venter på 2.5.0**')).includes(k)) && /\*\*K27\*\* \(præfiks på kittets klasser\) kræver 3\.0\.0/.test(hm));
+  tjek('flytning/HUGINN-MUNINN.md: K18–K21, K29, K30 og K36–K38 står som opfyldt i 2.4.0; B2d kan flyttes; K22–K26, K28 og K31–K35 (fra 2.5.0: opfyldt i 2.5.0); K27 er 3.0.0', ['K18', 'K19', 'K20', 'K21', 'K29', 'K30', 'K36', 'K37', 'K38'].every(k => new RegExp('\\| ' + k + ' [^|]*\\| 2\\.4\\.0 \\|').test(hm)) && /\*\*B2d\*\*/.test(hm) && ['K22', 'K23', 'K24', 'K25', 'K26', 'K28', 'K31', 'K32', 'K33', 'K34', 'K35'].every(k => new RegExp('\\| ' + k + ' [^|]*\\| 2\\.5\\.0 \\|').test(hm)) && /\*\*K27\*\* \(præfiks på kittets klasser\), der kræver 3\.0\.0/.test(hm));
   tjek('README 2.4.0: indholdslisten nævner Kit.tabelRul; "Byg skærmen" nævner raekkeHandling og Kit.tabelRul', /`Kit\.sideskift`, og fra 2\.4\.0 `Kit\.tabelRul`/.test(readme) && /\(`raekkeHandling`\)/.test(readme) && /\(`Kit\.tabelRul`\)/.test(readme));
 }
 {
@@ -1368,6 +1417,414 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
   tjek('demo 2.4.0: mørkt tema sættes på siden med de nye dele', d.documentElement.getAttribute('data-tema') === 'moerk' && Boolean(d.querySelector('#demo-tabel-aabn .tabel-rul')));
   const da = Object.keys(w.Sprog.TEKST.da), en = Object.keys(w.Sprog.TEKST.en);
   tjek('demo 2.4.0: dansk og engelsk har de samme nøgler', JSON.stringify(da.slice().sort()) === JSON.stringify(en.slice().sort()), da.filter(k => !en.includes(k)).concat(en.filter(k => !da.includes(k))).join(', '));
+}
+
+// ── Pakke 2.5.0 (K22–K26, K28, K31–K35, G1–G11): skallen, kontrollerne, fliserne og dialogen. ──
+{
+  const css = pk('web/kit.css'), kitJs = pk('web/kit.js'), md = pk('KOMPONENTER.md'), readme = pk('README.md');
+  const afsnitAf = navn => { const i = md.indexOf('\n## ' + navn + '\n'); return i < 0 ? '' : md.slice(i, md.indexOf('\n## ', i + 1)); };
+  const ny = () => {
+    const dom = new JSDOM('<!doctype html><html data-kit-praefiks="proeve"><body></body></html>', { runScripts: 'outside-only', url: 'http://kit.invalid/', pretendToBeVisual: true });
+    dom.window.HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
+    dom.window.HTMLDialogElement.prototype.close = function (v) { if (!this.hasAttribute('open')) return; this.removeAttribute('open'); if (v !== undefined) this.returnValue = v; this.dispatchEvent(new dom.window.Event('close')); };
+    for (const f of ['tema.js', 'sprogmotor.js', 'kit.js']) dom.window.eval(pk('web/' + f));
+    return dom.window;
+  };
+  const w = ny(), d = w.document, K = w.Kit;
+  const tast = (el, key) => { const e = new w.KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }); el.dispatchEvent(e); return e; };
+  const fejlAf = f => { try { f(); return ''; } catch (e) { return String(e.message); } };
+  const fn = Object.keys(K).map(k => 'Kit.' + k);
+  const cssUden = css.replace(/\/\*[\s\S]*?\*\//g, '').replace(/@font-face\s*\{[^}]*\}/g, '').replace(/@keyframes[^{]*\{(?:[^{}]*\{[^}]*\})*[^}]*\}/g, ' ').replace(/\{[^}]*\}/g, ' ');
+  const cssKlasser = new Set([...cssUden.matchAll(/\.([a-z][a-z0-9-]*)/g)].map(m => m[1]));
+  const regel = (vaelger) => { const i = css.indexOf('\n' + vaelger + ' {'); return i < 0 ? '' : css.slice(i, css.indexOf('}', i) + 1); };
+  tjek('2.5.0: de nye navne i V250_FUNKTIONER og V250_KLASSER findes i Kit og kit.css', V250_FUNKTIONER.every(f => fn.includes(f)) && V250_KLASSER.every(k => cssKlasser.has(k)), [...V250_FUNKTIONER.filter(f => !fn.includes(f)), ...V250_KLASSER.filter(k => !cssKlasser.has(k))].join(', '));
+  // Huginn and Muninns egne klasser (fra Fase A) og generiske ord må kittet ikke tage (K27 er 3.0.0).
+  const HAM = ['hm-mrk', 'tal', 'pille', 'pille-ikon', 'pille-bar', 'henter', 'gul', 'roed', 'vg-hoved', 'dyk-flise-to', 'dyk-flise-aabn', 'dyk-filter', 'dyk-filter-x', 'sti-chip', 'dyk-datoer', 'dyk-dato', 'raekke', 'etik', 'guide', 'valgt', 'fejl-felt', 'link'];
+  tjek('2.5.0: de nye klasser støder ikke sammen med Huginn and Muninns (.hm-mrk, .pille, .henter, .dyk-filter …) eller generiske ord (.guide, .valgt, .link)', V250_KLASSER.every(k => !HAM.includes(k)) && HAM.every(k => !cssKlasser.has(k)));
+
+  // Uden de nye indstillinger bygger kittet præcis det samme som 2.4.0 (V240_UDSEENDE er lavet med 2.4.0's kit.js fra
+  // HEAD 48b8dbd og samme byg-funktion).
+  const nu = bygV240(K, d);
+  const forskel = Object.keys(V240_UDSEENDE).filter(k => nu[k] !== V240_UDSEENDE[k]);
+  tjek(`2.5.0: uden de nye indstillinger er ${Object.keys(V240_UDSEENDE).length} eksempler byte for byte som i 2.4.0 (dialog, bekræftelse, kontakt, radiogruppe, valgliste, afkrydsning, fliser, tom tilstand, kasse, filterchips, segmentknap, visningsskift, træ, bånd, værktøjstip, fremdrift)`, Object.keys(V240_UDSEENDE).length === 26 && forskel.length === 0, forskel.join(', '));
+  for (const v of [...d.querySelectorAll('dialog')]) v.remove();
+
+  // ── K25: status med fremdrift i fodlinjen ──
+  const klik = [];
+  const fs = K.fodstatus({ status: 'henter', t: 'koeHenter', fremdrift: { maks: 8, vaerdi: 3 }, handling: { t: 'aabnOverblik', ved: () => klik.push('aabn') } });
+  d.body.appendChild(fs.rod);
+  const meld = () => fs.rod.querySelector('.fodstatus-meld');
+  const maal = () => fs.rod.querySelector('.fodstatus-maal');
+  const bj = () => fs.rod.querySelector('.fodstatus-bjaelke');
+  tjek('K25: <span class="fodstatus" data-status="henter"> med en knap (aria-labelledby: tekst og handling), ring (snurr, aria-hidden), tekst (aria-hidden), <progress> 3/8 og et skjult live-område (role="status")', fs.rod.className === 'fodstatus' && fs.rod.dataset.status === 'henter' && maal().tagName === 'BUTTON' && maal().type === 'button' && maal().getAttribute('aria-labelledby') === meld().id + ' ' + maal().querySelector('.skjult-tekst').id && maal().querySelector('.skjult-tekst').getAttribute('data-t') === 'aabnOverblik' && fs.rod.querySelector('.fodstatus-mrk').className === 'fodstatus-mrk snurr' && fs.rod.querySelector('.fodstatus-mrk').getAttribute('aria-hidden') === 'true' && fs.rod.querySelector('.fodstatus-tekst').getAttribute('aria-hidden') === 'true' && fs.rod.querySelector('.fodstatus-tekst').getAttribute('data-t') === 'koeHenter' && !bj().hidden && bj().max === 8 && bj().value === 3 && bj().getAttribute('aria-labelledby') === meld().id && meld().getAttribute('role') === 'status' && meld().classList.contains('skjult-tekst') && meld().getAttribute('data-t') === 'koeHenter' && meld().parentElement === fs.rod && !maal().contains(meld()));
+  maal().click();
+  tjek('K25: et klik på knappen kalder handlingens ved', klik.join() === 'aabn');
+  // Hvad der læses op: live-området skrives kun ved en ny tekst. Et trin og samme tekst igen rører det ikke.
+  let skrevet = 0;
+  new w.MutationObserver(m => { skrevet += m.length; }).observe(meld(), { attributes: true, childList: true, characterData: true, subtree: true });
+  fs.saet({ fremdrift: { vaerdi: 4 } });
+  fs.saet({ t: 'koeHenter' });
+  await vent(0);
+  const efterTrin = skrevet;
+  fs.saet({ status: 'ok', t: 'koeFaerdig', fremdrift: null });
+  await vent(0);
+  tjek('K25: et trin i fremdriften og samme tekst igen skriver intet i live-området; en ny tekst gør (og status, mærke og linje skifter)', efterTrin === 0 && bj().value === 4 && skrevet > 0 && meld().getAttribute('data-t') === 'koeFaerdig' && fs.rod.dataset.status === 'ok' && fs.rod.querySelector('.fodstatus-mrk').textContent === '✓' && !fs.rod.querySelector('.fodstatus-mrk').classList.contains('snurr') && bj().hidden && fs.status === 'ok');
+  maal().focus();
+  fs.saet({ handling: null });
+  const somTekst = maal().tagName === 'SPAN' && !maal().hasAttribute('aria-labelledby') && !fs.rod.querySelector('.fodstatus-maal .skjult-tekst');
+  fs.saet({ handling: { tekst: 'Åbn', ved: () => klik.push('igen') }, fremdrift: 'ubestemt', status: 'danger', tekst: 'Fejl' });
+  maal().click();
+  tjek('K25: handling: null gør delen til tekst (span); en ny handling til en knap igen; ubestemt fremdrift har ingen value; færdig tekst og danger (×)', somTekst && maal().tagName === 'BUTTON' && klik.join() === 'aabn,igen' && !bj().hidden && !bj().hasAttribute('value') && fs.rod.querySelector('.fodstatus-mrk').textContent === '×' && meld().textContent === 'Fejl' && fs.rod.querySelector('.fodstatus-tekst').textContent === 'Fejl');
+  tjek('K25: en ukendt status og en forkert fremdrift giver en fejl; uden noget er status none (–) uden linje og uden knap', /ukendt status: gul/.test(fejlAf(() => K.fodstatus({ status: 'gul' }))) && /fremdrift er/.test(fejlAf(() => K.fodstatus({ fremdrift: 5 }))) && (() => { const t = K.fodstatus(); return t.rod.dataset.status === 'none' && t.rod.querySelector('.fodstatus-mrk').textContent === '–' && t.rod.querySelector('.fodstatus-bjaelke').hidden && t.maal.tagName === 'SPAN'; })());
+  tjek('K25 (CSS): mærket i statussens tekstfarve (ok, warn, danger, info, none), ringen 10 px, linjen 64 × 4 px i accent på border, den ubestemte glider og står stille ved prefers-reduced-motion; knappens fokusring inden for fodlinjen', ['ok', 'warn', 'danger', 'info'].every(v => css.includes(`.fodstatus[data-status="${v}"] .fodstatus-mrk { color: var(--${v}); }`)) && css.includes('.fodstatus[data-status="none"] .fodstatus-mrk { color: var(--text-muted); }') && /\.fodstatus-mrk\.snurr \{ width: 10px; height: 10px; \}/.test(css) && /\.fodstatus-bjaelke \{[^}]*width: 64px; height: 4px;[^}]*background: var\(--border\);/.test(css) && /\.fodstatus-bjaelke::-webkit-progress-value \{ background: var\(--accent\); \}/.test(css) && /animation: kit-glid/.test(css) && /@media \(prefers-reduced-motion: reduce\) \{ \.fodstatus-bjaelke:indeterminate[^}]*animation: none;/.test(css) && /button\.fodstatus-maal:focus-visible \{ outline-offset: -2px; \}/.test(css));
+
+  // ── K22 og K23: titellinjen ──
+  tjek('K22 (CSS): .mrk-billede er 20 px høj med fri bredde i mærkefarven; .mrk-maske er en flade i --accent-on-rail med maskens plads, størrelse og gentagelse (billedet og bredden er programmets); kittet henter intet', /(?:^|\n)\.mrk-billede \{ display: block; flex: none; height: 20px; width: auto; color: var\(--accent-on-rail\); \}/.test(css) && /(?:^|\n)\.mrk-maske \{[^}]*height: 20px; background: var\(--accent-on-rail\);[^}]*-webkit-mask-size: contain;[^}]*mask-repeat: no-repeat;[^}]*\}/.test(css) && !/mask-image/.test(css.replace(/\/\*[\s\S]*?\*\//g, '')) && (css.match(/url\(/g) || []).length === 4);
+  tjek('K23 (CSS): .rk slået fra (disabled og aria-disabled: nedtonet, ingen hover), aria-current (aktiv flade og streg forneden) og aria-expanded (aktiv flade og ring); a.rk uden understregning', /\.titel \.rk:disabled, \.titel \.rk\[aria-disabled="true"\] \{ opacity: \.6; cursor: default; \}/.test(css) && /\.titel \.rk:disabled:hover, \.titel \.rk\[aria-disabled="true"\]:hover \{ background: var\(--rail\); color: var\(--rail-text\); \}/.test(css) && /\.titel \.rk\[aria-current\]:not\(\[aria-current="false"\]\) \{ background: var\(--rail-active\); color: var\(--rail-strong\); box-shadow: inset 0 -2px 0 var\(--accent-on-rail\); \}/.test(css) && /\.titel \.rk\[aria-expanded="true"\] \{ background: var\(--rail-active\); color: var\(--rail-strong\); box-shadow: inset 0 0 0 1px var\(--rail-text\); \}/.test(css) && /\.titel a\.rk \{ text-decoration: none; \}/.test(css));
+  tjek('K23: den eksisterende .rk-regel og hover er uændrede', /\.titel \.rk \{\n  display: inline-flex; align-items: center; justify-content: center; gap: var\(--space-1\);\n  height: 26px; min-width: 26px; padding: 0 var\(--space-2\);\n  border: 0; border-radius: var\(--radius-sm\); background: var\(--rail\); color: var\(--rail-text\); cursor: pointer;\n\}/.test(css) && /\.titel \.rk:hover \{ background: var\(--rail-active\); color: var\(--rail-strong\); \}/.test(css));
+
+  // ── K24: visningsskift ──
+  const sv = d.createElement('div');
+  d.body.appendChild(sv);
+  const skift = K.visningsskift(sv, [{ id: 'a', tekst: 'Oversigt', ikon: 'mappe', genvej: '1' }, { id: 'b', tekst: 'Siden sidst', ikon: 'mappe', genvej: '2', antal: 3, kraever: true, antalAriaT: 'kraever' }, { id: 'c', tekst: 'Angreb', ikon: 'mappe', deaktiveret: true, hvorfor: 'hvorforToken', antal: 7 }]);
+  const lk = id => skift.links.find(a => a.dataset.visning === id);
+  const antB = lk('b').querySelector(':scope > .ant');
+  tjek('K24: antal står før genvejen; kraever giver .ant .ant-kraever (aria-hidden) og skjult tekst med nøgle og data-v', antB && antB.className === 'ant ant-kraever' && antB.textContent === '3' && antB.getAttribute('aria-hidden') === 'true' && antB.nextElementSibling.className === 'skjult-tekst' && antB.nextElementSibling.getAttribute('data-t') === 'kraever' && antB.nextElementSibling.getAttribute('data-v') === '3' && antB.nextElementSibling.nextElementSibling.tagName === 'KBD');
+  const c = lk('c');
+  let navigeret = 0;
+  sv.addEventListener('click', e => { if (!e.defaultPrevented) navigeret++; });
+  c.click();
+  const tipC = d.getElementById(c.getAttribute('aria-describedby'));
+  tjek('K24: et punkt slået fra har aria-disabled og href (kan nås med Tab), et klik gør intet (preventDefault), og hvorfor står i et værktøjstip (ikke title)', c.getAttribute('aria-disabled') === 'true' && c.getAttribute('href') === '#c' && navigeret === 0 && tipC && tipC.getAttribute('role') === 'tooltip' && tipC.getAttribute('data-t') === 'hvorforToken' && !c.hasAttribute('title') && !c.hasAttribute('data-t-title') && c.parentElement.className === 'tip-plads' && c.querySelector(':scope > .ant').className === 'ant' && !c.querySelector(':scope > .ant').hasAttribute('aria-hidden'));
+  skift.saetPunkt('c', { deaktiveret: false });
+  lk('a').click();
+  skift.saetPunkt('b', { antal: null });
+  tjek('K24: saetPunkt slår punktet til (tip og aria-describedby væk, ude af .tip-plads), og antal: null fjerner tallet og den skjulte tekst; et klik på et punkt, der er slået til, går igennem', !c.hasAttribute('aria-disabled') && !c.hasAttribute('aria-describedby') && c.parentElement === sv && !sv.querySelector('[role="tooltip"]') && !lk('b').querySelector('[data-ant]') && navigeret === 1);
+  tjek('K24: en ukendt visning i saetPunkt giver en fejl; markér virker stadig efter tippet', /ukendt visning: x/.test(fejlAf(() => skift.saetPunkt('x', {}))) && (skift.markér('c'), c.getAttribute('aria-current') === 'page'));
+  tjek('K24 (CSS): punkt slået fra er nedtonet uden hover; .ant-kraever er en fyldt pille med kant og fed skrift i danger (ikke kun farve); tippets plads fylder bredden', /\.vs\[aria-disabled="true"\] \{ opacity: \.5; cursor: default; \}/.test(css) && /\.vs \.ant-kraever \{[^}]*border: 1px solid var\(--danger\);[^}]*background: var\(--danger-soft\); color: var\(--danger\); font-weight: 700;/.test(css) && /\.skift > \.tip-plads \{ display: flex; \}/.test(css));
+
+  // ── K26: træet ──
+  const valgT = [];
+  const tu = d.createElement('ul');
+  d.body.appendChild(tu);
+  const tr = K.navTrae(tu, [{ id: 'alle', tekst: 'Alle', boern: [{ id: 'a', tekst: 'a.eksempel.dk' }, { id: 'b', tekst: 'b.eksempel.dk' }] }, { id: 'g', tekst: 'Gruppe', boern: [{ id: 'g1', tekst: 'g1' }] }], { valgt: 'b', kunBrugerValg: true, vedValg: id => valgT.push(id) });
+  tr.vaelg('a');
+  const efterKode = valgT.length;
+  const knapT = id => tu.querySelector(`[data-punkt="${id}"]`);
+  knapT('b').click();
+  tast(knapT('alle'), 'Enter');
+  tjek('K26 (kunBrugerValg): intet vedValg ved start og ved vaelg(id); klik og Enter kalder det', efterKode === 0 && valgT.join() === 'b,alle');
+  // Fold Gruppe ind og sæt fokus på b; byg om med en ny liste.
+  tast(knapT('g'), 'ArrowLeft');
+  knapT('b').focus();
+  const ulFoer = tu;
+  let lyttere = 0;
+  const orgAdd = tu.addEventListener;
+  tu.addEventListener = function (...a) { lyttere++; return orgAdd.apply(this, a); };
+  tr.saetPunkter([{ id: 'alle', tekst: 'Alle', boern: [{ id: 'b', tekst: 'b.eksempel.dk' }, { id: 'c', tekst: 'c.eksempel.dk' }] }, { id: 'g', tekst: 'Gruppe', boern: [{ id: 'g1', tekst: 'g1' }] }]);
+  tu.addEventListener = orgAdd;
+  tjek('K26: saetPunkter bygger om i samme <ul> uden nye lyttere og uden vedValg; valget (alle) bliver, Gruppe er stadig foldet, og b har fokus igen', ulFoer === tu && lyttere === 0 && valgT.length === 2 && knapT('alle').classList.contains('on') && knapT('g').getAttribute('aria-expanded') === 'false' && tu.querySelector('[data-punkt="g"] + ul').hidden && d.activeElement === knapT('b') && knapT('b').tabIndex === 0 && tr.punkter.length === 5 && tr.punkter.includes(knapT('c')));
+  tr.saetPunkter([{ id: 'x', tekst: 'x' }, { id: 'y', tekst: 'y' }], 'y');
+  tast(knapT('y'), 'ArrowUp');
+  tjek('K26: saetPunkter med valgt vælger det (uden vedValg); tastaturet virker på de nye punkter; et ukendt valg giver det første', knapT('y').getAttribute('aria-selected') === 'true' && valgT.length === 2 && d.activeElement === knapT('x') && (tr.saetPunkter([{ id: 'p', tekst: 'p' }], 'findes-ikke'), knapT('p').classList.contains('on')));
+  const valgGl = [];
+  const tg = K.navTrae(d.createElement('ul'), [{ id: 'a', tekst: 'A' }, { id: 'b', tekst: 'B' }], { vedValg: id => valgGl.push(id) });
+  tg.vaelg('b');
+  tjek('K26: uden indstillingen kaldes vedValg ved start og ved vaelg(id) som før (Grimnir og demoen bruger det)', valgGl.join() === 'a,b');
+
+  // ── K28: segmentknap uden valg ──
+  const segK = [];
+  const sg = K.segment({ aria: 'Periode', valgt: null, valg: [{ id: '7', tekst: '7 dage' }, { id: '30', tekst: '30 dage' }], vedValg: id => segK.push(id) });
+  d.body.appendChild(sg.rod);
+  const udenValg = sg.valgt === null && sg.knapper.every(b => b.getAttribute('aria-checked') === 'false') && sg.knapper.map(b => b.tabIndex).join() === '0,-1';
+  sg.knapper[0].click();
+  const foersteMeldt = segK.join() === '7' && sg.valgt === '7';
+  sg.vaelg(null);
+  const nulstillet = sg.valgt === null && sg.knapper[0].getAttribute('aria-checked') === 'false' && segK.length === 1;
+  sg.knapper[0].focus();
+  tast(sg.knapper[0], 'ArrowRight');
+  tjek('K28: valgt: null giver intet valgt (første kan nås med Tab); et klik på den første vælger og meldes; vaelg(null) fjerner valget uden at melde; en pil vælger og meldes', udenValg && foersteMeldt && nulstillet && segK.join() === '7,30' && d.activeElement === sg.knapper[1]);
+  tjek('K28: uden valgt (og med et ukendt id) er den første valgt som før', K.segment({ valg: [{ id: 'a', tekst: 'a' }, { id: 'b', tekst: 'b' }] }).valgt === 'a' && K.segment({ valgt: 'x', valg: [{ id: 'a', tekst: 'a' }, { id: 'b', tekst: 'b' }] }).valgt === 'a');
+
+  // ── G1, G3, G5, G6: dialogen ──
+  const vedLukS = [];
+  let loes = null;
+  const dlg = K.dialog({ id: 'dlg-ny', t: 'nyH', p: { t: 'nyP' }, fejl: true, udfyld: el => el.setAttribute('data-udfyldt', '1'), foer: d.createElement('svg'),
+    knapper: [{ id: 'annuller', t: 'annuller' }, { id: 'opret', knapId: 'ny-opret', t: 'opret', variant: 'primary', ved: () => { const l = new Promise((ok, nej) => { loes = { ok, nej }; }); l.catch(() => {}); return l; } }], vedLuk: s => vedLukS.push(s) });
+  const fejlEl = dlg.rod.querySelector('.modal-fejl');
+  tjek('G3/G5: id på dialogen og <id>-h, <id>-p, <id>-fejl; knapId på knappen (svaret er stadig id); foer står først (.modal-foer), og overskriften navngiver stadig dialogen', dlg.rod.id === 'dlg-ny' && dlg.overskrift.id === 'dlg-ny-h' && dlg.rod.getAttribute('aria-labelledby') === 'dlg-ny-h' && dlg.rod.getAttribute('aria-describedby') === 'dlg-ny-p' && fejlEl.id === 'dlg-ny-fejl' && dlg.knap('opret').id === 'ny-opret' && dlg.knap('opret').dataset.svar === 'opret' && dlg.rod.firstElementChild.className === 'modal-foer' && dlg.rod.children[1].className === 'modal-top');
+  tjek('G1: fejlfeltet er <p class="modal-fejl" role="alert"> lige før fodlinjen og tomt', fejlEl.getAttribute('role') === 'alert' && fejlEl.nextElementSibling.className === 'modal-fod' && fejlEl.textContent === '');
+  dlg.aabn();
+  dlg.fejl({ t: 'fejlNavn' });
+  const noegle = fejlEl.getAttribute('data-t') === 'fejlNavn' && fejlEl.getAttribute('data-udfyldt') === '1';
+  dlg.fejl('Navnet findes.');
+  const tekst = fejlEl.textContent === 'Navnet findes.' && !fejlEl.hasAttribute('data-t');
+  dlg.fejl(null);
+  tjek('G1: d.fejl sætter en nøgle (og kalder udfyld) eller en tekst; d.fejl(null) rydder', noegle && tekst && fejlEl.textContent === '' && !fejlEl.hasAttribute('data-t'));
+  const opret = dlg.knap('opret');
+  opret.click();
+  const venter = opret.getAttribute('aria-busy') === 'true' && opret.getAttribute('aria-disabled') === 'true' && dlg.aaben;
+  const l1 = loes;
+  opret.click();
+  const ikkeIgen = loes === l1;
+  l1.nej(new Error('Sagen findes allerede.'));
+  await vent(0);
+  const afvist = dlg.aaben && fejlEl.textContent === 'Sagen findes allerede.' && !opret.hasAttribute('aria-busy') && !opret.hasAttribute('aria-disabled');
+  opret.click();
+  loes.ok(false);
+  await vent(0);
+  const falsk = dlg.aaben;
+  opret.click();
+  loes.ok(true);
+  await vent(0);
+  tjek('G1: et løfte fra ved: knappen venter (aria-busy, aria-disabled) og kan ikke trykkes igen; afvist: åben med fejlen; false: åben; true: lukket med knappens svar', venter && ikkeIgen && afvist && falsk && !dlg.aaben && vedLukS.join() === 'opret');
+  dlg.aabn();
+  dlg.fejl('x');
+  dlg.luk();
+  dlg.aabn();
+  tjek('G1: aabn() rydder fejlen; uden fejl: true findes d.fejl ikke', fejlEl.textContent === '' && dlg.luk() === undefined && !('fejl' in K.dialog({ t: 'a' })));
+  const gr = d.createElement('div');
+  const gh = d.createElement('h2');
+  gh.id = 'gd-h';
+  gh.tabIndex = -1;
+  gr.appendChild(gh);
+  const fldIGuide = d.createElement('input');
+  gr.appendChild(fldIGuide);
+  const gSvar = [];
+  const gd = K.dialog({ guide: true, ariaLabelledby: 'gd-h', indhold: gr, vedLuk: s => gSvar.push(s) });
+  gd.aabn();
+  const fokusGuide = d.activeElement === gh;
+  gd.rod.dispatchEvent(new w.Event('cancel'));
+  gd.rod.close('esc');
+  gd.aabn();
+  gd.luk();
+  tjek('G6: guide: true giver <dialog class="modal modal-guide"> uden overskrift, sætning og fod; navngivet af guidens overskrift; fokus på den; Esc og luk() meldes som i de andre', gd.rod.className === 'modal modal-guide' && gd.rod.getAttribute('aria-labelledby') === 'gd-h' && !gd.rod.querySelector('.modal-top, .modal-tekst, .modal-fod') && gd.overskrift === null && gd.indhold.firstChild === gr && fokusGuide && gSvar.join() === 'esc,kode');
+  tjek('G6: en guide uden ariaLabelledby, eller med knapper, sætning eller lukkeknap, giver en fejl', /guidens overskrift \(ariaLabelledby\)/.test(fejlAf(() => K.dialog({ guide: true }))) && /egne knapper/.test(fejlAf(() => K.dialog({ guide: true, ariaLabelledby: 'x', knapper: [{ id: 'a' }] }))) && /egne knapper/.test(fejlAf(() => K.dialog({ guide: true, ariaLabelledby: 'x', p: 'p' }))));
+  tjek('G1/G5/G6 (CSS): fejlfeltet i danger og skjult, når det er tomt; guiden 820 px uden luft (også delt med trinnet); en ventende knap har markøren progress', /\.modal-fejl \{[^}]*color: var\(--danger\);/.test(css) && /\.modal-fejl:empty \{ display: none; \}/.test(css) && /\.modal\.modal-guide \{ width: min\(820px, calc\(100vw - 2 \* var\(--space-6\)\)\); padding: 0; \}/.test(css) && /:root\[data-tekst="stor"\] \.modal\.modal-guide \{ width: min\(820px, calc\(100vw \/ 1\.125 - 48px\)\); \}/.test(css) && /\.modal \.btn\[aria-busy="true"\] \{ cursor: progress; \}/.test(css));
+
+  // ── G2: bekræftelse, der kan fejle ──
+  let sletLoes = null;
+  const bSvar = K.bekraeft({ t: 'sletH', p: 'p', nej: { t: 'nej' }, ja: { t: 'ja' }, farlig: true, ved: () => new Promise((ok, nej) => { sletLoes = { ok, nej }; }) });
+  const bRod = [...d.querySelectorAll('dialog[open]')].at(-1);
+  const ja = bRod.querySelector('[data-svar="ja"]'), bFejl = bRod.querySelector('.modal-fejl');
+  ja.click();
+  const bVenter = ja.getAttribute('aria-busy') === 'true';
+  await vent(0);
+  sletLoes.nej('Sagen kunne ikke slettes.');
+  await vent(0);
+  const bAaben = bRod.hasAttribute('open') && Boolean(bFejl) && bFejl.textContent === 'Sagen kunne ikke slettes.';
+  ja.click();
+  await vent(0);
+  sletLoes.ok();
+  const svarB = await bSvar;
+  tjek('G2: Kit.bekraeft med ved: ja venter; afvist: åben med fejlen i et felt med role="alert"; opfyldt: lukket, fjernet og true', bVenter && bAaben && Boolean(bFejl) && bFejl.getAttribute('role') === 'alert' && svarB === true && !bRod.isConnected);
+  const uden = K.bekraeft({ t: 'h', p: 'p', nej: { t: 'nej' }, ja: { t: 'ja' } });
+  const uRod = [...d.querySelectorAll('dialog[open]')].at(-1);
+  const udenFejl = !uRod.querySelector('.modal-fejl');
+  uRod.querySelector('[data-svar="ja"]').click();
+  tjek('G2: uden ved er Kit.bekraeft som før (intet fejlfelt, ja lukker straks og giver true)', udenFejl && (await uden) === true);
+
+  // ── K31: navn uden for komponenten ──
+  const rgU = K.radiogruppe({ ariaLabelledby: 'raekke-tema', vandret: true, valg: [{ id: 'a', tekst: 'A' }, { id: 'b', tekst: 'B' }], valgt: 'b', hjaelp: 'Note' });
+  const vlU = K.valgliste({ ariaLabelledby: 'raekke-sprog', valg: [{ id: 'da', tekst: 'Dansk' }] });
+  const tfU = K.kontakt({ ariaLabelledby: 'raekke-auto', til: true, ord: { til: 'Til', fra: 'Fra' } });
+  const rgA = K.radiogruppe({ etiket: null, aria: 'Tema', valg: [{ id: 'a', tekst: 'A' }] });
+  tjek('K31: radiogruppe med ariaLabelledby er <div class="valgsaet vandret" role="radiogroup" aria-labelledby> uden <legend> (hjælpen med aria-describedby); etiket: null med aria giver aria-label', rgU.rod.tagName === 'DIV' && rgU.rod.className === 'valgsaet vandret' && rgU.rod.getAttribute('role') === 'radiogroup' && rgU.rod.getAttribute('aria-labelledby') === 'raekke-tema' && !rgU.rod.querySelector('legend') && rgU.inputs.length === 2 && rgU.valgt === 'b' && rgU.rod.getAttribute('aria-describedby') && rgA.rod.getAttribute('aria-label') === 'Tema' && rgA.rod.getAttribute('role') === 'radiogroup');
+  tjek('K31: valgliste med ariaLabelledby har ingen <label> (select har aria-labelledby); kontakt har ingen synlig tekst (input har aria-labelledby), ordene står der stadig', !vlU.rod.querySelector('label') && vlU.select.getAttribute('aria-labelledby') === 'raekke-sprog' && tfU.input.getAttribute('aria-labelledby') === 'raekke-auto' && !tfU.rod.querySelector('.afk-tekst') && tfU.rod.querySelector('.tilfra-ord') && tfU.input.getAttribute('role') === 'switch');
+  tjek('K31: uden noget navn (etiket: null) og med to navne giver det en fejl i alle tre', ['radiogruppe', 'valgliste'].every(f => /skal have et navn/.test(fejlAf(() => K[f]({ etiket: null, valg: [] }))) && /ikke begge/.test(fejlAf(() => K[f]({ etiket: 'X', ariaLabelledby: 'y', valg: [] })))) && /skal have et navn/.test(fejlAf(() => K.kontakt({ etiket: null }))) && /ikke begge/.test(fejlAf(() => K.kontakt({ tekst: 'X', ariaLabelledby: 'y' }))));
+
+  // ── K32: kassens ikon ──
+  const ks = K.kasse({ t: 'h', ikon: 'laas' });
+  tjek('K32: ikon står foran overskriften (svg.kasse-ikon, aria-hidden), og overskriften navngiver stadig kassen; CSS: 18 px i accent', ks.rod.querySelector('.kasse-top').firstElementChild.getAttribute('class') === 'kasse-ikon' && ks.rod.querySelector('.kasse-ikon').getAttribute('aria-hidden') === 'true' && ks.rod.querySelector('.kasse-ikon').nextElementSibling === ks.overskrift && ks.rod.getAttribute('aria-labelledby') === ks.overskrift.id && /\.kasse-ikon \{ width: 18px; height: 18px;[^}]*stroke: var\(--accent\);/.test(css));
+
+  // ── K33 og K35: fliserne ──
+  const fk = [];
+  const fv = K.statusflise({ t: 'n', tal: 2, valgt: true, ved: () => fk.push('flise') });
+  const fd = K.statusflise({ t: 'n', tal: 2, valgt: 'date' });
+  tjek('K33: valgt giver aria-current på målet (true, eller værdien, fx date)', fv.getAttribute('aria-current') === 'true' && fv.tagName === 'BUTTON' && fd.getAttribute('aria-current') === 'date');
+  const f2 = K.statusflise({ t: 'n', tal: 12, status: { variant: 'warn', t: 's' }, valgt: true, ariaT: 'fAria', ved: () => fk.push('flise'), under: { t: 'iDag', ariaT: 'iDagAria', ved: () => fk.push('under') } });
+  d.body.appendChild(f2);
+  const m2 = f2.querySelector('.sflise-maal'), u2 = f2.querySelector('.sflise-under-maal');
+  tjek('K33: under: { t, ved } giver <div class="sflise sflise-to warn"> med to knapper ved siden af hinanden (aldrig knap i knap): målet (navn, tal, chip; aria og aria-current) og underteksten (eget navn)', f2.tagName === 'DIV' && f2.className === 'sflise sflise-to warn' && [...f2.children].map(c => c.tagName + '.' + c.className).join() === 'BUTTON.sflise-maal,BUTTON.sflise-under sflise-under-maal' && !m2.querySelector('button') && !u2.querySelector('button') && [...m2.children].map(c => c.className).join() === 'sflise-navn,sflise-tal,chip warn' && m2.getAttribute('data-t-aria') === 'fAria' && m2.getAttribute('aria-current') === 'true' && !f2.hasAttribute('aria-current') && u2.getAttribute('data-t') === 'iDag' && u2.getAttribute('data-t-aria') === 'iDagAria' && u2.type === 'button');
+  m2.click(); u2.click();
+  tjek('K33: hvert mål kalder sit eget ved; to Tab-stop i rækkefølgen flise, undertekst', fk.join() === 'flise,under' && [...f2.querySelectorAll('button')].length === 2 && f2.querySelector('button') === m2);
+  const dat = d.createElement('div');
+  const lnk = d.createElement('button');
+  dat.appendChild(lnk);
+  const f3 = K.statusflise({ t: 'set', indhold: dat });
+  tjek('K35: indhold står, hvor tallet ellers står (.sflise-indhold), og flisen er en div; indhold med egne mål i en flise, der selv er et mål, giver en fejl', f3.tagName === 'DIV' && [...f3.children].map(c => c.className).join() === 'sflise-navn,sflise-indhold' && f3.querySelector('.sflise-indhold').firstChild === dat && !f3.querySelector('.sflise-tal') && /egne mål/.test(fejlAf(() => K.statusflise({ t: 'x', indhold: dat, ved: () => {} }))) && !fejlAf(() => K.statusflise({ t: 'x', indhold: d.createElement('span'), ved: () => {} })));
+  tjek('K33 (CSS): valgt har blød accentflade, kant og indre streg i accent (stregen til venstre beholder statussens farve), også når målet er inde i flisen; målet dækker flisen (::after) med fokusringen; underteksten ligger ovenpå i info, understreget', /\.sflise\[aria-current\]:not\(\[aria-current="false"\]\),\n\.sflise:has\(> \.sflise-maal\[aria-current\]:not\(\[aria-current="false"\]\)\) \{\n  background: var\(--accent-soft\); border-top-color: var\(--accent\); border-right-color: var\(--accent\); border-bottom-color: var\(--accent\);\n  box-shadow: inset 0 0 0 1px var\(--accent\);\n\}/.test(css) && /\.sflise-maal::after \{ content: ""; position: absolute; inset: 0;/.test(css) && /\.sflise-maal:focus-visible::after \{ outline: 2px solid var\(--info\);/.test(css) && /\.sflise-under-maal \{[^}]*position: relative; z-index: 1;[^}]*color: var\(--info\); text-decoration: underline;/.test(css) && /\.sflise-to \{ position: relative; \}/.test(css) && !/border-left-color: var\(--accent\)/.test(css));
+
+  // ── K34: filter, der kan fjernes ──
+  const rm = d.createElement('div');
+  rm.className = 'fchips';
+  d.body.appendChild(rm);
+  const fjernet = [];
+  const lav = (id, t) => { const ch = K.filterchip({ id, tekst: t, ariaT: 'fjernFilter', ariaV: t, vedFjern: x => { fjernet.push(x); ch.remove(); } }); rm.appendChild(ch); return ch; };
+  const c1 = lav('land', 'Danmark'), c2 = lav('dato', '1.–4. november');
+  tjek('K34: én knap (.fchip.fchip-fjern) med ordet og et × (svg.fchip-x, aria-hidden), navn fra programmet (data-t-aria, data-v), uden aria-pressed', c1.tagName === 'BUTTON' && c1.className === 'fchip fchip-fjern' && c1.dataset.chip === 'land' && c1.firstElementChild.textContent === 'Danmark' && c1.lastElementChild.getAttribute('class') === 'fchip-x' && c1.lastElementChild.getAttribute('aria-hidden') === 'true' && c1.getAttribute('data-t-aria') === 'fjernFilter' && c1.getAttribute('data-v') === 'Danmark' && !c1.hasAttribute('aria-pressed'));
+  c1.focus();
+  c1.click();
+  const naboFokus = d.activeElement === c2;
+  c2.click();
+  tjek('K34: et klik kalder vedFjern(id); var chippen fokuseret og er den væk, får nabochippen fokus', fjernet.join() === 'land,dato' && naboFokus);
+  tjek('K34: et filter, der kan fjernes, uden navn giver en fejl; den almindelige filterchip er uændret (aria-pressed)', /skal have et navn/.test(fejlAf(() => K.filterchip({ tekst: 'x', vedFjern: () => {} }))) && K.filterchip({ tekst: 'x' }).getAttribute('aria-pressed') === 'false');
+  tjek('K34 (CSS): blød accentflade, kant i accent og fed skrift; under musen streges ordet over (ikke kun farve); × 14 px', /\.fchip-fjern \{[^}]*background: var\(--accent-soft\); border-color: var\(--accent\); font-weight: 600; \}/.test(css) && /\.fchip-fjern:hover > span \{ text-decoration: line-through; \}/.test(css) && /\.fchip-x \{ width: 14px; height: 14px;/.test(css));
+
+  // ── G7: afkrydsning i en tabelrække ──
+  const afkS = [];
+  const a7 = K.afkrydsning({ ariaT: 'ariaMasker', ariaV: '192.0.2.17', valgt: true, vedSkift: v => afkS.push(v) });
+  d.body.appendChild(a7.rod);
+  a7.input.click();
+  tjek('G7: aria uden tekst giver boksen alene (<input class="afk-boks"> = rod, 16 px fra .afk-boks), med navn og data-v; vedSkift virker', a7.rod === a7.input && a7.rod.outerHTML === '<input type="checkbox" class="afk-boks" data-t-aria="ariaMasker" data-v="192.0.2.17">' && afkS.join() === 'false' && a7.valgt === false && /\.afk-boks \{[^}]*width: 16px; height: 16px;/.test(css) && /\.tabel td input\.afk-boks \{ width: 16px; height: 16px; padding: 0; margin: 0; \}/.test(css));
+  tjek('G7: hjælp eller fejl uden synlig tekst giver en fejl; aria med tekst er som før (rækken med tekst)', /kræver en synlig tekst/.test(fejlAf(() => K.afkrydsning({ aria: 'x', fejl: 'f' }))) && K.afkrydsning({ aria: 'x', tekst: 'Y' }).rod.className === 'afk-felt');
+
+  // ── G8: tom tilstand ──
+  const tomS = [];
+  const tm = K.tomTilstand({ ikon: 'indsaet', t: 'h', p: { t: 'p' }, handling: { t: 'aabn', ved: () => tomS.push('aabn') }, anden: { t: 'sager', variant: 'ghost', ved: () => tomS.push('sager') }, modtager: { ariaT: 'ariaIndsaet', ariaV: '⌘V', vedIndsaet: t => tomS.push('indsat:' + t) } });
+  d.body.appendChild(tm);
+  tjek('G8: modtager giver .tomt.tomt-modtager med tabindex 0, role="region" og navn (data-t-aria, data-v); to handlinger i .tomt-handlinger (den anden er ikke primær)', tm.className === 'tomt tomt-modtager' && tm.tabIndex === 0 && tm.getAttribute('role') === 'region' && tm.getAttribute('data-t-aria') === 'ariaIndsaet' && tm.getAttribute('data-v') === '⌘V' && tm.querySelector('.tomt-handlinger').children.length === 2 && tm.querySelector('.tomt-handlinger .btn.ghost') && !tm.querySelector('.tomt-handlinger .btn.primary'));
+  const ind = new w.Event('paste', { bubbles: true, cancelable: true });
+  ind.clipboardData = { getData: type => (type === 'text/plain' ? 'logtekst' : '') };
+  tm.dispatchEvent(ind);
+  const traek = new w.Event('dragover', { bubbles: true, cancelable: true });
+  traek.dataTransfer = { types: ['Files'] };
+  tm.dispatchEvent(traek);
+  tm.querySelectorAll('.btn').forEach(b => b.click());
+  tjek('G8: indsæt kalder vedIndsaet med teksten; kittet tager ikke imod et træk (ingen preventDefault, ingen .tomt-slip): det gør programmet; begge handlinger virker', ind.defaultPrevented && !traek.defaultPrevented && !tm.classList.contains('tomt-slip') && tomS.join() === 'indsat:logtekst,aabn,sager');
+  tjek('G8: kittet har intet fil-API (FileReader, dataTransfer.files, input type=file), som programmernes webvisning kan forbyde (Grimnirs UI-test gør)', !/FileReader|dataTransfer\.files|type=["']file["']|\.files\b/.test(kitJs));
+  tjek('G8: den lille udgave kan ikke tage imod; modtager uden navn, anden uden den første og en primær anden giver en fejl', /lille udgave/.test(fejlAf(() => K.tomTilstand({ lille: true, t: 'h', modtager: { aria: 'x' } }))) && /skal have et navn/.test(fejlAf(() => K.tomTilstand({ t: 'h', modtager: {} }))) && /kræver den første/.test(fejlAf(() => K.tomTilstand({ t: 'h', anden: { t: 'a' } }))) && /ikke være primær/.test(fejlAf(() => K.tomTilstand({ t: 'h', handling: { t: 'a' }, anden: { t: 'b', variant: 'primary' } }))));
+  tjek('G8 (CSS): to handlinger side om side; modtageren har runde hjørner til fokusringen; .tomt-slip er en stiplet kant i accent og en blød flade (ikke kun farve)', /\.tomt-handlinger \{ display: flex;/.test(css) && /\.tomt-modtager \{ border-radius: var\(--radius-md\); \}/.test(css) && /\.tomt-modtager\.tomt-slip \{ outline: 2px dashed var\(--accent\); outline-offset: -2px; background: var\(--accent-soft\); \}/.test(css));
+
+  // ── G10: --tekst-zoom ──
+  tjek('G10: --tekst-zoom er 1 på roden, .9 ved lille og 1.125 ved stor (sat ved siden af zoom); zoom-reglerne er uændrede', /:root \{ --tekst-zoom: 1; \}/.test(css) && /:root\[data-tekst="lille"\] \{ --tekst-zoom: \.9; \}/.test(css) && /:root\[data-tekst="stor"\] \{ --tekst-zoom: 1\.125; \}/.test(css) && /:root\[data-tekst="lille"\] \{ zoom: \.9; \}/.test(css) && /:root\[data-tekst="stor"\] \{ zoom: 1\.125; \}/.test(css));
+  const tz = afsnitAf('Tekststørrelse');
+  tjek('G10: KOMPONENTER.md (Tekststørrelse) siger, at @media og @container ikke følger zoom, og hvad et program gør (grænse pr. trin, --tekst-zoom i JavaScript)', /\*\*`@media` og `@container` følger ikke `zoom`\*\*/.test(tz) && /`--tekst-zoom`/.test(tz) && /1350px/.test(tz) && /getPropertyValue\('--tekst-zoom'\)/.test(tz));
+
+  // ── G11: hvorfor i båndet ──
+  const bd = d.createElement('div');
+  d.body.appendChild(bd);
+  const b11 = K.commandBar(bd, { hvorforTip: true, udenFaner: true, faner: [{ id: 'a', t: 'a', grupper: [{ t: 'g', knapper: [{ id: 'k', t: 'k', ikon: 'kopier', deaktiveret: true, hvorfor: 'hv' }, { id: 'l', t: 'l', ikon: 'kopier' }] }] }] });
+  const kk = b11.knap('k');
+  const tip11 = d.getElementById(kk.getAttribute('aria-describedby'));
+  tjek('G11: hvorforTip: hvorfor står i et værktøjstip (role="tooltip", data-t) og ikke i title; knappen er stadig aria-disabled', kk.getAttribute('aria-disabled') === 'true' && !kk.hasAttribute('data-t-title') && tip11 && tip11.getAttribute('role') === 'tooltip' && tip11.getAttribute('data-t') === 'hv' && kk.parentElement.className === 'tip-plads');
+  b11.saetDeaktiveret('k', false);
+  const slaaet = !kk.hasAttribute('aria-disabled') && !kk.hasAttribute('aria-describedby') && !bd.querySelector('.tip') && kk.parentElement.className === 'kn';
+  b11.saetDeaktiveret('l', true, 'hv2');
+  tjek('G11: saetDeaktiveret slår til (tippet væk) og fra med hvorfor (nyt tip); en ukendt kommando giver en fejl', slaaet && b11.knap('l').getAttribute('aria-disabled') === 'true' && d.getElementById(b11.knap('l').getAttribute('aria-describedby')).getAttribute('data-t') === 'hv2' && /ukendt kommando/.test(fejlAf(() => b11.saetDeaktiveret('x', true))));
+  const bu = d.createElement('div');
+  const bUden = K.commandBar(bu, { faner: [{ id: 'a', t: 'a', grupper: [{ t: 'g', knapper: [{ id: 'k', t: 'k', ikon: 'kopier' }] }] }] });
+  bUden.saetDeaktiveret('k', true, 'hv');
+  const medTitel = bUden.knap('k').getAttribute('data-t-title') === 'hv' && !bu.querySelector('.tip');
+  bUden.knap('k').setAttribute('title', 'Hvorfor');
+  bUden.saetDeaktiveret('k', false);
+  tjek('G11: uden indstillingen flytter saetDeaktiveret hvorfor i data-t-title (og fjerner title igen)', medTitel && !bUden.knap('k').hasAttribute('data-t-title') && !bUden.knap('k').hasAttribute('title') && !bUden.knap('k').hasAttribute('aria-disabled'));
+
+  // Værktøjstippets nye saetTekst og fjern.
+  const tm2 = d.createElement('button');
+  const pl = d.createElement('div');
+  pl.appendChild(tm2);
+  d.body.appendChild(pl);
+  tm2.setAttribute('aria-describedby', 'andet');
+  const tp = K.vaerktoejstip(tm2, { t: 'a' });
+  tp.saetTekst({ t: 'b' });
+  const nyT = tp.tip.getAttribute('data-t') === 'b';
+  tp.fjern();
+  tjek('Værktøjstip (2.5.0): saetTekst skifter teksten; fjern tager tippet væk, beholder et andet aria-describedby og pakker kittets .tip-plads ud', nyT && !tp.tip.isConnected && tm2.getAttribute('aria-describedby') === 'andet' && tm2.parentElement === pl && !pl.querySelector('.tip-plads'));
+
+  // ── G9 og G4: dokumentationen ──
+  const dlgMd = afsnitAf('Dialog'), tomMd = afsnitAf('Tom tilstand');
+  tjek('G9: eksemplerne i KOMPONENTER.md for Tom tilstand, Dialog og Kit.bekraeft bruger p: { t: … } (en streng er færdig tekst); demoen gør det samme; koden læser stadig en streng som tekst', !/\bp: '[a-zA-Z]+'/.test(dlgMd + tomMd) && /p: \{ t: 'tomSagerP' \}/.test(tomMd) && /p: \{ t: 'sletP' \}/.test(dlgMd) && !/K\.(?:tomTilstand|dialog|bekraeft)\(\{[^)]*\bp: '/.test(pk('demo/demo.js')) && K.tomTilstand({ t: 'h', p: 'Færdig tekst' }).querySelector('.tomt-p').textContent === 'Færdig tekst');
+  tjek('G4: reglen for et spørgsmål med tre svar står under Dialog (rækkefølge, fokus aldrig på den farlige, skjulte knapper tæller ikke)', /### Et spørgsmål med tre svar \(regel, fra 2\.5\.0, G4\)/.test(dlgMd) && /\*\*Annullér, den farlige, den primære\*\*/.test(dlgMd) && /aldrig på den farlige/.test(dlgMd) && /\*\*tæller ikke med\*\*/.test(dlgMd));
+
+  // ── Pakken ──
+  const log = pk('CHANGELOG.md');
+  const a250 = log.slice(log.indexOf('## 2.5.0'), log.indexOf('## 2.4.0'));
+  tjek('CHANGELOG 2.5.0: første post med kun dato; Nyt og Ændret; alle ønsker nævnt; K28, G1 og G9 under Ændret; intet omdøbt eller fjernet', log.indexOf('## 2.5.0 — 2026-11-12') > 0 && log.indexOf('## 2.5.0') < log.indexOf('## 2.4.0') && /### Nyt[\s\S]*### Ændret/.test(a250) && ['K22', 'K23', 'K24', 'K25', 'K26', 'K31', 'K32', 'K33', 'K34', 'K35', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8', 'G10', 'G11'].every(k => a250.slice(0, a250.indexOf('### Ændret')).includes('(' + k) || a250.slice(0, a250.indexOf('### Ændret')).includes(k + ')') || a250.slice(0, a250.indexOf('### Ændret')).includes(', ' + k)) && ['(K28)', '(G1)', '(G9)'].every(k => a250.slice(a250.indexOf('### Ændret')).includes(k)) && /Intet er omdøbt eller fjernet/.test(a250) && a250.includes('`Kit.fodstatus`'));
+  const hm = pk('flytning/HUGINN-MUNINN.md');
+  tjek('flytning/HUGINN-MUNINN.md: K22–K26, K28 og K31–K35 står som opfyldt i 2.5.0; K27 kræver 3.0.0; navnene, der afviger, står der', ['K22', 'K23', 'K24', 'K25', 'K26', 'K28', 'K31', 'K32', 'K33', 'K34', 'K35'].every(k => new RegExp('\\| ' + k + ' [^|]*\\| 2\\.5\\.0 \\|').test(hm)) && /opfyldt med 2\.5\.0\*\*, undtagen \*\*K27\*\*/.test(hm) && ['`Kit.fodstatus`', '`kunBrugerValg`', '`.ant-kraever`', '`.fchip-fjern`'].every(n => hm.includes(n)) && !/Venter på 2\.5\.0/.test(hm));
+  tjek('README 2.5.0: indholdslisten nævner Kit.fodstatus; afsnittet om, hvad Grimnir selv kan skifte til (dialogerne, afkrydsningen, den tomme tilstand, --tekst-zoom)', /fra 2\.5\.0 `Kit\.fodstatus`/.test(readme) && /### Det, Grimnir selv kan skifte til \(fra 2\.5\.0\)/.test(readme) && ['`fejl: true`', '`Kit.afkrydsning({ ariaT, ariaV })`', '`modtager: { ariaT, ariaV }`', '`--tekst-zoom`', 'guide: true, ariaLabelledby'].every(o => readme.includes(o)));
+  tjek('KOMPONENTER.md: hver ny indstilling har sit afsnit (fra 2.5.0) under sin komponent', [['AppShell', 'K22'], ['AppShell', 'K23'], ['CommandBar', 'G11'], ['NavPane', 'K24'], ['NavPane', 'K26'], ['StatusFooter', 'K25'], ['Segmentknap', 'K28'], ['Filterchip', 'K34'], ['Kasse', 'K32'], ['StatusTile', 'K33'], ['StatusTile', 'K35'], ['Tom tilstand', 'G8'], ['Afkrydsning', 'G7'], ['Radiogruppe', 'K31'], ['Dialog', 'G1'], ['Dialog', 'G2'], ['Dialog', 'G6'], ['Tekststørrelse', 'G10']].every(([a, k]) => afsnitAf(a).includes(k)));
+}
+{
+  // Demoen 2.5.0 med pakkens rigtige filer, i begge sprog og temaer.
+  const dom = await JSDOM.fromFile(demoFil, { runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true, virtualConsole: new VirtualConsole() });
+  const w = dom.window, d = w.document;
+  w.HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
+  w.HTMLDialogElement.prototype.close = function (v) { if (!this.hasAttribute('open')) return; this.removeAttribute('open'); if (v !== undefined) this.returnValue = v; this.dispatchEvent(new w.Event('close')); };
+  await new Promise(r => (d.readyState === 'complete' ? r() : w.addEventListener('load', r)));
+  await vent(20);
+  const tekst = id => d.getElementById(id).textContent;
+  const titel = d.getElementById('demo-titel250');
+  tjek('demo 2.5.0 (K22, K23): titellinjen har en maske som mærke og tre knapper: frem slået fra, tandhjulet med aria-current og hjælp med aria-expanded (dansk)', titel.querySelector('.mrk-maske.demo-maske[aria-hidden="true"]') && titel.querySelector('.rk:disabled').getAttribute('aria-label') === 'Frem' && titel.querySelector('.rk[aria-current="page"]').getAttribute('aria-label') === 'Indstillinger' && titel.querySelector('.rk[aria-expanded="true"]').getAttribute('aria-label') === 'Hjælp');
+  titel.querySelector('.rk[aria-expanded]').click();
+  tjek('demo 2.5.0 (K23): et klik på hjælp skifter aria-expanded og melder det', titel.querySelector('.rk[aria-expanded]').getAttribute('aria-expanded') === 'false' && tekst('titel250-valgt') === 'Valgt: Hjælp: panelet er lukket');
+  const kop = d.querySelector('#demo-baand-tip [data-kommando="kopier"]');
+  tjek('demo 2.5.0 (G11): Kopiér er slået fra med hvorfor i et værktøjstip (dansk)', kop.getAttribute('aria-disabled') === 'true' && d.getElementById(kop.getAttribute('aria-describedby')).textContent === 'Vælg en række i tabellen først' && !kop.hasAttribute('title'));
+  d.querySelector('#demo-baand-tip-knapper .btn').click();
+  tjek('demo 2.5.0 (G11): knappen slår Kopiér til (tippet væk)', !kop.hasAttribute('aria-disabled') && !d.querySelector('#demo-baand-tip .tip'));
+  const sk = d.getElementById('demo-skift250');
+  const ang = sk.querySelector('[data-visning="angreb"]'), sid = sk.querySelector('[data-visning="siden"]');
+  ang.click();
+  tjek('demo 2.5.0 (K24): Siden sidst har et tal, der kræver handling (skjult tekst "3 kræver handling"); Angreb er slået fra med et værktøjstip, og et klik gør intet', sid.querySelector('.ant-kraever').textContent === '3' && sid.querySelector('.skjult-tekst').textContent === '3 kræver handling' && ang.getAttribute('aria-disabled') === 'true' && d.getElementById(ang.getAttribute('aria-describedby')).textContent === 'Kræver en API-nøgle under Indstillinger.' && !ang.classList.contains('on'));
+  const knapper = [...d.querySelectorAll('#demo-nav250-knapper .btn')];
+  const tu = d.getElementById('demo-trae250');
+  tu.querySelector('[data-punkt="shop.eksempel.dk"]').click();
+  const efterKlik = tekst('nav250-valgt');
+  knapper[0].click();
+  tjek('demo 2.5.0 (K26): træet melder brugerens valg; Byg om giver fire domæner, beholder valget og melder intet', efterKlik === 'Valgt: shop.eksempel.dk' && tu.querySelectorAll('.tr').length === 5 && tu.querySelector('.tr.on').dataset.punkt === 'shop.eksempel.dk' && tekst('nav250-valgt') === 'Valgt: shop.eksempel.dk' && tu.querySelector('[data-punkt="samlet"] .ant').textContent === '4');
+  knapper[1].click();
+  tjek('demo 2.5.0 (K24): Angreb slås til (intet tip), og et klik markerer den', !ang.hasAttribute('aria-disabled') && (ang.click(), ang.classList.contains('on')) && tekst('nav250-valgt') === 'Valgt: Angreb');
+  const fod = d.getElementById('demo-fod250');
+  const fk = [...d.querySelectorAll('#demo-fod250-knapper .btn')];
+  tjek('demo 2.5.0 (K25): fodlinjen har statusdelen (henter, 3 af 8, knap "Åbn Overblik") og antallet (dansk)', fod.querySelector('.fodstatus').dataset.status === 'henter' && fod.querySelector('.fodstatus-bjaelke').value === 3 && fod.querySelector('.fodstatus-meld').textContent === 'Henter …' && fod.querySelector('button.fodstatus-maal .skjult-tekst').textContent === 'Åbn Overblik');
+  fk[0].click(); fk[2].click();
+  tjek('demo 2.5.0 (K25): et trin flytter linjen; Færdig giver ok, ny tekst og ingen knap', fod.querySelector('.fodstatus').dataset.status === 'ok' && fod.querySelector('.fodstatus-meld').textContent === 'Alt er hentet' && fod.querySelector('.fodstatus-maal').tagName === 'SPAN' && fod.querySelector('.fodstatus-bjaelke').hidden);
+  const fl = d.getElementById('demo-fliser250');
+  const [mI, mD] = [fl.querySelector('.sflise-maal'), fl.querySelector('button.sflise')];
+  mD.click();
+  tjek('demo 2.5.0 (K33, K35): tre fliser: valgt med to mål, en almindelig og en med to datoer; et klik flytter aria-current', fl.querySelectorAll('.sflise').length === 3 && fl.querySelector('.sflise-to .sflise-under-maal').textContent === 'I dag hidtil: 3' && mD.getAttribute('aria-current') === 'true' && !mI.hasAttribute('aria-current') && fl.querySelectorAll('.sflise-indhold .demo-tal').length === 2 && tekst('fliser250-valgt') === 'Valgt: Afvist i dag');
+  tjek('demo 2.5.0 (K32): kassen har et ikon foran overskriften', d.querySelector('#demo-kasser250 .kasse-top .kasse-ikon + h3').textContent === 'Lås');
+  const tom = d.querySelector('#demo-tom250 .tomt');
+  tjek('demo 2.5.0 (G8): den tomme flade tager imod (fokus, navn "Indsæt tekst med ⌘V") og har to handlinger; sætningen er teksten, ikke nøglen (G9)', tom.tabIndex === 0 && tom.getAttribute('aria-label') === 'Indsæt tekst med ⌘V' && tom.querySelectorAll('.tomt-handlinger .btn').length === 2 && tom.querySelector('.tomt-p').textContent === 'Klik her og tryk ⌘V.' && d.querySelector('#demo-tom-stor .tomt-p').textContent !== 'tomSagerP' && d.querySelector('#demo-tom-stor .tomt-p').textContent.length > 20);
+  const dk = [...d.querySelectorAll('#demo-dialog250 .btn')];
+  dk[0].click();
+  const ny = d.getElementById('demo-dlg-ny');
+  const opret = d.getElementById('demo-dlg-ny-opret');
+  opret.click();
+  const venter = opret.getAttribute('aria-busy') === 'true';
+  await vent(450);
+  const fejlVist = ny.hasAttribute('open') && ny.querySelector('.modal-fejl').textContent === 'Der findes allerede en sag med det navn.';
+  opret.click();
+  await vent(450);
+  tjek('demo 2.5.0 (G1, G3): Ny sag har id; første forsøg venter og fejler med teksten over fodlinjen; andet lukker dialogen', ny.getAttribute('aria-labelledby') === 'demo-dlg-ny-h' && venter && fejlVist && !ny.hasAttribute('open') && tekst('dialog250-valgt').includes('opret'));
+  dk[2].click();
+  const om = [...d.querySelectorAll('dialog[open]')].at(-1);
+  tjek('demo 2.5.0 (G5): Om har fletbåndet over overskriften', om.firstElementChild.className === 'modal-foer' && om.querySelector('.modal-foer svg.flet') && om.querySelector('h2').textContent === 'Om demoen');
+  om.close('luk');
+  dk[3].click();
+  const gd = [...d.querySelectorAll('dialog[open]')].at(-1);
+  tjek('demo 2.5.0 (G6): guiden står i en bred dialog (modal-guide), navngivet af guidens overskrift, med fokus på den', gd.className === 'modal modal-guide' && gd.getAttribute('aria-labelledby') === 'demo-guide250-h' && d.activeElement === d.getElementById('demo-guide250-h') && gd.querySelector('.wiz'));
+  gd.close('esc');
+  dk[4].click();
+  const tre = [...d.querySelectorAll('dialog[open]')].at(-1);
+  tjek('demo 2.5.0 (G4): tre svar i rækkefølgen Annullér, Kassér (farlig), Gem som sag (primær); fokus på den primære', [...tre.querySelectorAll('.modal-fod .btn')].map(b => b.dataset.svar).join() === 'annuller,kasser,gem' && d.activeElement === tre.querySelector('[data-svar="gem"]'));
+  tre.close('annuller');
+  const sg = d.querySelector('#demo-segment250 .seg');
+  tjek('demo 2.5.0 (K28): segmentknappen uden valg', [...sg.querySelectorAll('.seg-v')].every(b => b.getAttribute('aria-checked') === 'false'));
+  const fc = () => [...d.querySelectorAll('#demo-fjern250 .fchip-fjern')];
+  const foer = fc().length;
+  fc()[0].click();
+  tjek('demo 2.5.0 (K34): tre aktive filtre med navnet "Fjern filter: …"; et klik fjerner et', foer === 3 && fc().length === 2 && fc()[0].getAttribute('aria-label') === 'Fjern filter: shop.eksempel.dk' && tekst('fjern250-valgt') === 'Fjernet: Danmark');
+  tjek('demo 2.5.0 (G7): tabellen har en afkrydsning pr. række med navnet "Maskér …"', [...d.querySelectorAll('#demo-afk250 tbody input.afk-boks')].map(i => i.getAttribute('aria-label')).join() === 'Maskér 192.0.2.17,Maskér 192.0.2.44,Maskér srv-app01.eksempel.dk');
+  tjek('demo 2.5.0 (K31): tre rækker med etiketten til venstre: radiogruppe, valgliste og kontakt med aria-labelledby til den', d.querySelector('#demo-raekker250 [role="radiogroup"]').getAttribute('aria-labelledby') === 'demo-r-tema' && d.querySelector('#demo-raekker250 select').getAttribute('aria-labelledby') === 'demo-r-sprog' && d.querySelector('#demo-raekker250 input[role="switch"]').getAttribute('aria-labelledby') === 'demo-r-auto' && d.getElementById('demo-r-tema').textContent === 'Tema');
+  tjek('demo 2.5.0 (G10): --tekst-zoom står på siden', /^--tekst-zoom er /.test(tekst('tekstzoom250')));
+  w.Sprog.saet('en');
+  tjek('demo 2.5.0 (English): de nye dele har tekst', d.querySelector('[data-t="h250Fod"]').textContent === 'Status with progress (from 2.5.0)' && sid.querySelector('.skjult-tekst').textContent === '3 require action' && fc()[0].getAttribute('aria-label') === 'Remove filter: Denmark' && tom.getAttribute('aria-label') === 'Paste text with ⌘V' && d.getElementById('demo-r-tema').textContent === 'Theme');
+  w.Tema.saet('moerk');
+  tjek('demo 2.5.0: mørkt tema sættes på siden med de nye dele', d.documentElement.getAttribute('data-tema') === 'moerk' && Boolean(d.querySelector('#demo-fod250 .fodstatus')));
+  const da = Object.keys(w.Sprog.TEKST.da), en = Object.keys(w.Sprog.TEKST.en);
+  tjek('demo 2.5.0: dansk og engelsk har de samme nøgler, og ingen nøgle på siden mangler', JSON.stringify(da.slice().sort()) === JSON.stringify(en.slice().sort()) && [...d.querySelectorAll('[data-t],[data-t-aria]')].every(e => ['data-t', 'data-t-aria'].every(a => !e.hasAttribute(a) || e.getAttribute(a) in w.Sprog.TEKST.da)));
 }
 
 // ── N4: flyttevejledningerne ──

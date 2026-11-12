@@ -82,6 +82,13 @@
   .demo-forklaring { position: absolute; right: var(--space-2); bottom: var(--space-2); display: flex; flex-direction: column; gap: 2px; padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-sm); background: color-mix(in srgb, var(--surface) 92%, transparent); color: var(--text); font-size: var(--small-size); }
   .demo-forklaring .angreb { color: var(--danger); } .demo-forklaring .bue { color: var(--info); }
+  /* 2.5.0: en maske uden billedfil (striber af en gradient) som eksempel på .mrk-maske; rækker med etiketten til venstre
+     (K31); tabelrækker med afkrydsning (G7). */
+  .demo-maske { width: 30px; -webkit-mask-image: repeating-linear-gradient(90deg, black 0 6px, transparent 6px 9px); mask-image: repeating-linear-gradient(90deg, black 0 6px, transparent 6px 9px); }
+  .demo-raekker250 { display: flex; flex-direction: column; gap: var(--space-3); max-width: 640px; }
+  .demo-r { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: var(--space-3); align-items: center; }
+  .demo-r small { display: block; color: var(--text-muted); font-size: var(--small-size); }
+  .demo-afk250 td:first-child { width: 40px; }
 </style>
 </head>
 <body>
@@ -89,7 +96,7 @@
   <header class="titel">
     <span class="mrk" aria-hidden="true">W</span>
     <b data-t="appNavn">Wi24rd UI Kit 2</b>
-    <span data-t="undertitel" data-v="2.4.0" id="pakkeversion">Demo · pakke 2.0.1</span>
+    <span data-t="undertitel" data-v="2.5.0" id="pakkeversion">Demo · pakke 2.0.1</span>
     <span class="hoejre">
       <button type="button" class="rk" id="skift-tema" data-t-aria="ariaSkiftTema" data-t-title="ariaSkiftTema"></button>
       <button type="button" class="rk" id="skift-sprog" data-t-aria="ariaSkiftSprog" data-t="skiftSprog"></button>
@@ -124,6 +131,10 @@
             <h2>AppShell</h2>
             <p data-t="pAppShell"></p>
             <p class="mono">.vindue · .titel (.mrk, .rk, .hoejre) · .midte · .arb · .vl (.soeg, .fl, .hoejre) · .flade</p>
+            <h3 data-t="h250Titel"></h3>
+            <p data-t="p250Titel"></p>
+            <div class="demo-ramme demo-aaben"><div class="titel" id="demo-titel250"></div></div>
+            <p class="demo-valgt" id="titel250-valgt" data-t="intetValgt"></p>
           </section>
 
           <section class="demo-sektion" data-gruppe="skal" data-navn="CommandBar">
@@ -135,6 +146,10 @@
             <p data-t="pBaandEnkel"></p>
             <div class="demo-ramme demo-aaben"><div id="demo-baand-enkel"></div></div>
             <p class="demo-valgt" id="baand-enkel-valgt" data-t="intetValgt"></p>
+            <h3 data-t="h250Hvorfor"></h3>
+            <p data-t="p250Hvorfor"></p>
+            <div class="demo-ramme demo-aaben"><div id="demo-baand-tip"></div></div>
+            <div class="demo-raekke" id="demo-baand-tip-knapper"></div>
           </section>
 
           <section class="demo-sektion" data-gruppe="skal" data-navn="NavPane">
@@ -156,14 +171,24 @@
               </div>
             </div>
             <p class="demo-valgt" id="trae-valgt" data-t="intetValgt"></p>
+            <h3 data-t="h250Nav"></h3>
+            <p data-t="p250Nav"></p>
+            <div class="demo-navs"><div class="demo-ramme demo-smal demo-aaben"><div class="nav demo-otte"><h3 data-t="navDemoH"></h3><ul id="demo-trae250"></ul><div id="demo-skift250"></div></div></div></div>
+            <div class="demo-raekke" id="demo-nav250-knapper"></div>
+            <p class="demo-valgt" id="nav250-valgt" data-t="intetValgt"></p>
           </section>
 
           <section class="demo-sektion" data-gruppe="skal" data-navn="StatusFooter">
             <h2>StatusFooter</h2>
             <p data-t="pStatusFooter"></p>
             <div class="demo-ramme">
-              <div class="fodl"><span data-t="fodVenstre" data-v="16" data-w="13"></span><span class="h"><span id="demo-fod-laas"></span><span data-t="fodVersion" data-v="2.4.0"></span></span></div>
+              <div class="fodl"><span data-t="fodVenstre" data-v="16" data-w="13"></span><span class="h"><span id="demo-fod-laas"></span><span data-t="fodVersion" data-v="2.5.0"></span></span></div>
             </div>
+            <h3 data-t="h250Fod"></h3>
+            <p data-t="p250Fod"></p>
+            <div class="demo-ramme"><div class="fodl" id="demo-fod250"></div></div>
+            <div class="demo-raekke" id="demo-fod250-knapper"></div>
+            <p class="demo-valgt" id="fod250-valgt" data-t="intetValgt"></p>
           </section>
 
           <section class="demo-sektion" data-gruppe="indhold" data-navn="DataTable">
@@ -188,12 +213,19 @@
             <p data-t="pStatusTile"></p>
             <div id="demo-fliser"></div>
             <p class="demo-valgt" id="flise-valgt" data-t="intetValgt"></p>
+            <h3 data-t="h250Fliser"></h3>
+            <p data-t="p250Fliser"></p>
+            <div id="demo-fliser250"></div>
+            <p class="demo-valgt" id="fliser250-valgt" data-t="intetValgt"></p>
           </section>
 
           <section class="demo-sektion" data-gruppe="indhold" data-navn="Kasse">
             <h2 data-t="hKasse">Kasse</h2>
             <p data-t="pKasse"></p>
             <div class="demo-kasser" id="demo-kasser"></div>
+            <h3 data-t="h250Kasse"></h3>
+            <p data-t="p250Kasse"></p>
+            <div class="demo-kasser" id="demo-kasser250"></div>
             <p class="demo-valgt" id="kasse-valgt" data-t="intetValgt"></p>
           </section>
 
@@ -204,6 +236,10 @@
             <h3 data-t="hTomTabel">Tom tabel og ingen træffere</h3>
             <div class="demo-ramme" id="demo-tom-tabel"></div>
             <p class="demo-valgt" id="tom-valgt" data-t="intetValgt"></p>
+            <h3 data-t="h250Tom"></h3>
+            <p data-t="p250Tom"></p>
+            <div class="demo-ramme" id="demo-tom250"></div>
+            <p class="demo-valgt" id="tom250-valgt" data-t="intetValgt"></p>
           </section>
 
           <section class="demo-sektion" data-gruppe="indhold" data-navn="Fremdrift">
@@ -224,6 +260,10 @@
             <p data-t="pDialog"></p>
             <div class="demo-raekke" id="demo-dialog"></div>
             <p class="demo-valgt" id="dialog-valgt" data-t="intetValgt"></p>
+            <h3 data-t="h250Dialog"></h3>
+            <p data-t="p250Dialog"></p>
+            <div class="demo-raekke" id="demo-dialog250"></div>
+            <p class="demo-valgt" id="dialog250-valgt" data-t="intetValgt"></p>
           </section>
 
           <section class="demo-sektion" data-gruppe="indhold" data-navn="StatusChip">
@@ -278,6 +318,10 @@
             <p data-t="pSegment"></p>
             <div class="demo-raekke" id="demo-segment"></div>
             <p class="demo-valgt" id="segment-valgt" data-t="intetValgt"></p>
+            <h3 data-t="h250Seg"></h3>
+            <p data-t="p250Seg"></p>
+            <div class="demo-raekke" id="demo-segment250"></div>
+            <p class="demo-valgt" id="segment250-valgt" data-t="intetValgt"></p>
           </section>
 
           <section class="demo-sektion" data-gruppe="kontroller" data-navn="Filterchip">
@@ -285,12 +329,19 @@
             <p data-t="pFilterchip"></p>
             <div class="demo-raekke" id="demo-filterchips"></div>
             <p class="demo-valgt" id="filterchip-valgt" data-t="intetValgt"></p>
+            <h3 data-t="h250Fjern"></h3>
+            <p data-t="p250Fjern"></p>
+            <div class="demo-raekke" id="demo-fjern250"></div>
+            <p class="demo-valgt" id="fjern250-valgt" data-t="intetValgt"></p>
           </section>
 
           <section class="demo-sektion" data-gruppe="kontroller" data-navn="Afkrydsning">
             <h2 data-t="hAfk">Afkrydsning</h2>
             <p data-t="pAfk"></p>
             <div class="demo-stak" id="demo-afk"></div>
+            <h3 data-t="h250Afk"></h3>
+            <p data-t="p250Afk"></p>
+            <div id="demo-afk250"></div>
             <p class="demo-valgt" id="afk-valgt" data-t="intetValgt"></p>
           </section>
 
@@ -305,6 +356,10 @@
             <h2 data-t="hRadio">Radiogruppe</h2>
             <p data-t="pRadio"></p>
             <div class="demo-felter" id="demo-radio"></div>
+            <h3 data-t="h250Raekke"></h3>
+            <p data-t="p250Raekke"></p>
+            <div class="demo-raekker250" id="demo-raekker250"></div>
+            <p class="demo-valgt" id="raekker250-valgt" data-t="intetValgt"></p>
             <p class="demo-valgt" id="radio-valgt" data-t="intetValgt"></p>
           </section>
 
@@ -333,6 +388,7 @@
             <p data-t="pTekst"></p>
             <div class="demo-raekke" id="demo-tekst"></div>
             <p class="demo-valgt" id="tekst-valgt" data-t="intetValgt"></p>
+            <p class="demo-valgt" id="tekstzoom250"></p>
           </section>
 
           <section class="demo-sektion" data-gruppe="grundlag" data-navn="Ikoner">
@@ -401,7 +457,7 @@
 
       <footer class="fodl">
         <span id="fod-antal" data-t="fodAntal" data-v="0"></span>
-        <span class="h"><span id="fod-laas"></span><span data-t="fodVersion" data-v="2.4.0"></span></span>
+        <span class="h"><span id="fod-laas"></span><span data-t="fodVersion" data-v="2.5.0"></span></span>
       </footer>
     </main>
   </div>

@@ -2,6 +2,39 @@
 
 Første tal stiger, når et program skal ændre noget for at følge med. Andet tal ved nyt. Tredje tal ved rettelser.
 
+## 2.5.0 — 2026-11-12
+
+Skallen, kontrollerne og fliserne (ønskerne K22–K26, K28 og K31–K35 fra Huginn and Muninn) og dialogen, afkrydsningen, den tomme tilstand og tekststørrelsen (ønskerne G1–G11, Grimnir fandt, da det skiftede til kittets komponenter). Intet er omdøbt eller fjernet. Én ny funktion (`Kit.fodstatus`); alt andet er nye indstillinger på funktioner, der findes. Uden de nye indstillinger er alt som i 2.4.0, undtagen det, der står under "Ændret". Ønskerne fra Wi24rd FTP (F1–F8) venter på prøven af `Tokens.xaml` på Windows; K27 (præfiks på klasserne) er 3.0.0.
+
+### Nyt
+
+- **Status med fremdrift i fodlinjen** (K25): `Kit.fodstatus({ status, t, fremdrift, handling })` med mærke (✓ ! × i – eller en ring for `henter`), kort tekst, tynd fremdriftslinje (bestemt eller ubestemt) og en knap, når programmet giver en handling. `saet` sætter delen om uden at bygge fodlinjen igen. Teksten læses op høfligt, kun når den ændres; trin i fremdriften læses ikke op.
+- **Mærke med programmets eget billede** (K22): `.mrk-billede` (`<img>` eller `<svg>`, 20 px høj, fri bredde) og `.mrk-maske` (en flade i `--accent-on-rail`, som programmet giver form med `mask-image`).
+- **Titellinjeknap, der er slået fra eller aktiv** (K23): `.rk:disabled`/`[aria-disabled]`, `.rk[aria-current]` (streg forneden) og `.rk[aria-expanded="true"]` (ring), med kontrast mod titellinjen i begge temaer.
+- **Visningsskift med punkter slået fra og tal** (K24): `deaktiveret`, `hvorfor` (i et værktøjstip), `antal`, `kraever` (`.ant-kraever`: fyldt pille, ikke kun farve) og `antalAriaT` pr. visning, og `saetPunkt(id, { … })`.
+- **Træ, der bygges om** (K26): `trae.saetPunkter(punkter, valgt)` uden nye lyttere og uden `vedValg`; `kunBrugerValg: true` kalder kun `vedValg` for brugerens valg.
+- **Dialogen** (G1, G3, G5, G6): `fejl: true` og `d.fejl(tekst)` (felt med `role="alert"`), en knaps `ved` må give et løfte (knappen venter med `aria-busy`), `id` og `knapId`, `foer: Node` over overskriften og `guide: true` (`.modal-guide`, 820 px uden luft, navngivet af guidens overskrift).
+- **Bekræftelse, der kan fejle** (G2): `Kit.bekraeft({ …, ved: () => løfte })` bliver åben med fejlen, hvis løftet afvises.
+- **Navn uden for komponenten** (K31): `ariaLabelledby` (eller `etiket: null` med `aria`) på `Kit.radiogruppe` (`<div role="radiogroup">`), `Kit.valgliste` og `Kit.kontakt`. Uden noget navn: en fejl.
+- **Ikon i kassens overskrift** (K32): `ikon` i `Kit.kasse` (`.kasse-ikon`, i accent).
+- **Valgt flise og flise med to mål** (K33): `valgt` (`aria-current`, flade og dobbelt kant i accent) og `under: { t, ved }` som sit eget mål (`.sflise-to`, `.sflise-maal`, `.sflise-under-maal`: to knapper ved siden af hinanden, aldrig knap i knap).
+- **Aktivt filter, der kan fjernes** (K34): `Kit.filterchip({ vedFjern, ariaT })` (`.fchip-fjern`, `.fchip-x`), med en regel for, hvornår det er den, og hvornår det er en trykket filterchip.
+- **Flise med frit indhold** (K35): `indhold: Node` i stedet for tallet (`.sflise-indhold`).
+- **Afkrydsning i en tabelrække** (G7): `Kit.afkrydsning({ ariaT })` uden synlig tekst giver boksen alene (16 px).
+- **Tom tilstand som modtager og med to handlinger** (G8): `modtager: { ariaT, vedIndsaet }` (`.tomt-modtager`; `.tomt-slip` sætter programmet, mens noget trækkes over: kittet læser ingen filer) og `anden` (`.tomt-handlinger`), med regler for begge.
+- **`--tekst-zoom`** (G10): trinnet som tal (1, .9, 1.125), sat af `kit.css` sammen med `zoom`. `KOMPONENTER.md` (Tekststørrelse) siger, at `@media` og `@container` ikke følger `zoom`, og hvad et program gør ved det.
+- **"Hvorfor" i et værktøjstip i båndet** (G11): `hvorforTip: true` på `Kit.commandBar` og `saetDeaktiveret(id, fra, hvorfor)`. Uden indstillingen står `hvorfor` i `title` som før.
+- `Kit.vaerktoejstip` giver også `saetTekst` og `fjern`.
+- **Regel for et spørgsmål med tre svar** (G4, kun dokumentation og demo): Annullér, den farlige og den primære; fokus aldrig på den farlige; skjulte knapper tæller ikke med i reglen om én primær.
+- Demoen viser det hele i begge temaer og sprog. Kontrasttesten måler de nye par.
+
+### Ændret
+
+- **`Kit.segment` med `valgt: null`** (K28) har intet valgt (før: det første). Hverken Grimnir eller demoen giver `null`; uden `valgt` er det første valgt som før.
+- **En knaps `ved` i `Kit.dialog`, der giver et løfte** (G1), venter nu på det (før lukkede dialogen straks). Hverken Grimnir eller demoen giver et løfte fra `ved`.
+- **Eksemplerne med `p`** (G9): `KOMPONENTER.md` (Tom tilstand, Dialog, `Kit.bekraeft`) og demoen viste `p: 'nøgle'`, men koden læser en streng som færdig tekst; eksemplerne er rettet til `p: { t: … }`. Koden er uændret. Demoens tomme tilstand og dialoger viser nu teksten i stedet for nøglen.
+- `Tokens.xaml` og `tokens.css` har versionen 2.5.0 i første linje. Ingen token er tilføjet eller ændret.
+
 ## 2.4.0 — 2026-11-12
 
 Tabellen (ønskerne K36–K38 fra Huginn and Muninn), to nye farvegrupper og regler for farver (K18–K21) og to ændringer, Jan har sagt ja til (K29, K30). Intet er omdøbt eller fjernet. Uden de nye indstillinger er tabellen stadig byte for byte som i 2.0.0. To ting ser anderledes ud end i 2.3.0, se "Ændret": knaptekst ombrydes ikke, og `danger` i StatusChip har symbolet ×.

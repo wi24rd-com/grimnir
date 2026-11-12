@@ -85,7 +85,7 @@ Fra 2.4.0 (ønskerne K18–K21 fra Huginn and Muninn):
 
 ## AppShell
 
-**Klasser:** `.vindue`, `.titel`, `.mrk`, `.rk`, `.hoejre`, `.midte`, `.arb`, `.vl`, `.soeg`, `.fl`, `.flade`
+**Klasser:** `.vindue`, `.titel`, `.mrk`, `.rk`, `.hoejre`, `.midte`, `.arb`, `.vl`, `.soeg`, `.fl`, `.flade`, `.mrk-billede`, `.mrk-maske`
 
 **Formål:** Programmets faste opbygning: titellinje (34 px, mørk i begge temaer), handlingsbånd, navigationsrude til venstre, arbejdsflade med værktøjslinje, og fodlinje.
 
@@ -122,6 +122,27 @@ Fra 2.4.0 (ønskerne K18–K21 fra Huginn and Muninn):
 
 **Kræver af programmet:** Mindste vindue 900 × 560 px. Titellinjens indhold (mærke, navn, det til højre). Har vinduet styresystemets knapper oven på titellinjen, giver programmet selv plads i sin egen CSS (fx `padding-left` på `.titel`). Skal titellinjen kunne trækkes, sætter programmet det selv (i Tauri: `data-tauri-drag-region`).
 
+### Mærke med programmets eget billede (fra 2.5.0, K22)
+
+I stedet for bogstavet i `.mrk` kan titellinjen vise programmets eget mærke, 20 px højt og med sin egen bredde. Billedet er programmets; kittet henter intet.
+
+- **`.mrk-billede`** på et `<img>` eller en `<svg>`: højde 20 px, bredden følger billedet. En `<svg>`, der tegner med `currentColor`, får titellinjens mærkefarve (`--accent-on-rail`).
+- **`.mrk-maske`** på en `<span>`: en flade i `--accent-on-rail`, som programmet giver form med `mask-image` (og bredden, standard 20 px) i sin egen CSS. Så følger mærket kittets farve uden en farvet kopi af billedet. Kittets vælgere er en enkelt klasse, så programmets egen klasse (i dets CSS efter kittets) sætter bredden.
+
+```html
+<span class="mrk-maske mitprogram-mrk" aria-hidden="true"></span>   <!-- programmets CSS: .mitprogram-mrk { width: 26px; -webkit-mask-image: url(mrk.png); mask-image: url(mrk.png); } -->
+<img class="mrk-billede" src="assets/mrk.svg" alt="">
+```
+
+Mærket er pynt ved siden af programmets navn: `aria-hidden="true"` eller `alt=""`.
+
+### Titellinjeknap, der er slået fra eller aktiv (fra 2.5.0, K23)
+
+- **Slået fra** (`disabled` eller `aria-disabled="true"`): nedtonet (60 %), ingen hover, markøren er ikke en hånd. Tilbage og frem uden historik er `disabled` (de kan ikke nås med Tab, og det er rigtigt: der er intet at gøre); skal knappen kunne forklare sig, bruges `aria-disabled` og et værktøjstip.
+- **Peger på det viste** (`aria-current="page"`, fx tandhjulet, mens Indstillinger vises): titellinjens aktive flade, stærk tekst og en streg på 2 px forneden i `--accent-on-rail`.
+- **Panelet er åbent** (`aria-expanded="true"`, fx Hjælp, mens sidepanelet er åbent; `Kit.sidepanel` sætter den selv): aktiv flade, stærk tekst og en ring på 1 px i `--rail-text`.
+- Stregen og ringen gør, at tilstanden ikke hviler på farven alene. Et `<a class="rk">` har ingen understregning. Kontrasten mod titellinjen er målt i begge temaer (kontrasttesten).
+
 ## CommandBar
 
 **Klasser:** `.cmd`, `.tabs`, `.tab`, `.on`, `.grupper`, `.grp`, `.kn`, `.cap`, `.cb`, `.pri`, `.enkel`, `.baand-el`
@@ -155,6 +176,21 @@ baand.vaelgFane('start');    // skift fane fra koden
 
 **Kræver af programmet:** Hvad hver kommando gør (`ved`). At ændre en knaps tilstand selv (`aria-disabled`, `aria-pressed`, `data-t-title`) på elementet fra `baand.knap(id)`. Højst én primær kommando pr. visning og højst otte knapper pr. fane. Fanerne skifter båndets indhold, aldrig visningen.
 
+### "Hvorfor" i et værktøjstip (fra 2.5.0, G11)
+
+Kittets egen regel (Værktøjstip) siger, at en forklaring ud over navnet hører i et værktøjstip, så den kan læses med tastaturet. Båndet har hidtil lagt `hvorfor` i `title`. At skifte uden en indstilling ville ændre båndets markup (`.tip-plads` om knappen, `aria-describedby` og tippet), som programmer og deres tests kender; derfor er det en indstilling:
+
+```js
+const baand = Kit.commandBar(rod, { ariaT: 'cmdAria', hvorforTip: true, faner: [ … { id: 'kopier', t: 'kKopier', ikon: 'kopier', deaktiveret: true, hvorfor: 'hvorforIntetValgt' } … ] });
+baand.saetDeaktiveret('kopier', false);                        // slået til: tippet fjernes
+baand.saetDeaktiveret('kopier', true, 'hvorforIntetValgt');     // slået fra igen med hvorfor
+Sprog.anvend(baand.rod);
+```
+
+- **`hvorforTip: true`:** en kommando med `deaktiveret` og `hvorfor` får `Kit.vaerktoejstip` i stedet for `title`; tippet vises ved hover og ved Tab, og skærmlæseren læser det efter navnet.
+- **`saetDeaktiveret(id, fra, hvorfor)`** (med og uden indstillingen) slår en kommando til og fra udefra og flytter forklaringen med: et tip med indstillingen, `data-t-title` uden.
+- Uden indstillingen er båndet præcis som i 2.0.0.
+
 ### Bånd til programmer med få kommandoer (fra 2.2.0)
 
 Et program, man ser i og ikke arbejder i (fx et overblik med opdatér, periode, eksport og hjælp), har kun én fane. Så er en fanerække en kontrol, der ikke gør noget, og den udelades.
@@ -180,7 +216,7 @@ Kit.commandBar(document.getElementById('baand'), {
 
 ## NavPane
 
-**Klasser:** `.nav`, `.trae`, `.tr`, `.ant`, `.skift`, `.vs`, `.taet`
+**Klasser:** `.nav`, `.trae`, `.tr`, `.ant`, `.skift`, `.vs`, `.taet`, `.ant-kraever`
 
 **Funktioner:** `Kit.navTrae`, `Kit.visningsskift`
 
@@ -220,9 +256,38 @@ skift.markér('filer');
 
 **Træet vælger ét punkt (fra 2.2.0, regel).** Træet er navigation: det vælger præcis ét punkt, og valget filtrerer arbejdsfladen. "Et, flere eller alle" (fx domæner) er et filter og hører til i en vælger med flere valg (se Vælger), ikke i træet. Træet får ingen afkrydsning.
 
+### Træ, der bygges om (fra 2.5.0, K26)
+
+```js
+const trae = Kit.navTrae(ul, punkter, { ariaT: 'traeAria', valgt: 'samlet', kunBrugerValg: true, vedValg: id => filtrer(id) });
+trae.saetPunkter(nyePunkter);            // samme valg, hvis det stadig findes
+trae.saetPunkter(nyePunkter, 'samlet');  // eller et bestemt
+```
+
+- **`saetPunkter(punkter, valgt)`** bygger punkterne om i samme `<ul>` uden nye lyttere. Valget bliver (eller er `valgt`; findes det ikke, det første), foldede punkter bliver foldede, og havde træet fokus, får punktet med samme id det igen (ellers det valgte). `saetPunkter` kalder aldrig `vedValg`. Et nyt kald af `Kit.navTrae` på samme `<ul>` lægger stadig nye lyttere til (som før); brug `saetPunkter`.
+- **`kunBrugerValg: true`:** `vedValg` kaldes kun for brugerens valg (klik, Enter, mellemrum), ikke for valget ved start og ikke for `trae.vaelg(id)` fra koden. Det er en indstilling og ikke den nye standard, fordi programmer bruger det gamle kald: Grimnir filtrerer med `trae.vaelg(id)` fra et banner (`vedValg` gør arbejdet), og demoens "Ryd filter" gør det samme. Uden indstillingen er alt som før.
+
+### Visningsskift med punkter slået fra og tal (fra 2.5.0, K24)
+
+```js
+const skift = Kit.visningsskift(rod, [
+  { id: 'siden', t: 'vSiden', ikon: 'kalender', antal: 3, kraever: true, antalAriaT: 'kraeverHandling' },   // '{v} kræver handling'
+  { id: 'angreb', t: 'vAngreb', ikon: 'skjold', deaktiveret: true, hvorfor: 'hvorforIngenToken' },
+], { ariaT: 'visninger' });
+skift.saetPunkt('angreb', { deaktiveret: false });
+skift.saetPunkt('siden', { antal: 0, kraever: false });
+Sprog.anvend(rod);
+```
+
+- **`deaktiveret` og `hvorfor`** som i båndet: punktet har `aria-disabled="true"`, står nedtonet uden hover, kan stadig nås med Tab, og et klik gør intet. `hvorfor` (en nøgle) står i et værktøjstip (`Kit.vaerktoejstip`), ikke i `title`, så det kan læses med tastaturet.
+- **`antal`** som i træet (`.ant`, til højre før genvejen). **`kraever: true`** ("kræver handling") gør tallet til en fyldt pille med kant og fed skrift i `danger` (`.ant-kraever`): formen og vægten skiller det fra et almindeligt tal, ikke kun farven. **`antalAriaT`/`antalAria`** er det, en skærmlæser hører i stedet for tallet (fx "3 kræver handling", med `data-v`); giv det altid ved `kraever`, for tallet alene siger ikke, at noget venter.
+- **`saetPunkt(id, { … })`** ændrer de samme felter udefra uden at bygge skiftet om. Et punkt uden de nye felter er præcis som i 2.0.0.
+
 ## StatusFooter
 
-**Klasser:** `.fodl`, `.h`
+**Klasser:** `.fodl`, `.h`, `.fodstatus`, `.fodstatus-maal`, `.fodstatus-mrk`, `.fodstatus-tekst`, `.fodstatus-bjaelke`
+
+**Funktioner:** `Kit.fodstatus`
 
 **Formål:** Fodlinjen (26 px) med det, der altid gælder: antal til venstre, tillid og version til højre.
 
@@ -243,6 +308,38 @@ skift.markér('filer');
 **Tastatur:** Ingen; fodlinjen er tekst. Er noget i den klikbart, er det en almindelig knap eller et link.
 
 **Kræver af programmet:** Teksterne. Tal før ord. Programmer, der holder alt lokalt, siger det her.
+
+### Status med fremdrift (fra 2.5.0, K25)
+
+En statusdel til fodlinjen, fx en kø, der henter i baggrunden: et mærke, en kort tekst, en valgfri tynd fremdriftslinje, og en knap, når programmet giver en handling.
+
+```js
+const koe = Kit.fodstatus({ status: 'henter', t: 'koeHenter', fremdrift: { maks: 8, vaerdi: 3 }, handling: { t: 'aabnOverblik', ved: () => vis('overblik') } });
+document.querySelector('.fodl').prepend(koe.rod);
+Sprog.anvend(koe.rod);
+koe.saet({ fremdrift: { vaerdi: 4 } });                                  // et trin: intet læses op
+koe.saet({ status: 'ok', t: 'koeFaerdig', fremdrift: null });           // ny tekst: læses op (høfligt)
+koe.saet({ handling: null });   Sprog.anvend(koe.rod);                  // ikke længere en knap
+```
+
+```html
+<span class="fodstatus" data-status="henter">
+  <button type="button" class="fodstatus-maal" aria-labelledby="kit-fs1 kit-fs1-h">
+    <span class="fodstatus-mrk snurr" aria-hidden="true"></span><span class="fodstatus-tekst" aria-hidden="true">Henter …</span>
+    <progress class="fodstatus-bjaelke" max="8" value="3" aria-labelledby="kit-fs1"></progress>
+    <span class="skjult-tekst" id="kit-fs1-h">Åbn Overblik</span>
+  </button>
+  <span class="fodstatus-meld skjult-tekst" id="kit-fs1" role="status">Henter …</span>
+</span>
+```
+
+**Tilstande:** `status`: `ok` (✓), `warn` (!), `danger` (×), `info` (i), `none` (–) og `henter` (en ring på 10 px, der snurrer). Symbolet står i statussens tekstfarve, og teksten siger altid det samme, så status ikke hviler på farven. **Fremdrift:** `{ maks, vaerdi }` er bestemt; `'ubestemt'` er en linje, der glider (står stille ved `prefers-reduced-motion`); `null` skjuler den. Linjen er 64 × 4 px i `--accent` på `--border`. **Med en handling** er delen en knap (hover, fokusring inden for fodlinjen, der klipper), ellers en `<span>`.
+
+**Tastatur:** Med en handling: Tab til knappen, Enter og mellemrum. Uden: ingen.
+
+**Hvad der læses op, og hvorfor:** teksten står også i en skjult `<span role="status">` (høflig: den afbryder ikke). Kittet skriver den kun, når teksten ændres; samme tekst igen og et nyt trin i fremdriften (kun `vaerdi`) skrives ikke. En kø, der melder hvert trin, ville ellers få skærmlæseren til at sige det samme igen og igen, mens brugeren arbejder med noget andet. Fremdriftslinjen er ikke et live-område; dens værdi kan læses, når man står på den. Den synlige tekst og mærket er `aria-hidden`, så teksten ikke høres to gange; knappens navn er teksten og handlingens tekst.
+
+**Kræver af programmet:** Teksten (nøgle, med `v` og `w`, eller færdig tekst), der siger tilstanden ("Henter 3 af 8 dage" er ét trin for meget: tallene hører i linjen; "Henter …" og "Alt er hentet" er tilstande). Handlingens tekst, der siger, hvor knappen fører hen. `saet` ændrer kun de felter, der er med; `Sprog.anvend(koe.rod)` efter en ny nøgle. Skifter delen mellem knap og tekst, mens den har fokus, mister den fokus; skift ikke handlingen, mens brugeren står på den.
 
 ## DataTable
 
@@ -639,9 +736,13 @@ periode.vaelg('30');   periode.valgt;
 
 **Kræver af programmet:** Gruppens navn (`ariaT` eller `aria`) og valgenes tekster. Hvad et valg betyder (`vedValg`). `vaelg(id)` kalder ikke `vedValg`.
 
+### Uden valg (fra 2.5.0, K28)
+
+`valgt: null` giver en segmentknap, hvor intet er valgt: alle har `aria-checked="false"`, og den første kan nås med Tab. Til fx "7 dage / 30 dage" ved siden af en datovælger, når brugeren har valgt et eget interval. Et klik eller en pil vælger og kalder `vedValg`, fordi det viste valg ændres (før 2.5.0 var den første altid valgt, og et klik på den blev ikke meldt). `periode.vaelg(null)` fjerner valget udefra; `periode.valgt` er så `null`. Uden `valgt` (eller med et ukendt id) er den første valgt som før.
+
 ## Filterchip
 
-**Klasser:** `.fchips`, `.fchip`, `.fchip-mark`, `.ant`
+**Klasser:** `.fchips`, `.fchip`, `.fchip-mark`, `.ant`, `.fchip-fjern`, `.fchip-x`
 
 **Funktioner:** `Kit.filterchip`, `Kit.filterchips`
 
@@ -675,9 +776,30 @@ const ny = Kit.filterchip({ id: 'nye', t: 'cNye', vedSkift: (til, id) => vis(til
 
 **Kræver af programmet:** Gruppens navn (`ariaT` eller `aria`) og chippernes tekster og id'er. Hvad filteret gør (`vedValg` eller `vedSkift`). `saetValgt` kalder ikke `vedValg`. En chip skal altid gøre noget: et filter, der ikke ændrer noget, vises ikke.
 
+### Aktivt filter, der kan fjernes (fra 2.5.0, K34)
+
+```js
+const filtre = document.createElement('div');
+filtre.className = 'fchips';  filtre.setAttribute('role', 'group');  filtre.setAttribute('data-t-aria', 'aktiveFiltre');
+filtre.append(
+  Kit.filterchip({ id: 'land', tekst: 'Polen', ariaT: 'fjernFilter', ariaV: 'Polen', vedFjern: id => fjern(id) }),   // 'Fjern filter: {v}'
+  Kit.filterchip({ id: 'dato', tekst: '1.–4. november', ariaT: 'fjernFilter', ariaV: '1.–4. november', vedFjern: id => fjern(id) }),
+);
+```
+
+```html
+<button type="button" class="fchip fchip-fjern" data-chip="land" data-t-aria="fjernFilter" data-v="Polen"><span>Polen</span><svg class="fchip-x" aria-hidden="true">…</svg></button>
+```
+
+- Hele chippen er **én knap**, der fjerner filtret: ordet og et × til højre, blød accentflade, kant i accent og fed skrift. Under musen streges ordet over (det, der sker ved klik). Ingen `aria-pressed`.
+- **Navnet er programmets tekst** og siger, hvad der sker: `ariaT`/`aria` er påkrævet (fx "Fjern filter: Polen"); uden giver det en fejl.
+- `vedFjern(id)` kaldes ved klik; programmet fjerner filtret og chippen. Havde chippen fokus og er den væk bagefter, får **nabochippen** i samme `.fchips` fokus (den næste, ellers den forrige). Var det den sidste, sætter programmet fokus (fx på visningens overskrift).
+
+**Hvornår hvilken (regel).** En **trykket filterchip** (`aria-pressed`) er et fast sæt filtre, der altid står der og slås til og fra (Fejl, Advarsler, Oplysninger). Et **filter, der kan fjernes**, er et filter, der er sat et andet sted (et klik i en tabel, på kortet, et datointerval), og som vises over indholdet, så længe det gælder; det har ingen "fra"-tilstand, det forsvinder. Samme filter vises aldrig begge veje i samme visning.
+
 ## Kasse
 
-**Klasser:** `.kasse`, `.kasse-top`, `.kasse-handling`, `.kasse-indhold`, `.fyld`, `.kasse-fod`
+**Klasser:** `.kasse`, `.kasse-top`, `.kasse-handling`, `.kasse-indhold`, `.fyld`, `.kasse-fod`, `.kasse-ikon`
 
 **Funktioner:** `Kit.kasse`
 
@@ -710,9 +832,11 @@ k.indhold;   k.overskrift;   k.fod;
 
 **Kræver af programmet:** Overskriften (`t` eller `tekst`), indholdet og eventuel handling og fodlinje. Højst én handling i hovedet; den siger, hvad der sker (fx "Vis alle"). Kassen er ikke klikbar som helhed; skal hele fladen åbne noget, er det en StatusTile. Overskriftens niveau (`niveau`) efter sidens opbygning.
 
+**Ikon i overskriften (fra 2.5.0, K32).** `ikon: 'laas'` (et af kittets eller programmets registrerede ikoner) står foran overskriften i `--accent`, 18 px (`.kasse-ikon`, `aria-hidden`; overskriften er stadig kassens navn). Til grupper i en indstillingsside, hvor ikonet hjælper øjet med at finde gruppen; ikke på hver kasse i en oversigt.
+
 ## StatusTile
 
-**Klasser:** `.sfliser`, `.sflise`, `.sflise-navn`, `.sflise-tal`, `.sflise-under`, `.sflise-pil`, `.ok`, `.warn`, `.danger`, `.info`, `.none`
+**Klasser:** `.sfliser`, `.sflise`, `.sflise-navn`, `.sflise-tal`, `.sflise-under`, `.sflise-pil`, `.ok`, `.warn`, `.danger`, `.info`, `.none`, `.sflise-to`, `.sflise-maal`, `.sflise-under-maal`, `.sflise-indhold`
 
 **Funktioner:** `Kit.statusflise`, `Kit.statusfliser`
 
@@ -749,9 +873,28 @@ Kit.statusflise({ t: 'flRester', tal: 0, under: { t: 'efterMaskering' } });   //
 
 **Kræver af programmet:** Etiketten, tallet og statussens ord. Hvad flisen åbner (`ved` eller `href`); det skal være præcis det, tallet tæller. Udviklingens tekst skal sige det hele ("1 mere end i går"); pilen er kun pynt for øjet. Højst fem fliser i en række. En variant betyder det samme her som i resten af programmet.
 
+### Valgt flise, flise med to mål og flise med frit indhold (fra 2.5.0, K33 og K35)
+
+```js
+Kit.statusflise({ t: 'flIGaar', tal: 41, status: { variant: 'warn', t: 'stHoldOeje' }, valgt: true, ved: () => vis('i-gaar') });
+Kit.statusflise({ t: 'flAfvistIGaar', tal: 12, ved: () => vis('i-gaar'), under: { t: 'iDagHidtil', ved: () => vis('i-dag') } });
+Kit.statusflise({ t: 'flSet', indhold: datoer });   // datoer: en Node med to links; flisen selv er ikke et mål
+```
+
+```html
+<div class="sflise sflise-to">
+  <button type="button" class="sflise-maal"><span class="sflise-navn">Afvist i går</span><span class="sflise-tal">12</span></button>
+  <button type="button" class="sflise-under sflise-under-maal">i dag hidtil: 3</button>
+</div>
+```
+
+- **Valgt** (`valgt: true`, eller en værdi til `aria-current`, fx `'date'`): flisen for det, der vises, har `aria-current` på sit mål, blød accentflade og en kant i accent, der er to px tyk (kanten og en indre streg); stregen til venstre beholder statussens farve. Tykkelsen og `aria-current` gør, at valget ikke hviler på farven. Programmet flytter selv `aria-current`, når det viste skifter.
+- **To mål** (`under: { t|tekst, ved, ariaT|aria }`): underteksten er sit eget mål. Flisen er så en `<div class="sflise sflise-to">` med **to knapper ved siden af hinanden, aldrig knap i knap**: `.sflise-maal` (navn, tal og status) dækker hele flisen med `::after` (et klik et vilkårligt sted på flisen rammer den, og fokusringen står om hele flisen), og `.sflise-under-maal` ligger ovenpå og ser ud som et link (`--info`, understreget). **Tastatur:** to Tab-stop, flisen først og underteksten bagefter; Enter og mellemrum på hver. Hover på fladen gælder flisens mål.
+- **Frit indhold** (`indhold: Node`, `.sflise-indhold`): står, hvor tallet ellers står, fx "Først set" og "Sidst set" med hver sin dato. Har indholdet sine egne mål (links, knapper), kan flisen ikke selv være en knap eller et link (det giver en fejl); hvert mål i indholdet har sit eget navn.
+
 ## Tom tilstand
 
-**Klasser:** `.tomt`, `.tomt-ikon`, `.tomt-h`, `.tomt-p`, `.lille`
+**Klasser:** `.tomt`, `.tomt-ikon`, `.tomt-h`, `.tomt-p`, `.lille`, `.tomt-handlinger`, `.tomt-modtager`, `.tomt-slip`
 
 **Funktioner:** `Kit.tomTilstand`
 
@@ -760,8 +903,8 @@ Kit.statusflise({ t: 'flRester', tal: 0, under: { t: 'efterMaskering' } });   //
 **Markup:** Bygges af funktionen.
 
 ```js
-visning.appendChild(Kit.tomTilstand({ ikon: 'mappe', t: 'tomSagerH', p: 'tomSagerP', handling: { t: 'nySag', variant: 'primary', ved: () => ny() } }));
-ramme.append(tabel, Kit.tomTilstand({ lille: true, ikon: 'soeg', t: 'ingenTraef', p: 'ingenTraefP', handling: { t: 'rydFilter', ved: () => ryd() } }));
+visning.appendChild(Kit.tomTilstand({ ikon: 'mappe', t: 'tomSagerH', p: { t: 'tomSagerP' }, handling: { t: 'nySag', variant: 'primary', ved: () => ny() } }));
+ramme.append(tabel, Kit.tomTilstand({ lille: true, ikon: 'soeg', t: 'ingenTraef', p: { t: 'ingenTraefP' }, handling: { t: 'rydFilter', ved: () => ryd() } }));
 ```
 
 ```html
@@ -778,7 +921,26 @@ ramme.append(tabel, Kit.tomTilstand({ lille: true, ikon: 'soeg', t: 'ingenTraef'
 
 **Tastatur:** Ingen egne taster. Handlingen er en almindelig knap.
 
-**Kræver af programmet:** Overskriften og sætningen. Sætningen siger, hvad visningen gør, eller hvorfor der intet er, og hvad man kan gøre. Højst én handling, og kun en, der hjælper videre (ny, åbn, ryd filter). Programmet sætter den tomme tilstand ind i stedet for indholdet (eller under tabelhovedet) og fjerner den igen, når der er noget at vise. Den lille udgave skal stå i siden, før teksten skifter, hvis skiftet skal læses op.
+**Kræver af programmet:** Overskriften og sætningen. Sætningen siger, hvad visningen gør, eller hvorfor der intet er, og hvad man kan gøre. Højst én handling, og kun en, der hjælper videre (ny, åbn, ryd filter); fra 2.5.0 højst to, se nedenfor. Programmet sætter den tomme tilstand ind i stedet for indholdet (eller under tabelhovedet) og fjerner den igen, når der er noget at vise. Den lille udgave skal stå i siden, før teksten skifter, hvis skiftet skal læses op.
+
+**`p` er en tekst, ikke en nøgle.** Som overalt i kittet er en streng færdig tekst; en nøgle gives som `p: { t: 'noegle' }` (før 2.5.0 gav eksemplerne nøglen som en streng, og nøglen stod så som tekst).
+
+### En tom flade, der tager imod, og to handlinger (fra 2.5.0, G8)
+
+Løftet fra Grimnirs Maskér og Demaskér, hvor den tomme flade tager imod en indsat tekst (⌘V) og en fil, der slippes, og har både "Åbn fil" og en vej videre.
+
+```js
+const tom = Kit.tomTilstand({
+  ikon: 'indsaet', t: 'tomMaskerH', p: { t: 'tomMaskerP' },
+  handling: { t: 'kAabnFil', ikon: 'fil', ved: () => aabnFil() },
+  anden: { t: 'kAabnSager', variant: 'ghost', ved: () => vis('sager') },
+  modtager: { ariaT: 'ariaIndsaetTekst', ariaV: '⌘V', vedIndsaet: tekst => brug(tekst) },
+});
+```
+
+- **`modtager`** gør den store udgave til en flade, der tager imod: den kan få fokus (`tabindex="0"`, kittets fokusring med runde hjørner), er et område (`role="region"`) og har et **navn, der siger, hvad den tager imod, og hvordan** (fx "Indsæt tekst med ⌘V"; `ariaT` eller `aria` er påkrævet). `vedIndsaet(tekst)` kaldes, når der indsættes, mens fladen har fokus. **En fil, der slippes, læser kittet ikke:** kittet har intet fil-API i siden (Grimnir forbyder det i sin webvisning, og i Tauri tager styresystemet imod det sluppede og giver programmet stien). Programmet lytter selv og sætter **`.tomt-slip`** på fladen, mens noget trækkes over (en stiplet kant i accent og en blød flade). Den lille udgave tager ikke imod (fejl).
+- **Regel for at tage imod:** fladen tager kun imod det, visningen kan bruge, og navnet siger det. Det, der indsættes eller slippes, bruges med det samme (ingen ekstra bekræftelse), og et afvist slip (fx en mappe eller flere filer) siges med et banner over fladen. Indsæt, mens fokus står andre steder i visningen, er programmets egen genvej.
+- **`anden`** er en anden handling ved siden af den første (`.tomt-handlinger`). **Regel:** den må kun vises, når den hjælper videre ad en anden vej end den første (Åbn fil ved siden af Indsæt; Åbn Sager, når der skal en sag til), aldrig som en gentagelse eller en genvej til noget, båndet allerede har lige over. Den er aldrig primær (fejl), og den kræver den første (fejl). Højst to.
 
 ## Fremdrift
 
@@ -825,6 +987,7 @@ f.faerdig();  f.rod.remove();                                                   
 const tip = Kit.vaerktoejstip(baand.knap('kopier'), { t: 'hvorforIntetValgt' });
 Sprog.anvend(tip.plads);
 tip.vis();   tip.skjul();   tip.synlig;
+tip.saetTekst({ t: 'hvorforLaast' });   tip.fjern();   // fra 2.5.0: ny tekst; tippet væk igen (og en .tip-plads, kittet lavede)
 ```
 
 ```html
@@ -870,6 +1033,8 @@ a.valgt;   a.saetValgt(false);   alle.saetDelvis();   a.input;
 
 **Kræver af programmet:** Teksten, og hjælp eller fejl. Hvornår valget gemmes (`vedSkift` eller formularens egen knap). At sætte "delvis" igen (`saetDelvis()`), når det, den står over, ændres; `saetValgt` fjerner det delvise.
 
+**Uden synlig tekst (fra 2.5.0, G7).** I en tabelrække er rækken selv det synlige navn, og boksen står alene: `Kit.afkrydsning({ ariaT: 'ariaMasker', ariaV: '192.0.2.17', valgt: true, vedSkift: v => … })` giver kun `<input type="checkbox" class="afk-boks" data-t-aria="ariaMasker" data-v="192.0.2.17">` (16 px, kittets tegning), og `rod` er selve boksen. Navnet (`aria` eller `ariaT`) er påkrævet og siger, hvad boksen gør med rækken ("Maskér 192.0.2.17"). Hjælp og fejl hører til en afkrydsning med tekst (fejl). Klikfladen er boksen (16 px); i en tabelrække på 40 px er der luft nok om den (WCAG 2.5.8's undtagelse for afstand). I en tabelcelle beholder boksen sine 16 px (`.tabel td input.afk-boks`; ellers giver tabellens regel for felter den fuld bredde og 30 px).
+
 ## Radiogruppe
 
 **Klasser:** `.valgsaet`, `.vandret`, `.afk-felt`, `.afk`, `.afk-boks`, `.afk-tekst`, `.afk-hj`, `.label`
@@ -904,6 +1069,25 @@ tema.valgt;   tema.vaelg('lys');   tema.inputs;
 **Tastatur:** Browserens egne: Tab går ind på det valgte (eller det første) og ud igen som ét stop; pilene flytter og vælger. Gruppens navn er `<legend>`.
 
 **Kræver af programmet:** Gruppens navn og valgenes tekster og id'er. Hvad et valg betyder (`vedValg`). `vaelg(id)` kalder ikke `vedValg`. Et `navn`, hvis gruppen skal sendes med en formular (ellers giver kittet et).
+
+### Navn uden for komponenten (fra 2.5.0, K31; også Valgliste og Kontakt)
+
+I en indstillingsside står etiketten ofte i rækkens venstre side og kontrollen til højre. Så kommer navnet udefra:
+
+```html
+<div class="raekke"><span id="tema-h">Tema</span><!-- Kit.radiogruppe({ ariaLabelledby: 'tema-h', … }).rod --></div>
+```
+
+```js
+Kit.radiogruppe({ ariaLabelledby: 'tema-h', vandret: true, valg: [ … ], valgt: 'system' });   // <div class="valgsaet vandret" role="radiogroup" aria-labelledby="tema-h">
+Kit.valgliste({ ariaLabelledby: 'sprog-h', valg: [ … ] });                                   // <select aria-labelledby="sprog-h">, ingen <label>
+Kit.kontakt({ ariaLabelledby: 'autostart-h', til: true });                                   // ingen synlig tekst ved kontakten
+Kit.radiogruppe({ etiket: null, ariaT: 'temaAria', valg: [ … ] });                            // eller et navn uden synlig etiket
+```
+
+- **`ariaLabelledby`** (id på rækkens etiket) eller **`etiket: null` med `aria`/`ariaT`** giver komponenten uden sin egen etiket: radiogruppen er en `<div role="radiogroup">` i stedet for `<fieldset>` med `<legend>`, valglisten har ingen `<label>`, og kontakten har ingen synlig tekst (ordene for til og fra kan stadig stå der).
+- **Uden noget navn** (`etiket: null` uden `ariaLabelledby` og `aria`) og **med to navne** (både en etiket eller tekst og `ariaLabelledby`) giver det en fejl. Uden de nye indstillinger er komponenterne som i 2.3.0.
+- En note under etiketten (fx "Gælder kun dette vindue") hører i `hjaelp` (`aria-describedby`), ikke i det element, `ariaLabelledby` peger på; ellers bliver noten en del af navnet.
 
 ## Kontakt
 
@@ -975,7 +1159,7 @@ udloeb.valgt;   udloeb.vaelg('90');   udloeb.select;
 
 ## Dialog
 
-**Klasser:** `.modal`, `.bred`, `.modal-top`, `.modal-luk`, `.modal-tekst`, `.modal-indhold`, `.modal-fod`
+**Klasser:** `.modal`, `.bred`, `.modal-top`, `.modal-luk`, `.modal-tekst`, `.modal-indhold`, `.modal-fod`, `.modal-fejl`, `.modal-foer`, `.modal-guide`
 
 **Funktioner:** `Kit.dialog`, `Kit.bekraeft`
 
@@ -985,7 +1169,7 @@ udloeb.valgt;   udloeb.vaelg('90');   udloeb.select;
 
 ```js
 const omdoeb = Kit.dialog({
-  t: 'omdoebH', p: 'omdoebP',                                     // overskrift og sætning (aria-labelledby, aria-describedby)
+  t: 'omdoebH', p: { t: 'omdoebP' },                              // overskrift og sætning (aria-labelledby, aria-describedby)
   indhold: Kit.felt({ etiket: { t: 'fNavn' } }),
   luk: { ariaT: 'lukAria' },                                      // valgfri lukkeknap med navn (svaret 'luk'); uden navn: fejl
   knapper: [
@@ -998,7 +1182,7 @@ Sprog.anvend(omdoeb.rod);
 knap.addEventListener('click', () => omdoeb.aabn());             // aabn('gem') giver en bestemt knap fokus
 omdoeb.luk();   omdoeb.aaben;   omdoeb.indhold;   omdoeb.knap('gem');
 
-if (await Kit.bekraeft({ t: 'sletH', p: 'sletP', nej: { t: 'annuller' }, ja: { t: 'slet' }, farlig: true, udfyld: rod => Sprog.anvend(rod) })) slet();
+if (await Kit.bekraeft({ t: 'sletH', p: { t: 'sletP' }, nej: { t: 'annuller' }, ja: { t: 'slet' }, farlig: true, udfyld: rod => Sprog.anvend(rod) })) slet();
 ```
 
 ```html
@@ -1014,7 +1198,53 @@ if (await Kit.bekraeft({ t: 'sletH', p: 'sletP', nej: { t: 'annuller' }, ja: { t
 
 **Tastatur:** Tab og Skift+Tab går rundt i dialogen og kommer ikke ud (browserens fokusfælde). Esc lukker med svaret `'esc'`. En åben vælger og et synligt værktøjstip bruger selv Esc og kalder `preventDefault()`; at browseren så ikke også lukker dialogen af samme tryk, er browserens opførsel og er ikke prøvet i WebKit (et syntetisk tastetryk udløser ikke browserens egen handling). Enter og mellemrum på en knap. Overskriften kan få fokus fra koden (`overskrift.focus()`), så skærmlæsere hører den.
 
-**Kræver af programmet:** Overskriften, sætningen og knappernes tekster (nøgler eller færdig tekst) og `Sprog.anvend(d.rod)` (ved `Kit.bekraeft`: `udfyld`, der kaldes lige før den åbner). Hvad hver knap gør (`ved`, `vedLuk`); validering, der holder dialogen åben, returnerer `false` fra `ved`. Højst én primær knap; ved en farlig handling ingen primær, men den farlige knap sidst. En vælger i en dialog kan blive klippet (dialogen ruller); brug en valgliste i dialoger. Dialogen lukker ikke ved klik på baggrunden (en halvt udfyldt formular skal ikke forsvinde).
+**Kræver af programmet:** Overskriften, sætningen og knappernes tekster (nøgler eller færdig tekst; `p` er færdig tekst som en streng og en nøgle som `p: { t }`) og `Sprog.anvend(d.rod)` (ved `Kit.bekraeft`: `udfyld`, der kaldes lige før den åbner). Hvad hver knap gør (`ved`, `vedLuk`); validering, der holder dialogen åben, returnerer `false` fra `ved`. Højst én primær knap; ved en farlig handling ingen primær, men den farlige knap sidst (undtagelsen er et spørgsmål med tre svar, se nedenfor). En vælger i en dialog kan blive klippet (dialogen ruller); brug en valgliste i dialoger. Dialogen lukker ikke ved klik på baggrunden (en halvt udfyldt formular skal ikke forsvinde).
+
+### Fejl, ventende knap, id, indhold over overskriften og guiden (fra 2.5.0, G1, G3, G5 og G6)
+
+Løftet fra Grimnirs dialoger (Ny sag, Omdøb, Udløb, Slet sag, Fjern post, Start forfra, Om og guiden). Hver del gælder kun med sin indstilling; uden dem er dialogen som i 2.3.0.
+
+```js
+const ny = Kit.dialog({
+  id: 'dlg-ny-sag', t: 'nySagH', p: { t: 'nySagP' }, indhold: felter,
+  fejl: true, udfyld: el => Sprog.anvend(el),                    // fejlfelt med role="alert" over fodlinjen
+  knapper: [
+    { id: 'annuller', t: 'annuller' },
+    { id: 'opret', knapId: 'ny-sag-opret', t: 'opretSag', variant: 'primary',
+      ved: () => invoke('sag_ny', { navn }).then(() => true) },  // et løfte: knappen venter (aria-busy); true lukker
+  ],
+});
+ny.fejl({ t: 'fejlNavnTomt' });   ny.fejl(null);                 // sæt og ryd fejlen; aabn() rydder den også
+
+const om = Kit.dialog({ t: 'omH', foer: Kit.fletbaand(), indhold: omIndhold, knapper: [{ id: 'luk', t: 'luk' }] });
+const guideDlg = Kit.dialog({ guide: true, ariaLabelledby: 'guide-h', indhold: guideRod, vedLuk: svar => afslut(svar) });
+Kit.guide(guideRod, { hId: 'guide-h', … });
+```
+
+- **`id`** (G3) giver dialogen et id, og overskrift, sætning og fejlfelt får `<id>-h`, `<id>-p` og `<id>-fejl` (som `Kit.kasse`). **`knapId`** på en knap giver knappen et id; knappens `id` er stadig dens svar.
+- **`fejl: true`** (G1) giver et felt med `role="alert"` (`.modal-fejl`, i `--danger`) lige over fodlinjen; det er skjult, når det er tomt. **`d.fejl(t|tekst)`** sætter teksten, `d.fejl(null)` rydder den, og `aabn()` rydder den. En nøgle udfyldes af `udfyld(element)`, hvis den er givet.
+- **En knaps `ved` må give et løfte** (G1): knappen får `aria-busy="true"` og `aria-disabled="true"` og kan ikke trykkes igen, mens det venter. Giver løftet `true`, lukker dialogen med knappens svar; ellers bliver den åben. Afvises det, bliver den åben, og fejlen står i fejlfeltet (en tekst, `{ t }` eller en `Error`). Et svar, der ikke er et løfte, virker som før (`false` holder dialogen åben).
+- **`foer: Node`** (G5) står over overskriften (`.modal-foer`, fx et fletbånd); overskriften navngiver stadig dialogen (`aria-labelledby`).
+- **`guide: true`** (G6) er den brede udgave til en guide: `.modal-guide`, 820 px, ingen luft (guiden har sin egen). Dialogen har ingen overskrift, sætning, lukkeknap eller knapper af sine egne (fejl): indholdet er `Kit.guide`, og dialogen navngives af guidens overskrift (**`ariaLabelledby`**, påkrævet). Ved åbning får guidens overskrift fokus. Esc giver svaret `'esc'` og `luk()` `'kode'` i `vedLuk` som i de andre; programmet afslutter guiden der.
+
+### Bekræftelse, der kan fejle (fra 2.5.0, G2)
+
+```js
+const ok = await Kit.bekraeft({
+  t: 'sletH', p: { t: 'sletP' }, nej: { t: 'annuller' }, ja: { t: 'kSletSag' }, farlig: true, udfyld: rod => Sprog.anvend(rod),
+  ved: () => invoke('sag_slet', { id }),       // et løfte; afvist: dialogen bliver åben med fejlen
+});
+```
+
+Med **`ved`** venter ja på løftet (knappen er `aria-busy`). Opfyldes det, lukker dialogen, og `Kit.bekraeft` giver `true`; afvises det, bliver dialogen åben, og fejlen står i et felt med `role="alert"` over fodlinjen (en tekst, `{ t }` eller en `Error`; en nøgle udfyldes af `udfyld`), og ja kan trykkes igen. Nej og Esc giver `false` som før. Uden `ved` er `Kit.bekraeft` som før.
+
+### Et spørgsmål med tre svar (regel, fra 2.5.0, G4)
+
+Reglen "ved en farlig handling ingen primær" har én undtagelse: et spørgsmål med tre svar, hvor det ene er farligt og et andet er det, de fleste vil, fx "Gem den midlertidige sag?" med **Annullér, Kassér og Gem som sag**.
+
+- Rækkefølgen er **Annullér, den farlige, den primære** (kittet flytter den primære yderst til højre).
+- **Fokus står på den primære eller på Annullér, aldrig på den farlige** (`fokus: 'gem'` eller `fokus: 'annuller'`). Kittets standard (den første knap, der ikke er farlig) er Annullér.
+- Kun én primær vises ad gangen. **Knapper, der er skjult** (`hidden`), **tæller ikke med** i reglen om én primær: en dialog, der skifter mellem to trin med hver sin primære knap og kun viser den ene, følger reglen. Kittet flytter kun den første primære i listen yderst; en anden primær står, hvor den står i listen, så programmet lægger den sidst selv.
 
 ## Ikoner
 
@@ -1094,6 +1324,14 @@ document.addEventListener('keydown', e => {                      // genvejene er
 **Tastatur:** Ingen fra kittet. Programmet sætter selv genvejene og eventuelt en indstilling (en radiogruppe eller segmentknap) og menupunkter.
 
 **Kræver af programmet:** At kalde funktionerne fra sine genveje, menuer og indstillinger, og at vise valget. Programmets egen CSS skaleres med (zoom gælder hele siden); bruger programmet selv `vh` eller `vw` til noget, der skal følge vinduet, eller `window.innerWidth` til en grænse, skal det tage højde for trinnet på samme måde (kittets sidepanel bruger vinduets bredde, som zoom ikke ændrer). Er programmets mindste vindue 900 × 560, er det det samme i alle trin.
+
+**Trinnet som tal: `--tekst-zoom` (fra 2.5.0, G10).** `kit.css` sætter `--tekst-zoom` på roden sammen med `zoom`: `1` (normal, også uden et valg), `.9` (lille) og `1.125` (stor). Et program, der selv skal dele et mål med trinnet, skriver `calc(100vh / var(--tekst-zoom))` i stedet for sin egen variabel. Uden et valg er værdien 1, og intet ændres.
+
+**`@media` og `@container` følger ikke `zoom`** (målt i WebKit i V-KITBRUG.1): de måler vinduet (og beholderen) i skærmens px, ikke i de zoomede. En grænse som `@media (max-width: 1200px)` slår altså til ved et vindue på 1200 px i alle trin, selv om indholdet ved stor fylder som ved 1067 px. Hvad et program gør ved det:
+
+- Skal en grænse følge **vinduet** (fx sidepanelet, der lægger sig over under 1200 px), er `@media` rigtigt, som det er.
+- Skal en grænse følge **indholdet** (fx at en tabels kolonner får for lidt plads ved stor), skal grænsen deles med trinnet. `@media` kan ikke bruge `var()`, så programmet skriver grænsen én gang pr. trin: `@media (max-width: 1200px)` for normal, `:root[data-tekst="stor"]` inden i `@media (max-width: 1350px)` (1200 × 1,125) for stor og `:root[data-tekst="lille"]` inden i `@media (max-width: 1080px)` for lille. Grimnir gør sådan i dag.
+- I JavaScript: `window.innerWidth / Number(getComputedStyle(document.documentElement).getPropertyValue('--tekst-zoom'))` er bredden i de zoomede px.
 
 ## Sprog
 
