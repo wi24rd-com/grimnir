@@ -76,6 +76,13 @@
 //! **Steder i teksten (V-OPBYG.2 N3).** [`AnalyseMed::steder`] og [`Maskering::steder`] har hver forekomst som (start, slut,
 //! række) i UTF-16-enheder (som webvisningens strenge), kun for de første [`MAKS_VIST_UTF16`] enheder, som tekstfeltet
 //! viser. Webvisningen markerer dem med `Range`-objekter på tekstfeltets ene tekstnode (CSS Custom Highlight API).
+//!
+//! **Hemmeligheder først ved Vis (V-OPBYG.4 N1).** En hemmeligheds klartekst står ikke i rækkerne, webvisningen får
+//! (`analyser`/[`analyser_med`], [`fil_analyser`], [`fil_raekker`]): `vaerdier` er tom for en række med `hemmelig`. Værdien
+//! hentes én række ad gangen med [`raekke_vaerdi`], når brugeren vælger Vis. For en indsat tekst holder Rust værdierne
+//! fra seneste analyse ([`Hemmelige`]; en ny analyse, en åben fil og låsen erstatter dem); for en fil står de i
+//! [`HoldtFil`]. Søgningen i tabellen finder ikke en skjult hemmelighed på værdien (ellers kunne den gættes tegn for
+//! tegn uden Vis); en vist hemmelighed søges der i, som før.
 
 use std::collections::{HashMap, HashSet};
 use std::hash::{BuildHasher, RandomState};
@@ -303,6 +310,23 @@ pub struct Tilstand {
     /// V-KVIT.1: tallene til kvitteringen for seneste maskering af indsat tekst, og sagens nummer efter gemningen (en
     /// fils tal ligger i filens [`Resultat`]). Kun tal. Låsen tages aldrig, mens sagens holdes.
     kvit_tekst: Mutex<Option<(u64, Tal)>>,
+    /// V-OPBYG.4 N1: hemmelighedernes værdier fra seneste analyse af en indsat tekst ([`raekke_vaerdi`]).
+    tekst_hemmelige: Mutex<Hemmelige>,
+}
+
+/// V-OPBYG.4 N1: hemmelighedernes stavemåder pr. række (rækkens `id`) fra seneste analyse af en indsat tekst. Ingen
+/// `Debug`; værdierne nulstilles, når de erstattes eller slippes.
+#[derive(Default)]
+struct Hemmelige(Vec<(usize, Vec<String>)>);
+
+impl Drop for Hemmelige {
+    fn drop(&mut self) {
+        for (_, v) in self.0.iter_mut() {
+            for x in v.iter_mut() {
+                zeroize::Zeroize::zeroize(x);
+            }
+        }
+    }
 }
 
 impl Tilstand {
@@ -394,6 +418,10 @@ impl Tilstand {
 
     fn kvit_tekst(&self) -> MutexGuard<'_, Option<(u64, Tal)>> {
         self.kvit_tekst.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    fn tekst_hemmelige(&self) -> MutexGuard<'_, Hemmelige> {
+        self.tekst_hemmelige.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     fn udklip_husk(&self) -> MutexGuard<'_, UdklipHusk> {
@@ -567,7 +595,7 @@ pub struct Tilfoejet {
     /// Værdien, som brugeren markerede den.
     pub vaerdi: String,
     /// Typen som fundtabellens `art`: `ord` | `bruger` | `vaert` | `domaene` | `person` | `netbios` | `database` |
-    /// `serienummer` (arterne, kernen kan give en navnekode, [`Ordbog::kan_tilfoejes`]).
+    /// `serienummer` | `hemmelighed` (V-OPBYG.4 N2) (arterne, [`Ordbog::kan_tilfoejes`]).
     pub art: String,
 }
 
@@ -596,7 +624,8 @@ pub struct TilfoejetUd {
     /// Antal steder i teksten (rækkens `antal`; 0 uden række).
     pub antal: usize,
     /// Hvorfor værdien ikke er taget med: `tom` (kun mellemrum), `linjeskift`, `type` (ukendt type), `kode` (en af sagens
-    /// koder; den kan ikke maskeres igen), `aldrig` (står på "maskér aldrig", som vinder over alt). `None`: taget med.
+    /// koder; den kan ikke maskeres igen), `aldrig` (står på "maskér aldrig", som vinder over alt), `hemmelighed`
+    /// (V-OPBYG.4 N2: værdien er allerede fundet som en hemmelighed; `raekke` er dens række). `None`: taget med.
     pub afvist: Option<&'static str>,
 }
 
@@ -689,6 +718,8 @@ pub enum UiFejl {
         /// Grænsen.
         maks: usize,
     },
+    /// V-OPBYG.4 N1: rækken findes ikke i seneste analyse, eller den er ikke en hemmelighed ([`raekke_vaerdi`]).
+    UkendtRaekke,
     /// V-OPBYG.2 N1: en note blev afvist; intet er ændret. Uden notens tekst.
     Note {
         /// `tom` | `for_lang` | `for_mange` | `ukendt`
@@ -734,7 +765,8 @@ pub struct Raekke {
     pub laast: bool,
     /// Hemmelighed: vises som prikker, til brugeren trykker Vis.
     pub hemmelig: bool,
-    /// Enhedens stavemåder i teksten (originalerne, til visning).
+    /// Enhedens stavemåder i teksten (originalerne, til visning). V-OPBYG.4 N1: tom for en hemmelighed i svarene til
+    /// webvisningen; værdien hentes med [`raekke_vaerdi`].
     pub vaerdier: Vec<String>,
     /// Koden for hver stavemåde. For en fravalgt række er det forslaget, hvis den slås til.
     pub koder: Vec<String>,
@@ -1495,8 +1527,9 @@ fn aldrig_moedt(tekst: &str, ordbog: &Ordbog, med: &[(usize, usize)]) -> usize {
 
 // ------------------------------------------------------------------------------------------------------- tilføjede
 
-/// V-MANUEL.1: arterne, en tilføjet værdi kan få ([`Ordbog::kan_tilfoejes`]), ved deres navn i fundtabellen.
-pub const TILFOEJ_ARTER: [Art; 8] = [
+/// V-MANUEL.1: arterne, en tilføjet værdi kan få ([`Ordbog::kan_tilfoejes`]), ved deres navn i fundtabellen. V-OPBYG.4
+/// N2: også `hemmelighed` (kernens kode for hemmeligheder; vises skjult som en genkendt hemmelighed).
+pub const TILFOEJ_ARTER: [Art; 9] = [
     Art::Ord,
     Art::Bruger,
     Art::Vaert,
@@ -1505,6 +1538,7 @@ pub const TILFOEJ_ARTER: [Art; 8] = [
     Art::NetbiosDomaene,
     Art::Database,
     Art::Serienummer,
+    Art::Hemmelighed,
 ];
 
 /// Typen fra webvisningen (`bruger`, `vaert` …) som kernens art, når den kan tilføjes.
@@ -1576,11 +1610,23 @@ fn tag_tilfoejede(tilfoejede: &[Tilfoejet], sag: &Sag, ordbog: &mut Ordbog) -> (
 
 /// V-MANUEL.1: knytter rækkerne til de tilføjede værdier (en række, hvis stavemåder er en tilføjet værdi uden hensyn til
 /// store/små bogstaver, er den værdis række) og fylder svarene ud. Nøglerne nulstilles.
-fn knyt_tilfoejede(raekker: &mut [Raekke], noegler: HashMap<String, usize>, ud: &mut [TilfoejetUd]) {
+///
+/// V-OPBYG.4 N2: står en værdi, brugeren har tilføjet som en anden type, allerede i en hemmeligheds række (genkendt af
+/// Grimnir), afvises den med `hemmelighed` og rækken: webvisningen kender ikke en skjult hemmeligheds værdi (N1) og kan
+/// derfor ikke selv se, at den findes, og en hemmelighed må ikke blive vist som et almindeligt ord.
+fn knyt_tilfoejede(raekker: &mut [Raekke], noegler: HashMap<String, usize>, ud: &mut [TilfoejetUd], tilfoejede: &[Tilfoejet]) {
     if !noegler.is_empty() {
         for r in raekker.iter_mut() {
             let nr = r.vaerdier.iter().find_map(|v| noegler.get(&v.to_ascii_lowercase()).copied());
             if let Some(nr) = nr {
+                let som_hemmelighed = tilfoejede.get(nr).is_some_and(|x| x.art == art_navn(Art::Hemmelighed));
+                if r.hemmelig && !som_hemmelighed {
+                    if let Some(t) = ud.get_mut(nr) {
+                        t.afvist = Some("hemmelighed");
+                        t.raekke = Some(r.id);
+                    }
+                    continue;
+                }
                 r.tilfoejet = Some(nr);
                 if let Some(t) = ud.get_mut(nr) {
                     if t.raekke.is_none() {
@@ -1617,7 +1663,88 @@ pub fn analyser_med(
     // V-KVIT.1: en ny analyse af indsat tekst: kvitteringen for det gamle resultat findes ikke længere.
     *t.kvit_tekst() = None;
     tjek_tekst(tekst)?;
-    analyser_i(t, tekst, fravalgt.map_or(Udvalg::Standard, Udvalg::Fravalgt), rettelser, tilfoejede)
+    let mut ud = analyser_i(t, tekst, fravalgt.map_or(Udvalg::Standard, Udvalg::Fravalgt), rettelser, tilfoejede)?;
+    // V-OPBYG.4 N1: hemmelighedernes værdier bliver her ([`raekke_vaerdi`]). Porten tjekkes igen under låsen, så intet
+    // huskes efter [`laas_igen`]; er der låst, nulstilles værdierne og svaret.
+    let skjulte = Hemmelige(skjul_hemmelige(&mut ud.analyse.raekker));
+    let mut g = t.tekst_hemmelige();
+    if t.er_laast() {
+        drop(skjulte);
+        nulstil_raekker(&mut ud.analyse.raekker);
+        return Err(UiFejl::Laast);
+    }
+    *g = skjulte;
+    drop(g);
+    Ok(ud)
+}
+
+/// V-OPBYG.4 N1: tager hemmelighedernes værdier ud af rækkerne (de står tomme) og giver dem ud pr. række.
+fn skjul_hemmelige(raekker: &mut [Raekke]) -> Vec<(usize, Vec<String>)> {
+    raekker
+        .iter_mut()
+        .filter(|r| r.hemmelig)
+        .map(|r| (r.id, std::mem::take(&mut r.vaerdier)))
+        .collect()
+}
+
+/// V-OPBYG.4 N1: én række til webvisningen: som rækken, men uden værdierne, hvis den er en hemmelighed.
+fn raekke_ud(r: &Raekke) -> Raekke {
+    Raekke {
+        id: r.id,
+        art: r.art,
+        status: r.status,
+        standard: r.standard,
+        valgt: r.valgt,
+        laast: r.laast,
+        hemmelig: r.hemmelig,
+        vaerdier: if r.hemmelig { Vec::new() } else { r.vaerdier.clone() },
+        koder: r.koder.clone(),
+        antal: r.antal,
+        linje: r.linje,
+        rettet: r.rettet,
+        kendt: r.kendt,
+        tilfoejet: r.tilfoejet,
+    }
+}
+
+/// V-OPBYG.4 N1: svaret fra [`raekke_vaerdi`]: én hemmeligheds stavemåder. Har bevidst ingen `Debug`; værdierne
+/// nulstilles, når svaret slippes (efter Tauri har sendt det).
+#[derive(Clone, Serialize)]
+pub struct RaekkeVaerdi {
+    /// Rækkens id.
+    pub id: usize,
+    /// Stavemåderne (originalerne).
+    pub vaerdier: Vec<String>,
+}
+
+impl Drop for RaekkeVaerdi {
+    fn drop(&mut self) {
+        for v in self.vaerdier.iter_mut() {
+            zeroize::Zeroize::zeroize(v);
+        }
+    }
+}
+
+/// V-OPBYG.4 N1: værdien for én hemmelighed, når brugeren vælger Vis: fra seneste analyse af den indsatte tekst (`fil`
+/// falsk) eller af den åbne fil i Maskér. Kun en række med `hemmelig` (andre rækkers værdier står allerede i svaret).
+/// Låst: [`UiFejl::Laast`], før noget læses; porten tjekkes igen, før svaret gives (er der låst imens, nulstilles
+/// værdien). [`UiFejl::UkendtRaekke`], hvis rækken ikke findes eller ikke er en hemmelighed. Intet skrives til disk eller
+/// log.
+pub fn raekke_vaerdi(t: &Tilstand, fil: bool, id: usize) -> Result<RaekkeVaerdi, UiFejl> {
+    t.aaben()?;
+    let vaerdier = if fil {
+        let g = t.fil(Visning::Masker);
+        let h = g.as_ref().ok_or(UiFejl::IngenFil)?;
+        h.raekker.iter().find(|r| r.id == id && r.hemmelig).map(|r| r.vaerdier.clone())
+    } else {
+        t.tekst_hemmelige().0.iter().find(|(i, _)| *i == id).map(|(_, v)| v.clone())
+    };
+    let ud = RaekkeVaerdi {
+        id,
+        vaerdier: vaerdier.ok_or(UiFejl::UkendtRaekke)?,
+    };
+    t.aaben()?;
+    Ok(ud)
 }
 
 /// [`analyser`] uden tekstens grænse (en fil har sin egen, [`fil::MAKS_FIL`]).
@@ -1641,11 +1768,11 @@ fn analyser_i(
     let mut b = match b {
         Ok(b) => b,
         Err(f) => {
-            knyt_tilfoejede(&mut [], noegler, &mut tilfoejet_ud);
+            knyt_tilfoejede(&mut [], noegler, &mut tilfoejet_ud, tilfoejede);
             return Err(f);
         }
     };
-    knyt_tilfoejede(&mut b.raekker, noegler, &mut tilfoejet_ud);
+    knyt_tilfoejede(&mut b.raekker, noegler, &mut tilfoejet_ud, tilfoejede);
     let steder = steder_utf16(tekst, std::mem::take(&mut b.spaend));
     let ud = AnalyseMed {
         analyse: Analyse {
@@ -1720,11 +1847,11 @@ fn gem_og_masker_i(
     let mut b = match b {
         Ok(b) => b,
         Err(f) => {
-            knyt_tilfoejede(&mut [], noegler, &mut tilfoejet_ud);
+            knyt_tilfoejede(&mut [], noegler, &mut tilfoejet_ud, tilfoejede);
             return Err(f);
         }
     };
-    knyt_tilfoejede(&mut b.raekker, noegler, &mut tilfoejet_ud);
+    knyt_tilfoejede(&mut b.raekker, noegler, &mut tilfoejet_ud, tilfoejede);
     if !b.fejl.is_empty() {
         return Err(UiFejl::Raekker { fejl: b.fejl });
     }
@@ -2759,6 +2886,8 @@ pub fn laas_igen(t: &Tilstand, grund: Udloeser) -> bool {
         drop(gammel);
     }
     *t.kvit_tekst() = None;
+    // V-OPBYG.4 N1: hemmelighederne fra seneste analyse af en indsat tekst.
+    *t.tekst_hemmelige() = Hemmelige::default();
     // 4. Sagen.
     let ny = t.ny_sag();
     let indst = t.indstillinger();
@@ -3054,6 +3183,8 @@ pub struct Levende {
     pub resultater: usize,
     /// V-LAAS.4: fingeraftryk af demaskerede resultater og en husket tæller for udklipsholderen.
     pub udklip: usize,
+    /// V-OPBYG.4 N1: hemmeligheder fra seneste analyse af en indsat tekst.
+    pub hemmelige: usize,
 }
 
 /// Testkrog (V-LAAS.3 N5): tæller [`Levende`].
@@ -3080,6 +3211,7 @@ pub fn levende(t: &Tilstand) -> Levende {
         let h = t.udklip_husk();
         l.udklip = h.demaskeret.iter().flatten().count() + usize::from(h.taeller.is_some());
     }
+    l.hemmelige = t.tekst_hemmelige().0.len();
     l
 }
 
@@ -3228,6 +3360,10 @@ pub fn fil_aabn(t: &Tilstand, v: Visning, sti: &std::path::Path) -> Result<FilIn
     let gammel = g.replace(ny);
     drop(g);
     drop(gammel);
+    // V-OPBYG.4 N1: filen tager over fra en indsat tekst; dens hemmeligheder slippes.
+    if v == Visning::Masker {
+        *t.tekst_hemmelige() = Hemmelige::default();
+    }
     Ok(info)
 }
 
@@ -3316,7 +3452,8 @@ fn side_af(raekker: &[Raekke], fejl: &[RaekkeFejl], valg: &SideValg) -> RaekkeSi
     let mut side = Vec::new();
     for r in raekker.iter().filter(passer) {
         if side.len() < antal_side {
-            side.push(r.clone());
+            // V-OPBYG.4 N1: en hemmelighed uden sin værdi.
+            side.push(raekke_ud(r));
         }
         i_alt += 1;
     }

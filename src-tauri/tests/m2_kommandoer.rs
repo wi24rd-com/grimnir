@@ -2,7 +2,8 @@
 //! opfundne navne og hemmeligheder.
 
 use grimnir_lib::maskering::{
-    analyser, demasker, gem_og_masker, sag_nulstil, sag_status, Analyse, Raekke, Rettelse, Tilstand, UiFejl, MAKS_BYTES, MAKS_DEMASKER,
+    analyser, demasker, gem_og_masker, raekke_vaerdi, sag_nulstil, sag_status, Analyse, Raekke, Rettelse, Tilstand, UiFejl, MAKS_BYTES,
+    MAKS_DEMASKER,
 };
 
 /// En opdigtet log med CRLF (Windows), en bruger i to stavemåder, en version, der ligner en adresse, og to hemmeligheder.
@@ -18,6 +19,15 @@ fn raekke<'a>(a: &'a Analyse, vaerdi: &str) -> &'a Raekke {
         .iter()
         .find(|r| r.vaerdier.iter().any(|v| v == vaerdi))
         .unwrap_or_else(|| panic!("ingen række for testværdien {vaerdi}"))
+}
+
+/// V-OPBYG.4 N1: en hemmeligheds række. Dens værdi står ikke i analysens svar; den hentes som ved Vis (`raekke_vaerdi`).
+fn hemmelig_raekke<'a>(t: &Tilstand, a: &'a Analyse, vaerdi: &str) -> &'a Raekke {
+    a.raekker
+        .iter()
+        .filter(|r| r.hemmelig)
+        .find(|r| raekke_vaerdi(t, false, r.id).is_ok_and(|v| v.vaerdier.iter().any(|x| x == vaerdi)))
+        .unwrap_or_else(|| panic!("ingen hemmelighed med testværdien"))
 }
 
 /// Det, UI'et sender: alle rækker, der ikke er valgt.
@@ -76,7 +86,7 @@ fn en_raekke_pr_enhed_og_standardvalg() {
         ("ipv4_fremmed", false, false),
         "fremmed adresse er slået fra (D4)"
     );
-    assert!(raekke(&a, HEMMELIG).hemmelig && raekke(&a, HEMMELIG).valgt);
+    assert!(hemmelig_raekke(&t, &a, HEMMELIG).hemmelig && hemmelig_raekke(&t, &a, HEMMELIG).valgt);
     assert!(!v.koder[0].is_empty(), "en fravalgt række har et forslag");
     let ider: Vec<usize> = a.raekker.iter().map(|r| r.id).collect();
     let mut sorteret = ider.clone();
@@ -98,11 +108,11 @@ fn version_og_fremmed_kan_slaas_til() {
 fn fravalg_maskeres_ikke_og_er_ikke_en_rest() {
     let t = Tilstand::ny();
     let a = analyser(&t, TEKST, None, &[]).unwrap();
-    let h = raekke(&a, HEMMELIG).id;
+    let h = hemmelig_raekke(&t, &a, HEMMELIG).id;
     let mut fra = fravalgt(&a);
     fra.push(h);
     let a2 = analyser(&t, TEKST, Some(&fra), &[]).unwrap();
-    assert!(!raekke(&a2, HEMMELIG).valgt);
+    assert!(!hemmelig_raekke(&t, &a2, HEMMELIG).valgt);
     let m = gem_og_masker(&t, TEKST, &fra, &[]).unwrap();
     assert!(m.maskeret.contains(HEMMELIG), "fravalgt: står urørt");
     assert!(

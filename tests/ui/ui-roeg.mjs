@@ -381,7 +381,8 @@ function falskRust({ rester = [], afvis = null } = {}) {
   };
   return {
     // V-OPBYG.1: linjetallet som Rusts fil::antal_linjer (før fast 3; analysen sker nu ved hver indsætning, også af andre tekster).
-    analyser: a => { const b = beregn(a); return { raekker: b.raekker, fejl: b.fejl, advarsler: [], bytes: a.tekst.length, linjer: a.tekst === '' ? 0 : (a.tekst.match(/\r\n|\r|\n/g) || []).length + (/[\r\n]$/.test(a.tekst) ? 0 : 1) }; },
+    // V-OPBYG.4 N1: som Rust: en hemmeligheds værdi står ikke i rækkerne; Vis henter den med raekke_vaerdi.
+    analyser: a => { const b = beregn(a); return { raekker: b.raekker.map(r => (r.hemmelig ? { ...r, vaerdier: [] } : r)), fejl: b.fejl, advarsler: [], bytes: a.tekst.length, linjer: a.tekst === '' ? 0 : (a.tekst.match(/\r\n|\r|\n/g) || []).length + (/[\r\n]$/.test(a.tekst) ? 0 : 1) }; },
     gem_og_masker: a => {
       const b = beregn(a);
       if (b.fejl.length) throw { art: 'raekker', fejl: b.fejl };
@@ -401,6 +402,7 @@ function falskRust({ rester = [], afvis = null } = {}) {
       const tilbage = brugt.map(k => ({ kode: k, antal: a.tekst.split(k).length - 1, linje: a.tekst.includes(k) ? (a.tekst.slice(0, a.tekst.indexOf(k)).match(/\r\n|\r|\n/g) || []).length + 1 : 0 }));
       return { tekst: t, linjer, koder: brugt, tilbage, advarsler: [{ art: 'ukendt_kode', kode: 'h0099', antal: 1, linje: 1 }, { art: 'ikke_brugt', kode: Object.keys(koder)[0], antal: 1, linje: 0 }] };
     },
+    raekke_vaerdi: ({ id }) => { const r = RAEKKER.find(x => x.id === id && x.hemmelig); if (!r) throw { art: 'ukendt_raekke' }; return { id, vaerdier: [...r.vaerdier] }; },
     sag_status: () => ({ poster }),
     sag_nulstil: () => { poster = 0; koder = {}; return { poster: 0 }; },
     menu_sprog: () => null,
@@ -502,6 +504,8 @@ const raekkeMed = (d, id) => d.querySelector(`section[data-visning="masker"] .fu
   tjek('hemmeligheder vises som prikker som standard', !sek.querySelector('.fundtabel').textContent.includes(HEMMELIG) && !sek.querySelector('.fundtabel').textContent.includes('Zq8Xv2Lm9Pw4') && raekkeMed(d, 45).querySelector('.prikker'));
   tjek('hemmelighedens afkrydsning nævner ikke værdien', !raekkeMed(d, 45).querySelector('input[type="checkbox"]').getAttribute('aria-label').includes(HEMMELIG));
   raekkeMed(d, 45).querySelector('button.mini').click();
+  // V-OPBYG.4 N1: Vis henter værdien fra Rust (raekke_vaerdi); der ventes på rækken, ikke et fast antal ms.
+  await ventTil(w, () => raekkeMed(d, 45) && raekkeMed(d, 45).textContent.includes(HEMMELIG));
   tjek('Vis viser hemmeligheden i rækken', raekkeMed(d, 45).textContent.includes(HEMMELIG) && raekkeMed(d, 45).querySelector('button.mini').textContent === 'Skjul');
   raekkeMed(d, 45).querySelector('button.mini').click();
   tjek('Skjul skjuler den igen', !raekkeMed(d, 45).textContent.includes(HEMMELIG));
@@ -1049,8 +1053,9 @@ function falskOrdbogRust({ poster = [], indst = {}, laast = null, sager = [], ge
       const svar = r.analyser(a);
       const aldrig = db.filter(p => p.type === 'aldrig').map(p => p.vaerdi.toLowerCase());
       const altid = db.filter(p => p.type !== 'aldrig').map(p => p.vaerdi.toLowerCase());
-      svar.raekker = svar.raekker.filter(x => !aldrig.includes(x.vaerdier[0].toLowerCase()))
-        .map(x => (altid.includes(x.vaerdier[0].toLowerCase()) ? { ...x, status: 'ordbog', standard: true, valgt: a.fravalgt == null ? true : x.valgt } : x));
+      // V-OPBYG.4 N1: en hemmelighed har ingen værdi i rækken (og kan ikke stå i ordbogen).
+      svar.raekker = svar.raekker.filter(x => !aldrig.includes((x.vaerdier[0] || '').toLowerCase()))
+        .map(x => (altid.includes((x.vaerdier[0] || '').toLowerCase()) ? { ...x, status: 'ordbog', standard: true, valgt: a.fravalgt == null ? true : x.valgt } : x));
       return svar;
     },
     ordbog_hent: () => ud(),
@@ -1510,7 +1515,8 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
       && (!q || x.koder.some(k => k.toLowerCase().includes(q)) || ((!x.hemmelig || vist.has(x.id)) && x.vaerdier.some(v => v.toLowerCase().includes(q))));
     const f = alle.filter(passer);
     return {
-      raekker: f.slice(0, sv.antal), i_alt: f.length, valgte: alle.filter(x => x.valgt).length,
+      // V-OPBYG.4 N1: som Rust (raekke_ud): en hemmelighed uden sin værdi.
+      raekker: f.slice(0, sv.antal).map(x => (x.hemmelig ? { ...x, vaerdier: [] } : x)), i_alt: f.length, valgte: alle.filter(x => x.valgt).length,
       antal: { alle: alle.length, tjek: alle.filter(x => x.status === 'tjek').length, hemmelig: alle.filter(x => x.hemmelig).length, seneste: 0, status_tjek: alle.filter(x => x.status === 'tjek').length },
     };
   };
@@ -1526,6 +1532,7 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
       return { side: side(sv), fejl: [], advarsler: [], bytes: 12345678, linjer: antal + 2, fravalgt: RAEKKER.filter(x => !valgt.get(x.id)).map(x => x.id) };
     },
     fil_raekker: ({ side: sv }) => side(sv),
+    raekke_vaerdi: ({ fil: f, id }) => { const x = f ? RAEKKER.find(y => y.id === id && y.hemmelig) : null; if (!x) throw { art: 'ukendt_raekke' }; return { id, vaerdier: [...x.vaerdier] }; },
     fil_gem_og_masker: async () => {
       await pause();
       return { uddrag: 'Password=GRIMNIR_SECRET_0001;\r\nsrcip=198.18.0.2 msg=ok\r\n', ikke_vist: 1234000, rester, advarsler: [], poster: antal, bytes: kopierbar ? 1000 : 6 * 1048576, kopierbar };
@@ -3759,7 +3766,7 @@ const elNavn = e => e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') + (e.clas
 const MTEKST = 'login jdoe fra 10.20.30.11\nfejl: JDoe, jdoe2, xjdoe\nhost pc-17 og db1 og h0001\n';
 function falskManuelRust() {
   const log = { analyser: [], gem: [] };
-  const PRAEFIKS = { ord: 'ord', bruger: 'user', vaert: 'h', domaene: 'd', person: 'Person ' };
+  const PRAEFIKS = { ord: 'ord', bruger: 'user', vaert: 'h', domaene: 'd', person: 'Person ', hemmelighed: 'GRIMNIR_SECRET_' };
   let poster = 0, koder = {};
   const graenseRe = v => new RegExp(`(?<![A-Za-z0-9])${v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![A-Za-z0-9])`, 'gi');
   const beregn = ({ tekst, fravalgt, rettelser, tilfoejede }) => {
@@ -3769,14 +3776,18 @@ function falskManuelRust() {
     if (ip >= 0) raa.push({ id: ip, art: 'ipv4_egen', status: 'sikker', standard: true, hemmelig: false, vaerdier: ['10.20.30.11'], koder: ['198.18.0.11'], antal: 1, linje: 1, laast: false, tilfoejet: null });
     const kode = tekst.indexOf('h0001');
     if (kode >= 0) raa.push({ id: kode, art: 'ligner_kode', status: 'sikker', standard: true, hemmelig: false, vaerdier: ['h0001'], koder: ['ord0099'], antal: 1, linje: 3, laast: true, tilfoejet: null });
+    // V-OPBYG.4 N2: en genkendt hemmelighed (efter pwd=); en tilføjet værdi med samme tekst og en anden type afvises.
+    const hem = tekst.indexOf('Fjeld-Ravn-77');
+    if (hem >= 0) raa.push({ id: hem, art: 'hemmelighed', status: 'sikker', standard: true, hemmelig: true, vaerdier: ['Fjeld-Ravn-77'], koder: ['GRIMNIR_SECRET_0009'], antal: 1, linje: 4, laast: false, tilfoejet: null });
     const svar = (tilfoejede || []).map((t, nr) => {
       const v = t.vaerdi.trim();
+      if (hem >= 0 && v === 'Fjeld-Ravn-77' && t.art !== 'hemmelighed') return { nr, raekke: hem, antal: 0, afvist: 'hemmelighed' };
       if (v === 'h0001') return { nr, raekke: null, antal: 0, afvist: 'kode' };
       if (v.toLowerCase() === 'aldrigord') return { nr, raekke: null, antal: 0, afvist: 'aldrig' };
       const steder = [...tekst.matchAll(graenseRe(v))].filter(m => !(ip >= 0 && m.index >= ip && m.index < ip + 11));
       if (!steder.length) return { nr, raekke: null, antal: 0, afvist: null };
       const stave = [...new Set(steder.map(m => m[0]))];
-      raa.push({ id: steder[0].index, art: t.art, status: 'sikker', standard: true, hemmelig: false, vaerdier: stave, koder: stave.map((_, j) => PRAEFIKS[t.art] + String(nr + 1).padStart(4, '0') + (j ? 'b' : '')), antal: steder.length, linje: tekst.slice(0, steder[0].index).split('\n').length, laast: false, tilfoejet: nr });
+      raa.push({ id: steder[0].index, art: t.art, status: 'sikker', standard: true, hemmelig: t.art === 'hemmelighed', vaerdier: stave, koder: stave.map((_, j) => PRAEFIKS[t.art] + String(nr + 1).padStart(4, '0') + (j ? 'b' : '')), antal: steder.length, linje: tekst.slice(0, steder[0].index).split('\n').length, laast: false, tilfoejet: nr });
       return { nr, raekke: steder[0].index, antal: steder.length, afvist: null };
     });
     raa.sort((a, b) => a.id - b.id);
@@ -3787,7 +3798,9 @@ function falskManuelRust() {
   };
   return {
     log,
-    analyser: a => { log.analyser.push(JSON.parse(JSON.stringify(a))); const b = beregn(a); return { raekker: b.raekker, fejl: b.fejl, advarsler: [], bytes: a.tekst.length, linjer: 4, tilfoejede: b.tilfoejede }; },
+    // V-OPBYG.4 N1: som Rust: en hemmelighed uden sin værdi i rækken; raekke_vaerdi giver den.
+    analyser: a => { log.analyser.push(JSON.parse(JSON.stringify(a))); const b = beregn(a); log.sidste = b.raekker; return { raekker: b.raekker.map(r => (r.hemmelig ? { ...r, vaerdier: [] } : r)), fejl: b.fejl, advarsler: [], bytes: a.tekst.length, linjer: 4, tilfoejede: b.tilfoejede }; },
+    raekke_vaerdi: ({ id }) => { const r = (log.sidste || []).find(x => x.id === id && x.hemmelig); if (!r) throw { art: 'ukendt_raekke' }; return { id, vaerdier: [...r.vaerdier] }; },
     gem_og_masker: a => {
       log.gem.push(JSON.parse(JSON.stringify(a)));
       const b = beregn(a);
@@ -3897,11 +3910,13 @@ async function manuelSide(o = {}) {
   const med = new w.MouseEvent('contextmenu', { bubbles: true, cancelable: true });
   pre.dispatchEvent(med);
   const punkter = [...menu.querySelectorAll('[role="menuitem"]')];
-  tjek('V-MANUEL.1 N1: højreklik på markeringen: Grimnirs genvejsmenu med Maskér dette (⇧⌘M) og Kopiér, fokus på Maskér dette', med.defaultPrevented && !menu.hidden && menu.getAttribute('role') === 'menu' && menu.getAttribute('aria-label') === 'Handlinger for markeringen' && punkter.map(p => p.textContent).join('|') === 'Maskér markering⇧⌘M|Kopiér⌘C' && d.activeElement === punkter[0], punkter.map(p => p.textContent).join('|'));
+  tjek('V-OPBYG.4 N2: højreklik på markeringen: Grimnirs genvejsmenu med Maskér markering (⇧⌘M), Maskér som hemmelighed og Kopiér, fokus på Maskér markering', med.defaultPrevented && !menu.hidden && menu.getAttribute('role') === 'menu' && menu.getAttribute('aria-label') === 'Handlinger for markeringen' && punkter.map(p => p.textContent).join('|') === 'Maskér markering⇧⌘M|Maskér som hemmelighed|Kopiér⌘C' && d.activeElement === punkter[0], punkter.map(p => p.textContent).join('|'));
   menu.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
   const ned = d.activeElement === punkter[1];
   menu.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
-  tjek('V-MANUEL.1 N1: genvejsmenuen: piletasterne flytter (og går rundt)', ned && d.activeElement === punkter[0]);
+  const ned2 = d.activeElement === punkter[2];
+  menu.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+  tjek('V-OPBYG.4 N2: genvejsmenuen: piletasterne flytter gennem de tre punkter (og går rundt)', ned && ned2 && d.activeElement === punkter[0]);
   menu.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
   tjek('V-MANUEL.1 N1: genvejsmenuen: Esc lukker, og fokus går tilbage til teksten (markeringen står)', menu.hidden && d.activeElement === pre && GM.M.markering() === 'db1', `${menu.hidden} ${d.activeElement && d.activeElement.tagName} «${GM.M.markering()}»`);
   pre.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'F10', shiftKey: true, bubbles: true, cancelable: true }));
@@ -4259,10 +4274,10 @@ async function manuelSide(o = {}) {
   const rs = fs.readFileSync(path.join(repo, 'src-tauri', 'src', 'maskering.rs'), 'utf8');
   const grunde = [...rs.slice(rs.indexOf('fn tag_tilfoejede')).split(/\n}\n/)[0].matchAll(/Some\("([a-z]+)"\)/g)].map(x => x[1]);
   tjek('V-MANUEL.1: hver grund, Rust kan afvise en tilføjet værdi med, har en tekst (bAfvist_*)', grunde.length === 5 && grunde.every(g => 'bAfvist_' + g in T.da && 'bAfvist_' + g in T.en), grunde.join());
-  const typer = [...rs.matchAll(/pub const TILFOEJ_ARTER: \[Art; 8\] = \[([^\]]+)\]/g)].map(m => m[1])[0] || '';
+  const typer = [...rs.matchAll(/pub const TILFOEJ_ARTER: \[Art; 9\] = \[([^\]]+)\]/g)].map(m => m[1])[0] || '';
   const m = ui('assets/maskering.js');
   const ui5 = (m.match(/const TYPER = \[([^\]]+)\]/) || [])[1] || '';
-  tjek('V-MANUEL.1: valglistens typer er nogle, Rust tager imod (TILFOEJ_ARTER), og har tekster', ui5.split(',').map(x => x.trim().replace(/'/g, '')).every(t => t && ('art_' + t) in T.da && typer.includes({ ord: 'Art::Ord', bruger: 'Art::Bruger', vaert: 'Art::Vaert', domaene: 'Art::Domaene', person: 'Art::Person' }[t])), ui5);
+  tjek('V-OPBYG.4 N2: valglistens typer og Hemmelighed (genvejsmenuen) er nogle, Rust tager imod (TILFOEJ_ARTER med 9), og har tekster', ui5.split(',').map(x => x.trim().replace(/'/g, '')).concat('hemmelighed').every(t => t && ('art_' + t) in T.da && typer.includes({ ord: 'Art::Ord', bruger: 'Art::Bruger', vaert: 'Art::Vaert', domaene: 'Art::Domaene', person: 'Art::Person', hemmelighed: 'Art::Hemmelighed' }[t])), ui5);
   tjek('V-MANUEL.1: genvejsmenuen står i tekstpanelet uden inline-stil (CSS-reglen giver den position)', CSS_REGLER.some(r => r.sel === '.tekstpanel' && r.decl.position === 'relative') && CSS_REGLER.some(r => r.sel === '.genvejsmenu' && r.decl.position === 'absolute') && !/genvejsmenu[^\n]*\.style/.test(m));
   tjek('V-MANUEL.1: intet nyt skriver til konsollen eller localStorage, og teksten vises stadig i <pre>', !/\bconsole\s*\./.test(m) && !/localStorage\s*\.\s*setItem|sessionStorage|indexedDB/.test(m) && /el\('pre'/.test(m));
   tjek('V-MANUEL.1: de tilføjede værdier sendes kun til Rust (invoke) og står kun i hukommelsen (st.tilfoejede)', (m.match(/tilfoejede: tilfoejede\(\)/g) || []).length === 4);
@@ -5353,6 +5368,148 @@ function falskFilMarkRust() {
   tjek('V-OPBYG.3 N4: efter maskeringen af filen er koderne markeret i det maskerede uddrag (grimnir-kode)', JSON.stringify(hl(w, 'grimnir-kode')) === JSON.stringify(['GRIMNIR_SECRET_0001', '198.18.0.2', '198.18.0.2']) && !w.CSS.highlights.has('grimnir-masker'), JSON.stringify(hl(w, 'grimnir-kode')));
   const mj = ui('assets/maskering.js');
   tjek('V-OPBYG.3 N4: webvisningen markerer fra Rusts steder og sted_raekker (ingen egen søgning i uddraget)', /st\.analyse\.sted_raekker/.test(mj) && !/if \(st\.fil\) return null;/.test(mj));
+}
+
+// ══════════════════════════ V-OPBYG.4 N1: hemmeligheder først ved Vis ══════════════════════════
+{
+  for (const sprog of ['da', 'en']) {
+    const rust = falskRust();
+    const s = side({ hash: '#masker', rust, lager: { 'grimnir-sprog': sprog } });
+    const { d, w } = s;
+    await ventTil(w, () => !laaseskaerm(d));
+    const sek = d.querySelector('section[data-visning="masker"]');
+    const M = w.GrimnirMaskering.M;
+    indsaet(w, sek.querySelector('.tomt'), TEKST);
+    await ventTil(w, () => raekkeMed(d, 45));
+    const analyseSvar = JSON.stringify(M.st.analyse.raekker);
+    tjek(`V-OPBYG.4 N1 (${sprog}): rækkerne fra Rust har ingen hemmelighed, og DOM'en har den ikke før Vis`, !analyseSvar.includes(HEMMELIG) && !sek.querySelector('.fundtabel').innerHTML.includes(HEMMELIG) && M.st.hv.size === 0);
+    const vis = () => raekkeMed(d, 45).querySelector('[data-felt="vis"]');
+    vis().click();
+    await ventTil(w, () => raekkeMed(d, 45).textContent.includes(HEMMELIG));
+    const k = s.kald.filter(x => x[0] === 'raekke_vaerdi');
+    tjek(`V-OPBYG.4 N1 (${sprog}): Vis henter værdien med raekke_vaerdi for netop den række (indsat tekst)`, k.length === 1 && k[0][1].id === 45 && k[0][1].fil === false && vis().textContent === (sprog === 'da' ? 'Skjul' : 'Hide'));
+    tjek(`V-OPBYG.4 N1 (${sprog}): den anden hemmelighed er stadig prikker`, !sek.querySelector('.fundtabel').innerHTML.includes('Zq8Xv2Lm9Pw4') && raekkeMed(d, 67).querySelector('.prikker'));
+    // Søgning: en vist hemmelighed findes på værdien, en skjult ikke; feltets forklaring siger det på begge sprog.
+    d.querySelector('section[data-visning="masker"] input[type="search"]').value = 'sommer';
+    d.querySelector('section[data-visning="masker"] input[type="search"]').dispatchEvent(new w.Event('input'));
+    tjek(`V-OPBYG.4 N1 (${sprog}): søgning finder en vist hemmelighed på værdien`, fundRaekker(d).map(r => r.getAttribute('data-id')).join() === '45');
+    const soeg = d.querySelector('section[data-visning="masker"] input[type="search"]');
+    soeg.value = 'zq8x'; soeg.dispatchEvent(new w.Event('input'));
+    tjek(`V-OPBYG.4 N1 (${sprog}): søgning finder ikke en skjult hemmelighed på værdien`, fundRaekker(d).length === 0);
+    tjek(`V-OPBYG.4 N1 (${sprog}): søgefeltets forklaring siger, at en skjult hemmelighed ikke søges`, sprog === 'da' ? /skjult hemmelighed søges ikke/.test(soeg.title) : /hidden secret is not searched/.test(soeg.title), soeg.title);
+    soeg.value = ''; soeg.dispatchEvent(new w.Event('input'));
+    // Skjul fjerner værdien fra DOM'en og webvisningens hukommelse.
+    vis().click();
+    await ventTil(w, () => !raekkeMed(d, 45).textContent.includes(HEMMELIG));
+    tjek(`V-OPBYG.4 N1 (${sprog}): Skjul fjerner værdien fra DOM'en og fra hukommelsen (st.hv)`, !sek.querySelector('.fundtabel').innerHTML.includes(HEMMELIG) && M.st.hv.size === 0 && !M.st.vist.has(45));
+    // Faneskift.
+    vis().click();
+    await ventTil(w, () => M.st.hv.size === 1);
+    s.tast('2', { metaKey: true, code: 'Digit2' });
+    await ventTil(w, () => M.st.hv.size === 0);
+    tjek(`V-OPBYG.4 N1 (${sprog}): et faneskift skjuler den viste hemmelighed igen`, M.st.hv.size === 0 && !sek.querySelector('.fundtabel').innerHTML.includes(HEMMELIG));
+    s.tast('1', { metaKey: true, code: 'Digit1' });
+    await ventTil(w, () => w.Grimnir.aktiv === 'masker' && raekkeMed(d, 45) && raekkeMed(d, 45).querySelector('.prikker'));
+    // Et svar, der kommer, efter brugeren har skiftet fane, bruges ikke.
+    {
+      const gammel = rust.raekke_vaerdi;
+      let svar;
+      rust.raekke_vaerdi = a => new Promise(res => { svar = () => res(gammel(a)); });
+      vis().click();
+      await ventTil(w, () => typeof svar === 'function');
+      s.tast('2', { metaKey: true, code: 'Digit2' });
+      await ventTil(w, () => w.Grimnir.aktiv === 'demasker');
+      svar();
+      await vent(0); await vent(0);
+      tjek(`V-OPBYG.4 N1 (${sprog}): et svar på Vis, der kommer efter et faneskift, vises ikke`, M.st.hv.size === 0 && !sek.querySelector('.fundtabel').innerHTML.includes(HEMMELIG));
+      rust.raekke_vaerdi = gammel;
+      s.tast('1', { metaKey: true, code: 'Digit1' });
+      await ventTil(w, () => w.Grimnir.aktiv === 'masker');
+    }
+    // Lås.
+    vis().click();
+    const foerLaas = await ventTil(w, () => M.st.hv.size === 1);
+    w.document.dispatchEvent(new w.CustomEvent('grimnir-laas', { detail: true }));
+    tjek(`V-OPBYG.4 N1 (${sprog}): låsen skjuler den viste hemmelighed igen`, foerLaas && M.st.hv.size === 0 && !sek.querySelector('.fundtabel').innerHTML.includes(HEMMELIG));
+    w.document.dispatchEvent(new w.CustomEvent('grimnir-laas', { detail: false }));
+    // En ny tekst erstatter den gamle.
+    vis().click();
+    await ventTil(w, () => M.st.hv.size === 1);
+    M.modtag(TEKST + 'ny linje\r\n');
+    tjek(`V-OPBYG.4 N1 (${sprog}): en ny tekst glemmer den viste hemmelighed`, M.st.hv.size === 0 && M.st.vist.size === 0);
+    // Låst i Rust: Vis svarer laast, og intet vises.
+    await ventTil(w, () => raekkeMed(d, 45));
+    rust.raekke_vaerdi = () => { throw { art: 'laast' }; };
+    vis().click();
+    await vent(0); await vent(0);
+    tjek(`V-OPBYG.4 N1 (${sprog}): svarer Rust laast, vises intet`, M.st.hv.size === 0 && raekkeMed(d, 45).querySelector('.prikker'));
+  }
+  // En åben fil: Vis spørger med fil = true; rækkerne fra Rust har ingen hemmelighed.
+  const rust = falskFilRust({ antal: 3 });
+  const s = side({ hash: '#masker', rust });
+  const { d, w } = s;
+  await ventTil(w, () => !laaseskaerm(d));
+  knapI(d, 'masker', 'aabn-fil').click();
+  await ventTil(w, () => raekkeMed(d, 10));
+  const M = w.GrimnirMaskering.M;
+  tjek('V-OPBYG.4 N1: en fil: rækkerne fra Rust har ingen hemmelighed', !JSON.stringify(M.st.analyse.raekker).includes(HEMMELIG) && raekkeMed(d, 10).querySelector('.prikker'));
+  raekkeMed(d, 10).querySelector('[data-felt="vis"]').click();
+  await ventTil(w, () => raekkeMed(d, 10).textContent.includes(HEMMELIG));
+  const k = s.kald.filter(x => x[0] === 'raekke_vaerdi');
+  tjek('V-OPBYG.4 N1: en fil: Vis henter værdien med raekke_vaerdi (fil = true)', k.length === 1 && k[0][1].fil === true && k[0][1].id === 10);
+  const mj = ui('assets/maskering.js');
+  tjek('V-OPBYG.4 N1: webvisningen viser en hemmelighed kun fra raekke_vaerdi (st.hv), aldrig fra rækkens vaerdier', /invoke\('raekke_vaerdi'/.test(mj) && /r\.hemmelig \? st\.hv\.get\(r\.id\) \|\| \[\] : r\.vaerdier/.test(mj));
+}
+
+// ══════════════════════════ V-OPBYG.4 N2: Hemmelighed som type i Maskér markering ══════════════════════════
+for (const sprog of ['da', 'en']) {
+  const s = await manuelSide({ lager: { 'grimnir-sprog': sprog } });
+  const { d, w, GM, rust } = s;
+  const sek = d.querySelector('section[data-visning="masker"]');
+  const tabel = () => sek.querySelector('.fundtabel');
+  const hRaekke = () => [...sek.querySelectorAll('.fundtabel tr.tilfoejet')].find(tr => tr.querySelector('[data-felt="type"][data-type="hemmelighed"]'));
+  const en = sprog === 'da' ? 'en hemmelighed' : 'a secret';
+  // Genvejsmenuen: Maskér som hemmelighed.
+  markerOrd(w, d, 'pc-17');
+  const pre = preM(d);
+  pre.dispatchEvent(new w.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+  const punkt = [...GM.M.menu.querySelectorAll('[role="menuitem"]')].find(p => p.textContent === (sprog === 'da' ? 'Maskér som hemmelighed' : 'Mask as secret'));
+  tjek(`V-OPBYG.4 N2 (${sprog}): genvejsmenuen har Maskér som hemmelighed`, Boolean(punkt));
+  punkt.click();
+  await ventTil(w, () => hRaekke());
+  const sidst = rust.log.analyser[rust.log.analyser.length - 1];
+  tjek(`V-OPBYG.4 N2 (${sprog}): værdien sendes med typen hemmelighed`, JSON.stringify(sidst.tilfoejede) === '[{"vaerdi":"pc-17","art":"hemmelighed"}]', JSON.stringify(sidst.tilfoejede));
+  const tr = hRaekke();
+  tjek(`V-OPBYG.4 N2 (${sprog}): rækken viser prikker med Vis, og tabellen har ikke værdien (heller ikke i et attribut)`, tr.querySelector('.prikker') && tr.querySelector('[data-felt="vis"]') && !tabel().outerHTML.includes('pc-17'));
+  tjek(`V-OPBYG.4 N2 (${sprog}): typen står som tekst (Hemmelighed), og Fjern nævner ikke værdien`, tr.querySelector('[data-felt="type"]').textContent === (sprog === 'da' ? 'Hemmelighed' : 'Secret') && !tr.querySelector('select') && tr.querySelector('[data-felt="fjern"]').getAttribute('aria-label') === (sprog === 'da' ? 'Fjern den tilføjede hemmelighed fra fundene' : 'Remove the added secret from the findings'));
+  tjek(`V-OPBYG.4 N2 (${sprog}): meldingen siger "${en}", ikke værdien`, beskedM(d).textContent.includes(en) && !beskedM(d).outerHTML.includes('pc-17'), beskedM(d).textContent);
+  tjek(`V-OPBYG.4 N2 (${sprog}): erstatningen er kernens kode for hemmeligheder`, tr.querySelector('[data-felt="kode"]').value.startsWith('GRIMNIR_SECRET_'));
+  tr.querySelector('[data-felt="vis"]').click();
+  await ventTil(w, () => hRaekke() && hRaekke().textContent.includes('pc-17'));
+  tjek(`V-OPBYG.4 N2 (${sprog}): Vis henter den tilføjede hemmelighed fra Rust`, hRaekke().textContent.includes('pc-17') && s.kald.some(k => k[0] === 'raekke_vaerdi'));
+  hRaekke().querySelector('[data-felt="vis"]').click();
+  await ventTil(w, () => !tabel().outerHTML.includes('pc-17'));
+  // Fortryd nævner ikke værdien.
+  s.tast('z', { metaKey: true, code: 'KeyZ' });
+  knapI(d, 'masker', 'fortryd').click();
+  await ventTil(w, () => !hRaekke());
+  tjek(`V-OPBYG.4 N2 (${sprog}): Fortryd siger "${en}", ikke værdien`, beskedM(d).textContent.includes(en) && !beskedM(d).outerHTML.includes('pc-17'), beskedM(d).textContent);
+  // Valglisten for en tilføjet værdi har ikke Hemmelighed (den ville være for bred til Type-kolonnen på dansk).
+  markerOrd(w, d, 'db1');
+  knapI(d, 'masker', 'masker-dette').click();
+  await ventTil(w, () => tilfRaekke(d, 'db1'));
+  const sel = tilfRaekke(d, 'db1').querySelector('select[data-felt="type"]');
+  tjek(`V-OPBYG.4 N2 (${sprog}): valglisten har ikke Hemmelighed (den vælges i genvejsmenuen)`, sel && ![...sel.options].some(o => o.value === 'hemmelighed'));
+  // En værdi, der allerede er fundet som hemmelighed: afvist med rækken valgt, uden at værdien nævnes.
+  GM.M.modtag(MTEKST + 'pwd=Fjeld-Ravn-77\n');
+  await ventTil(w, () => !GM.M.st.travl && GM.M.st.analyse);
+  const i = (MTEKST + 'pwd=Fjeld-Ravn-77\n').indexOf('Fjeld-Ravn-77');
+  marker(w, d, i, i + 13);
+  knapI(d, 'masker', 'masker-dette').click();
+  await ventTil(w, () => /allerede fundet som en hemmelighed|already found as a secret/.test(beskedM(d).textContent));
+  await ventTil(w, () => GM.M.st.tilfoejede.length === 0 && !GM.M.st.travl);
+  tjek(`V-OPBYG.4 N2 (${sprog}): en værdi, der allerede er en hemmelighed, afvises med en melding uden værdien, og den tilføjes ikke`, !beskedM(d).outerHTML.includes('Fjeld-Ravn-77') && GM.M.st.tilfoejede.length === 0 && !tabel().outerHTML.includes('Fjeld-Ravn-77'), beskedM(d).textContent);
+  tjek(`V-OPBYG.4 N2 (${sprog}): hemmelighedens række er valgt`, sek.querySelector(`.fundtabel tr[data-id="${i}"]`) && sek.querySelector(`.fundtabel tr[data-id="${i}"]`).getAttribute('aria-selected') === 'true');
 }
 
 console.log(`\n${ok + fejl} tjek: ${ok} ok, ${fejl} fejl`);

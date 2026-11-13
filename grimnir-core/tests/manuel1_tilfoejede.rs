@@ -73,6 +73,8 @@ fn kun_navnearter_kan_tilfoejes() {
         Art::Database,
         Art::Ord,
         Art::Serienummer,
+        // V-OPBYG.4 N2: en hemmelighed kan tilføjes (kernens kode for hemmeligheder).
+        Art::Hemmelighed,
     ];
     let nej = [
         Art::Ipv4Egen,
@@ -80,7 +82,6 @@ fn kun_navnearter_kan_tilfoejes() {
         Art::Ipv6Egen,
         Art::Ipv6Fremmed,
         Art::Mac,
-        Art::Hemmelighed,
         Art::Sid,
         Art::Guid,
         Art::Cpr,

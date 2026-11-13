@@ -6,7 +6,8 @@
 //! `indstillinger_gem` og `sag_valg`; filerne (V-FIL.1): `fil_aabn`, `fil_aabn_sluppet`, `fil_luk`, `fil_analyser`,
 //! `fil_raekker`, `fil_gem_og_masker`, `fil_demasker`, `fil_kopi`, `fil_gem` og `ordbog_start_forfra`; låsen (V-LAAS.2,
 //! V-LAAS.3): `laas_status`, `laas_op` og `aktivitet`; udklipsholderen (V-LAAS.4): `udklip_kopieret`; kvitteringen
-//! (V-KVIT.1): `kvittering`; noterne (V-OPBYG.2): `noter_hent`, `note_tilfoej`, `note_ret` og `note_slet`.
+//! (V-KVIT.1): `kvittering`; noterne (V-OPBYG.2): `noter_hent`, `note_tilfoej`, `note_ret` og `note_slet`; en
+//! hemmeligheds værdi ved Vis (V-OPBYG.4): `raekke_vaerdi`.
 //!
 //! **Låsen (V-LAAS.2).** Grimnir starter altid låst ([`Tilstand::ved_start`]; V-LAAS.3 N1, ADR D20). UI'et kalder
 //! `laas_op` én gang ved start; døren ([`laas::platformens`]: Touch ID med adgangskoden som reserve på macOS) svarer i
@@ -67,7 +68,7 @@ use indstillinger::Indstillinger;
 use laas::Udloeser;
 use maskering::{
     AnalyseMed, Demaskering, FilAnalyse, FilDemaskering, FilInfo, FilMaskering, IndholdValg, LaasStatus, LaasSvar, Maskering, NoterUd,
-    OrdbogUd, Proeve, RaekkeSide, Rettelse, SagIndhold, SagListePost, SagStatus, SideValg, StartForfra, Tilfoejet, Tilstand, UiFejl,
+    OrdbogUd, Proeve, RaekkeSide, RaekkeVaerdi, Rettelse, SagIndhold, SagListePost, SagStatus, SideValg, StartForfra, Tilfoejet, Tilstand, UiFejl,
     Visning,
 };
 use std::path::PathBuf;
@@ -124,6 +125,13 @@ fn gem_og_masker(
 fn demasker(tilstand: State<'_, Tilstand>, tekst: String) -> Result<Demaskering, UiFejl> {
     let _travl = tilstand.travl();
     maskering::demasker(&tilstand, &tekst)
+}
+
+/// V-OPBYG.4 N1: én hemmeligheds værdi, når brugeren vælger Vis (`fil`: den åbne fil i Maskér, ellers seneste analyse
+/// af den indsatte tekst). Låst: `laast`; porten tjekkes igen før svaret.
+#[tauri::command(async)]
+fn raekke_vaerdi(tilstand: State<'_, Tilstand>, fil: bool, id: usize) -> Result<RaekkeVaerdi, UiFejl> {
+    maskering::raekke_vaerdi(&tilstand, fil, id)
 }
 
 /// V-MANUEL.2 N1: én side af en sags poster (kode, type og rigtig værdi). `id`: en sag på disk, der kun læses; udeladt:
@@ -665,7 +673,8 @@ pub fn run() {
         note_tilfoej,
         note_ret,
         note_slet,
-        udklip_kopieret
+        udklip_kopieret,
+        raekke_vaerdi
     ]);
     tauri::Builder::default()
         // V-LAAS.3: hver kommando fra webvisningen er aktivitet (stilstand). Før kommandoen kører.

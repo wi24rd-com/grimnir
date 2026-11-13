@@ -421,7 +421,11 @@
     // fil: den åbne fil (FilInfo fra Rust) eller null; så er tekst Rusts uddrag, og analyse.side er rækkerne fra Rust.
     // V-MANUEL.1: tilfoejede er brugerens egne værdier ({ vaerdi, art }) fra "Maskér dette"; resultatBrugt: resultatet er
     // kopieret eller gemt (Ryd spørger ellers); meld: den værdi, der lige er tilføjet (meldes, når analysen svarer).
-    const st = { tekst: null, bytes: 0, linjer: null, fil: null, analyse: null, fravalgt: new Set(), rort: new Map(), rettelser: new Map(), fejl: new Map(), resultat: null, foerEfter: false, visRester: false, spoergRester: false, filter: 'alle', soeg: '', vist: new Set(), side: SIDE, nr: 0, sideNr: 0, travl: false, venter: null, tilfoejede: [], resultatBrugt: false, meld: null, visNy: null, afviste: new Set(), valgtRaekke: null };
+    const st = { tekst: null, bytes: 0, linjer: null, fil: null, analyse: null, fravalgt: new Set(), rort: new Map(), rettelser: new Map(), fejl: new Map(), resultat: null, foerEfter: false, visRester: false, spoergRester: false, filter: 'alle', soeg: '', vist: new Set(), hv: new Map(), side: SIDE, nr: 0, sideNr: 0, travl: false, venter: null, tilfoejede: [], resultatBrugt: false, meld: null, visNy: null, afviste: new Set(), valgtRaekke: null };
+    /* V-OPBYG.4 N1: en hemmeligheds værdi står ikke i rækkerne fra Rust. Vis henter den med raekke_vaerdi (én række) og
+       lægger den i st.hv (rækkens id → stavemåderne); Skjul, et faneskift, en ny tekst eller fil og låsen fjerner den
+       igen (fra st.hv og fra DOM'en, da tabellen tegnes uden den). Søgningen finder ikke en skjult hemmelighed på
+       værdien (søgefeltets forklaring siger det); en vist søges der i, som før. */
     /* V-MANUEL.1 N2: Fortryd og Gentag. Hvert trin er et øjebliksbillede af brugerens valg FØR ændringen (fravalg, rørte
        rækker, rettelser og tilføjede værdier) og hvad der blev gjort ved hvilken værdi (til meldingen). Fortryd lægger
        valgene tilbage og analyserer igen; analysen er den samme for samme valg, så tabellen bliver som før. Kun valg i
@@ -475,7 +479,10 @@
     };
     const mpMasker = menupunkt('kMaskerDette', (G.mac ? '⇧⌘' : 'Ctrl+Shift+') + 'M', () => { lukMenu(true); maskerDette(); });
     const mpKopier = menupunkt('kKopierMarkering', G.mod + 'C', () => { lukMenu(true); try { document.execCommand('copy'); } catch (e) { /* intet kopieret */ } });
-    menu.append(mpMasker, mpKopier);
+    // V-OPBYG.4 N2: Maskér som hemmelighed: værdien tilføjes med typen Hemmelighed med det samme, så den aldrig står i
+    // tabellen (den vises skjult som en genkendt hemmelighed).
+    const mpHemmelig = menupunkt('kMaskerSomHemmelighed', '', () => { lukMenu(true); maskerDette('hemmelighed'); });
+    menu.append(mpMasker, mpHemmelig, mpKopier);
     tekstPanel.p.appendChild(menu);
     const udenfor = e => { if (!menu.contains(e.target)) lukMenu(false); };
     /* Markeringen, da menuen blev åbnet: fokus flyttes til menuen, og nogle webvisninger (jsdom i testene) rydder så
@@ -502,7 +509,7 @@
     }
     menu.addEventListener('mousedown', e => e.preventDefault());
     menu.addEventListener('keydown', e => {
-      const p = [mpMasker, mpKopier], i = p.indexOf(document.activeElement);
+      const p = [mpMasker, mpHemmelig, mpKopier], i = p.indexOf(document.activeElement);
       const ny = { ArrowDown: i + 1, ArrowUp: i - 1 + p.length, Home: 0, End: p.length - 1 }[e.key];
       if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); lukMenu(true); }
       else if (e.key === 'Tab') lukMenu(false);
@@ -570,7 +577,7 @@
       // V-MANUEL.2 N3: et afvist forslag til et mønster kommer ikke igen for samme tekst; en ny tekst begynder forfra.
       st.afviste = new Set();
       st.analyse = null; st.fravalgt = new Set(); st.rort = new Map(); st.rettelser = new Map(); st.fejl = new Map(); st.resultat = null;
-      st.foerEfter = false; st.visRester = false; st.spoergRester = false; st.vist = new Set(); st.side = SIDE; st.nr++; st.travl = false; st.kopieret = false;
+      st.foerEfter = false; st.visRester = false; st.spoergRester = false; st.vist = new Set(); st.hv = new Map(); st.side = SIDE; st.nr++; st.travl = false; st.kopieret = false;
       st.valgtRaekke = null;
       if (st.venter) { clearTimeout(st.venter); st.venter = null; }
     }
@@ -702,18 +709,25 @@
     function tilfoejedeSvar(a) {
       const svar = a.tilfoejede || [];
       let ud = null;
+      // V-OPBYG.4 N2: en hemmelighed nævnes ved "en hemmelighed", ikke ved værdien; afvist med `hemmelighed` (værdien er
+      // allerede fundet som en hemmelighed) vælges dens række, og meldingen nævner ikke værdien.
+      const navn = (m, x) => (m && m.s) || (x && x.afvist === 'hemmelighed') ? S.t('navnHemmelig') : m ? m.v : null;
       if (st.meld) {
         const x = svar.find((y, i) => a.sendt[i] && a.sendt[i].vaerdi === st.meld.v);
-        if (x && x.afvist) ud = ['bAfvist_' + x.afvist, st.meld.v];
-        else if (x) ud = [x.antal ? 'bTilfoejet' : 'bTilfoejetNul', st.meld.v, x.antal];
+        if (x && x.afvist) ud = ['bAfvist_' + x.afvist, navn(st.meld, x)];
+        else if (x) ud = [x.antal ? 'bTilfoejet' : 'bTilfoejetNul', navn(st.meld, x), x.antal];
         st.meld = null;
       }
-      const afvist = new Set(svar.filter(x => x.afvist && a.sendt[x.nr]).map(x => a.sendt[x.nr].vaerdi));
+      const afviste = svar.filter(x => x.afvist && a.sendt[x.nr]);
+      const afvist = new Set(afviste.map(x => a.sendt[x.nr].vaerdi));
       if (afvist.size) {
         st.tilfoejede = st.tilfoejede.filter(x => !afvist.has(x.vaerdi));
         const sidst = hist.bag[hist.bag.length - 1];
-        if (sidst && sidst.art === 'tilfoej' && afvist.has(sidst.navn.v)) hist.bag.pop();
-        ud = ud || ['bAfvist_' + svar.find(x => x.afvist).afvist, [...afvist][0]];
+        if (sidst && sidst.art === 'tilfoej' && afvist.has(sidst.vaerdi)) hist.bag.pop();
+        const x0 = afviste[0];
+        ud = ud || ['bAfvist_' + x0.afvist, x0.afvist === 'hemmelighed' ? S.t('navnHemmelig') : a.sendt[x0.nr].vaerdi];
+        const h = afviste.find(x => x.afvist === 'hemmelighed' && x.raekke != null);
+        if (h) st.visNy = h.raekke;
         ud.igen = true;
       }
       return ud;
@@ -1107,30 +1121,52 @@
       else if (st.filter === 'hemmelig') r = r.filter(x => x.hemmelig);
       else if (st.filter === 'seneste') r = r.filter(x => x.kendt);
       const q = st.soeg.trim().toLowerCase();
-      if (q) r = r.filter(x => x.koder.some(k => k.toLowerCase().includes(q)) || ((!x.hemmelig || st.vist.has(x.id)) && x.vaerdier.some(v => v.toLowerCase().includes(q))));
+      if (q) r = r.filter(x => x.koder.some(k => k.toLowerCase().includes(q)) || vaerdierAf(x).some(v => v.toLowerCase().includes(q)));
       return r;
+    }
+    /* V-OPBYG.4 N1: rækkens værdier, som webvisningen har dem: en hemmelighed kun, når den er vist (hentet fra Rust). */
+    function vaerdierAf(r) { return r.hemmelig ? st.hv.get(r.id) || [] : r.vaerdier; }
+    /* Vis: værdien hentes fra Rust (raekke_vaerdi). Svaret bruges kun, hvis teksten og analysen er de samme, og Maskér
+       stadig er fremme. */
+    function visHemmelighed(r) {
+      const nr = st.nr;
+      return invoke('raekke_vaerdi', { fil: Boolean(st.fil), id: r.id }).then(v => {
+        if (nr !== st.nr || G.aktiv !== 'masker' || !v || !Array.isArray(v.vaerdier)) return false;
+        st.hv.set(r.id, v.vaerdier);
+        st.vist.add(r.id);
+        return true;
+      }).catch(e => { fejl(e); tegnBannere(); return false; });
+    }
+    /* Skjul alle viste hemmeligheder (faneskift, lås): værdierne fjernes fra st.hv og fra tabellen. */
+    function glemViste() {
+      if (!st.hv.size && !st.vist.size) return;
+      st.hv = new Map();
+      st.vist = new Set();
+      if (st.analyse) { if (st.fil && st.soeg.trim()) hentSide(); else tegnTabel(); }
     }
 
     function vaerdiCelle(r, tf) {
       const c = el('span', 'vaerdi');
-      const skjult = r.hemmelig && !st.vist.has(r.id);
+      // V-OPBYG.4 N1: en tilføjet hemmelighed uden steder har ingen række i Rust; den står som prikker uden Vis.
+      const skjult = (r.hemmelig && !st.hv.has(r.id)) || (r.nul && tf && tf.art === 'hemmelighed');
       if (skjult) {
         const p = el('span', 'prikker', 'skjultVaerdi');
         c.appendChild(p);
       } else {
         const v = c.appendChild(el('span', 'mono'));
-        v.textContent = r.vaerdier.join(', ');
+        v.textContent = vaerdierAf(r).join(', ');
         v.title = v.textContent; // forkortes med … i en smal kolonne (V-RET.1 R1)
       }
-      if (r.hemmelig) {
+      if (r.hemmelig && !r.nul) {
         const b = el('button', 'mini', skjult ? 'vis' : 'skjul');
         b.type = 'button';
         b.setAttribute('data-felt', 'vis');
         b.setAttribute('data-t-aria', skjult ? 'ariaVis' : 'ariaSkjul');
         b.setAttribute('data-v', String(r.linje));
-        b.addEventListener('click', () => {
+        b.addEventListener('click', async () => {
           const n = fokusNoegle();
-          if (st.vist.has(r.id)) st.vist.delete(r.id); else st.vist.add(r.id);
+          if (st.hv.has(r.id)) { st.hv.delete(r.id); st.vist.delete(r.id); }
+          else if (!(await visHemmelighed(r))) return;
           // En fil med søgning: om værdien kan søges, afhænger af Vis; Rust søger igen.
           if (st.fil && st.soeg.trim()) { hentSide().then(() => genskabFokus(tabelvaert, n)); return; }
           tegnTabel();
@@ -1213,8 +1249,8 @@
           b.append(K.ikon('luk', 'ik'), el('span', 'skjult-tekst', 'kFjern'));
           b.setAttribute('data-t-title', 'kFjernTitel');
           b.setAttribute('data-felt', 'fjern');
-          b.setAttribute('data-t-aria', 'ariaFjern');
-          b.setAttribute('data-v', tf.vaerdi);
+          b.setAttribute('data-t-aria', erHemmelig(tf.art) ? 'ariaFjernHemmelig' : 'ariaFjern');
+          if (!erHemmelig(tf.art)) b.setAttribute('data-v', tf.vaerdi);
           b.addEventListener('click', () => fjernTilfoejet(tf.vaerdi));
           c.appendChild(b);
           continue;
@@ -1265,6 +1301,15 @@
        store/små-regel som ordbogens ord). Den står som en ny række med en valgliste for typen, status "Tilføjet", Altid
        og Fjern. Den gemmes ikke i ordbogen (det gør Altid); Gem og maskér lægger den i sagen som ethvert andet fund. */
     const TYPER = ['ord', 'bruger', 'vaert', 'domaene', 'person'];
+    /* V-OPBYG.4 N2: typen Hemmelighed vælges i genvejsmenuen (Maskér som hemmelighed), ikke i valglisten: med ordet
+       "Hemmelighed" ville valglisten være 118 px på dansk (målt i WebKit) i Type-kolonnens 92 px ved 900 px. En tilføjet
+       hemmelighed viser typen som tekst; vil brugeren have en anden type, fjernes den og tilføjes igen (så står værdien
+       aldrig synligt i tabellen). */
+    /* V-OPBYG.4 N2: en tilføjet værdi med typen Hemmelighed nævnes aldrig ved værdien (meldinger, aria-label, Fortryd);
+       navnet er "en hemmelighed". Webvisningen har værdien (den er en del af den indsatte tekst og sendes med hver analyse),
+       men tabellen viser den først ved Vis (raekke_vaerdi, N1). */
+    const erHemmelig = art => art === 'hemmelighed';
+    const navnTf = (vaerdi, ...arter) => (arter.some(erHemmelig) ? { v: null, s: true } : { v: vaerdi });
     /* Den tilføjede værdi bag en række ({ vaerdi, art }) eller null. Rækkens tilfoejet er pladsen i listen, analysen fik
        (a.sendt); typen tages fra den aktuelle liste (den kan være skiftet, før analysen svarer). */
     function tilfoejetAf(r) {
@@ -1285,12 +1330,18 @@
         const i = st.tilfoejede.findIndex(y => y.vaerdi === a.sendt[x.nr].vaerdi);
         if (i < 0) continue;
         const tf = st.tilfoejede[i];
-        if (q && !tf.vaerdi.toLowerCase().includes(q)) continue;
-        ud.push({ id: 't' + i, nul: true, tf, art: tf.art, status: 'sikker', standard: true, valgt: false, laast: false, hemmelig: false, vaerdier: [tf.vaerdi], koder: [], antal: 0, linje: 0, rettet: false, kendt: false, tilfoejet: null });
+        if (q && (erHemmelig(tf.art) || !tf.vaerdi.toLowerCase().includes(q))) continue;
+        ud.push({ id: 't' + i, nul: true, tf, art: tf.art, status: 'sikker', standard: true, valgt: false, laast: false, hemmelig: erHemmelig(tf.art), vaerdier: erHemmelig(tf.art) ? [] : [tf.vaerdi], koder: [], antal: 0, linje: 0, rettet: false, kendt: false, tilfoejet: null });
       }
       return ud;
     }
     function typeValg(tf) {
+      if (erHemmelig(tf.art)) {
+        const t = el('span', 'typefast', 'art_hemmelighed');
+        t.setAttribute('data-felt', 'type');
+        t.setAttribute('data-type', 'hemmelighed');
+        return t;
+      }
       const v = K.valgliste({ etiket: null, ariaT: 'ariaTypeFor', valg: TYPER.map(id => ({ id, t: 'art_' + id })), valgt: tf.art });
       v.rod.classList.add('typevalg');
       v.select.setAttribute('data-v', tf.vaerdi);
@@ -1344,7 +1395,7 @@
        er præcis et eksisterende fund (uden hensyn til store/små), vælger den række (og slår den til) i stedet for at lave en
        ny; en af sagens koder (en låst række) afvises; alt andet tilføjes som Ord. Overlap, "maskér aldrig" og sagens koder,
        der ikke står i tabellen, afgør Rust (svaret i tilfoejedeSvar). */
-    function maskerDette() {
+    function maskerDette(art = 'ord') {
       const hvorfor = kanMarkere();
       lukMenu(false);
       if (hvorfor) return meld(hvorfor);
@@ -1354,17 +1405,17 @@
       if (/[\r\n]/.test(v)) return meld('bMarkeringLinjer');
       const lv = v.toLowerCase();
       const i = st.tilfoejede.findIndex(x => x.vaerdi.toLowerCase() === lv);
-      if (i >= 0) { visRaekke(st.tilfoejede[i].vaerdi); return meld('bAlleredeTilfoejet', v); }
-      const r = st.analyse ? st.analyse.raekker.find(x => x.vaerdier.some(y => y.toLowerCase() === lv)) : null;
+      if (i >= 0) { visRaekke(st.tilfoejede[i].vaerdi); return erHemmelig(st.tilfoejede[i].art) || erHemmelig(art) ? meld('bAlleredeTilfoejet', S.t('navnHemmelig')) : meld('bAlleredeTilfoejet', v); }
+      const r = st.analyse ? st.analyse.raekker.find(x => vaerdierAf(x).some(y => y.toLowerCase() === lv)) : null;
       if (r && !tilfoejetAf(r)) {
         if (r.laast) return meld('bErKode', v);
         if (!valgt(r)) { husk('valg', navnAf(r)); st.fravalgt.delete(r.id); st.rort.set(r.id, true); st.visNy = r.id; aendretNu(); }
         visRaekke(r.id);
         return meld('bFindesAllerede', r.hemmelig ? S.t('linjeNr', r.linje) : v);
       }
-      husk('tilfoej', { v });
-      st.tilfoejede.push({ vaerdi: v, art: 'ord' });
-      st.meld = { v };
+      husk('tilfoej', navnTf(v, art), v);
+      st.tilfoejede.push({ vaerdi: v, art });
+      st.meld = { v, s: erHemmelig(art) };
       st.visNy = v;
       aendretNu();
     }
@@ -1395,18 +1446,19 @@
     function skiftType(vaerdi, art) {
       const x = st.tilfoejede.find(y => y.vaerdi === vaerdi);
       if (!x || x.art === art || !TYPER.includes(art)) return;
-      husk('type', { v: vaerdi });
+      husk('type', navnTf(vaerdi, x.art, art), vaerdi);
       x.art = art;
       aendretNu();
     }
     function fjernTilfoejet(vaerdi) {
       const i = st.tilfoejede.findIndex(y => y.vaerdi === vaerdi);
       if (i < 0) return;
-      husk('fjern', { v: vaerdi });
+      const navn = navnTf(vaerdi, st.tilfoejede[i].art);
+      husk('fjern', navn, vaerdi);
       const id = raekkeIdFor(vaerdi);
       if (typeof id === 'number') { st.fravalgt.delete(id); st.rort.delete(id); st.rettelser.delete(id); st.fejl.delete(id); }
       st.tilfoejede.splice(i, 1);
-      meld('bFjernet', vaerdi);
+      meld('bFjernet', navn.s ? S.t('navnHemmelig') : vaerdi);
       aendretNu();
       tv.pre.focus();
     }
@@ -1420,18 +1472,18 @@
     /* ═════ V-MANUEL.1 N2: Fortryd og Gentag ═════ */
     const snap = () => ({ fravalgt: [...st.fravalgt], rort: [...st.rort], rettelser: [...st.rettelser], tilfoejede: st.tilfoejede.map(x => ({ ...x })) });
     /* Kaldes FØR et valg ændres: art er valg | kode | type | tilfoej | fjern, navn er { v, h } til meldingen. */
-    function husk(art, navn) {
-      hist.bag.push({ art, navn, s: snap() });
+    function husk(art, navn, vaerdi) {
+      hist.bag.push({ art, navn, s: snap(), vaerdi: vaerdi == null ? navn.v : vaerdi });
       if (hist.bag.length > HIST_MAKS) hist.bag.shift();
       hist.frem = [];
     }
     function skift(fra, til, hvad) {
       if (!st.tekst || !fra.length) return false;
       const e = fra.pop();
-      til.push({ art: e.art, navn: e.navn, s: snap() });
+      til.push({ art: e.art, navn: e.navn, s: snap(), vaerdi: e.vaerdi });
       st.fravalgt = new Set(e.s.fravalgt); st.rort = new Map(e.s.rort); st.rettelser = new Map(e.s.rettelser);
       st.tilfoejede = e.s.tilfoejede.map(x => ({ ...x })); st.fejl = new Map();
-      meld(hvad + '_' + e.art, e.navn.h ? S.t('linjeNr', e.navn.v) : e.navn.v);
+      meld(hvad + '_' + e.art, e.navn.s ? S.t('navnHemmelig') : e.navn.h ? S.t('linjeNr', e.navn.v) : e.navn.v);
       aendretNu();
       return true;
     }
@@ -1655,6 +1707,12 @@
     /* Båndets Maskér dette må ikke tage markeringen eller fokus fra teksten ved musetrykket (klikket virker som før). */
     G.dele.masker.bar.knap('masker-dette').addEventListener('mousedown', e => e.preventDefault());
     d.soeg.addEventListener('input', () => { st.soeg = d.soeg.value; st.side = SIDE; if (st.fil) hentSide(); else tegnTabel(); });
+    // V-OPBYG.4 N1: søgefeltet siger, at en skjult hemmelighed ikke søges på værdien.
+    d.soeg.setAttribute('data-t-title', 'soegMaskerHjaelp');
+    S.anvend(d.soeg.parentElement);
+    // V-OPBYG.4 N1: viste hemmeligheder skjules igen ved faneskift og lås.
+    document.addEventListener('grimnir-visning', e => { if (e.detail !== 'masker') glemViste(); });
+    document.addEventListener('grimnir-laas', e => { if (e.detail) glemViste(); });
     async function kopierResultat() {
       if (!st.resultat || st.travl) return;
       if (st.resultat.fil && !st.resultat.kopierbar) { fejlBanner = ['bKopiForStor', null]; tegnBannere(); return; }
@@ -1681,7 +1739,7 @@
       st, modtag, analyser, analyserIgen, gem, kopierResultat, kopierKvittering, tegn, tegnFod, tegnTabel, tegnInfo, tegnBannere,
       // V-OPBYG.2 N4 (sideeffekt-fund 1 i V-OPBYG.1): mens analysen kører, starter ⌘↵ ikke en analyse til.
       genvejEnter() { if (st.travl) return Promise.resolve(); return st.analyse ? gem() : analyser(); },
-      fodTal, marker, vaelgRaekke, get markeringer() { return markRanges; },
+      fodTal, marker, vaelgRaekke, get markeringer() { return markRanges; }, glemViste,
       filter(id) { st.filter = id === 'denne' ? 'alle' : id; st.visRester = false; st.side = SIDE; if (st.fil) hentSide(); else tegnTabel(); tegnBannere(); },
       aabnFil, gemFil, modtagFil,
       aabnSluppet() { return aabnFil('fil_aabn_sluppet'); },

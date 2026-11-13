@@ -25,6 +25,8 @@ use grimnir_lib::maskering::{
 use grimnir_lib::maskering::kvittering;
 // V-MANUEL.2: den nye kommando `sag_indhold` står også i listen (`alle_kommandoer`).
 use grimnir_lib::maskering::{sag_indhold, IndholdValg};
+// V-OPBYG.4 N1: `raekke_vaerdi` (en hemmeligheds værdi ved Vis) står også i listen.
+use grimnir_lib::maskering::raekke_vaerdi;
 // V-OPBYG.2: noterne (`noter_hent`, `note_tilfoej`, `note_ret`, `note_slet`) og Kopiér noterne (`udklip_kopieret` med
 // `noter`) står også i listen (`alle_kommandoer`).
 use grimnir_lib::maskering::{note_ret, note_slet, note_tilfoej, noter_hent, udklip_noter_kopieret};
@@ -159,6 +161,9 @@ fn alle_kommandoer(t: &Tilstand, fil: &std::path::Path, id: &str) -> Vec<(&'stat
         ("note_ret", j(note_ret(t, 1, "Ringet igen").map(|x| v(&x)))),
         ("note_slet", j(note_slet(t, 1).map(|x| v(&x)))),
         ("udklip_kopieret", j(udklip_noter_kopieret(t).map(|x| v(&x)))),
+        // V-OPBYG.4 N1: en hemmeligheds værdi ved Vis (indsat tekst og fil).
+        ("raekke_vaerdi", j(raekke_vaerdi(t, false, 0).map(|x| v(&x)))),
+        ("raekke_vaerdi", j(raekke_vaerdi(t, true, 0).map(|x| v(&x)))),
     ]
 }
 

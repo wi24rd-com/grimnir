@@ -384,6 +384,10 @@ tjek('V-PUDS.3 N3: den smalle regel for fundtabellen står ved max-width 943 px 
 /* Ordet i Fjern er målt (Fjern 29,5 → 30, Remove 46,6 → 47), men vises aldrig: med ord ville Always + Remove være 158 px i
    Ordbog-kolonnens 148 px på engelsk. Fjern er derfor altid kun krydset (24 px; reglen i app.css prøves nedenfor). */
 const MAALT_KNAPORD_MANUEL = { 'Fjern': 30, 'Remove': 47 };
+/* V-OPBYG.4 N2: typen Hemmelighed i valglisten. Målt i en WKWebView (macOS 26.6, engangsværktøj i scratchpad) med
+   ui/assets/*.css og de pakkede skrifter, valglisten med sin naturlige bredde: de fem gamle typer gav 87 (da) og 63 (en),
+   som før; med Hemmelighed/Secret 118 (da) og 63 (en: "Secret" er smallere end "Machine"). 118 px kan ikke være i Type-
+   kolonnens 92 px ved 900 px (tjekket nedenfor fejlede), så Hemmelighed står ikke i valglisten; den vælges i genvejsmenuen. */
 const MAALT_VALG = { da: { 'Domæne': 87, 'Maskine': 82, 'Ord': 51 }, en: { 'Machine': 63, 'Domain': 57, 'Word': 42 } };
 const TYPER_UI = ((laes('ui/assets/maskering.js').match(/const TYPER = \[([^\]]+)\]/) || [])[1] || '').split(',').map(x => x.trim().replace(/'/g, ''));
 tjek('V-OPBYG.1 N2: statusordene (Maskeres, Bevares, Tjek selv, Maskeret, Bevaret) og sikkerheden ved typen er målt i begge sprog, og Status bruger ikke længere sikkerheden som chip', ['da', 'en'].every(sp => ['stMaskeres', 'stBevares', 'stTjek', 'stMaskeret', 'stBevaret'].every(k => T[sp][k] in MAALT_CHIP) && ['stSikker', 'stOrdbog', 'stSandsynlig', 'stTjek', 'stVersion', 'stTilfoejet'].every(k => T[sp][k] in MAALT_SIKKER)) && !TABELLER.find(t => t.klasse === 'fundtabel').chips[6].includes('stSikker'));

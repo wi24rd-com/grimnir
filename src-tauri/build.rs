@@ -50,6 +50,8 @@ const KOMMANDOER: &[&str] = &[
     "note_slet",
     // V-OPBYG.3 N3: tredjepartslicenserne i Om Grimnir (teksten er pakket med programmet).
     "tredjepartslicenser",
+    // V-OPBYG.4 N1: en hemmeligheds værdi hentes først, når brugeren vælger Vis.
+    "raekke_vaerdi",
 ];
 
 fn main() {

@@ -38,12 +38,25 @@ impl Ordbog {
     }
 
     /// V-MANUEL.1: sand, hvis en værdi af arten kan tilføjes i [`Ordbog::tilfoejede`]: arterne med en navnekode
-    /// (`h0001`, `d01.example`, `NB01`, `user0001`, `Person 0001`, `db0001`, `ord0001`, `sn0001`). Adresser, hemmeligheder,
-    /// SID, GUID og CPR har deres egen form og kan ikke gives til en vilkårlig tekst.
+    /// (`h0001`, `d01.example`, `NB01`, `user0001`, `Person 0001`, `db0001`, `ord0001`, `sn0001`). Adresser, SID, GUID og
+    /// CPR har deres egen form og kan ikke gives til en vilkårlig tekst.
+    ///
+    /// V-OPBYG.4 N2: også hemmeligheder. Koden er kernens kode for hemmeligheder (`GRIMNIR_SECRET_0001`, klassen
+    /// [`Klasse::Hemmelighed`](crate::Klasse::Hemmelighed)), som en genkendt hemmelighed får; sagens format er det samme.
+    /// Som andre hemmeligheder er store og små bogstaver forskellige enheder (`foldes` er falsk for klassen), men værdien
+    /// findes uden hensyn til store/små bogstaver som de andre tilføjede.
     pub fn kan_tilfoejes(art: Art) -> bool {
         matches!(
             art,
-            Art::Vaert | Art::Domaene | Art::NetbiosDomaene | Art::Bruger | Art::Person | Art::Database | Art::Ord | Art::Serienummer
+            Art::Vaert
+                | Art::Domaene
+                | Art::NetbiosDomaene
+                | Art::Bruger
+                | Art::Person
+                | Art::Database
+                | Art::Ord
+                | Art::Serienummer
+                | Art::Hemmelighed
         )
     }
 

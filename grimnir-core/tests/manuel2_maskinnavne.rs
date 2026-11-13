@@ -547,14 +547,41 @@ enum Stykke {
     Stoej(String),
 }
 
+/// V-OPBYG.4 N6: nøgleordene, kernens genkendere af hemmeligheder bruger (`analyse.rs`, `hemmeligheder`), som kan stå i et
+/// stykke støj på højst seks tegn (også som del af et længere: `pass` i `passwd`, `token` i `x-token`). Hvert stykke
+/// efterfølges af et skilletegn uden bogstaver, så et nøgleord kan ikke dannes på tværs af to stykker.
+const NOEGLEORD: [&str; 8] = ["pwd", "pass", "secret", "token", "apikey", "key", "bearer", "set"];
+
+/// Sand, hvis støjen kan danne et nøgleord for en hemmelighed (uden hensyn til store/små bogstaver). Så kunne et tal i
+/// teksten blive en adgangskode (`pWD:443`), og når tallet står et andet sted, er resten rigtig (Jans svar 1, V-OPBYG.4):
+/// egenskabstesten skal ikke lave den slags tekst; den almindelige test `opbyg4_kerne::n6_en_hemmeligheds_vaerdi_alene_et_
+/// andet_sted_giver_en_rest` viser advarslen.
+fn har_noegleord(x: &str) -> bool {
+    let l = x.to_ascii_lowercase();
+    NOEGLEORD.iter().any(|n| l.contains(n))
+}
+
 fn stykke() -> impl Strategy<Value = Stykke> {
     prop_oneof![
         (0..NAVNE.len(), 0..MELLEM.len(), any::<bool>()).prop_map(|(n, m, s)| Stykke::Fqdn(n, m, s)),
         (0..NAVNE.len(), any::<bool>()).prop_map(|(n, s)| Stykke::Alene(n, s)),
         (0..NAVNE.len()).prop_map(Stykke::Kolonne),
         (0..NAVNE.len()).prop_map(Stykke::Unc),
-        "[ -~]{0,6}".prop_map(Stykke::Stoej),
+        "[ -~]{0,6}"
+            .prop_filter("støjen danner ikke et nøgleord for en hemmelighed", |x| !har_noegleord(x))
+            .prop_map(Stykke::Stoej),
     ]
+}
+
+/// V-OPBYG.4 N6: generatorens filter: de nøgleord, der gav en rigtig rest (`pWD:443`), og de andre slipper ikke igennem.
+#[test]
+fn n6_stoejen_danner_ikke_et_noegleord() {
+    for x in ["pWD", "x:pass", "Secret", "TOKEN", "apikey", "a key", "bearer", "set"] {
+        assert!(har_noegleord(x), "{x}");
+    }
+    for x in ["A0\\p", "P", ":443", "srv", "pw d"] {
+        assert!(!har_noegleord(x), "{x}");
+    }
 }
 
 proptest! {

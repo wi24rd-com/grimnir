@@ -86,7 +86,8 @@ fn typen_giver_kodens_form_og_en_rettelse_bliver_ved_et_typeskift() {
         assert!(r.koder[0].to_ascii_lowercase().starts_with(start), "{art}: {:?}", r.koder);
     }
     // Alle typer, valglisten kan give, er nogle, skallen kender.
-    assert_eq!(TILFOEJ_ARTER.len(), 8);
+    // V-OPBYG.4 N2: også hemmelighed (9).
+    assert_eq!(TILFOEJ_ARTER.len(), 9);
     let a = analyser_med(&ts, TEKST, None, &[], &[t("jdoe", "bruger")]).unwrap();
     let id = raekke(&a, 0).id;
     let ret = [Rettelse {
@@ -120,7 +121,8 @@ fn afviste_vaerdier_faar_en_grund_og_ingen_raekke() {
         t("   ", "ord"),
         t("login\nbruger", "ord"),
         t("bruger", "ipv4_egen"),
-        t("bruger", "hemmelighed"),
+        // V-OPBYG.4 N2: "hemmelighed" kan nu tilføjes; "cpr" kan stadig ikke.
+        t("bruger", "cpr"),
         t("bruger", "noget"),
         t(&kode, "ord"),
         t(&kode.to_ascii_uppercase(), "ord"),

@@ -464,7 +464,7 @@ fn den_rigtige_udklipsholder_kun_i_programmet() {
         }
     }
     // Kommandoen er registreret og tilladt; NSPasteboard bruges kun i udklip.rs.
-    assert!(lib.contains("        udklip_kopieret\n    ]);"));
+    assert!(lib.contains("        udklip_kopieret,\n"));
     assert!(kilde("build.rs").contains("\"udklip_kopieret\""));
     assert!(kilde("capabilities/default.json").contains("\"allow-udklip-kopieret\""));
     for e in std::fs::read_dir(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src")).unwrap() {

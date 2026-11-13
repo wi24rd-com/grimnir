@@ -1112,6 +1112,12 @@ fn sammensatte(c: &mut Ctx) {
         if sep.len() == 1 && b.len() > 1 && matches!(b[0], b'n' | b't' | b'r' | b'0' | b'x' | b'u') && b[1].is_ascii_uppercase() {
             return false;
         }
+        // V-OPBYG.4 N6: en escape-sekvens på ét bogstav (`\t`, `\n`, `\r`, `\0` med én skråstreg) efter et kort ord er
+        // ikke et domæne med en bruger (`echo A0\t x`). En bruger på flere tegn (`KONTOR\t.hansen`, `KONTOR\tina`), et
+        // andet bogstav (`KONTOR\p`), et stort T og to skråstreger (JSON-escaped `KONTOR\\t`) findes som før.
+        if sep.len() == 1 && b.len() == 1 && matches!(b[0], b'n' | b't' | b'r' | b'0') {
+            return false;
+        }
         let kendt = c.netbios.iter().any(|n| n.as_bytes() == navn);
         let store = nb
             .as_bytes()
