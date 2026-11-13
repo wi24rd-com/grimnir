@@ -110,6 +110,10 @@ Sådan skifter programmet sin egen kode ud med kittets, punkt for punkt (`ui/ass
 
 **Mindstemålet:** `:root { --vindue-min-bredde: 1100px; }` i `app.css` i stedet for de tre regler for `.vindue` (kittet regner lille og stor). **Én række:** med `mere: { t: '…' }` står båndet altid på én række (Mere samler det, der ikke er plads til; visningerne og landevælgeren bliver); uden den ombrydes båndet ved stor under ca. 1240 px som i dag. Målt i kittets demo (WebKit, 2.7.0): se HANDOFF-V-FANER.2.
 
+### Fra 2.8.0: visningerne kan være båndets faner (D27)
+
+**Jans beslutning D27 (2026-11-13, Grimnir):** visningerne kan stå som båndets egne faner over knapperne (`Kit.commandBar` med `visninger: { …, som: 'faner' }`; den åbne fane hænger sammen med båndet, og et punkt kan stå for sig til højre). Grimnir bruger det. **Huginn and Muninn beholder sine store knapper i båndet** (2.7.0, uden `som`), til Jan bestemmer andet: intet i jeres kode skal ændres, og båndet bygges byte for byte som med 2.7.0 (testet). Reglen i `KOMPONENTER.md` (AppShell) siger nu, hvornår et program vælger faner, og hvornår store knapper; jeres otte visninger, der er sider af samme ting, passer til de store knapper.
+
 **K41 og K42 er opfyldt med 2.7.0.** Tilbage står K39 og K40 (tabellen), som ikke er med i 2.7.0, og K27 (3.0.0).
 
 Det af `--board-*`, der ikke har en modpart i kittet, bliver programmets eget og peger på kittets flader og tekstfarver.

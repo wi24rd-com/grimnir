@@ -195,9 +195,55 @@
     return ok;
   }
 
-  /* Status → StatusChip (symbolet følger varianten). */
-  const STATUS = { sikker: ['ok', 'stSikker'], ordbog: ['info', 'stOrdbog'], sandsynlig: ['warn', 'stSandsynlig'], tjek: ['danger', 'stTjek'], version: ['none', 'stVersion'] };
+  /* V-OPBYG.1 N2 (D27): status er resultatet. Før maskeringen: Maskeres (afkrydset), Bevares (ikke afkrydset) og Tjek selv
+     (et usikkert fund, der ikke er afkrydset; advarslens udseende, !); efter maskeringen: Maskeret og Bevaret. Hvor sikkert
+     fundet er (kernens status: Sikker, Fra ordbog, Sandsynlig, Tjek selv, Version, og Tilføjet for brugerens egne), står
+     dæmpet ved typen (SIKKERHED) og i kvitteringen som før. */
+  const SIKKERHED = { sikker: 'stSikker', ordbog: 'stOrdbog', sandsynlig: 'stSandsynlig', tjek: 'stTjek', version: 'stVersion' };
   const chip = (variant, t, v) => { const c = K.chip(variant, { t }); if (v != null) c.querySelector('.ord').setAttribute('data-v', String(v)); return c; };
+  function statusChip(on, usikker, efter) {
+    if (efter) return on ? chip('ok', 'stMaskeret') : chip('none', 'stBevaret');
+    if (on) return chip('ok', 'stMaskeres');
+    return usikker ? chip('warn', 'stTjek') : chip('none', 'stBevares');
+  }
+
+  /* V-OPBYG.1 N3 (D27): tre trin øverst i Maskér og Demaskér (en ordnet liste over værktøjslinjen). Det aktuelle trin er
+     fremhævet (flade, fed skrift og aria-current="step"), et færdigt har flueben; hvert trin har en skjult tekst ("trin 2
+     af 3, aktuelt"). Trinene er vejledning, ikke knapper. saet(nu, gjort) sætter trinnet og de færdige. */
+  function trinVej(visning, noegler) {
+    const d = G.dele[visning];
+    const ol = el('ol', 'trinvej');
+    ol.setAttribute('data-t-aria', 'ariaTrin');
+    const li = noegler.map((t, i) => {
+      const l = el('li');
+      const nr = el('span', 'trin-nr');
+      nr.setAttribute('aria-hidden', 'true');
+      const sr = el('span', 'skjult-tekst', 'trinAf', i + 1, noegler.length);
+      l.append(nr, el('span', 'trin-navn', t), sr);
+      ol.appendChild(l);
+      return { l, nr, sr };
+    });
+    d.sek.insertBefore(ol, d.sek.firstChild);
+    return function saet(nu, gjort) {
+      li.forEach((x, i) => {
+        const n = i + 1, erNu = n === nu, erGjort = gjort(n);
+        x.l.classList.toggle('nu', erNu);
+        x.l.classList.toggle('gjort', erGjort);
+        if (erNu) x.l.setAttribute('aria-current', 'step'); else x.l.removeAttribute('aria-current');
+        x.nr.textContent = erGjort ? '✓' : String(n);
+        x.sr.setAttribute('data-t', erNu && erGjort ? 'trinAktueltGjort' : erNu ? 'trinAktuelt' : erGjort ? 'trinGjort' : 'trinAf');
+      });
+      S.anvend(ol);
+    };
+  }
+  /* Den kommando i båndet, der er næste skridt, er fremhævet (data-naeste: kant, flade og fed skrift i app.css, ikke kun
+     farve); id null: ingen. */
+  function naeste(visning, id) {
+    const bar = G.dele[visning].bar;
+    for (const b of bar.rod.querySelectorAll('.cb[data-naeste]')) b.removeAttribute('data-naeste');
+    const b = id ? bar.knap(id) : null;
+    if (b && b.getAttribute('aria-disabled') !== 'true') b.setAttribute('data-naeste', '');
+  }
 
   /* Fælles opbygning af en arbejdsflade: tom tilstand (eksisterer) + bannere + delt flade. Den tomme tilstand er kittets
      flade, der tager imod (app.js, G8: fokus, navn med ⌘V, Åbn fil); indsæt tages imod på hele siden nedenfor. */
@@ -304,6 +350,7 @@
     poster = n;
     D.opdater();
     M.tegnTom();
+    M.tegnBannere();
     document.dispatchEvent(new CustomEvent('grimnir-poster', { detail: n }));
   }
   /* V-MANUEL.2 N1: den åbne sag (navn og id fra sager.js) til den tomme flade. Kun navnet, som brugeren selv har skrevet. */
@@ -345,6 +392,7 @@
       ark.appendChild(delt);
     });
     const d = f.d;
+    const trin = trinVej('masker', ['trinIndsaet', 'trinGennemgaa', 'trinMaskerKopier']);
 
     /* V-MANUEL.1 N1: genvejsmenuen ved højreklik på en markering i teksten (og ved Skift+F10 eller menutasten): Maskér dette
        og Kopiér. Uden en markering (eller når Maskér dette ikke kan bruges) kommer webvisningens egen menu. Menuen står i
@@ -462,7 +510,7 @@
       // V-MANUEL.2 N3: et afvist forslag til et mønster kommer ikke igen for samme tekst; en ny tekst begynder forfra.
       st.afviste = new Set();
       st.analyse = null; st.fravalgt = new Set(); st.rort = new Map(); st.rettelser = new Map(); st.fejl = new Map(); st.resultat = null;
-      st.foerEfter = false; st.visRester = false; st.spoergRester = false; st.vist = new Set(); st.side = SIDE; st.nr++; st.travl = false;
+      st.foerEfter = false; st.visRester = false; st.spoergRester = false; st.vist = new Set(); st.side = SIDE; st.nr++; st.travl = false; st.kopieret = false;
       if (st.venter) { clearTimeout(st.venter); st.venter = null; }
     }
 
@@ -479,6 +527,8 @@
       st.linjer = antalLinjer(s);
       tegn();
       tv.pre.focus();
+      // V-OPBYG.1 N3 (D27): analysen sker, når teksten sættes ind ("Grimnir arbejder" vises efter et sekund, F4).
+      analyser();
     }
 
     /* ── filer (V-FIL.1) ── */
@@ -509,6 +559,8 @@
       st.bytes = info.bytes;
       tegn();
       tv.pre.focus();
+      // V-OPBYG.1 N3: også en åben fil analyseres med det samme (i Rust; uddraget står allerede i tekstfeltet).
+      analyser();
     }
     const sideValg = () => ({ filter: st.filter, soeg: st.soeg, vist: [...st.vist], antal: st.side });
     /* Svaret fra fil_analyser i samme form som analyser: rækkerne er den første side. */
@@ -682,7 +734,7 @@
           ? fraFilMaskering(await invoke('fil_gem_og_masker', { fravalgt: [...st.fravalgt], rettelser: rettelser() }))
           : await invoke('gem_og_masker', { tekst: st.tekst, fravalgt: [...st.fravalgt], rettelser: rettelser(), tilfoejede: tilfoejede() });
         if (nr !== st.nr) return;
-        st.resultat = m; st.foerEfter = true; st.visRester = false; st.spoergRester = false; st.aendretEfter = false; st.travl = false;
+        st.resultat = m; st.foerEfter = true; st.visRester = false; st.spoergRester = false; st.aendretEfter = false; st.travl = false; st.kopieret = false;
         // V-MANUEL.1 N2: sagen er gemt; det kan ikke fortrydes, så historikken tømmes (forklaringen på knappen siger det).
         hist.bag = []; hist.frem = []; st.resultatBrugt = false;
         st.fejl = new Map();
@@ -724,15 +776,14 @@
       tegnFilinfo(f, st.fil);
       tegnTom();
     }
-    /* V-MANUEL.2 N1: uden tekst siger den tomme flade, hvilken sag der er åben, og hvor mange værdier den har, og "Vis sagens
-       indhold" står som kittets anden handling ved siden af Åbn fil. Uden værdier i sagen er den som før. */
-    const visSag = d.tom.querySelector('.tomt-handlinger') ? d.tom.querySelector('.tomt-handlinger').lastElementChild : null;
+    /* V-MANUEL.2 N1, V-OPBYG.1 N4: uden tekst siger den tomme flade, hvilken sag der er åben (under sætningen, .tomt-sag):
+       den midlertidige med skitsens ordlyd, en navngiven med navnet og antallet af gemte erstatninger. Sagens indhold
+       åbnes fra venstre side (Gemte erstatninger). */
+    const tomSag = d.tom.querySelector('.tomt-sag');
     function tegnTom() {
       const sag = sagNu(), n = poster;
-      if (n > 0 && sag.navn) { d.tomP.setAttribute('data-t', 'tomMaskerSagP'); d.tomP.setAttribute('data-v', sag.navn); d.tomP.setAttribute('data-w', String(n)); }
-      else if (n > 0) { d.tomP.setAttribute('data-t', 'tomMaskerMidlP'); d.tomP.setAttribute('data-v', String(n)); d.tomP.removeAttribute('data-w'); }
-      else { d.tomP.setAttribute('data-t', 'tomMaskerP'); d.tomP.removeAttribute('data-v'); d.tomP.removeAttribute('data-w'); }
-      if (visSag) visSag.hidden = !(n > 0);
+      if (sag.navn) { tomSag.setAttribute('data-t', n > 0 ? 'tomMaskerSagP' : 'tomMaskerSagTomP'); tomSag.setAttribute('data-v', sag.navn); tomSag.setAttribute('data-w', String(n)); }
+      else { tomSag.setAttribute('data-t', n > 0 ? 'tomMaskerMidlP' : 'tomMaskerMidlTomP'); tomSag.setAttribute('data-v', String(n)); tomSag.removeAttribute('data-w'); }
       S.anvend(d.tom);
     }
     /* V-MANUEL.2 N3: forslaget til et navnemønster (det første, brugeren ikke har afvist for denne tekst) som et banner over
@@ -771,18 +822,50 @@
       b.appendChild(nej);
       S.anvend(b);
     }
+    /* V-OPBYG.1 N2 (D27): én besked øverst: efter analysen "8 værdier fundet · 6 maskeres · 2 bevares" og hvad brugeren gør
+       nu; efter maskeringen "6 værdier maskeret · 2 bevaret" med lækagetjekkets udfald i samme besked (og Gem som sag…, når
+       sagen er midlertidig); efter Kopiér, hvor teksten skal hen. Overskriften er fed; teksterne er nøgler, så de følger
+       sproget. Lækagetjekkets rester, overløb og fejl vises som før. */
+    function antalValgt() {
+      const a = st.analyse, side = st.fil && a ? a.side : null;
+      const alle = side ? side.antal.alle : a ? a.raekker.length : 0;
+      const m = side ? side.valgte : a ? a.raekker.filter(valgt).length : 0;
+      const tj = side ? side.antal.status_tjek : a ? a.raekker.filter(x => x.status === 'tjek' && !valgt(x)).length : 0;
+      return { alle, m, b: alle - m, tj };
+    }
+    function opsummering(variant, hoved, tekst, handling) {
+      const b = K.banner({ variant, handling });
+      b.classList.add('opsummering');
+      const ord = b.querySelector('.ord');
+      const h = el('b', 'ops-hoved');
+      hoved.forEach(([t, v], i) => { if (i) h.append(' · '); h.appendChild(el('span', null, t, v)); });
+      ord.append(h, ' ');
+      for (const [t, v] of tekst) ord.append(el('span', null, t, v), ' ');
+      f.bannere.appendChild(b);
+      S.anvend(b);
+      return b;
+    }
     function tegnBannere() {
       f.bannere.textContent = '';
       // En fejl, før der er en tekst (fx en fil, der ikke kan åbnes), står over den tomme tilstand.
       if (fejlBanner) { if (!st.tekst) f.tomBannere.textContent = ''; banner(st.tekst ? f.bannere : f.tomBannere, 'danger', fejlBanner[0], fejlBanner[1], fejlBanner[2]); fejlBanner = null; }
-      if (st.resultat) {
-        const n = st.resultat.rester.reduce((a, r) => a + r.antal, 0);
-        if (n === 0) banner(f.bannere, 'ok', 'bLaekIngen');
-        else banner(f.bannere, 'warn', 'bLaekRester', n, { t: st.visRester ? 'hVisFund' : 'hVisRester', ved: () => { st.visRester = !st.visRester; tegnBannere(); tegnTabel(); } });
+      const tal = antalValgt(), midl = !sagNu().navn, GS = window.GrimnirSager;
+      const gemSom = midl && GS ? { t: 'kGemSomSag', ved: () => GS.gemSomSag() } : null;
+      const rester = st.resultat ? st.resultat.rester.reduce((a, r) => a + r.antal, 0) : 0;
+      // Efter Kopiér: hvor teksten skal hen. Med rester bliver lækagetjekkets advarsel stående (som før).
+      if (st.resultat && st.kopieret && rester === 0) {
+        opsummering('ok', [['opsKopieretH', null]], [['opsKopieretP', null]], gemSom);
+      } else if (st.resultat) {
+        const n = rester;
+        const hoved = [['opsMaskeret', tal.m], ['opsBevaret', tal.b]];
+        if (n === 0) opsummering('ok', hoved, [['bLaekIngen', null], [midl ? 'opsKopierMidl' : 'opsKopier', null]], gemSom);
+        else opsummering('warn', hoved, [['bLaekRester', n]], { t: st.visRester ? 'hVisFund' : 'hVisRester', ved: () => { st.visRester = !st.visRester; tegnBannere(); tegnTabel(); } });
         if (n && st.spoergRester && st.fil) banner(f.bannere, 'warn', 'bGemRester', n, { t: 'kGemAlligevel', ved: () => gemFil(true) });
         if (st.resultat.advarsler.length) banner(f.bannere, 'warn', 'bOverloeb', st.resultat.advarsler.length);
       } else if (st.aendretEfter) {
         banner(f.bannere, 'info', 'bValgAendret');
+      } else if (st.analyse && !st.travl) {
+        opsummering(tal.tj ? 'warn' : 'info', [['opsFundet', tal.alle], ['opsMaskeres', tal.m], ['opsBevares', tal.b]], tal.tj ? [['opsTjek', tal.tj], ['opsGoerNu', null]] : [['opsGoerNu', null]]);
       }
       if (st.analyse && st.analyse.advarsler.length && !st.resultat) banner(f.bannere, 'warn', 'bOverloeb', st.analyse.advarsler.length);
       tegnMoenster();
@@ -814,7 +897,9 @@
       if (!st.analyse) return [];
       if (st.fil) return st.analyse.raekker; // Rust har filtreret og søgt (fil_raekker)
       let r = st.analyse.raekker;
-      if (st.filter === 'tjek') r = r.filter(x => x.status === 'tjek' || st.fejl.has(x.id));
+      if (st.filter === 'masker') r = r.filter(valgt);
+      else if (st.filter === 'bevar') r = r.filter(x => !valgt(x));
+      else if (st.filter === 'tjek') r = r.filter(x => x.status === 'tjek' || st.fejl.has(x.id));
       else if (st.filter === 'hemmelig') r = r.filter(x => x.hemmelig);
       else if (st.filter === 'seneste') r = r.filter(x => x.kendt);
       const q = st.soeg.trim().toLowerCase();
@@ -855,6 +940,8 @@
       return c;
     }
     function erstatningCelle(r, on) {
+      // V-OPBYG.1 N2: en værdi, der bevares, har ingen kode: der står "bevares som den er" (ikke en grå kode).
+      if (!on) return el('span', 'erstatning bevares', 'bevaresSomDen');
       const c = el('span', 'erstatning');
       const inp = document.createElement('input');
       inp.type = 'text';
@@ -1209,21 +1296,27 @@
           cb.setAttribute('data-felt', 'valg');
           if (r.laast) cb.setAttribute('data-t-title', 'hvorforRaekkeLaast');
           if (r.nul) cb.setAttribute('data-t-title', 'hvorforNulSteder');
+          // V-OPBYG.1 N2: status og erstatning følger afkrydsningen med det samme (analysen kommer 350 ms efter).
+          let status = statusChip(on, r.status === 'tjek' && !r.nul, Boolean(st.resultat)), erst;
           cb.addEventListener('change', () => {
             husk('valg', navnAf(r));
             if (cb.checked) st.fravalgt.delete(r.id); else st.fravalgt.add(r.id);
             st.rort.set(r.id, cb.checked);
             const tr = cb.closest('tr');
             tr.classList.toggle('fra', !cb.checked);
-            const k = tr.querySelector('[data-felt="kode"]');
-            if (k) k.disabled = !cb.checked;
+            const ny = statusChip(cb.checked, r.status === 'tjek', false), nyErst = erstatningCelle(r, cb.checked);
+            status.replaceWith(ny);
+            erst.replaceWith(nyErst);
+            status = ny; erst = nyErst;
+            S.anvend(tr);
             aendret();
+            tegnTrae();
           });
-          const st0 = STATUS[r.status] || STATUS.tjek;
-          // V-MANUEL.1: en tilføjet række har en valgliste med typen og status "Tilføjet" (ord og symbol, ikke kun farve).
-          const type = tf ? typeValg(tf) : el('span', null, 'art_' + r.art);
-          const status = tf ? chip('info', 'stTilfoejet') : chip(st0[0], st0[1]);
-          const erst = r.nul ? el('span', 'muted ingen-kode') : erstatningCelle(r, on);
+          // V-MANUEL.1: en tilføjet række har en valgliste med typen. V-OPBYG.1 N2: hvor sikkert fundet er (Sikker, Fra ordbog,
+          // Sandsynlig, Tjek selv, Version; Tilføjet for brugerens egne) står dæmpet efter typen (ord, ikke kun farve).
+          const type = el('span', 'typecelle');
+          type.append(tf ? typeValg(tf) : el('span', null, 'art_' + r.art), ' ', el('span', 'sikkerhed', tf ? 'stTilfoejet' : SIKKERHED[r.status] || 'stTjek'));
+          erst = r.nul ? el('span', 'muted ingen-kode') : erstatningCelle(r, on);
           if (r.nul) erst.textContent = '—';
           return { celler: [cb, type, vaerdiCelle(r, tf), erst, String(r.antal), status, ordbogCelle(r, tf)], data: r.id, fra: !on };
         }),
@@ -1264,16 +1357,24 @@
       tabelPanel.info.setAttribute('data-v', String(st.resultat.rester.length));
       S.anvend(tabelPanel.p);
     }
+    /* V-OPBYG.1 N2: filtrene Maskeres/Maskerede og Bevares/Bevarede (ordene skifter efter maskeringen) med tal; for en fil
+       tæller Rust (side.valgte). */
     function tegnTrae() {
       const r = st.analyse ? st.analyse.raekker : [];
       const ant = st.fil
-        ? (st.analyse ? st.analyse.side.antal : { alle: 0, tjek: 0, hemmelig: 0, seneste: 0 })
-        : { alle: r.length, tjek: r.filter(x => x.status === 'tjek' || st.fejl.has(x.id)).length, hemmelig: r.filter(x => x.hemmelig).length, seneste: r.filter(x => x.kendt).length };
-      for (const id of ['alle', 'tjek', 'hemmelig', 'seneste']) {
+        ? (st.analyse ? { ...st.analyse.side.antal, masker: st.analyse.side.valgte, bevar: st.analyse.side.antal.alle - st.analyse.side.valgte } : { alle: 0, masker: 0, bevar: 0, tjek: 0, hemmelig: 0, seneste: 0 })
+        : { alle: r.length, masker: r.filter(valgt).length, bevar: r.filter(x => !valgt(x)).length, tjek: r.filter(x => x.status === 'tjek' || st.fejl.has(x.id)).length, hemmelig: r.filter(x => x.hemmelig).length, seneste: r.filter(x => x.kendt).length };
+      for (const id of ['alle', 'masker', 'bevar', 'tjek', 'hemmelig', 'seneste']) {
         const n = ant[id];
         const a = d.nd.querySelector(`[data-punkt="${id}"] .ant`);
         if (a) a.textContent = String(n);
       }
+      const efter = Boolean(st.resultat);
+      for (const [id, foer, eft] of [['masker', 'tMaskeres', 'tMaskerede'], ['bevar', 'tBevares', 'tBevarede']]) {
+        const t = d.nd.querySelector(`[data-punkt="${id}"] [data-t]`);
+        if (t) t.setAttribute('data-t', efter ? eft : foer);
+      }
+      S.anvend(d.nd);
     }
     function tegnMaskerDette() { const h = kanMarkere(); kommando('masker', 'masker-dette', !h, h, GV.maskerDette()); }
     function tegnKommandoer() {
@@ -1294,6 +1395,14 @@
       // V-KVIT.1: Kopiér kvittering, når der er et maskeret resultat (indsat tekst eller fil).
       kommando(v, 'kvittering', Boolean(res) && !t, res ? 'hvorforVent' : 'hvorforMaskerFoerst');
       arbejder(f, t);
+      tegnTrin();
+    }
+    /* V-OPBYG.1 N3: trin 1 uden tekst (næste: Indsæt), trin 2 med en tekst (næste: Maskér, når analysen er der), trin 3
+       med et resultat (næste: Kopiér maskeret tekst; færdigt, når resultatet er kopieret eller gemt). */
+    function tegnTrin() {
+      const res = st.resultat, nu = !st.tekst ? 1 : res ? 3 : 2;
+      trin(nu, n => n < nu || (n === 3 && Boolean(res) && st.resultatBrugt));
+      naeste('masker', nu === 1 ? 'indsaet' : nu === 2 ? (st.analyse && !st.travl ? 'gem-masker' : null) : st.resultatBrugt ? null : 'kopier');
     }
     function tegnChip() {
       d.hoejre.textContent = '';
@@ -1340,7 +1449,7 @@
       if (!st.resultat || st.travl) return;
       if (st.resultat.fil && !st.resultat.kopierbar) { fejlBanner = ['bKopiForStor', null]; tegnBannere(); return; }
       const ok = st.resultat.fil ? await kopierFraRust('masker', e => { fejl(e); tegnBannere(); }) : await kopier(st.resultat.maskeret);
-      if (ok === true) st.resultatBrugt = true;
+      if (ok === true) { st.resultatBrugt = true; st.kopieret = true; tegnBannere(); tegnKommandoer(); }
       besked(f, ok ? 'bKopieret' : null);
       if (ok === false) banner(f.bannere, 'danger', 'bKopiFejl');
     }
@@ -1359,7 +1468,7 @@
     document.addEventListener('grimnir-ordbog', () => analyserIgen());
 
     return {
-      st, modtag, analyser, analyserIgen, gem, kopierResultat, kopierKvittering, tegn, tegnFod, tegnTabel, tegnInfo,
+      st, modtag, analyser, analyserIgen, gem, kopierResultat, kopierKvittering, tegn, tegnFod, tegnTabel, tegnInfo, tegnBannere,
       genvejEnter() { return st.analyse ? gem() : analyser(); },
       filter(id) { st.filter = id === 'denne' ? 'alle' : id; st.visRester = false; st.side = SIDE; if (st.fil) hentSide(); else tegnTabel(); tegnBannere(); },
       aabnFil, gemFil, modtagFil,
@@ -1397,10 +1506,11 @@
       ark.append(delt, tabelPanel.p);
     });
     const d = f.d;
-    // Den tomme tilstand peger på Sager, når den aktuelle sag er tom, og der findes gemte sager (V-SAG.1). V-KITBRUG.2 N3
-    // (G8): det er kittets anden handling ved siden af Åbn fil (app.js); den vises kun, når der skal en sag til.
-    const tilSager = d.tom.querySelector('.tomt-handlinger').lastElementChild;
-    tilSager.hidden = true;
+    const trin = trinVej('demasker', ['trinIndsaetSvar', 'trinDemasker', 'trinKopierResultat']);
+    // Den tomme tilstand peger på Sager, når den aktuelle sag er tom, og der findes gemte sager (V-SAG.1). V-OPBYG.1 N3: en
+    // knap under linjen om ⌘V (app.js, .tomt-ekstra); Indsæt svar og Åbn fil er kittets to handlinger.
+    const tilSager = d.tom.querySelector('.tomt-ekstra');
+    const tomSag = d.tom.querySelector('.tomt-sag');
 
     function modtag(s) {
       f.tomBannere.textContent = '';
@@ -1495,12 +1605,15 @@
       f.ark.hidden = !st.tekst;
       d.soeg.disabled = !st.resultat;
       tegnFilinfo(f, st.fil);
-      d.tomP.setAttribute('data-t', poster > 0 ? 'tomDemaskerP' : gemteSager > 0 ? 'tomDemaskerAabnSagP' : 'tomDemaskerTomSagP');
-      S.anvend(d.tomP);
-      // V-MANUEL.2 N1: har sagen koder, er den anden handling "Vis sagens indhold"; ellers "Åbn Sager", når der er gemte sager.
-      tilSager.hidden = !(poster > 0 || gemteSager > 0);
-      tilSager.querySelector('span').setAttribute('data-t', poster > 0 ? 'kVisSagensIndhold' : 'kGaaTilSager');
-      S.anvend(tilSager);
+      // V-OPBYG.1 N3 (skitsen): sætningen nævner sagen ("den midlertidige sag" eller "sagen «navn»"); uden koder i sagen
+      // siger den, hvad der mangler, som før. Under den: "Svaret bliver på denne maskine."
+      const sag = sagNu();
+      d.tomP.setAttribute('data-t', poster > 0 ? (sag.navn ? 'tomDemaskerSagP' : 'tomDemaskerP') : gemteSager > 0 ? 'tomDemaskerAabnSagP' : 'tomDemaskerTomSagP');
+      if (sag.navn) d.tomP.setAttribute('data-v', sag.navn); else d.tomP.removeAttribute('data-v');
+      tomSag.setAttribute('data-t', 'tomDemaskerLokalt');
+      S.anvend(d.tom);
+      // "Åbn Sager", når sagen ingen koder har, og der er gemte sager.
+      tilSager.hidden = !(poster === 0 && gemteSager > 0);
     }
     function tegnBannere() {
       f.bannere.textContent = '';
@@ -1585,6 +1698,11 @@
       kommando('demasker', 'ryd', Boolean(st.tekst) && !t, st.tekst ? 'hvorforVent' : 'hvorforIndsaetSvar');
       kommando('demasker', 'naeste-advarsel', Boolean(res) && !t && advarsler().length > 0, !res ? 'hvorforDemaskerFoerst' : t ? 'hvorforVent' : 'hvorforIngenAdvarsler', GV.naeste());
       arbejder(f, t);
+      // V-OPBYG.1 N3: trin 1 uden svar (næste: Indsæt), trin 2 med et svar (næste: Demaskér), trin 3 med et resultat (næste:
+      // Kopiér resultat; færdigt, når det er kopieret eller gemt).
+      const nu = !st.tekst ? 1 : res ? 3 : 2;
+      trin(nu, n => n < nu || (n === 3 && Boolean(res) && st.resultatBrugt));
+      naeste('demasker', nu === 1 ? 'indsaet' : nu === 2 ? (poster > 0 && !t ? 'demasker' : null) : st.resultatBrugt ? null : 'kopier-resultat');
     }
     function tegnChip() {
       d.hoejre.textContent = '';
@@ -1687,7 +1805,7 @@
       if (st.resultat.fil && !st.resultat.kopierbar) { fejlBanner = ['bKopiForStor', null]; tegnBannere(); return; }
       const fil = Boolean(st.resultat.fil);
       const ok = fil ? await kopierFraRust('demasker', e => { fejl(e); tegnBannere(); }) : await kopier(st.resultat.tekst);
-      if (ok === true) st.resultatBrugt = true;
+      if (ok === true) { st.resultatBrugt = true; tegnKommandoer(); }
       besked(f, ok ? 'bKopieret' : null);
       if (ok === false) banner(f.bannere, 'danger', 'bKopiFejl');
       /* V-LAAS.4: Rust får at vide, at udklipsholderen nu har det demaskerede resultat, så låsen kan rydde den (kun hvis

@@ -2942,7 +2942,8 @@ pub fn fil_luk(t: &Tilstand, v: Visning) -> Result<(), UiFejl> {
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(default)]
 pub struct SideValg {
-    /// `alle` | `tjek` | `hemmelig` | `seneste`
+    /// `alle` | `masker` | `bevar` | `tjek` | `hemmelig` | `seneste` (V-OPBYG.1: `masker` er rækkerne, der maskeres, og
+    /// `bevar` dem, der bevares; filtrene Maskeres og Bevares i venstre side)
     pub filter: String,
     /// Søgeteksten (koder; værdier undtagen skjulte hemmeligheder).
     pub soeg: String,
@@ -2997,6 +2998,8 @@ fn side_af(raekker: &[Raekke], fejl: &[RaekkeFejl], valg: &SideValg) -> RaekkeSi
     let vist: HashSet<usize> = valg.vist.iter().copied().collect();
     let passer = |r: &&Raekke| {
         let i_filter = match valg.filter.as_str() {
+            "masker" => r.valgt,
+            "bevar" => !r.valgt,
             "tjek" => tjek(r),
             "hemmelig" => r.hemmelig,
             "seneste" => r.kendt,
@@ -3351,6 +3354,37 @@ pub fn ordbog_start_forfra(t: &Tilstand, dato: &str) -> Result<StartForfra, UiFe
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// V-OPBYG.1: filtrene Maskeres (`masker`) og Bevares (`bevar`) for en fil følger rækkens valg; søgningen og tallene
+    /// er som før.
+    #[test]
+    fn side_af_filtrerer_maskeres_og_bevares() {
+        let r = |id: usize, valgt: bool, status: &'static str| Raekke {
+            id,
+            art: "vaert",
+            status,
+            standard: valgt,
+            valgt,
+            laast: false,
+            hemmelig: false,
+            vaerdier: vec![format!("vaert{id}.example")],
+            koder: vec![format!("h{id:04}")],
+            antal: 1,
+            linje: 1,
+            rettet: false,
+            kendt: false,
+            tilfoejet: None,
+        };
+        let raekker = vec![r(1, true, "sikker"), r(2, false, "tjek"), r(3, true, "ordbog"), r(4, false, "version")];
+        let valg = |filter: &str, soeg: &str| SideValg { filter: filter.into(), soeg: soeg.into(), vist: vec![], antal: 500 };
+        let ider = |s: &RaekkeSide| s.raekker.iter().map(|x| x.id).collect::<Vec<_>>();
+        assert_eq!(ider(&side_af(&raekker, &[], &valg("masker", ""))), vec![1, 3]);
+        assert_eq!(ider(&side_af(&raekker, &[], &valg("bevar", ""))), vec![2, 4]);
+        assert_eq!(ider(&side_af(&raekker, &[], &valg("bevar", "h0004"))), vec![4]);
+        assert_eq!(ider(&side_af(&raekker, &[], &valg("alle", ""))), vec![1, 2, 3, 4]);
+        let s = side_af(&raekker, &[], &valg("masker", ""));
+        assert_eq!((s.i_alt, s.valgte, s.antal.alle, s.antal.tjek), (2, 2, 4, 1));
+    }
 
     #[test]
     fn linjenumre() {

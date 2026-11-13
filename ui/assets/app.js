@@ -45,25 +45,27 @@
   const VISNINGER = [
     {
       id: 'masker', t: 'vMasker', ikon: 'maske', soeg: 'soegMasker', chip: 'chipIntetIndsat', fod: 'fodMasker',
-      tom: ['tomMaskerH', 'tomMaskerP'], modtager: 'ariaIndsaetTekst', anden: { t: 'kVisSagensIndhold', ikon: 'mappe' },
+      tom: ['tomMaskerH', 'tomMaskerP'], modtager: 'ariaIndsaetTekst', indsaetT: 'kIndsaetTekst',
       grupper: [
         // V-MANUEL.1: Ryd i Tekst; Fortryd og Gentag i en egen gruppe (Rediger, som menuen); Maskér dette først i Maskering.
         { t: 'gTekst', knapper: [aktiv('masker', 'indsaet', 'kIndsaet', 'indsaet', false, true), aktiv('masker', 'aabn-fil', 'kAabnFil', 'fil', false, true), aktiv('masker', 'ryd', 'kRyd', 'ryd')] },
-        { t: 'gRediger', knapper: [aktiv('masker', 'fortryd', 'kFortryd', 'fortryd'), aktiv('masker', 'gentag', 'kGentag', 'gentag')] },
-        { t: 'gMaskering', knapper: [aktiv('masker', 'masker-dette', 'kMaskerDette', 'markering'), aktiv('masker', 'analyser', 'kAnalyser', 'soeg'), aktiv('masker', 'gem-masker', 'kGemMasker', 'skjold', true), aktiv('masker', 'foer-efter', 'kFoerEfter', 'foerefter')] },
+        // V-OPBYG.1 (D27): Maskér dette hedder Maskér markering og står under Rediger; Analysér igen og Maskér i Maskering.
+        { t: 'gRediger', knapper: [aktiv('masker', 'fortryd', 'kFortryd', 'fortryd'), aktiv('masker', 'gentag', 'kGentag', 'gentag'), aktiv('masker', 'masker-dette', 'kMaskerDette', 'markering')] },
+        { t: 'gMaskering', knapper: [aktiv('masker', 'analyser', 'kAnalyser', 'soeg'), aktiv('masker', 'gem-masker', 'kGemMasker', 'skjold', true), aktiv('masker', 'foer-efter', 'kFoerEfter', 'foerefter')] },
         // V-FIL.1: Gem maskeret fil ved siden af Kopiér. V-KVIT.1: Kopiér kvittering (aktiv, når der er et maskeret resultat).
         { t: 'gResultat', knapper: [aktiv('masker', 'kopier', 'kKopier', 'kopier'), aktiv('masker', 'gem-fil', 'kGemMaskeretFil', 'gem'), aktiv('masker', 'kvittering', 'kKvittering', 'kvittering')] },
       ],
+      /* V-OPBYG.1 (D27): filtrene efter skitsen: Alle fund, Maskeres (Maskerede efter maskeringen), Bevares (Bevarede),
+         Kræver gennemgang og Hemmeligheder. V-MANUEL.2's "Kendt fra sagen" (fundene, sagen kendte i forvejen) står som et
+         filter under dem (maskering.js skifter ordene før og efter). */
       trae: [
-        { id: 'denne', t: 'tDenneTekst', boern: [{ id: 'alle', t: 'tAlleFund', antal: 0 }, { id: 'tjek', t: 'tSkalTjekkes', antal: 0 }, { id: 'hemmelig', t: 'tHemmeligheder', antal: 0 }] },
-        // V-MANUEL.2: "Kendt fra sagen" (før "Seneste i sagen"): fundene i denne tekst, sagen kendte i forvejen.
-        { id: 'seneste', t: 'tKendtFraSagen', antal: 0 },
+        { id: 'denne', t: 'tDenneTekst', boern: [{ id: 'alle', t: 'tAlleFund', antal: 0 }, { id: 'masker', t: 'tMaskeres', antal: 0 }, { id: 'bevar', t: 'tBevares', antal: 0 }, { id: 'tjek', t: 'tSkalTjekkes', antal: 0 }, { id: 'hemmelig', t: 'tHemmeligheder', antal: 0 }, { id: 'seneste', t: 'tKendtFraSagen', antal: 0 }] },
       ],
       valgt: 'alle',
     },
     {
       id: 'demasker', t: 'vDemasker', ikon: 'oeje', soeg: 'soegDemasker', chip: 'chipIntetSvar', fod: 'fodDemasker',
-      tom: ['tomDemaskerH', 'tomDemaskerP'], modtager: 'ariaIndsaetSvar', anden: { t: 'kGaaTilSager', ikon: 'mappe' },
+      tom: ['tomDemaskerH', 'tomDemaskerP'], modtager: 'ariaIndsaetSvar', indsaetT: 'kIndsaetSvar', anden: { t: 'kGaaTilSager', ikon: 'mappe' },
       grupper: [
         // V-MANUEL.1: Ryd i Svar; Næste advarsel er bygget (N4) og styres af maskering.js som de andre.
         { t: 'gSvar', knapper: [aktiv('demasker', 'indsaet', 'kIndsaet', 'indsaet', false, true), aktiv('demasker', 'aabn-fil', 'kAabnFil', 'fil', false, true), aktiv('demasker', 'ryd', 'kRyd', 'ryd')] },
@@ -80,7 +82,8 @@
       tom: ['tomSagerH', 'tomSagerP'],
       grupper: [
         // V-MANUEL.2 N1: Vis indhold (sagens koder og rigtige værdier; Enter og dobbeltklik på rækken gør det samme).
-        { t: 'gSag', knapper: [aktiv('sager', 'ny-sag', 'kNySag', 'plus', true, true), aktiv('sager', 'vis-indhold', 'kVisIndhold', 'oeje'), aktiv('sager', 'aabn-i-masker', 'kAabnIMasker', 'aabn'), aktiv('sager', 'omdoeb', 'kOmdoeb', 'rediger'), aktiv('sager', 'udloeb', 'kUdloeb', 'kalender')] },
+        // V-OPBYG.1 N4: Gem som sag… (den midlertidige sag får et navn; samme dialog som Ny sag) står først.
+        { t: 'gSag', knapper: [aktiv('sager', 'gem-som-sag', 'kGemSomSag', 'gem'), aktiv('sager', 'ny-sag', 'kNySag', 'plus', true, true), aktiv('sager', 'vis-indhold', 'kVisIndhold', 'oeje'), aktiv('sager', 'aabn-i-masker', 'kAabnIMasker', 'aabn'), aktiv('sager', 'omdoeb', 'kOmdoeb', 'rediger'), aktiv('sager', 'udloeb', 'kUdloeb', 'kalender')] },
         { t: 'gDeling', knapper: [senere('eksporter', 'kEksporter', 'eksport'), senere('importer', 'kImporter', 'import')] },
         { t: 'gOprydning', knapper: [aktiv('sager', 'slet-sag', 'kSletSag', 'slet')] },
       ],
@@ -113,7 +116,9 @@
   const dele = {};
   /* V-FANER.2 (D26): de fire visninger forrest i hvert bånd: ikon og navn, genvejen ⌘1–⌘4 (Ctrl på Windows) i knappens
      værktøjstip og i aria-keyshortcuts. Gruppenavnet er den nøgle, fanerækken havde som navn (Visninger/Views). */
-  const VIS_PUNKTER = VISNINGER.map((v, i) => ({ id: v.id, t: v.t, ikon: v.ikon, genvej: mod + (i + 1), genvejAria: (mac ? 'Meta+' : 'Control+') + (i + 1) }));
+  /* V-OPBYG.1 (D27): visningerne er båndets egne faner (kittets visninger med som: 'faner', 2.8.0) uden ikon, som i skitsen;
+     Ordbog står for sig til højre. */
+  const VIS_PUNKTER = VISNINGER.map((v, i) => ({ id: v.id, t: v.t, genvej: mod + (i + 1), genvejAria: (mac ? 'Meta+' : 'Control+') + (i + 1), hoejre: v.id === 'ordbog' }));
 
   for (const v of VISNINGER) {
     // CommandBar
@@ -123,7 +128,7 @@
     // V-KITBRUG.2 N3 (G11): "hvorfor" en kommando er slået fra, står i kittets værktøjstip (mus og tastatur), ikke i title.
     // V-FANER.2 (D26): ét bånd uden fanerække: visningerne forrest, så visningens kommandoer, og Mere sidst (G21: det, der
     // ikke er plads til på én række, står i Mere-menuen).
-    const bar = K.commandBar(cmd, { ariaT: 'cmdAria', hvorforTip: true, udenFaner: true, visninger: { t: 'visninger', punkter: VIS_PUNKTER }, mere: { t: 'kMere' }, faner: [{ id: 'start', grupper: v.grupper }] });
+    const bar = K.commandBar(cmd, { ariaT: 'cmdAria', hvorforTip: true, udenFaner: true, visninger: { t: 'visninger', som: 'faner', punkter: VIS_PUNKTER }, mere: { t: 'kMere' }, faner: [{ id: 'start', grupper: v.grupper }] });
 
     // NavPane: overskrift og træ
     const nd = document.createElement('div');
@@ -177,14 +182,34 @@
     // V-MANUEL.2 N1: også Maskér har en anden handling, "Vis sagens indhold", når sagen har værdier, og i Demaskér bliver
     // den anden handling "Vis sagens indhold", når sagen har koder (maskering.js viser, skjuler og navngiver den; handlingen
     // er visningens 'tom-anden'). Uden en registreret handling går den til Sager som før.
+    /* V-OPBYG.1 N3 (skitsen): i Maskér og Demaskér er Indsæt (tekst/svar) den fremhævede handling og Åbn fil den anden;
+       under overskriften og sætningen står sagen (maskering.js udfylder .tomt-sag), og under knapperne linjen om ⌘V og at
+       slippe en fil. "Vis sagens indhold" står nu i venstre side (Gemte erstatninger). Demaskér har desuden "Åbn Sager",
+       når sagen ingen koder har, og der er gemte sager (maskering.js viser den). */
     const tomO = { ikon: v.ikon, t: v.tom[0], p: { t: v.tom[1] } };
     if (v.modtager) {
       tomO.modtager = { ariaT: v.modtager, ariaV: mod + 'V' };
-      tomO.handling = { t: 'kAabnFil', ikon: 'fil', ved: e => { const h = HANDLINGER[v.id + ':aabn-fil']; if (h) h(e); } };
-      if (v.anden) tomO.anden = { ...v.anden, ved: e => { const h = HANDLINGER[v.id + ':tom-anden']; if (h) h(e); else gaaTil('sager'); } };
+      tomO.handling = { t: v.indsaetT, ikon: 'indsaet', variant: 'primary', ved: e => { const h = HANDLINGER[v.id + ':indsaet']; if (h) h(e); } };
+      tomO.anden = { t: 'kAabnFil', ikon: 'fil', ved: e => { const h = HANDLINGER[v.id + ':aabn-fil']; if (h) h(e); } };
     }
     const tom = K.tomTilstand(tomO);
     const p = tom.querySelector('.tomt-p');
+    if (v.modtager) {
+      const sagP = document.createElement('p');
+      sagP.className = 'tomt-sag';
+      p.after(sagP);
+      const linje = document.createElement('p');
+      linje.className = 'tomt-linje';
+      linje.setAttribute('data-t', 'tomLinje');
+      linje.setAttribute('data-v', mod + 'V');
+      tom.appendChild(linje);
+      if (v.anden) {
+        const ekstra = K.knap({ t: v.anden.t, ikon: v.anden.ikon, variant: 'ghost', ved: e => { const h = HANDLINGER[v.id + ':tom-anden']; if (h) h(e); else gaaTil('sager'); } });
+        ekstra.classList.add('tomt-ekstra');
+        ekstra.hidden = true;
+        tom.appendChild(ekstra);
+      }
+    }
     flade.appendChild(tom);
     sek.append(vl, flade);
     arb.appendChild(sek);
@@ -238,6 +263,21 @@
     if (location.hash !== '#' + id) location.hash = id;
     else vis(id);
   }
+
+  /* V-OPBYG.1 N7: Vejledning beder styresystemet åbne Grimnirs vejledning i browseren (Rust: vejledning_aabn med kun
+     sproget; to faste adresser). Virker også, mens Grimnir er låst. Går det ikke, står det i et banner under titellinjen. */
+  const invoke = (c, a) => tauri.core.invoke(c, a);
+  $('vejledning').addEventListener('click', () => {
+    if (!tauri || !tauri.core || !tauri.core.invoke) return;
+    invoke('vejledning_aabn', { sprog: S.lang }).catch(() => {
+      const rod = $('laas-banner');
+      for (const b of rod.querySelectorAll('.ban[data-vejledning]')) b.remove();
+      const b = K.banner({ variant: 'warn', t: 'bVejledningFejl', handling: { t: 'luk', ariaT: 'ariaLukBesked', ved: () => b.remove() } });
+      b.dataset.vejledning = '';
+      rod.appendChild(b);
+      S.anvend(b);
+    });
+  });
 
   // Titellinjen: indstillinger
   const indstKnap = $('aabn-indst');

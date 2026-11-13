@@ -2,6 +2,20 @@
 
 Første tal stiger, når et program skal ændre noget for at følge med. Andet tal ved nyt. Tredje tal ved rettelser.
 
+## 2.8.0 — 2026-11-13
+
+Visningerne som båndets egne faner (Jans beslutning D27 efter en godkendt skitse fra Grimnir). Intet er omdøbt eller fjernet, og der er ingen nye funktioner: det nye er en indstilling på `Kit.commandBar` (`visninger.som` og `hoejre` på et punkt) og CSS. Uden `som` er alt som i 2.7.0 (testet med Grimnirs og Huginn and Muninns bånd fra 2.7.0; alle 459 regelsæt i 2.7.0's `kit.css` står uændrede). De store knapper i båndet (2.7.0) og fanerækken fra 2.6.0 virker som før.
+
+### Nyt
+
+- **Visningerne som båndets faner:** `Kit.commandBar(rod, { udenFaner: true, visninger: { t, som: 'faner', punkter: [...] } })` stiller visningerne som faner i en række over båndets knapper (`.med-faner`, `.cmd-faner`, `.vfane`). Den åbne fane har båndets flade, en kant og en streg i accent øverst og hænger sammen med båndet; de andre ligger på rækkens flade. Et punkt med `hoejre: true` står for sig i højre side. Fanerne er de samme links (`.vk`, `aria-current="page"`) med de samme greb (`markér`, `saetPunkt`), tal, slået fra med hvorfor, genvej og fuldt navn i tippet, afkortning og mellemrum; `baand.visninger.raekke` er rækken. Mere virker under fanerne; fanerne flyttes aldrig.
+- **Reglen i `KOMPONENTER.md` (AppShell)** er rettet fra "ét bånd; ingen række over det" til D27: fanerne er en del af båndet, og hvornår et program vælger faner, og hvornår store knapper.
+- Demoen viser fanerne med et tal, en fane slået fra, en fane for sig til højre og et smalt bånd med Mere, i begge temaer og sprog. Kontrasttesten måler de nye par.
+
+### Ændret
+
+- `Tokens.xaml` og `tokens.css` har versionen 2.8.0 i første linje. Ingen token er tilføjet eller ændret.
+
 ## 2.7.0 — 2026-11-12
 
 Ét bånd, og visningerne som store knapper i det (Jans beslutning D26 efter fanerækken fra 2.6.0; ønskerne K41 og K42 fra Huginn and Muninn og G21 fra Grimnir). Intet er omdøbt eller fjernet, og der er ingen nye funktioner: det nye er indstillinger på `Kit.commandBar` og CSS. Uden de nye indstillinger er alt som i 2.6.0 (testet med Huginn and Muninns og Grimnirs bånd fra 2.6.0 og fanerækken; alle 428 regelsæt i 2.6.0's `kit.css` står uændrede). Fanerækken fra 2.6.0 (`faner: true`) virker som før.

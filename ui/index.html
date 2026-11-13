@@ -27,19 +27,31 @@
     <span class="hoejre">
       <span id="sag" data-t="ingenSag">Ingen sag åben</span>
       <button type="button" class="rk" id="sag-knap" hidden data-t="midlertidigSag" data-v="0" data-t-aria="ariaSagKnap"></button>
+      <!-- V-OPBYG.1 N7: Vejledning (beder styresystemet åbne vejledningen i browseren; virker også låst) og Lås (låser nu). -->
+      <button type="button" class="rk rk-ord" id="vejledning" data-t="kVejledning" data-t-aria="ariaVejledning" data-t-title="titelVejledning"></button>
+      <button type="button" class="rk rk-ord" id="laas-nu" data-t="kLaasNu" data-t-aria="ariaLaasNu"></button>
       <button type="button" class="rk" id="aabn-indst" data-t-aria="aabnIndst" data-t-title="aabnIndstTitel"></button>
     </span>
   </header>
 
   <div class="laas-banner" id="laas-banner"></div>
 
-  <!-- V-FANER.2 (D26): ét bånd og ingen række over det: de fire visninger er store knapper forrest i båndet, resten er den
-       valgte visnings kommandoer (app.js). -->
+  <!-- V-OPBYG.1 (D27, kit 2.8.0): ét bånd; visningerne er båndets egne faner øverst i det (Ordbog for sig til højre), og
+       resten er den valgte visnings kommandoer (app.js). -->
   <div id="baand"></div>
 
   <div class="midte">
     <nav class="nav" data-t-aria="navAria">
       <div class="navdele" id="navdele"></div>
+      <!-- V-OPBYG.1 N4 (D27): den aktuelle sag i alle visninger (sager.js udfylder). Skjult, mens der er låst (app.css). -->
+      <section class="sagdel" id="sagdel" aria-labelledby="sagdel-h">
+        <h3 id="sagdel-h" data-t="aktuelSag">Aktuel sag</h3>
+        <p class="sagdel-navn" id="sagdel-navn" data-t="midlertidigSagNavn"></p>
+        <p class="sagdel-status" id="sagdel-status" data-t="sagIkkeGemt"></p>
+        <button type="button" class="btn mini sagdel-gem" id="sagdel-gem" data-t="kGemSomSag"></button>
+        <button type="button" class="tr sagdel-erst" id="sagdel-erst" data-t-aria="ariaGemteErstatninger" data-v="0" aria-disabled="true" data-t-title="hvorforIngenErstatninger"><span data-t="gemteErstatninger"></span><span class="ant" id="sagdel-antal">0</span></button>
+      </section>
+      <p class="sagdel-lokalt" data-t="altLokalt">Alt behandles på denne maskine</p>
     </nav>
     <main class="arb" id="arb">
       <section class="laasskaerm" id="laas" aria-labelledby="laas-h" aria-describedby="laas-p">

@@ -153,9 +153,16 @@ Titellinjen er uændret: fanerne står i deres egen række og kan aldrig skubbe 
 
 **Fra 2.7.0 er reglen ét bånd (se næste afsnit).** Fanerækken virker som før og fjernes ikke, men den må kun bruges, hvor båndet ikke kan bære visningerne: et program uden bånd (fx en dialog eller et lille værktøjsvindue med flere visninger) eller et program, hvis visninger ikke er de ting, brugeren arbejder med, men sider af én ting. Et program med et bånd stiller visningerne i båndet.
 
-### Ét bånd; ingen række over det (regel fra 2.7.0, D26)
+### Ét bånd; fanerne er en del af det (regel fra 2.7.0, D26; rettet i 2.8.0, D27)
 
-Under titellinjen står kun båndet, med de store knapper. Der står ingen række med små knapper eller faner over det (Jans beslutning D26: Grimnir og Huginn and Muninn prøvede fanerækken fra 2.6.0, og den var én række for meget). Visningerne er store knapper forrest i båndet (`Kit.commandBar` med `visninger`, se CommandBar), og resten af båndet er den valgte visnings kommandoer. Båndet står altid på én række:
+Under titellinjen står kun båndet. Der står ingen række over båndet, der er noget for sig (Jans beslutning D26: Grimnir og Huginn and Muninn prøvede fanerækken fra 2.6.0 over et bånd, og den var én række for meget). **Fra 2.8.0 (Jans beslutning D27, Grimnir, efter en godkendt skitse):** visningerne kan være båndets egne faner (`Kit.commandBar` med `visninger: { …, som: 'faner' }`, se CommandBar). Fanerne er en del af båndet: den åbne fane har båndets flade og hænger sammen med det uden kant imellem, og båndet under viser kun dens kommandoer. Det er ikke fanerækken fra 2.6.0 (`Kit.visningsskift` med `faner: true`), som står for sig over et bånd med sin egen kant.
+
+**Faner eller store knapper?** Et program vælger én af to:
+
+- **Faner** (`som: 'faner'`), når visningerne er de få store dele af arbejdet, som brugeren skifter imellem, og hver del har sine egne kommandoer (Grimnir: Maskér, Demaskér, Sager; Ordbog for sig til højre). Fanen siger, hvor man er, og båndet under, hvad man kan gøre dér. Højst otte, helst under seks.
+- **Store knapper forrest i båndet** (2.7.0, uden `som`), når visningerne er mange sider af samme ting, og båndet ellers har få kommandoer (Huginn and Muninn: otte visninger, Hent nu, hjælp og Indstillinger). Knapperne står i samme række som kommandoerne og bruger ikke en række mere.
+
+Begge dele er links med `aria-current="page"`, samme data og samme greb (`markér`, `saetPunkt`). Båndet står altid på én række:
 
 1. **Mindstemålet** sættes, så de visninger, man bruger mest, står helt ved normal tekst. Programmet sætter det selv (nedenfor) og samme tal i Tauri (`minWidth`).
 2. **Mere** (`mere`, se CommandBar) samler de kommandoer, der ikke er plads til (smalt vindue, stor tekst, et langt sprog), bagfra i en menu. Visningerne, elementer (vælgere, segmentknapper) og den primære kommando bliver i båndet; den primære flyttes kun, når alle andre er flyttet.
@@ -180,7 +187,7 @@ Samme tal står i `tauri.conf.json` (`minWidth`, `minHeight`), så vinduet ikke 
 
 ## CommandBar
 
-**Klasser:** `.cmd`, `.tabs`, `.tab`, `.on`, `.grupper`, `.grp`, `.kn`, `.cap`, `.cb`, `.pri`, `.enkel`, `.baand-el`, `.vk`, `.vk-navn`, `.vk-tip-navn`, `.ant`, `.ant-kraever`, `.med-mere`, `.mere-vist`, `.mere-plads`, `.mere-menu`, `.mere-punkt`, `.mere-tekst`, `.mere-navn`, `.mere-hvorfor`
+**Klasser:** `.cmd`, `.tabs`, `.tab`, `.on`, `.grupper`, `.grp`, `.kn`, `.cap`, `.cb`, `.pri`, `.enkel`, `.baand-el`, `.vk`, `.vk-navn`, `.vk-tip-navn`, `.ant`, `.ant-kraever`, `.med-mere`, `.mere-vist`, `.mere-plads`, `.mere-menu`, `.mere-punkt`, `.mere-tekst`, `.mere-navn`, `.mere-hvorfor`, `.med-faner`, `.cmd-faner`, `.vfane`
 
 **Funktioner:** `Kit.commandBar`
 
@@ -264,6 +271,31 @@ baand.saetAktuel('indst', true);                       // K41: en kommando, der 
 - **Et langt navn** afkortes med … (højst 152 px); det fulde navn står så øverst i tippet. Kittet ser efter, lige før tippet vises, så det passer, også når programmet selv skifter navnet (fx et land).
 - **Tastatur:** som båndets knapper: hver visning er et Tab-stop (også den åbne), i rækkefølge før kommandoerne; Enter og mellemrum åbner (mellemrum gør kittet til et klik, da et link ikke selv gør det); piletaster bruges ikke.
 - `visninger` og `mere` kræver `udenFaner` (et bånd med faner giver en fejl). Uden dem er båndet præcis som i 2.6.0.
+
+### Visningerne som båndets egne faner (fra 2.8.0, D27)
+
+Med `som: 'faner'` står visningerne ikke som en gruppe i båndet, men som faner i en række over båndets knapper (`.cmd-faner`). Den åbne fane har båndets flade, en kant på tre sider og en streg på 2 px i accent øverst; den dækker rækkens kant forneden, så fane og bånd er én flade uden kant imellem. De andre faner ligger på rækkens flade (sidens baggrund, `--bg`). Et punkt med `hoejre: true` står for sig i højre side af rækken. Båndet under har 4 px mindre luft øverst end uden faner (rækken giver luften), og det viser kun den valgte visnings kommandoer: programmet bygger ét bånd pr. visning og viser det ene, som med store knapper.
+
+```js
+const baand = Kit.commandBar(document.getElementById('baand-masker'), {
+  ariaT: 'cmdAria', udenFaner: true, hvorforTip: true, mere: { t: 'kMere' },
+  visninger: { t: 'visninger', som: 'faner', punkter: [
+    { id: 'masker', t: 'vMasker', genvej: '⌘1', genvejAria: 'Meta+1' },
+    { id: 'demasker', t: 'vDemasker', genvej: '⌘2', genvejAria: 'Meta+2', antal: 3, kraever: true, antalAriaT: 'kraeverHandling' },
+    { id: 'sager', t: 'vSager', genvej: '⌘3', genvejAria: 'Meta+3' },
+    { id: 'ordbog', t: 'vOrdbog', genvej: '⌘4', genvejAria: 'Meta+4', hoejre: true },
+  ] },
+  faner: [{ id: 'start', grupper: [ … visningens kommandoer … ] }],
+});
+baand.visninger.markér('masker');      // som 2.7.0; baand.visninger.raekke er fanernes række
+```
+
+- **Rollerne:** hver fane er det samme link til `#id` (`<a class="vk vfane">`) med `aria-current="page"` på den åbne som de store knapper, ikke `tablist`/`tab`: fanen skifter både båndet og arbejdsfladen (hele visningen og adressen), ikke et panel, og der er ingen piletaster. Rækken har rollen `group` med navnet fra `t` (eller `tekst`). **En skærmlæser hører** (ud fra rollerne; VoiceOver og NVDA er ikke prøvet): "Visninger, gruppe", "Maskér, link, aktuel side" og genvejen fra tippet.
+- **Valgt med mere end farve:** båndets flade, kant, fed skrift og stregen øverst; ikonet (valgfrit) i accent.
+- **Alt fra de store knapper følger med:** ikon valgfrit, `antal`/`kraever` (tallet står efter navnet; et tal, der kræver handling, er en pille), `deaktiveret`/`hvorfor` (nedtonet, et klik gør intet, hvorfor i tippet), genvejen i tippet og i `aria-keyshortcuts`, et langt navn afkortet med … og det fulde navn i tippet.
+- **Tastatur:** hver fane er et Tab-stop (også den åbne), i rækkefølge før båndets kommandoer; Enter og mellemrum åbner; piletaster bruges ikke.
+- **Mere** virker under fanerne som i 2.7.0; fanerne flyttes aldrig.
+- `som` kan kun være `'faner'`, og `hoejre` kræver `som: 'faner'` (ellers en fejl). Uden `som` er alt som i 2.7.0.
 
 ### Mere: båndet står altid på én række (fra 2.7.0, G21)
 

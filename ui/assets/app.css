@@ -18,6 +18,48 @@
 .navdel > .trae { flex: 1 1 auto; min-height: 0; }
 .visning { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 
+/* V-OPBYG.1 N4 (D27): den aktuelle sag nederst i venstre side (alle visninger): navnet, om den er gemt, Gem som sag… og
+   Gemte erstatninger med tallet; nederst "Alt behandles på denne maskine". Træet fylder resten og ruller selv. Mens der
+   er låst, står intet om sagen (skjult; laas.js gør den også inert). */
+.sagdel { flex: none; display: flex; flex-direction: column; gap: 2px; padding: var(--space-3) var(--space-2) var(--space-2); border-top: 1px solid var(--border); }
+.sagdel h3 { margin: 0 0 var(--space-1); padding: 0 var(--space-1); font-size: var(--small-size); line-height: var(--small-line); font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+.sagdel-navn { margin: 0; padding: 0 var(--space-1); font-weight: 600; overflow-wrap: anywhere; }
+.sagdel-status { margin: 0 0 var(--space-1); padding: 0 var(--space-1); font-size: var(--small-size); line-height: var(--small-line); color: var(--text-muted); }
+.sagdel-status.gemmes::before { content: "✓ "; color: var(--accent); }
+.sagdel-gem { align-self: flex-start; margin: 0 var(--space-1) var(--space-1); }
+.sagdel-erst[aria-disabled="true"] { cursor: default; }
+.sagdel-erst[aria-disabled="true"] > span:first-child { color: var(--text-muted); }
+.sagdel-lokalt { flex: none; margin: 0; padding: var(--space-2) var(--space-3); border-top: 1px solid var(--border); font-size: var(--small-size); line-height: var(--small-line); color: var(--text-muted); }
+html[data-laast] .sagdel { visibility: hidden; }
+/* V-OPBYG.1 N7: Vejledning og Lås i titellinjen er kittets titellinjeknapper med ord; Vejledning har en pil, der siger, at
+   den åbner noget uden for Grimnir (browseren). */
+#vejledning::after { content: " ↗"; }
+
+/* V-OPBYG.1 N3 (D27): tre trin øverst i Maskér og Demaskér. Det aktuelle har flade, fed skrift og et fyldt tal; et færdigt
+   et flueben i et fyldt tal; de næste et tal i en ring (form og vægt, ikke kun farve). Trinene er vejledning, ikke knapper. */
+.trinvej { display: flex; flex: none; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); margin: 0; padding: var(--space-2) var(--space-3) 0; list-style: none; font-size: 13px; }
+.trinvej li { position: relative; display: flex; align-items: center; gap: var(--space-2); padding: 3px var(--space-3) 3px 4px; border-radius: var(--radius-pill); color: var(--text-muted); }
+.trinvej li.nu { background: var(--accent-soft); color: var(--text); font-weight: 600; }
+.trin-nr { display: inline-grid; place-items: center; width: 22px; height: 22px; flex: none; border: 1px solid var(--border-strong); border-radius: 50%; background: var(--surface); color: var(--text-muted); font-size: 12px; font-weight: 700; }
+.trinvej li.nu .trin-nr, .trinvej li.gjort .trin-nr { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
+/* Den kommando i båndet, der er næste skridt: kant og flade i accent og fed skrift. */
+.cb[data-naeste] { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.cb[data-naeste] svg { stroke: var(--accent); }
+
+/* V-OPBYG.1 N3: den tomme flade efter skitsen: sagen under sætningen, linjen om ⌘V og at slippe en fil under knapperne. */
+.tomt-sag { margin: 0; color: var(--text-muted); }
+.tomt-sag:empty { display: none; }
+.tomt-linje { margin: var(--space-1) 0 0; font-size: var(--small-size); line-height: var(--small-line); color: var(--text-muted); }
+
+/* V-OPBYG.1 N2: én besked øverst: overskriften fed. Typen har sikkerheden dæmpet efter sig; en værdi, der bevares, har
+   "bevares som den er" i stedet for en kode. */
+.opsummering .ops-hoved { font-weight: 600; }
+/* V-OPBYG.1 N5: forklaringerne i Sager (under listen) og Ordbog (øverst), som i skitsen. */
+.sag-forklaring { margin: 0; font-size: var(--small-size); line-height: var(--small-line); color: var(--text-muted); max-width: 860px; }
+.ordbog-forklaring { margin: 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--info-soft); color: var(--text); max-width: 860px; }
+.typecelle .sikkerhed { font-size: var(--small-size); color: var(--text-muted); }
+.erstatning.bevares { color: var(--text-muted); font-size: var(--small-size); }
+
 /* Om (kittets dialog). */
 .om-p { margin: 0 0 var(--space-4); }
 .om-tal { list-style: none; margin: 0 0 var(--space-4); padding: 0; color: var(--text-muted); }
@@ -234,16 +276,17 @@ html[lang="en"] .resttabel { --k2: 80px; --tabel-min: 498px; }
 .sagtabel tbody tr { cursor: pointer; }
 /* Navn (resten), Værdier, Oprettet, Sidst brugt, Udløber, Status (V-RET.1 R1). Under 1100 px er datokolonnerne smallere:
    datoen og overskriften må gå over to linjer ("30. nov." / "2026"). */
-.sagtabel { --k2: 80px; --k3: 116px; --k4: 116px; --k5: 116px; --k6: 142px; --tabel-min: 710px; }
-html[lang="en"] .sagtabel { --k6: 160px; --tabel-min: 728px; }
+/* V-OPBYG.1 N5: kolonnen Erstatninger (før Værdier) er 44 px bredere, så overskriften står hel (92/97 px, målt). */
+.sagtabel { --k2: 124px; --k3: 116px; --k4: 116px; --k5: 116px; --k6: 142px; --tabel-min: 754px; }
+html[lang="en"] .sagtabel { --k6: 160px; --tabel-min: 772px; }
 @media (max-width: 1099px) {
-  :root:not([data-tekst="stor"]) .sagtabel { --celle: var(--space-2); --k2: 72px; --k3: 80px; --k4: 80px; --k5: 80px; --k6: 134px; --tabel-min: 586px; }
-  :root:not([data-tekst="stor"])[lang="en"] .sagtabel { --k6: 152px; --tabel-min: 604px; }
+  :root:not([data-tekst="stor"]) .sagtabel { --celle: var(--space-2); --k2: 113px; --k3: 80px; --k4: 80px; --k5: 79px; --k6: 134px; --tabel-min: 626px; }
+  :root:not([data-tekst="stor"])[lang="en"] .sagtabel { --k6: 152px; --tabel-min: 644px; }
   :root:not([data-tekst="stor"]) .sagtabel th { white-space: normal; }
 }
 @media (max-width: 1237px) {
-  :root[data-tekst="stor"] .sagtabel { --celle: var(--space-2); --k2: 72px; --k3: 80px; --k4: 80px; --k5: 80px; --k6: 134px; --tabel-min: 586px; }
-  :root[data-tekst="stor"][lang="en"] .sagtabel { --k6: 152px; --tabel-min: 604px; }
+  :root[data-tekst="stor"] .sagtabel { --celle: var(--space-2); --k2: 113px; --k3: 80px; --k4: 80px; --k5: 79px; --k6: 134px; --tabel-min: 626px; }
+  :root[data-tekst="stor"][lang="en"] .sagtabel { --k6: 152px; --tabel-min: 644px; }
   :root[data-tekst="stor"] .sagtabel th { white-space: normal; }
 }
 .sagnavn { display: flex; align-items: baseline; min-width: 0; }

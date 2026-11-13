@@ -67,6 +67,8 @@ pub enum Udloeser {
     Brugerskift,
     /// Ingen aktivitet i den valgte tid.
     Stilstand,
+    /// V-OPBYG.1 N7: brugeren trykkede Lås i titellinjen.
+    Bruger,
 }
 
 /// Teksterne til dialogen.

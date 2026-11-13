@@ -395,6 +395,33 @@ export const PAR = [
   ['text', 'accent-soft', TEKST, '2.7.0 Mere-menuen: et trykket punkt (menuitemcheckbox)'],
   ['mix(text 50%, surface)', 'surface', KANT, '2.7.0 Mere-menuen: ikon og navn på et punkt slået fra (opacity .5)'],
   ['info', 'surface', KANT, '2.7.0 Mere-menuen: fokusringen'],
+  // 2.8.0: visningerne som båndets faner (.cmd-faner på bg; en fane under musen på surface; den åbne på surface-raised med
+  // streg og ikon i accent og en kant i border; tal i sekundær tekst; slået fra ved .5; fokusring i info).
+  ['text', 'bg', TEKST, '2.8.0 fanerne: navnet på en fane på rækkens flade'],
+  ['text-muted', 'bg', TEKST, '2.8.0 fanerne: et tal på en fane'],
+  ['text-muted', 'bg', KANT, '2.8.0 fanerne: ikonet på en fane'],
+  ['text', 'surface', TEKST, '2.8.0 fanerne: en fane under musen'],
+  ['text', 'surface-raised', TEKST, '2.8.0 fanerne: den åbne fanes navn på båndets flade'],
+  ['accent', 'surface-raised', KANT, '2.8.0 fanerne: stregen øverst på den åbne fane og dens ikon'],
+  ['text-muted', 'surface-raised', TEKST, '2.8.0 fanerne: et tal på den åbne fane'],
+  ['danger', 'danger-soft', TEKST, '2.8.0 fanerne: tallet, der kræver handling'],
+  ['danger', 'bg', KANT, '2.8.0 fanerne: kanten om tallet, der kræver handling, på rækkens flade'],
+  ['mix(text 50%, bg)', 'bg', KANT, '2.8.0 fanerne: en fane slået fra (opacity .5)'],
+  ['info', 'bg', KANT, '2.8.0 fanerne: fokusringen på en fane'],
+  ['info', 'surface-raised', KANT, '2.8.0 fanerne: fokusringen på den åbne fane'],
+  // V-OPBYG.1 (Grimnir, app.css): trinene (det aktuelle på accent-soft, tallet hvidt på accent, de næste i sekundær tekst
+  // med en ring i border-strong), den kommando, der er næste skridt (kant i accent på accent-soft), sikkerheden ved typen og
+  // "bevares som den er" (sekundær tekst på tabellen), den aktuelle sag i venstre side og fluebenet ved Gemmes automatisk.
+  ['text', 'accent-soft', TEKST, 'V-OPBYG.1 trin: det aktuelle trin'],
+  ['on-accent', 'accent', TEKST, 'V-OPBYG.1 trin: tallet og fluebenet i det aktuelle og de færdige trin'],
+  ['text-muted', 'bg', TEKST, 'V-OPBYG.1 trin: de næste trin på arbejdsfladen'],
+  ['text-muted', 'surface', TEKST, 'V-OPBYG.1 trin: tallet i et kommende trin'],
+  ['border-strong', 'bg', KANT, 'V-OPBYG.1 trin: ringen om et kommende trin'],
+  ['accent', 'accent-soft', KANT, 'V-OPBYG.1 næste skridt i båndet: kanten'],
+  ['text', 'accent-soft', TEKST, 'V-OPBYG.1 næste skridt i båndet: navnet'],
+  ['text-muted', 'surface', TEKST, 'V-OPBYG.1 sikkerheden ved typen og "bevares som den er"'],
+  ['text-muted', 'surface', TEKST, 'V-OPBYG.1 Aktuel sag: overskrift, status og "Alt behandles på denne maskine"'],
+  ['accent', 'surface', TEKST, 'V-OPBYG.1 Aktuel sag: fluebenet ved Gemmes automatisk'],
 ];
 
 /* En farve fra et tokennavn eller fra mix(A N%, B): A og B blandet i srgb, N % af A. */

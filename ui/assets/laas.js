@@ -47,7 +47,8 @@
 
   const knapOp = $('laas-op'), knapAfslut = $('laas-afslut'), besked = $('laas-besked'), bannerRod = $('laas-banner');
   // V-FANER.2: visningerne står i båndet (ingen række over det).
-  const nedtonet = () => [...$('baand').children, $('navdele')];
+  // V-OPBYG.1: også den aktuelle sag i venstre side (som træet).
+  const nedtonet = () => [...$('baand').children, $('navdele'), $('sagdel')];
   const forklaret = () => [$('baand'), document.querySelector('nav.nav')];
 
   /* Beskeden under knapperne: en nøgle (og et tal) eller ingen. */
@@ -90,6 +91,7 @@
 
   function saetLaast(on) {
     html.toggleAttribute('data-laast', on);
+    knapLaasNu.disabled = on;
     for (const e of nedtonet()) e.toggleAttribute('inert', on);
     for (const e of forklaret()) {
       if (on) e.setAttribute('data-t-title', 'hvorforLaast');
@@ -135,6 +137,13 @@
   }
 
   knapOp.addEventListener('click', () => laasOp());
+  /* V-OPBYG.1 N7: Lås i titellinjen låser nu (Rust: laas_nu, samme vej som lås ved stilstand; D21). Rust melder `laast`, og
+     siden genindlæses som ved enhver lås. Mens der er låst, er knappen slået fra. */
+  const knapLaasNu = $('laas-nu');
+  knapLaasNu.addEventListener('click', () => {
+    if (html.hasAttribute('data-laast')) return;
+    invoke('laas_nu').catch(() => { /* uden Rust: intet at låse */ });
+  });
   knapAfslut.addEventListener('click', () => invoke('program_afslut').catch(() => { /* programmet lukker */ }));
   /* Enter låser op (også når fokus står på selve knappen; ikke på Afslut og ikke i en dialog). */
   document.addEventListener('keydown', e => {

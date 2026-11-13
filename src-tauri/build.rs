@@ -40,6 +40,9 @@ const KOMMANDOER: &[&str] = &[
     "udklip_kopieret",
     "kvittering",
     "sag_indhold",
+    // V-OPBYG.1 N7: Vejledning (beder styresystemet åbne en fast adresse) og Lås i titellinjen.
+    "vejledning_aabn",
+    "laas_nu",
 ];
 
 fn main() {

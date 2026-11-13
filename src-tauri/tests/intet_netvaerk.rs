@@ -110,10 +110,79 @@ fn skallens_kildekode_naevner_ikke_netvaerk() {
     assert!(rs.len() >= 2, "for få kildefiler: {}", rs.len());
     for f in &rs {
         let indhold = std::fs::read_to_string(f).expect("kildefil kan læses");
-        for ord in ["TcpStream", "TcpListener", "UdpSocket", "std::net", "http://", "https://"] {
+        for ord in ["TcpStream", "TcpListener", "UdpSocket", "std::net"] {
+            assert!(!indhold.contains(ord), "{} nævner {ord}", f.display());
+        }
+        // V-OPBYG.1 N7: den eneste fil, der må nævne en adresse, er src/vejledning.rs, og kun med de to faste konstanter
+        // (vejledningen_er_en_fast_adresse_til_styresystemet nedenfor).
+        if f.file_name().and_then(|n| n.to_str()) == Some("vejledning.rs") {
+            continue;
+        }
+        for ord in ["http://", "https://"] {
             assert!(!indhold.contains(ord), "{} nævner {ord}", f.display());
         }
     }
+}
+
+/// V-OPBYG.1 N7: Vejledning i titellinjen beder styresystemet åbne en fast adresse; Grimnir åbner ingen forbindelse. Holder:
+/// (1) src/vejledning.rs nævner præcis to adresser, de to konstanter, og ingen http://; (2) de eneste programmer, der
+/// startes, er styresystemets egne til at åbne en adresse (/usr/bin/open, explorer.exe), og de får kun adressen fra
+/// `adresse(sprog)` (ingen format!, concat! eller anden tekst); (3) kommandoen tager kun sproget fra webvisningen; (4)
+/// ingen anden fil i skallen eller kernen starter et program; (5) webvisningen sender kun sproget.
+#[test]
+fn vejledningen_er_en_fast_adresse_til_styresystemet() {
+    let rod = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let v = std::fs::read_to_string(rod.join("src/vejledning.rs")).expect("src/vejledning.rs kan læses");
+    // Koden, der kører (før testmodulet), uden kommentarer.
+    let drift = v.split("#[cfg(test)]").next().unwrap_or_default();
+    let kode: String = drift.lines().filter(|l| !l.trim_start().starts_with("//")).collect::<Vec<_>>().join("\n");
+    let adresser: Vec<&str> = kode
+        .match_indices("https://")
+        .map(|(i, _)| &kode[i..i + kode[i..].find('"').expect("adressen slutter med \"")])
+        .collect();
+    assert_eq!(
+        adresser,
+        ["https://wi24rd.com/grimnir/vejledning", "https://wi24rd.com/grimnir/guide"],
+        "vejledning.rs må kun have de to faste adresser"
+    );
+    assert!(kode.contains("pub const ADRESSE_DA: &str = \"https://wi24rd.com/grimnir/vejledning\";"));
+    assert!(kode.contains("pub const ADRESSE_EN: &str = \"https://wi24rd.com/grimnir/guide\";"));
+    assert!(!kode.contains("http://"), "vejledning.rs nævner http://");
+    for ord in ["format!", "concat!", "push_str", ".args(", "TcpStream", "UdpSocket", "std::net"] {
+        assert!(!kode.contains(ord), "vejledning.rs bruger {ord}");
+    }
+    let programmer: Vec<&str> = kode.match_indices("Command::new(").map(|(i, _)| &kode[i + 13..i + 13 + kode[i + 13..].find(')').unwrap()]).collect();
+    assert_eq!(programmer, ["\"/usr/bin/open\"", "\"explorer.exe\""], "kun styresystemets egne programmer");
+    assert_eq!(kode.matches(".arg(a)").count(), 2, "hvert program får kun adressen");
+    assert_eq!(kode.matches(".arg(").count(), 2, "ingen andre argumenter");
+    assert!(kode.contains("let a = adresse(sprog);"), "adressen kommer kun fra adresse(sprog)");
+    let lib = std::fs::read_to_string(rod.join("src/lib.rs")).expect("src/lib.rs kan læses");
+    assert!(
+        lib.contains("fn vejledning_aabn(sprog: String) -> Result<(), String> {\n    vejledning::aabn(&sprog)\n}"),
+        "kommandoen tager kun sproget"
+    );
+    let mut alle = Vec::new();
+    filer(&rod.join("src"), &["rs"], &mut alle);
+    filer(&rod.join("../grimnir-core/src"), &["rs"], &mut alle);
+    let andre: Vec<String> = alle
+        .iter()
+        .filter(|f| f.file_name().and_then(|n| n.to_str()) != Some("vejledning.rs"))
+        .filter(|f| std::fs::read_to_string(f).is_ok_and(|t| t.contains("Command::new") || t.contains("process::Command")))
+        .map(|f| f.display().to_string())
+        .collect();
+    assert!(andre.is_empty(), "andre filer starter et program: {andre:?}");
+    let ui = std::fs::read_to_string(rod.join("../ui/assets/app.js")).expect("ui/assets/app.js kan læses");
+    assert!(ui.contains("invoke('vejledning_aabn', { sprog: S.lang })"), "webvisningen sender kun sproget");
+    assert_eq!(ui.matches("invoke('vejledning_aabn'").count(), 1, "kun ét kald");
+    let mut js = Vec::new();
+    filer(&rod.join("../ui"), &["js", "html"], &mut js);
+    let andre_js: Vec<String> = js
+        .iter()
+        .filter(|f| f.file_name().and_then(|n| n.to_str()) != Some("app.js"))
+        .filter(|f| std::fs::read_to_string(f).is_ok_and(|t| t.contains("vejledning_aabn")))
+        .map(|f| f.display().to_string())
+        .collect();
+    assert!(andre_js.is_empty(), "andre filer i ui/ kalder vejledningen: {andre_js:?}");
 }
 
 /// Fjernadresser i `src`, `href` og `url(`: http://, https:// og protokol-relative //. (CSP'ens http://ipc.localhost står

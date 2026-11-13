@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-laas-nu"
+description = "Enables the laas_nu command without any pre-configured scope."
+commands.allow = ["laas_nu"]
+
+[[permission]]
+identifier = "deny-laas-nu"
+description = "Denies the laas_nu command without any pre-configured scope."
+commands.deny = ["laas_nu"]

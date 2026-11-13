@@ -66,7 +66,12 @@
   const hjKnap = K.knap({ t: 'kProev', ved: () => aabnProev() });
   hjKnap.classList.add('mini');
   hjaelp.append(hjS, hjT, hjKnap);
-  ark.append(bannere, vaert, hjaelp);
+  // V-OPBYG.1 N5 (skitsen): forklaringen øverst: hvad ordbogen er, og at den ligger krypteret på denne maskine.
+  const forklaring = document.createElement('p');
+  forklaring.className = 'ordbog-forklaring';
+  forklaring.setAttribute('data-t', 'ordbogForklaring');
+  S.anvend(forklaring);
+  ark.append(forklaring, bannere, vaert, hjaelp);
   d.flade.appendChild(ark);
   // V-KITBRUG.2 N5: tabellen deler fladens højde med hjælpelinjen, så Prøv på tekst altid kan ses (app.css: .flade.fyld).
   d.flade.classList.add('fyld');

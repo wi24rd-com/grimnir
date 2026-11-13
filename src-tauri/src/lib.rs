@@ -57,6 +57,7 @@ pub mod ordbog;
 pub mod sager;
 pub mod stilstand;
 pub mod udklip;
+pub mod vejledning;
 
 // Menuen bygges kun på macOS (se `run`); på Windows bruges kun `handling` og `platform_skript`.
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
@@ -292,9 +293,23 @@ fn kvittering(tilstand: State<'_, Tilstand>, fil: bool, sprog: String) -> Result
     maskering::kvittering(&tilstand, fil, &sprog)
 }
 
+/// V-OPBYG.1 N7: Vejledning i titellinjen ([`vejledning::aabn`]): beder styresystemet åbne en af to faste adresser i
+/// browseren. Webvisningen giver kun sproget. Virker også, mens Grimnir er låst (rører hverken sager eller ordbog).
+#[tauri::command]
+fn vejledning_aabn(sprog: String) -> Result<(), String> {
+    vejledning::aabn(&sprog)
+}
+
+/// V-OPBYG.1 N7: Lås i titellinjen låser nu ad samme vej som lås ved stilstand og notifikationerne ([`laas_igen_og_meld`]:
+/// D21's regler for den midlertidige sag, udklipsholderen ryddes, filerne og ordbogen glemmes, og webvisningen får `laast`).
+/// Er Grimnir allerede låst, sker intet.
+#[tauri::command]
+fn laas_nu(app: tauri::AppHandle) {
+    laas_igen_og_meld(&app, Udloeser::Bruger);
+}
+
 /// V-LAAS.3: låser igen ([`maskering::laas_igen`]) og fortæller webvisningen det (hændelsen `laast`; webvisningen
-/// genindlæser siden og står låst). Den ene vej for notifikationerne (kun macOS i denne cyklus; som `programmenu`).
-#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+/// genindlæser siden og står låst). Den ene vej for notifikationerne og (V-OPBYG.1) knappen Lås.
 fn laas_igen_og_meld(app: &tauri::AppHandle, grund: Udloeser) {
     if maskering::laas_igen(&app.state::<Tilstand>(), grund) {
         meld_laast(app, grund);
@@ -597,6 +612,8 @@ pub fn run() {
         aktivitet,
         kvittering,
         sag_indhold,
+        vejledning_aabn,
+        laas_nu,
         udklip_kopieret
     ]);
     tauri::Builder::default()

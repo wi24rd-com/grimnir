@@ -88,10 +88,16 @@
   let status = { poster: 0, id: null, navn: null, udloeb: null, valg: null };
   const sagSpan = $('sag'), sagKnap = $('sag-knap');
 
+  /* V-OPBYG.1 N4 (D27): titellinjen siger altid, hvilken sag der er åben, når status er hentet (efter oplåsningen):
+     "Midlertidig sag · ikke gemt under et navn" eller "Sag: «navn» · gemmes automatisk"; knappen åbner sagens dialog som
+     før. Indtil status er hentet (låst), står "Ingen sag åben". Venstre side viser det samme under Aktuel sag. */
+  let kendt = false;
+  const sd = { navn: $('sagdel-navn'), status: $('sagdel-status'), gem: $('sagdel-gem'), erst: $('sagdel-erst'), antal: $('sagdel-antal') };
   function tegnTitel() {
     const navngiven = Boolean(status.id);
-    sagSpan.hidden = navngiven || status.poster > 0;
-    sagKnap.hidden = !sagSpan.hidden;
+    sagSpan.hidden = kendt;
+    sagKnap.hidden = !kendt;
+    tegnSagdel();
     if (navngiven) {
       sagKnap.setAttribute('data-t', 'sagNavngiven');
       sagKnap.setAttribute('data-t-aria', 'ariaSagNavngiven');
@@ -106,8 +112,27 @@
     S.anvend(sagKnap);
   }
 
+  /* V-OPBYG.1 N4: Aktuel sag i venstre side (alle visninger): navnet eller "Midlertidig sag"; den midlertidige siger "Ikke
+     gemt under et navn endnu" og har Gem som sag…; en navngiven "Gemmes automatisk". Gemte erstatninger (tallet) åbner
+     sagens indhold (V-MANUEL.2); uden erstatninger er den slået fra og siger hvorfor. Kun navnet, brugeren selv har skrevet. */
+  function tegnSagdel() {
+    const navngiven = Boolean(status.id);
+    if (navngiven) { sd.navn.removeAttribute('data-t'); sd.navn.textContent = status.navn; } else sd.navn.setAttribute('data-t', 'midlertidigSagNavn');
+    sd.status.setAttribute('data-t', navngiven ? 'sagGemmesAuto' : 'sagIkkeGemt');
+    sd.status.classList.toggle('gemmes', navngiven);
+    sd.gem.hidden = navngiven;
+    sd.antal.textContent = String(status.poster);
+    sd.erst.setAttribute('data-v', String(status.poster));
+    if (status.poster > 0) { sd.erst.removeAttribute('aria-disabled'); sd.erst.removeAttribute('data-t-title'); sd.erst.removeAttribute('title'); }
+    else { sd.erst.setAttribute('aria-disabled', 'true'); sd.erst.setAttribute('data-t-title', 'hvorforIngenErstatninger'); }
+    S.anvend(sd.navn.parentElement);
+  }
+  sd.gem.addEventListener('click', () => gemSomSag());
+  sd.erst.addEventListener('click', () => { if (sd.erst.getAttribute('aria-disabled') !== 'true') visIndhold(null); });
+
   /* Ny status fra Rust. nulstil: sagens indhold er skiftet, så Maskér og Demaskér glemmer analyse og resultat. */
   function anvend(s, nulstil) {
+    kendt = true;
     status = { poster: s.poster, id: s.id || null, navn: s.navn || null, udloeb: s.udloeb || null, valg: s.valg || null };
     if (nulstil) { GM.M.nulstilt(); GM.D.nulstilt(); }
     GM.saetSag(status.poster);
@@ -203,7 +228,12 @@
   bannere.className = 'bannere';
   const vaert = document.createElement('div');
   vaert.className = 'tabelvaert';
-  ark.append(bannere, vaert);
+  // V-OPBYG.1 N5 (skitsen): en forklarende linje under listen om, hvad en sag husker, og hvornår den gemmes.
+  const forklaring = document.createElement('p');
+  forklaring.className = 'sag-forklaring';
+  forklaring.setAttribute('data-t', 'sagForklaring');
+  S.anvend(forklaring);
+  ark.append(bannere, vaert, forklaring);
   d.flade.appendChild(ark);
   const tomKnap = K.knap({ t: 'kNySag', ikon: 'plus', variant: 'primary', ved: () => aabnNySag('sager') });
   d.tom.appendChild(tomKnap);
@@ -289,6 +319,8 @@
     const p = valgtPost();
     const kanIkke = p && p.fejl ? ['hvorforKanIkkeAabnes', fejlTekst({ art: 'sag', fejl: p.fejl })] : null;
     GM.kommando('sager', 'ny-sag', true);
+    // V-OPBYG.1 N4: Gem som sag… for den midlertidige sag; en navngiven har allerede et navn.
+    GM.kommando('sager', 'gem-som-sag', !status.id, 'hvorforHarNavn');
     // V-MANUEL.2 N1: Vis indhold for enhver valgt sag (en sag, der ikke kan åbnes, viser årsagen i visningen).
     GM.kommando('sager', 'vis-indhold', Boolean(p), 'hvorforVaelgSag');
     // Årsagen til, at en sag ikke kan åbnes, står som {v} i forklaringen (kittets værktøjstip, G11).
@@ -684,6 +716,9 @@
 
   /* ── Kommandoer, træ, søgning og hændelser ── */
   G.haandter('sager', 'ny-sag', () => aabnNySag('sager'));
+  // V-OPBYG.1 N4: Gem som sag… (båndet, venstre side og beskeden efter Maskér) åbner dialogen Ny sag, som titellinjens.
+  function gemSomSag() { if (!G.laast && !status.id) aabnNySag('gem-som'); }
+  G.haandter('sager', 'gem-som-sag', () => gemSomSag());
   G.haandter('sager', 'aabn-i-masker', () => aabnValgt());
   G.haandter('sager', 'omdoeb', () => aabnOmdoeb());
   G.haandter('sager', 'udloeb', () => aabnUdloeb());
@@ -717,5 +752,5 @@
     invoke('sag_status').then(s => anvend(s, false)).catch(() => anvend({ poster: 0 }, false));
     opdater();
   });
-  window.GrimnirSager = { st, aabnIgen, opdater, get status() { return status; }, statusFor, dageTil, ind, visIndhold, lukIndhold };
+  window.GrimnirSager = { st, aabnIgen, opdater, get status() { return status; }, statusFor, dageTil, ind, visIndhold, lukIndhold, gemSomSag };
 })();

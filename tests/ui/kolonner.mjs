@@ -32,8 +32,16 @@ const tjek = (navn, betingelse, detalje = '') => {
 /* Teksternes naturlige bredde i px, målt i V-RET.1 i en WKWebView (macOS 26.6, WebKit som i Tauri) med ui/assets/kit.css
    og de pakkede skrifter: kolonneoverskrifter (også hvert ord), chips i den variant, koden bruger, og det længste ord, der
    ikke kan brydes, i hver type. Ændres en tekst, mangler den her, og testen fejler: mål den igen. */
-const MAALT_TH = { '✓': 11, 'Type': 32, 'Fundet værdi': 92, 'Fundet': 49, 'værdi': 40, 'Erstatning': 77, 'Antal': 41, 'Status': 47, 'Hvad': 34, 'Tekst': 40, 'Linje': 34, 'Kode': 34, 'Navn': 35, 'Værdier': 55, 'Oprettet': 64, 'Sidst brugt': 81, 'Sidst': 36, 'brugt': 41, 'Udløber': 57, 'Ordbog': 52, 'Værdi eller mønster': 143, 'Værdi': 40, 'eller': 37, 'mønster': 60, 'Note': 34, 'Value found': 86, 'Value': 40, 'found': 43, 'Replacement': 90, 'Count': 44, 'What': 37, 'Text': 32, 'Line': 27, 'Code': 34, 'Name': 36, 'Values': 48, 'Created': 56, 'Last used': 68, 'Last': 32, 'used': 33, 'Expires': 51, 'Dictionary': 76, 'Value or pattern': 118, 'or': 17, 'pattern': 55 };
-const MAALT_CHIP = { 'Sikker': 69, 'Fra ordbog': 89, 'Sandsynlig': 91, 'Tjek selv': 81, 'Version': 75, 'Original står tilbage': 140, 'Ligner følsom værdi': 142, 'Sat tilbage': 95, 'Ukendt adresse i sagens net': 193, 'Ukendt kode': 102, 'Andre store/små bogstaver': 185, 'Maskine uden domæne': 162, 'Domæne alene': 113, 'Escaped skråstreg': 134, 'URL-kodet': 87, 'Ikke i svaret': 100, 'Ligner en anden sag': 146, 'Pulje løb over: egne net': 162, 'Pulje løb over: offentlige adresser': 221, 'Pulje løb over: MAC-adresser': 196, 'Pulje løb over: IPv6': 137, 'Åben': 64, 'Udløber snart': 106, 'Udløbet': 75, 'Kan ikke åbnes': 117, 'Certain': 76, 'From dictionary': 117, 'Probable': 78, 'Check yourself': 117, 'Original left behind': 136, 'Looks sensitive': 116, 'Put back': 84, 'Unknown address in the case network': 250, 'Unknown code': 116, 'Different upper/lower case': 181, 'Machine without domain': 169, 'Domain alone': 105, 'Escaped backslash': 138, 'URL-encoded': 105, 'Not in the reply': 119, 'Looks like another case': 166, 'Pool ran out: own networks': 184, 'Pool ran out: public addresses': 201, 'Pool ran out: MAC addresses': 194, 'Pool ran out: IPv6': 128, 'Open': 64, 'Expiring soon': 105, 'Expired': 73, 'Cannot be opened': 135 };
+const MAALT_TH = { '✓': 11, 'Type': 32, 'Fundet værdi': 92, 'Fundet': 49, 'værdi': 40, 'Erstatning': 77, 'Antal': 41, 'Status': 47, 'Hvad': 34, 'Tekst': 40, 'Linje': 34, 'Kode': 34, 'Navn': 35, 'Værdier': 55, 'Oprettet': 64, 'Sidst brugt': 81, 'Sidst': 36, 'brugt': 41, 'Udløber': 57, 'Ordbog': 52, 'Værdi eller mønster': 143, 'Værdi': 40, 'eller': 37, 'mønster': 60, 'Note': 34, 'Value found': 86, 'Value': 40, 'found': 43, 'Replacement': 90, 'Count': 44, 'What': 37, 'Text': 32, 'Line': 27, 'Code': 34, 'Name': 36, 'Values': 48, 'Created': 56, 'Last used': 68, 'Last': 32, 'used': 33, 'Expires': 51, 'Dictionary': 76, 'Value or pattern': 118, 'or': 17, 'pattern': 55,
+  // V-OPBYG.1 N5: Sagers kolonne hedder Erstatninger (målt i WKWebView; kalibreret: Værdier 54,9 og Values 47,3 som før).
+  'Erstatninger': 92, 'Replacements': 97 };
+const MAALT_CHIP = { 'Sikker': 69, 'Fra ordbog': 89, 'Sandsynlig': 91, 'Tjek selv': 81, 'Version': 75, 'Original står tilbage': 140, 'Ligner følsom værdi': 142, 'Sat tilbage': 95, 'Ukendt adresse i sagens net': 193, 'Ukendt kode': 102, 'Andre store/små bogstaver': 185, 'Maskine uden domæne': 162, 'Domæne alene': 113, 'Escaped skråstreg': 134, 'URL-kodet': 87, 'Ikke i svaret': 100, 'Ligner en anden sag': 146, 'Pulje løb over: egne net': 162, 'Pulje løb over: offentlige adresser': 221, 'Pulje løb over: MAC-adresser': 196, 'Pulje løb over: IPv6': 137, 'Åben': 64, 'Udløber snart': 106, 'Udløbet': 75, 'Kan ikke åbnes': 117, 'Certain': 76, 'From dictionary': 117, 'Probable': 78, 'Check yourself': 117, 'Original left behind': 136, 'Looks sensitive': 116, 'Put back': 84, 'Unknown address in the case network': 250, 'Unknown code': 116, 'Different upper/lower case': 181, 'Machine without domain': 169, 'Domain alone': 105, 'Escaped backslash': 138, 'URL-encoded': 105, 'Not in the reply': 119, 'Looks like another case': 166, 'Pool ran out: own networks': 184, 'Pool ran out: public addresses': 201, 'Pool ran out: MAC addresses': 194, 'Pool ran out: IPv6': 128, 'Open': 64, 'Expiring soon': 105, 'Expired': 73, 'Cannot be opened': 135,
+  // V-OPBYG.1 N2: status er resultatet (målt i WKWebView med kittets chip og de pakkede skrifter, rundet op; kalibreret: Sikker
+  // giver 69 som før). Tjek selv har nu advarslens udseende (målt 77,9 og 113,8); de gamle, bredere tal (81, 117) står.
+  'Maskeres': 90, 'Bevares': 77, 'Maskeret': 87, 'Bevaret': 75, 'To mask': 82, 'To keep': 76, 'Masked': 79, 'Kept': 57 };
+/* V-OPBYG.1 N2: hvor sikkert fundet er, står dæmpet efter typen (.typecelle .sikkerhed, lille skrift); det længste ord, der ikke
+   kan brydes, målt i WKWebView og rundet op. */
+const MAALT_SIKKER = { 'Sikker': 35, 'Fra ordbog': 41, 'Sandsynlig': 63, 'Tjek selv': 25, 'Version': 43, 'Tilføjet': 39, 'Certain': 42, 'From dictionary': 57, 'Probable': 51, 'Check yourself': 46, 'Added': 38 };
 const MAALT_ORD = { 'IPv4, eget net': 34, 'IPv4, offentlig': 55, 'IPv6, eget net': 33, 'IPv6, offentlig': 55, 'MAC-adresse': 53, 'Maskine': 56, 'Domæne': 61, 'NetBIOS-domæne': 63, 'Bruger': 45, 'Person': 47, 'Database': 63, 'Ord': 25, 'Hemmelighed': 92, 'SID': 23, 'GUID': 35, 'Serienummer': 89, 'CPR-nummer': 55, 'Lang tilfældig streng': 54, 'Ligner en kode': 42, 'IPv4, own network': 54, 'IPv4, public': 41, 'IPv6, own network': 54, 'IPv6, public': 41, 'MAC address': 53, 'Machine': 57, 'Domain': 51, 'NetBIOS domain': 56, 'User': 32, 'Word': 36, 'Secret': 43, 'Serial number': 51, 'CPR number': 51, 'Long random string': 51, 'Looks like a code': 40 };
 /* V-PUDS.1 N3: ordene i knapperne Altid og Aldrig (12 px, vægt 600, Inter), målt i en WKWebView (macOS 26.6) med
    ui/assets/*.css og de pakkede skrifter og rundet op, som tallene ovenfor (samme måling gav Ordbog 51,5 → 52,
@@ -184,7 +192,7 @@ const S = (() => {
 const T = S.TEKST;
 const ART = Object.keys(T.da).filter(k => k.startsWith('art_'));
 const TABELLER = [
-  { klasse: 'fundtabel', fil: 'ui/assets/maskering.js', vaert: 'masker', vaerdi: 3, kol: ['kolMasker', 'kolType', 'kolVaerdi', 'kolErstatning', 'kolAntal', 'kolStatus', 'kolOrdbog'], chips: { 6: ['stSikker', 'stOrdbog', 'stSandsynlig', 'stTjek', 'stVersion'] }, ord: { 2: ART } },
+  { klasse: 'fundtabel', fil: 'ui/assets/maskering.js', vaert: 'masker', vaerdi: 3, kol: ['kolMasker', 'kolType', 'kolVaerdi', 'kolErstatning', 'kolAntal', 'kolStatus', 'kolOrdbog'], chips: { 6: ['stMaskeres', 'stBevares', 'stTjek', 'stMaskeret', 'stBevaret'] }, ord: { 2: ART }, sikker: { 2: ['stSikker', 'stOrdbog', 'stSandsynlig', 'stTjek', 'stVersion', 'stTilfoejet'] } },
   { klasse: 'resttabel', fil: 'ui/assets/maskering.js', vaert: 'masker', vaerdi: 3, kol: ['kolHvad', 'kolType', 'kolTekst', 'kolAntal', 'kolLinje'], chips: { 1: ['rest_original', 'rest_nyt_fund'] }, ord: { 2: ART } },
   { klasse: 'advtabel', fil: 'ui/assets/maskering.js', vaert: 'panel', vaerdi: 2, kol: ['kolHvad', 'kolKode', 'kolAntal', 'kolLinje'], chips: { 1: Object.keys(T.da).filter(k => k.startsWith('adv_')) } },
   { klasse: 'sagtabel', fil: 'ui/assets/sager.js', vaert: 'flade', vaerdi: 1, kol: ['kolNavn', 'kolVaerdier', 'kolOprettet', 'kolSidstBrugt', 'kolUdloeber', 'kolStatus'], chips: { 6: ['stAaben', 'stUdloeberSnart', 'stUdloebet', 'stKanIkke'] } },
@@ -288,6 +296,10 @@ for (const trin of TRIN) for (const tb of TABELLER) {
         const t = T[sprog][k];
         if (!(t in MAALT_ORD)) mangler.push(t); else if (MAALT_ORD[t] > indhold(i - 1)) for_brede.push(`typen «${t}» ${MAALT_ORD[t]} > ${Math.round(indhold(i - 1))}`);
       }
+      for (const [i, noegler] of Object.entries(tb.sikker || {})) for (const k of noegler) {
+        const t = T[sprog][k];
+        if (!(t in MAALT_SIKKER)) mangler.push(t); else if (MAALT_SIKKER[t] > indhold(i - 1)) for_brede.push(`sikkerheden «${t}» ${MAALT_SIKKER[t]} > ${Math.round(indhold(i - 1))}`);
+      }
       tjek(`${navn}: alle tekster er målt (ellers: mål dem i WebKit og skriv dem i MAALT_*)`, mangler.length === 0, [...new Set(mangler)].join(', '));
       if (tb.klasse === 'fundtabel' && W >= ERSTATNING_FRA * (trin.navn === 'stor' ? trin.z : 1)) {
         // V-LAAS.4 N3: Erstatning (kolonne 4) har plads til 24 tegn; Fundet værdi har mindst 240 px.
@@ -324,6 +336,7 @@ function fundRegn(sprog, W, trin) {
   tb.kol.forEach((k, i) => { for (const d of [T[sprog][k]]) if (MAALT_TH[d] > indhold(i)) for_brede.push(`«${d}»`); });
   for (const [i, nl] of Object.entries(tb.chips)) for (const k of nl) if (MAALT_CHIP[T[sprog][k]] > indhold(i - 1)) for_brede.push(`chip «${T[sprog][k]}»`);
   for (const [i, nl] of Object.entries(tb.ord)) for (const k of nl) if (MAALT_ORD[T[sprog][k]] > indhold(i - 1)) for_brede.push(`typen «${T[sprog][k]}»`);
+  for (const [i, nl] of Object.entries(tb.sikker || {})) for (const k of nl) if (MAALT_SIKKER[T[sprog][k]] > indhold(i - 1)) for_brede.push(`sikkerheden «${T[sprog][k]}»`);
   if (ordbogBredde(sprog, W, trin.navn) > indhold(6)) for_brede.push('Altid/Aldrig');
   return { felt: kol[3] - 2 * celle - FELT_EKSTRA, vaerdi: kol[2], rul: tabel > plads + 0.01, layout: W / trin.z, for_brede };
 }
@@ -367,6 +380,7 @@ const MAALT_CHIP_MANUEL = { 'Tilføjet': 66, 'Added': 64 };
 const MAALT_KNAPORD_MANUEL = { 'Fjern': 30, 'Remove': 47 };
 const MAALT_VALG = { da: { 'Domæne': 87, 'Maskine': 82, 'Ord': 51 }, en: { 'Machine': 63, 'Domain': 57, 'Word': 42 } };
 const TYPER_UI = ((laes('ui/assets/maskering.js').match(/const TYPER = \[([^\]]+)\]/) || [])[1] || '').split(',').map(x => x.trim().replace(/'/g, ''));
+tjek('V-OPBYG.1 N2: statusordene (Maskeres, Bevares, Tjek selv, Maskeret, Bevaret) og sikkerheden ved typen er målt i begge sprog, og Status bruger ikke længere sikkerheden som chip', ['da', 'en'].every(sp => ['stMaskeres', 'stBevares', 'stTjek', 'stMaskeret', 'stBevaret'].every(k => T[sp][k] in MAALT_CHIP) && ['stSikker', 'stOrdbog', 'stSandsynlig', 'stTjek', 'stVersion', 'stTilfoejet'].every(k => T[sp][k] in MAALT_SIKKER)) && !TABELLER.find(t => t.klasse === 'fundtabel').chips[6].includes('stSikker'));
 tjek('V-MANUEL.1: chippen Tilføjet og ordet i Fjern er målt i begge sprog', ['da', 'en'].every(sp => T[sp].stTilfoejet in MAALT_CHIP_MANUEL && T[sp].kFjern in MAALT_KNAPORD_MANUEL));
 tjek(`V-MANUEL.1: valglistens typer (${TYPER_UI.join(', ')}) er alle målt, og den bredeste valgliste er målt i hvert sprog`, TYPER_UI.length === 5 && ['da', 'en'].every(sp => {
   const ord = TYPER_UI.map(t => T[sp]['art_' + t]);

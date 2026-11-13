@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-vejledning-aabn"
+description = "Enables the vejledning_aabn command without any pre-configured scope."
+commands.allow = ["vejledning_aabn"]
+
+[[permission]]
+identifier = "deny-vejledning-aabn"
+description = "Denies the vejledning_aabn command without any pre-configured scope."
+commands.deny = ["vejledning_aabn"]
