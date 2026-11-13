@@ -21,6 +21,57 @@ pub const FORM_ESC2: u8 = 4;
 /// Koden er set efter en URL-kodning (`%XX`).
 pub const FORM_PROCENT: u8 = 8;
 
+/// V-OPBYG.2 N1: største længde af én note i tegn (Unicode-skalarværdier). Omkring en A4-side: nok til et referat af en
+/// supportsag, men så sagens fil ikke kan vokse uden loft.
+pub const MAKS_NOTE_TEGN: usize = 4000;
+/// V-OPBYG.2 N1: største antal noter i én sag. Med [`MAKS_NOTE_TEGN`] bliver noterne højst 800.000 tegn (højst 3,2 MB som
+/// UTF-8) i sagens krypterede fil.
+pub const MAKS_NOTER: usize = 200;
+
+/// V-OPBYG.2 N1: en note i sagen: brugerens egen tekst (uden titel og formatering; linjeskift som skrevet), tidspunktet
+/// for oprettelse og for seneste rettelse (millisekunder siden 1970, UTC; skallens ur) og et løbenummer i sagen.
+///
+/// Noten bruges aldrig af maskering, lækagetjek eller demaskering; den kommer aldrig med i en maskeret tekst eller i
+/// demaskeringens resultat. Typen har bevidst ingen `Debug`: teksten er brugerens.
+#[derive(Clone, PartialEq, Eq)]
+pub struct Note {
+    /// Løbenummeret i sagen (1, 2, 3 …); et slettet nummer bruges ikke igen, så længe sagen har noter.
+    pub nr: u64,
+    /// Teksten, som brugeren skrev den.
+    pub tekst: String,
+    /// Oprettet (ms siden 1970, UTC).
+    pub oprettet: u64,
+    /// Sidst rettet (ms siden 1970, UTC); `None`, hvis noten ikke er rettet.
+    pub rettet: Option<u64>,
+}
+
+/// En notes tekst: ikke kun mellemrum og højst [`MAKS_NOTE_TEGN`] tegn.
+fn tjek_note(tekst: &str) -> Result<(), Fejl> {
+    if tekst.trim().is_empty() {
+        return Err(Fejl::NoteTom);
+    }
+    if tekst.chars().count() > MAKS_NOTE_TEGN {
+        return Err(Fejl::NoteForLang { maks: MAKS_NOTE_TEGN });
+    }
+    Ok(())
+}
+
+/// Noterne hænger sammen: højst [`MAKS_NOTER`], hver med en gyldig tekst og et nummer fra 1 til `taeller`, intet nummer
+/// to gange.
+fn tjek_noter(noter: &[Note], taeller: u64) -> Result<(), Fejl> {
+    let ugyldig = || Fejl::UgyldigeSagsdata { hvad: "noter" };
+    if noter.len() > MAKS_NOTER {
+        return Err(ugyldig());
+    }
+    let mut set = HashSet::new();
+    for n in noter {
+        if n.nr == 0 || n.nr > taeller || !set.insert(n.nr) || tjek_note(&n.tekst).is_err() {
+            return Err(ugyldig());
+        }
+    }
+    Ok(())
+}
+
 /// Valg pr. sag.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Valg {
@@ -119,6 +170,10 @@ pub struct SagData {
     /// maskeret før rettelsen, stadig kan demaskeres. En alias-kode er reserveret: den tildeles aldrig til en anden
     /// værdi, og kollisionspasset maskerer den som en af sagens koder.
     pub aliaser: Vec<(String, usize)>,
+    /// V-OPBYG.2 N1: sagens noter i den rækkefølge, de er skrevet. Indgår ikke i nogen maskering.
+    pub noter: Vec<Note>,
+    /// V-OPBYG.2 N1: det sidste løbenummer, en note har fået.
+    pub note_taeller: u64,
 }
 
 #[derive(Default)]
@@ -164,6 +219,7 @@ impl fmt::Debug for Sag {
             .field("poster", &self.data.poster.len())
             .field("net4", &self.data.net4.len())
             .field("net6", &self.data.net6.len())
+            .field("noter", &self.data.noter.len())
             .field("advarsler", &self.advarsler.len())
             .finish()
     }
@@ -346,6 +402,7 @@ impl Sag {
         idx.res6 = data.reserverede_ip6.iter().copied().collect();
         idx.res_net6 = idx.res6.iter().map(|v| (v >> 64) as u64).collect();
         idx.resmac = data.reserverede_mac.iter().copied().collect();
+        tjek_noter(&data.noter, data.note_taeller)?;
         Ok(Sag {
             data,
             idx,
@@ -371,6 +428,80 @@ impl Sag {
     /// Antal stavemåder med kode.
     pub fn antal_poster(&self) -> usize {
         self.data.poster.len()
+    }
+
+    // ------------------------------------------------------------ noter (V-OPBYG.2 N1)
+
+    /// Sagens noter i den rækkefølge, de er skrevet.
+    pub fn noter(&self) -> &[Note] {
+        &self.data.noter
+    }
+
+    /// Antal noter.
+    pub fn antal_noter(&self) -> usize {
+        self.data.noter.len()
+    }
+
+    /// Det sidste løbenummer, en note har fået.
+    pub fn note_taeller(&self) -> u64 {
+        self.data.note_taeller
+    }
+
+    /// Sand, hvis sagen har noget, der går tabt, hvis den kasseres: stavemåder med kode eller noter (D21).
+    pub fn har_indhold(&self) -> bool {
+        !self.data.poster.is_empty() || !self.data.noter.is_empty()
+    }
+
+    /// Tilføjer en note med tidspunktet `nu` (ms siden 1970, UTC; skallens ur) og svarer med dens løbenummer. Afvises,
+    /// hvis teksten er tom (kun mellemrum), er længere end [`MAKS_NOTE_TEGN`] tegn, eller sagen allerede har
+    /// [`MAKS_NOTER`] noter; så er intet ændret. Teksten gennemsøges ikke (D27: ingen advarsel om værdier i en note).
+    pub fn tilfoej_note(&mut self, tekst: &str, nu: u64) -> Result<u64, Fejl> {
+        tjek_note(tekst)?;
+        if self.data.noter.len() >= MAKS_NOTER {
+            return Err(Fejl::ForMangeNoter { maks: MAKS_NOTER });
+        }
+        self.data.note_taeller += 1;
+        let nr = self.data.note_taeller;
+        self.data.noter.push(Note {
+            nr,
+            tekst: tekst.to_string(),
+            oprettet: nu,
+            rettet: None,
+        });
+        Ok(nr)
+    }
+
+    /// Retter teksten i note `nr`; tidspunktet for seneste rettelse bliver `nu`. Svarer med den gamle tekst, så skallen
+    /// kan nulstille den (tom, hvis teksten er uændret; så ændres intet). Afvises som [`Sag::tilfoej_note`], og med
+    /// [`Fejl::UkendtNote`], hvis noten ikke findes.
+    pub fn ret_note(&mut self, nr: u64, tekst: &str, nu: u64) -> Result<String, Fejl> {
+        tjek_note(tekst)?;
+        let n = self.data.noter.iter_mut().find(|n| n.nr == nr).ok_or(Fejl::UkendtNote { nr })?;
+        if n.tekst == tekst {
+            return Ok(String::new());
+        }
+        n.rettet = Some(nu);
+        Ok(std::mem::replace(&mut n.tekst, tekst.to_string()))
+    }
+
+    /// Sletter note `nr` og giver den ud (så skallen kan nulstille teksten). [`Fejl::UkendtNote`], hvis den ikke findes.
+    pub fn slet_note(&mut self, nr: u64) -> Result<Note, Fejl> {
+        let i = self.data.noter.iter().position(|n| n.nr == nr).ok_or(Fejl::UkendtNote { nr })?;
+        let n = self.data.noter.remove(i);
+        if self.data.noter.is_empty() {
+            // Uden noter begynder løbenummeret forfra; sagens fil har så samme form som før V-OPBYG.2 (formatversion 1).
+            self.data.note_taeller = 0;
+        }
+        Ok(n)
+    }
+
+    /// Lægger noterne tilbage (fx når en navngiven sag ikke kunne gemmes efter en ændring) og giver de nuværende ud.
+    /// Afvises med [`Fejl::UgyldigeSagsdata`], hvis noterne ikke hænger sammen; så er intet ændret.
+    pub fn erstat_noter(&mut self, noter: Vec<Note>, taeller: u64) -> Result<(Vec<Note>, u64), Fejl> {
+        tjek_noter(&noter, taeller)?;
+        let gamle = std::mem::replace(&mut self.data.noter, noter);
+        let gammel_taeller = std::mem::replace(&mut self.data.note_taeller, taeller);
+        Ok((gamle, gammel_taeller))
     }
 
     /// Originalen bag en kode eller en gammel kode (alias, D18).

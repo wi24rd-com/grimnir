@@ -184,6 +184,7 @@ fn sagsfil_som_ordbog_og_omvendt_afvises() {
         udloeb: None,
         poster: 0,
         skrivetaeller: 1,
+        noter: 0,
     };
     skriv(&m.0, &id, &noegle, &hoved, grimnir_core::Sag::default().data()).unwrap();
     std::fs::copy(sti(&m.0, &id), m.0.join(ordbog::FILNAVN)).unwrap();
@@ -619,6 +620,7 @@ fn klarteksten_skrives_til_en_buffer_med_anslaaet_kapacitet() {
         udloeb: Some("2027-01-31".into()),
         poster: sag.antal_poster(),
         skrivetaeller: 9,
+        noter: 0,
     };
     let anslaaet = anslaa_krop(&hoved, sag.data());
     #[derive(serde::Serialize)]

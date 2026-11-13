@@ -173,13 +173,8 @@
     d.hoejre.appendChild(c);
     S.anvend(d.hoejre);
   }
-  function tegnFod() {
-    if (G.aktiv !== 'ordbog') return;
-    const fod = $('fod-venstre'), n = st.poster.length;
-    fod.setAttribute('data-t', 'fodPosterTal');
-    fod.setAttribute('data-v', String(n));
-    S.anvend(fod);
-  }
+  // V-OPBYG.2 N4: fodlinjen er ens i alle visninger uden for Maskér (sagens navn og gemte erstatninger; maskering.js).
+  function tegnFod() { if (G.aktiv === 'ordbog' && GM.tegnFodlinje) GM.tegnFodlinje(); }
 
   /* Ny ordbog fra Rust. Maskér får besked, så analysen bruger den nye ordbog. */
   function anvendSvar(ud) {

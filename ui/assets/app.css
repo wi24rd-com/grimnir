@@ -29,6 +29,8 @@
 .sagdel-gem { align-self: flex-start; margin: 0 var(--space-1) var(--space-1); }
 .sagdel-erst[aria-disabled="true"] { cursor: default; }
 .sagdel-erst[aria-disabled="true"] > span:first-child { color: var(--text-muted); }
+/* V-OPBYG.2 N2: Noter N under Gemte erstatninger (åbner fanen Noter). */
+.sagdel-noter { cursor: pointer; }
 .sagdel-lokalt { flex: none; margin: 0; padding: var(--space-2) var(--space-3); border-top: 1px solid var(--border); font-size: var(--small-size); line-height: var(--small-line); color: var(--text-muted); }
 html[data-laast] .sagdel { visibility: hidden; }
 /* V-OPBYG.1 N7: Vejledning og Lås i titellinjen er kittets titellinjeknapper med ord; Vejledning har en pil, der siger, at
@@ -96,6 +98,21 @@ html[data-laast] .sagdel { visibility: hidden; }
 .tekst::-webkit-scrollbar-thumb { background: var(--text-muted); border: 3px solid var(--surface-raised); border-radius: var(--radius-pill); }
 .tekst:focus-visible { outline-offset: -2px; }
 .afkortet { margin: 0; padding: var(--space-2) var(--space-3); border-top: 1px solid var(--border); font-size: var(--small-size); color: var(--text-muted); }
+/* V-OPBYG.2 N3: linjenumrene i en søjle ved siden af teksten (maskering.js, tekstVisning): samme skrift og linjehøjde og
+   samme luft foroven, kan ikke markeres, følger den lodrette rulning (scrollTop); forneden plads til tekstfeltets vandrette
+   rullebjælke (12 px), så det sidste nummer kan rulles ud for den sidste linje. Skjult under Ombryd (hidden). */
+.tekstramme { display: flex; min-height: 0; }
+.tekstramme > .tekst { flex: 1 1 auto; min-width: 0; }
+.linjenumre { flex: none; margin: 0; padding: var(--space-3) var(--space-2) calc(var(--space-3) + 12px) var(--space-3); overflow: hidden; white-space: pre; text-align: right; color: var(--text-muted); background: var(--surface-raised); border-right: 1px solid var(--border); -webkit-user-select: none; user-select: none; }
+.linjenumre[hidden] { display: none; }
+/* V-OPBYG.2 N3: markeringen i teksten (CSS Custom Highlight API; teksten deles ikke). Aldrig kun farve: understreget (maskeres),
+   stiplet (Tjek selv, ikke valgt), den valgte række med flade og streg over og under, og efter maskeringen koderne med flade
+   og understregning. */
+::highlight(grimnir-masker) { text-decoration-line: underline; text-decoration-style: solid; text-decoration-color: var(--ok); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+::highlight(grimnir-usikker) { text-decoration-line: underline; text-decoration-style: dashed; text-decoration-color: var(--warn); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+::highlight(grimnir-kode) { background-color: var(--ok-soft); text-decoration-line: underline; text-decoration-style: solid; text-decoration-color: var(--ok); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+::highlight(grimnir-valgt) { background-color: var(--warn-soft); text-decoration-line: underline overline; text-decoration-style: solid; text-decoration-color: var(--warn); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.markinfo[hidden] { display: none; }
 /* V-PUDS.3 N7: tabellens rullefelt er forfader med position (som kittets .tabel-rul), så en skjult tekst (kittets
    .skjult-tekst, position: absolute; fx ordet i Altid/Aldrig) placeres i rullefeltet og ikke efter vinduet: før trak den
    dokumentets rullehøjde med (målt i WKWebView: 2790 px i et vindue på 560 px med 60 fund), så hele siden kunne rulle. */
@@ -113,7 +130,7 @@ html[data-laast] .sagdel { visibility: hidden; }
 .flade.fyld { display: flex; flex-direction: column; --min-tekst: 72px; --min-tabel: 76px; }
 .flade.fyld > .arbejde { flex: 1 1 0; min-height: 0; }
 .flade.fyld .delt { flex: 1 1 0; min-height: 0; grid-template-rows: minmax(min-content, 1fr); }
-.flade.fyld .panel > .tekst, .flade.fyld .panel > .tabelvaert { flex: 1 1 0; min-height: var(--min-tekst); }
+.flade.fyld .panel > .tekstramme, .flade.fyld .panel > .tabelvaert { flex: 1 1 0; min-height: var(--min-tekst); }
 .flade.fyld .panel > .tabelvaert { min-height: var(--min-tabel); }
 /* Demaskér: advarslerne under de to tekster tager det, de skal bruge, højst 45 % af arbejdet; teksterne resten. */
 .flade.fyld .advarselpanel { flex: 0 0 auto; max-height: 45%; }
@@ -274,19 +291,22 @@ html[lang="en"] .resttabel { --k2: 80px; --tabel-min: 498px; }
 .dlg-felter { display: flex; flex-direction: column; gap: var(--space-3); margin: 0 0 var(--space-3); }
 .dlg-fejl { margin: 0 0 var(--space-3); color: var(--danger); font-size: var(--small-size); line-height: var(--small-line); }
 .sagtabel tbody tr { cursor: pointer; }
-/* Navn (resten), Værdier, Oprettet, Sidst brugt, Udløber, Status (V-RET.1 R1). Under 1100 px er datokolonnerne smallere:
+/* Navn (resten), Værdier, (V-OPBYG.2: Noter,) Oprettet, Sidst brugt, Udløber, Status (V-RET.1 R1). Under 1100 px er datokolonnerne smallere:
    datoen og overskriften må gå over to linjer ("30. nov." / "2026"). */
 /* V-OPBYG.1 N5: kolonnen Erstatninger (før Værdier) er 44 px bredere, så overskriften står hel (92/97 px, målt). */
-.sagtabel { --k2: 124px; --k3: 116px; --k4: 116px; --k5: 116px; --k6: 142px; --tabel-min: 754px; }
-html[lang="en"] .sagtabel { --k6: 160px; --tabel-min: 772px; }
+/* V-OPBYG.2 N1: kolonnen Noter (k3; antallet) mellem Erstatninger og Oprettet; tabellens mindste bredde vokser med den. I den
+   smalle udgave har cellerne 4 px luft i siden (som fundtabellen), så tabellen står uden vandret rulning ved 1024 px også med
+   stor tekst (målt i WKWebView; overskrifterne og chippene er målt og står i kolonnetesten). */
+.sagtabel { --k2: 124px; --k3: 72px; --k4: 116px; --k5: 116px; --k6: 116px; --k7: 142px; --tabel-min: 826px; }
+html[lang="en"] .sagtabel { --k7: 160px; --tabel-min: 844px; }
 @media (max-width: 1099px) {
-  :root:not([data-tekst="stor"]) .sagtabel { --celle: var(--space-2); --k2: 113px; --k3: 80px; --k4: 80px; --k5: 79px; --k6: 134px; --tabel-min: 626px; }
-  :root:not([data-tekst="stor"])[lang="en"] .sagtabel { --k6: 152px; --tabel-min: 644px; }
+  :root:not([data-tekst="stor"]) .sagtabel { --celle: var(--space-1); --k2: 105px; --k3: 50px; --k4: 72px; --k5: 72px; --k6: 71px; --k7: 126px; --tabel-min: 636px; }
+  :root:not([data-tekst="stor"])[lang="en"] .sagtabel { --k4: 66px; --k5: 66px; --k6: 66px; --k7: 144px; --tabel-min: 637px; }
   :root:not([data-tekst="stor"]) .sagtabel th { white-space: normal; }
 }
 @media (max-width: 1237px) {
-  :root[data-tekst="stor"] .sagtabel { --celle: var(--space-2); --k2: 113px; --k3: 80px; --k4: 80px; --k5: 79px; --k6: 134px; --tabel-min: 626px; }
-  :root[data-tekst="stor"][lang="en"] .sagtabel { --k6: 152px; --tabel-min: 644px; }
+  :root[data-tekst="stor"] .sagtabel { --celle: var(--space-1); --k2: 105px; --k3: 50px; --k4: 72px; --k5: 72px; --k6: 71px; --k7: 126px; --tabel-min: 636px; }
+  :root[data-tekst="stor"][lang="en"] .sagtabel { --k4: 66px; --k5: 66px; --k6: 66px; --k7: 144px; --tabel-min: 637px; }
   :root[data-tekst="stor"] .sagtabel th { white-space: normal; }
 }
 .sagnavn { display: flex; align-items: baseline; min-width: 0; }
@@ -434,3 +454,25 @@ html[data-laast] #baand .tip { display: none; }
 /* L3: banneret, når maskinen ikke kan bekræfte brugeren. Vedvarende og afdæmpet (Oplysning). */
 .laas-banner { flex: none; padding: var(--space-2) var(--space-3); background: var(--surface); border-bottom: 1px solid var(--border); }
 .laas-banner:empty { display: none; }
+
+/* V-OPBYG.2 N2: fanen Noter (noter.js) som skitsen: forklaringen øverst, noterne i tidsorden (kort med dato og tekst; den
+   valgte med accentens kant og flade, ikke kun farve: kanten er 2 px), og feltet Ny note nederst. Bredden højst 860 px. */
+.arbejde.noter { max-width: 860px; }
+.noteliste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.noteliste[hidden] { display: none; }
+.noteliste .note { padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+.noteliste[role="listbox"] .note { cursor: pointer; }
+.noteliste[role="listbox"] .note:hover { border-color: var(--border-strong); }
+.noteliste .note.valgt { border: 2px solid var(--accent); padding: calc(var(--space-3) - 1px); background: var(--accent-soft); }
+.noteliste .note:focus-visible { outline: 2px solid var(--info); outline-offset: 2px; }
+.note-tid { margin-bottom: var(--space-1); font-size: var(--small-size); line-height: var(--small-line); color: var(--text-muted); }
+.note-tekst { white-space: pre-wrap; overflow-wrap: anywhere; }
+.notefelt { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+.notefelt .label { text-transform: uppercase; letter-spacing: .06em; }
+.note-fejl { margin: 0; color: var(--danger); font-size: var(--small-size); }
+.note-fejl[hidden] { display: none; }
+.note-knapper { display: flex; gap: var(--space-2); }
+.note-knapper .btn[hidden] { display: none; }
+/* Sagens indhold for en anden sag: noterne under erstatningerne, kun til at læse. */
+.noter-laes { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); }
+.noter-laes h4 { margin: 0; font-size: var(--h3-size); }

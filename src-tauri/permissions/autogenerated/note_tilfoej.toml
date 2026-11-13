@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-note-tilfoej"
+description = "Enables the note_tilfoej command without any pre-configured scope."
+commands.allow = ["note_tilfoej"]
+
+[[permission]]
+identifier = "deny-note-tilfoej"
+description = "Denies the note_tilfoej command without any pre-configured scope."
+commands.deny = ["note_tilfoej"]

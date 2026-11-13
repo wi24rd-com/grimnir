@@ -85,14 +85,14 @@
   const fejlTekst = e => GM.sagFejlTekst(e);
 
   /* ═════════════════════════════ Den aktuelle sag og titellinjen ═════════════════════════════ */
-  let status = { poster: 0, id: null, navn: null, udloeb: null, valg: null };
+  let status = { poster: 0, id: null, navn: null, udloeb: null, valg: null, noter: 0 };
   const sagSpan = $('sag'), sagKnap = $('sag-knap');
 
   /* V-OPBYG.1 N4 (D27): titellinjen siger altid, hvilken sag der er åben, når status er hentet (efter oplåsningen):
      "Midlertidig sag · ikke gemt under et navn" eller "Sag: «navn» · gemmes automatisk"; knappen åbner sagens dialog som
      før. Indtil status er hentet (låst), står "Ingen sag åben". Venstre side viser det samme under Aktuel sag. */
   let kendt = false;
-  const sd = { navn: $('sagdel-navn'), status: $('sagdel-status'), gem: $('sagdel-gem'), erst: $('sagdel-erst'), antal: $('sagdel-antal') };
+  const sd = { navn: $('sagdel-navn'), status: $('sagdel-status'), gem: $('sagdel-gem'), erst: $('sagdel-erst'), antal: $('sagdel-antal'), noter: $('sagdel-noter'), noterAntal: $('sagdel-noter-antal') };
   function tegnTitel() {
     const navngiven = Boolean(status.id);
     sagSpan.hidden = kendt;
@@ -125,19 +125,26 @@
     sd.erst.setAttribute('data-v', String(status.poster));
     if (status.poster > 0) { sd.erst.removeAttribute('aria-disabled'); sd.erst.removeAttribute('data-t-title'); sd.erst.removeAttribute('title'); }
     else { sd.erst.setAttribute('aria-disabled', 'true'); sd.erst.setAttribute('data-t-title', 'hvorforIngenErstatninger'); }
+    // V-OPBYG.2 N2: Noter N under Gemte erstatninger (alle faner); et klik åbner fanen Noter, også uden noter (dér skrives
+    // den første).
+    sd.noterAntal.textContent = String(status.noter || 0);
+    sd.noter.setAttribute('data-v', String(status.noter || 0));
     S.anvend(sd.navn.parentElement);
   }
   sd.gem.addEventListener('click', () => gemSomSag());
+  sd.noter.addEventListener('click', () => { if (!G.laast) G.vis('noter'); });
   sd.erst.addEventListener('click', () => { if (sd.erst.getAttribute('aria-disabled') !== 'true') visIndhold(null); });
 
   /* Ny status fra Rust. nulstil: sagens indhold er skiftet, så Maskér og Demaskér glemmer analyse og resultat. */
   function anvend(s, nulstil) {
     kendt = true;
-    status = { poster: s.poster, id: s.id || null, navn: s.navn || null, udloeb: s.udloeb || null, valg: s.valg || null };
+    status = { poster: s.poster, id: s.id || null, navn: s.navn || null, udloeb: s.udloeb || null, valg: s.valg || null, noter: s.noter || 0 };
     if (nulstil) { GM.M.nulstilt(); GM.D.nulstilt(); }
     GM.saetSag(status.poster);
     tegnTitel();
     tegn();
+    // V-OPBYG.2: fanen Noter og fodlinjen følger den åbne sag.
+    document.dispatchEvent(new CustomEvent('grimnir-sag', { detail: { id: status.id, nulstil: Boolean(nulstil) } }));
     // Viser indholdet den åbne sag, er den skiftet eller ændret: hent igen (en anden sag på disk er uændret).
     if (ind.aktiv && (ind.id === null || ind.id === status.id || nulstil)) hentIndhold();
   }
@@ -265,7 +272,8 @@
     const r = filtrerede();
     const t = K.tabel({
       ariaT: 'pSager',
-      kolonner: [{ t: 'kolNavn' }, { t: 'kolVaerdier', tal: true }, { t: 'kolOprettet' }, { t: 'kolSidstBrugt' }, { t: 'kolUdloeber' }, { t: 'kolStatus' }],
+      // V-OPBYG.2 N1: kolonnen Noter (antallet fra sagens hoved; Rust læser ikke sagens indhold for listen).
+      kolonner: [{ t: 'kolNavn' }, { t: 'kolVaerdier', tal: true }, { t: 'kolNoter', tal: true }, { t: 'kolOprettet' }, { t: 'kolSidstBrugt' }, { t: 'kolUdloeber' }, { t: 'kolStatus' }],
       raekker: r.map(p => {
         const navn = document.createElement('span');
         navn.className = 'sagnavn';
@@ -284,7 +292,7 @@
         const c = K.chip(sv[0], { t: sv[1] });
         if (p.fejl) c.setAttribute('title', S.t('hvorforKanIkkeAabnes', fejlTekst({ art: 'sag', fejl: p.fejl })));
         const udl = p.fejl ? '' : p.udloeb ? fmtDato(p.udloeb) : S.t('udloebAldrig');
-        return { celler: [navn, p.fejl ? '' : String(p.poster), p.fejl ? '' : fmtMs(p.oprettet), p.fejl ? '' : fmtMs(p.sidst_brugt), udl, c], data: p.id };
+        return { celler: [navn, p.fejl ? '' : String(p.poster), p.fejl ? '' : String(p.noter || 0), p.fejl ? '' : fmtMs(p.oprettet), p.fejl ? '' : fmtMs(p.sidst_brugt), udl, c], data: p.id };
       }),
       vedValg: (tr, id) => { st.valgt = id; tegnKommandoer(); },
     });
@@ -335,14 +343,8 @@
     d.hoejre.appendChild(c);
     S.anvend(d.hoejre);
   }
-  function tegnFod() {
-    if (G.aktiv !== 'sager') return;
-    if (ind.aktiv) { tegnIndholdFod(); return; }
-    const fod = $('fod-venstre'), n = st.liste.length;
-    fod.setAttribute('data-t', 'fodSagerTal');
-    fod.setAttribute('data-v', String(n));
-    S.anvend(fod);
-  }
+  // V-OPBYG.2 N4: fodlinjen er sagens navn og antal gemte erstatninger (maskering.js), også i sagens indhold.
+  function tegnFod() { if (G.aktiv === 'sager') GM.tegnFodlinje(); }
 
   /* Listen fra Rust. Maskér/Demaskér får antallet (Demaskérs tomme tilstand peger på Sager). */
   function opdater() {
@@ -519,6 +521,8 @@
       });
       t.classList.add('indholdtabel');
       indVaert.appendChild(t);
+      // V-OPBYG.2 N1: en anden sags noter står skrivebeskyttet under erstatningerne (læst som dem; den åbnes ikke).
+      if (!svar.aaben && svar.noter && svar.noter.length && window.GrimnirNoter) indVaert.appendChild(window.GrimnirNoter.laesbare(svar.noter));
       if (!svar.raekker.length) {
         const tom = document.createElement('p');
         tom.className = 'tabel-tom';
@@ -536,14 +540,7 @@
     S.anvend(indArk);
     tegnIndholdFod();
   }
-  function tegnIndholdFod() {
-    if (G.aktiv !== 'sager' || !ind.aktiv) return;
-    const fod = $('fod-venstre');
-    fod.setAttribute('data-t', 'fodIndholdTal');
-    fod.setAttribute('data-v', String(ind.svar ? ind.svar.i_alt : 0));
-    fod.setAttribute('data-w', String(ind.svar ? ind.svar.raekker.length : 0));
-    S.anvend(fod);
-  }
+  function tegnIndholdFod() { tegnFod(); }
 
   /* ── Åbn en sag ── */
   function aabnValgt() {
@@ -554,7 +551,8 @@
   }
   function anmodAabn(id) {
     // En midlertidig sag med poster går tabt, når en anden sag åbnes: spørg først.
-    if (!status.id && status.poster > 0) { visKasser('aabn:' + id); return; }
+    // V-OPBYG.2: også en midlertidig sag med noter (D21: intet går tabt uden at spørge).
+    if (!status.id && (status.poster > 0 || status.noter > 0)) { visKasser('aabn:' + id); return; }
     aabn(id);
   }
   function aabn(id) {
@@ -704,7 +702,10 @@
   function visKasser(til) {
     kasserTil = til;
     dKasser.overskrift.setAttribute('data-t', til === 'afslut' ? 'kasserAfslutH' : 'kasserAabnH');
-    dKasser.rod.querySelector('.modal-tekst').setAttribute('data-v', String(status.poster));
+    const kp = dKasser.rod.querySelector('.modal-tekst');
+    kp.setAttribute('data-t', status.noter > 0 ? 'kasserNoterP' : 'kasserP');
+    kp.setAttribute('data-v', String(status.poster));
+    kp.setAttribute('data-w', String(status.noter || 0));
     S.anvend($('dlg-kasser'));
     G.aabnDialog('dlg-kasser', 'gem');
   }
@@ -752,5 +753,12 @@
     invoke('sag_status').then(s => anvend(s, false)).catch(() => anvend({ poster: 0 }, false));
     opdater();
   });
-  window.GrimnirSager = { st, aabnIgen, opdater, get status() { return status; }, statusFor, dageTil, ind, visIndhold, lukIndhold, gemSomSag };
+  /* V-OPBYG.2: noter.js melder antallet efter en ændring (status.noter; venstre side, listen og spørgsmålet ved en anden sag). */
+  function saetNoter(n) {
+    if (status.noter === n) return;
+    status.noter = n;
+    tegnSagdel();
+    if (status.id) opdater();
+  }
+  window.GrimnirSager = { st, aabnIgen, opdater, get status() { return status; }, statusFor, dageTil, ind, visIndhold, lukIndhold, gemSomSag, saetNoter };
 })();

@@ -283,8 +283,10 @@
   }
 
   /* V-RET.1 R2: "Ombryd" i panelhovedet skifter tekstfeltet mellem én linje pr. linje (standard, med vandret rulning) og
-     ombrydning. Valget huskes ikke: det står kun på elementet og er væk, når programmet lukkes. */
-  function ombrydKnap(hoved, pre) {
+     ombrydning. Valget huskes ikke: det står kun på elementet og er væk, når programmet lukkes.
+     V-OPBYG.2 N3: under Ombryd er linjenumrene skjult (se tekstVisning). */
+  function ombrydKnap(hoved, tv) {
+    const pre = tv.pre;
     const b = el('button', 'mini ombryd-knap', 'kOmbryd');
     b.type = 'button';
     b.setAttribute('aria-pressed', 'false');
@@ -293,22 +295,49 @@
     b.addEventListener('click', () => {
       const on = !pre.classList.contains('ombryd');
       pre.classList.toggle('ombryd', on);
+      tv.numre.hidden = on;
       b.setAttribute('aria-pressed', String(on));
+      // V-OPBYG.2 N3: linjerne fylder nu noget andet; markeringen omkring det synlige følger med (som ved en rulning).
+      pre.dispatchEvent(new Event('scroll'));
     });
     hoved.appendChild(b);
     return b;
   }
 
+  /* V-OPBYG.2 N3: linjenumre i en søjle ved siden af teksten: én tekstnode med tallene, samme skrift og linjehøjde som
+     teksten, kan ikke markeres (user-select: none) og kommer ikke med i Kopiér (Kopiér tager strengen, og en markering kan
+     ikke nå ind i søjlen); aria-hidden, fordi panelhovedet siger antallet af linjer. Søjlen følger den lodrette rulning
+     (scrollTop sættes; ingen stil fra JS). Under Ombryd skjules søjlen: én linje i teksten kan så fylde flere linjer på
+     skærmen, og at sætte numrene ud for dem kræver en måling af hver linje (et Range pr. linje ved hver ændring af bredden)
+     eller at teksten deles i elementer, og teksten skal blive én tekstnode. Antallet er antallet af linjeskift (LF) + 1,
+     uden en tom sidste linje efter et linjeskift til sidst, som WebKit tegner et <pre> (målt i V-OPBYG.2: et enligt CR
+     giver ingen ny linje på skærmen, og CRLF er ét linjeskift). */
   function tekstVisning(aria) {
+    const ramme = el('div', 'tekstramme');
+    const numre = el('div', 'linjenumre mono');
+    numre.setAttribute('aria-hidden', 'true');
     const pre = el('pre', 'tekst mono');
     pre.tabIndex = 0;
     pre.setAttribute('data-t-aria', aria);
+    ramme.append(numre, pre);
     const afk = el('p', 'afkortet', 'tekstAfkortet');
     afk.hidden = true;
+    let antal = -1;
+    function tegnNumre(t) {
+      let n = t ? 1 : 0, i = -1;
+      while ((i = t.indexOf('\n', i + 1)) !== -1) n++;
+      if (t.endsWith('\n')) n--;
+      if (n === antal) return;
+      antal = n;
+      let ud = '';
+      for (let k = 1; k <= n; k++) ud += k === 1 ? '1' : '\n' + k;
+      numre.textContent = ud;
+    }
+    pre.addEventListener('scroll', () => { if (numre.scrollTop !== pre.scrollTop) numre.scrollTop = pre.scrollTop; });
     /* ikkeVist: for en fil er s Rusts uddrag, og ikkeVist er antallet af tegn efter det (null: indsat tekst). */
     /* V-MANUEL.1: teksten sættes kun, når den er en anden; ellers ville hver ny tegning (fx når en analyse er færdig)
        fjerne brugerens markering, mens der markeres til Maskér dette. */
-    const saet = t => { if (pre.textContent !== t) pre.textContent = t; };
+    const saet = t => { if (pre.textContent !== t) pre.textContent = t; tegnNumre(t); };
     function vis(s, ikkeVist) {
       if (ikkeVist == null) {
         saet(s.length > MAKS_VIST ? s.slice(0, MAKS_VIST) : s);
@@ -323,7 +352,7 @@
       }
       S.anvend(afk);
     }
-    return { pre, afk, vis };
+    return { pre, afk, vis, ramme, numre };
   }
 
   /* Fokus bevares over en ny tegning af tabellen (rækkens id + hvilket felt). */
@@ -352,6 +381,7 @@
     M.tegnTom();
     M.tegnBannere();
     document.dispatchEvent(new CustomEvent('grimnir-poster', { detail: n }));
+    tegnFodlinje();
   }
   /* V-MANUEL.2 N1: den åbne sag (navn og id fra sager.js) til den tomme flade. Kun navnet, som brugeren selv har skrevet. */
   const sagNu = () => (window.GrimnirSager ? window.GrimnirSager.status : { poster, id: null, navn: null });
@@ -359,12 +389,39 @@
   const visSagensIndhold = () => { if (window.GrimnirSager) window.GrimnirSager.visIndhold(null); };
   function saetGemteSager(n) { gemteSager = n; D.opdater(); }
 
+  /* V-OPBYG.2 N4: fodlinjen følger skitsen i alle visninger: i Maskér med fund "8 værdier · 6 maskeres · 2 bevares" (efter
+     maskeringen "6 maskeret · 2 bevaret"); ellers sagens navn og antallet af gemte erstatninger ("Midlertidig sag · 3 gemte
+     erstatninger"). Kittets sprog har kun {v} og {w}, så hvert led er sin egen <span> med sin nøgle (sproget skifter dem);
+     sagens navn er brugerens tekst og står som tekst. Tegnes kun om, når indholdet er ændret. */
+  let maskerFodTal = () => null; // sættes, når Maskér er bygget (M.fodTal)
+  function tegnFodlinje() {
+    const fod = document.getElementById('fod-venstre');
+    if (!fod) return;
+    const tal = G.aktiv === 'masker' ? maskerFodTal() : null;
+    const s = sagNu();
+    const dele = tal
+      ? [['fodVaerdier', tal.alle], [tal.efter ? 'fodMaskeret' : 'fodMaskeres', tal.valgte], [tal.efter ? 'fodBevaret' : 'fodBevares', tal.alle - tal.valgte]]
+      : [s.id ? [null, s.navn] : ['midlertidigSagNavn', null], ['fodErstatninger', s.poster || 0]];
+    const noegle = JSON.stringify(dele);
+    if (fod.getAttribute('data-fod') === noegle) return;
+    fod.setAttribute('data-fod', noegle);
+    for (const a of ['data-t', 'data-v', 'data-w']) fod.removeAttribute(a);
+    fod.textContent = '';
+    dele.forEach(([t, v], i) => {
+      if (i) fod.append(' · ');
+      const sp = document.createElement('span');
+      if (t) { sp.setAttribute('data-t', t); if (v != null) sp.setAttribute('data-v', String(v)); } else sp.textContent = v || '';
+      fod.appendChild(sp);
+    });
+    S.anvend(fod);
+  }
+
   /* ═════════════════════════════ Maskér ═════════════════════════════ */
   const M = (function () {
     // fil: den åbne fil (FilInfo fra Rust) eller null; så er tekst Rusts uddrag, og analyse.side er rækkerne fra Rust.
     // V-MANUEL.1: tilfoejede er brugerens egne værdier ({ vaerdi, art }) fra "Maskér dette"; resultatBrugt: resultatet er
     // kopieret eller gemt (Ryd spørger ellers); meld: den værdi, der lige er tilføjet (meldes, når analysen svarer).
-    const st = { tekst: null, bytes: 0, linjer: null, fil: null, analyse: null, fravalgt: new Set(), rort: new Map(), rettelser: new Map(), fejl: new Map(), resultat: null, foerEfter: false, visRester: false, spoergRester: false, filter: 'alle', soeg: '', vist: new Set(), side: SIDE, nr: 0, sideNr: 0, travl: false, venter: null, tilfoejede: [], resultatBrugt: false, meld: null, visNy: null, afviste: new Set() };
+    const st = { tekst: null, bytes: 0, linjer: null, fil: null, analyse: null, fravalgt: new Set(), rort: new Map(), rettelser: new Map(), fejl: new Map(), resultat: null, foerEfter: false, visRester: false, spoergRester: false, filter: 'alle', soeg: '', vist: new Set(), side: SIDE, nr: 0, sideNr: 0, travl: false, venter: null, tilfoejede: [], resultatBrugt: false, meld: null, visNy: null, afviste: new Set(), valgtRaekke: null };
     /* V-MANUEL.1 N2: Fortryd og Gentag. Hvert trin er et øjebliksbillede af brugerens valg FØR ændringen (fravalg, rørte
        rækker, rettelser og tilføjede værdier) og hvad der blev gjort ved hvilken værdi (til meldingen). Fortryd lægger
        valgene tilbage og analyserer igen; analysen er den samme for samme valg, så tabellen bliver som før. Kun valg i
@@ -372,13 +429,16 @@
        tømmes ved Gem og maskér, en ny tekst, en åben fil og Ryd. Højst HIST_MAKS trin. */
     const HIST_MAKS = 100;
     const hist = { bag: [], frem: [] };
-    let tv, tabelvaert, flere, flereTekst, tekstPanel, tabelPanel, delt;
+    let tv, tabelvaert, flere, flereTekst, tekstPanel, tabelPanel, delt, markInfo;
     const f = byggeFlade('masker', ark => {
       delt = el('div', 'delt');
       tekstPanel = panel('pTekst', 'tekstpanel');
       tv = tekstVisning('ariaTekst');
-      tekstPanel.p.append(tv.pre, tv.afk);
-      ombrydKnap(tekstPanel.hoved, tv.pre);
+      // V-OPBYG.2 N3: under teksten siger en linje, når værdierne ikke kan markeres (en fil; en webvisning uden API'et).
+      markInfo = el('p', 'afkortet markinfo');
+      markInfo.hidden = true;
+      tekstPanel.p.append(tv.ramme, tv.afk, markInfo);
+      ombrydKnap(tekstPanel.hoved, tv);
       tabelPanel = panel('pFund');
       tabelvaert = el('div', 'tabelvaert');
       flere = el('div', 'flere');
@@ -511,6 +571,7 @@
       st.afviste = new Set();
       st.analyse = null; st.fravalgt = new Set(); st.rort = new Map(); st.rettelser = new Map(); st.fejl = new Map(); st.resultat = null;
       st.foerEfter = false; st.visRester = false; st.spoergRester = false; st.vist = new Set(); st.side = SIDE; st.nr++; st.travl = false; st.kopieret = false;
+      st.valgtRaekke = null;
       if (st.venter) { clearTimeout(st.venter); st.venter = null; }
     }
 
@@ -881,6 +942,141 @@
       tv.pre.setAttribute('data-t-aria', efter ? 'ariaMaskeret' : 'ariaTekst');
       tegnInfo();
       G.dele.masker.bar.knap('foer-efter').setAttribute('aria-pressed', String(Boolean(efter)));
+      marker();
+    }
+
+    /* ── V-OPBYG.2 N3: markering i teksten ──
+       Teksten deles ikke: CSS Custom Highlight API (CSS.highlights) med Range-objekter på tekstfeltets ene tekstnode, så
+       markering med mus, Skift + piletaster (flyt), Maskér markering, Kopiér og CRLF er som før. Fire markeringer (app.css,
+       ::highlight): værdier, der maskeres (understreget), usikre fund, der ikke maskeres ("Tjek selv", stiplet), den valgte
+       række (flade og streg over og under, alle steder; første sted rulles frem) og efter maskeringen koderne (flade og
+       understreget). Aldrig kun farve. Stederne kommer fra Rust (analysen og maskeringen: start, slut, række i UTF-16) og
+       kun for de første 200.000 tegn, som feltet viser; en fil har dem ikke endnu (V-OPBYG.3). Uden API'et (en ældre
+       webvisning) markeres intet, og linjen under teksten siger det. */
+    const HL = typeof CSS !== 'undefined' && CSS && CSS.highlights && typeof Highlight === 'function';
+    /* StaticRange, ikke Range: en levende Range skal WebKit flytte ved hver ændring af DOM'en, og med tusinder af dem blev
+       hele visningen langsom (målt i V-OPBYG.2: 4.940 ms mod 107 ms for 2.000 linjer med 6.680 steder; tabellens rækker
+       bygges efter teksten). Et StaticRange er kun tre tal; teksten ændres aldrig under det (feltet sættes kun, når teksten
+       er en anden, og så tegnes markeringen forfra). */
+    const sted = typeof StaticRange === 'function'
+      ? (node, a, b) => new StaticRange({ startContainer: node, startOffset: a, endContainer: node, endOffset: b })
+      : (node, a, b) => { const r = document.createRange(); r.setStart(node, a); r.setEnd(node, b); return r; };
+    const MARK = { masker: 'grimnir-masker', usikker: 'grimnir-usikker', kode: 'grimnir-kode', valgt: 'grimnir-valgt' };
+    let markRanges = { masker: [], usikker: [], kode: [], valgt: [] };
+    function steder() {
+      const efter = st.foerEfter && st.resultat;
+      if (st.fil) return null;
+      return efter ? st.resultat.steder || null : st.analyse && st.analyse.steder || null;
+    }
+    function markInfoTekst(noegle) {
+      if (!markInfo) return;
+      markInfo.hidden = !noegle;
+      if (noegle) markInfo.setAttribute('data-t', noegle); else markInfo.removeAttribute('data-t');
+      S.anvend(markInfo);
+    }
+    function saetHighlight(navn, ranges, prioritet) {
+      if (!ranges.length) { CSS.highlights.delete(navn); return; }
+      const h = new Highlight(...ranges);
+      h.priority = prioritet;
+      CSS.highlights.set(navn, h);
+    }
+    /* Kun stederne omkring det, der kan ses, markeres: det synlige stykke (document.caretRangeFromPoint i feltets øverste og
+       nederste hjørne) og VINDUE linjer over og under. new Highlight(...) koster ca. 11 µs pr. sted i WebKit (målt i
+       V-OPBYG.2: 80 ms for 7.099 steder), så alle steder i 200.000 tegn gjorde visningen 157 ms langsommere; omkring det
+       synlige er det nogle hundrede steder. Rulles feltet uden for margenen, tegnes markeringen om (rulning). Uden geometri
+       (en webvisning uden caretRangeFromPoint, et skjult felt) markeres hele den viste tekst; et skjult felt markeres igen,
+       når Maskér vises. */
+    const VINDUE = 60;
+    let vindue = null; // [fra, til] i tegn, som markeringen dækker (null: hele teksten)
+    function synligt(node) {
+      if (typeof document.caretRangeFromPoint !== 'function') return null;
+      const pr = tv.pre.getBoundingClientRect();
+      if (!pr.height || !pr.width) return null;
+      const sted = (x, y) => { const r = document.caretRangeFromPoint(x, y); return r && r.startContainer === node ? r.startOffset : null; };
+      const a = sted(pr.left + 2, pr.top + 2), b = sted(pr.left + 2, pr.bottom - 14);
+      return a == null || b == null ? null : [Math.min(a, b), Math.max(a, b)];
+    }
+    function udvid(t, [a, b]) {
+      let fra = a, til = b;
+      for (let i = 0; i < VINDUE && fra > 0; i++) { const j = t.lastIndexOf('\n', fra - 2); fra = j < 0 ? 0 : j + 1; }
+      for (let i = 0; i < VINDUE && til < t.length; i++) { const j = t.indexOf('\n', til + 1); til = j < 0 ? t.length : j; }
+      return [fra, til];
+    }
+    /* Første plads i den sorterede liste med start >= fra (binær søgning). */
+    function foersteFra(liste, fra) {
+      let lo = 0, hi = liste.length;
+      while (lo < hi) { const m = (lo + hi) >> 1; if (liste[m][0] < fra) lo = m + 1; else hi = m; }
+      return lo;
+    }
+    function marker() {
+      markInfoTekst(st.fil && st.analyse ? 'markeringFil' : !HL && st.analyse ? 'markeringMangler' : null);
+      if (!HL) return;
+      const efter = Boolean(st.foerEfter && st.resultat);
+      const liste = steder(), node = tv.pre.firstChild;
+      markRanges = { masker: [], usikker: [], kode: [], valgt: [] };
+      vindue = null;
+      if (liste && node && node.nodeType === 3) {
+        const raekke = new Map(st.analyse ? st.analyse.raekker.map(r => [r.id, r]) : []);
+        const n = node.length;
+        const syn = synligt(node);
+        vindue = syn ? udvid(node.data, syn) : null;
+        // Et sted, der begynder før vinduet, kan række ind i det (stederne er korte; 200 tegn er rigeligt).
+        const i0 = vindue ? foersteFra(liste, Math.max(0, vindue[0] - 200)) : 0;
+        for (let i = i0; i < liste.length; i++) {
+          const [a, b, id] = liste[i];
+          if (a >= n || (vindue && a > vindue[1])) break;
+          if (vindue && b < vindue[0]) continue;
+          const r = sted(node, a, Math.min(b, n));
+          const x = raekke.get(id);
+          if (efter) markRanges.kode.push(r);
+          else if (x && valgt(x)) markRanges.masker.push(r);
+          else if (x && x.status === 'tjek') markRanges.usikker.push(r);
+          if (id === st.valgtRaekke) markRanges.valgt.push(r);
+        }
+      }
+      saetHighlight(MARK.masker, markRanges.masker, 1);
+      saetHighlight(MARK.usikker, markRanges.usikker, 1);
+      saetHighlight(MARK.kode, markRanges.kode, 1);
+      saetHighlight(MARK.valgt, markRanges.valgt, 2);
+    }
+    /* Rulning: tegn markeringen om, når det synlige nærmer sig vinduets kant (mindre end en tredjedel af margenen igen). */
+    function vedRul() {
+      if (!HL || !vindue) return;
+      const node = tv.pre.firstChild;
+      if (!node || node.nodeType !== 3) return;
+      const syn = synligt(node);
+      if (!syn) return;
+      const t = node.data, kant = udvid(t, syn);
+      const naer = (x, y) => Math.abs(x - y) < (t.length / Math.max(1, (t.match(/\n/g) || []).length + 1)) * VINDUE * 2 / 3;
+      if (syn[0] < vindue[0] || syn[1] > vindue[1] || (naer(syn[0], vindue[0]) && vindue[0] > 0) || (naer(syn[1], vindue[1]) && vindue[1] < t.length)) {
+        if (kant[0] !== vindue[0] || kant[1] !== vindue[1]) marker();
+      }
+    }
+    tv.pre.addEventListener('scroll', vedRul);
+    /* Det første sted rulles frem: en midlertidig Range (kun den ene) giver stedets plads. */
+    function rulFrem(node, a, b) {
+      const r = document.createRange();
+      r.setStart(node, a);
+      r.setEnd(node, b);
+      if (!r.getBoundingClientRect) return;
+      const rr = r.getBoundingClientRect(), pr = tv.pre.getBoundingClientRect();
+      if (r.detach) r.detach();
+      if (!rr.height && !rr.width) return;
+      if (rr.top < pr.top || rr.bottom > pr.bottom) tv.pre.scrollTop += rr.top - pr.top - pr.height / 3;
+      if (rr.left < pr.left || rr.right > pr.right) tv.pre.scrollLeft += rr.left - pr.left - pr.width / 3;
+    }
+    let genvaelger = false; // tegnTabel vælger rækken igen: markeringen tegnes, men teksten rulles ikke
+    /* Den valgte række markeres alle steder (i vinduet), og det første sted i teksten rulles frem; så tegnes markeringen
+       for det, der nu kan ses. */
+    function vaelgRaekke(id) {
+      st.valgtRaekke = id;
+      if (!HL) return;
+      const liste = steder(), node = tv.pre.firstChild;
+      if (!genvaelger && liste && node && node.nodeType === 3) {
+        const f = liste.find(x => x[2] === id && x[0] < node.length);
+        if (f) rulFrem(node, f[0], Math.min(f[1], node.length));
+      }
+      marker();
     }
     /* Panelhovedet: linjer og størrelse. V-PUDS.3 N5: før analysen webvisningens tal (samme regel som Rust), derefter
        Rusts; for en fil Rusts med det samme. Kaldes også ved sprogskift (talformatet). */
@@ -1286,6 +1482,8 @@
       const iAlt = side ? side.i_alt : alle.length;
       const t = K.tabel({
         ariaT: 'pFund',
+        // V-OPBYG.2 N3: den valgte række markeres alle steder i teksten, og det første sted rulles frem.
+        vedValg: (tr, id) => vaelgRaekke(id),
         kolonner: [{ t: 'kolMasker' }, { t: 'kolType' }, { t: 'kolVaerdi' }, { t: 'kolErstatning' }, { t: 'kolAntal', tal: true }, { t: 'kolStatus' }, { t: 'kolOrdbog' }],
         raekker: vis.map(r => {
           const tf = tilfoejetAf(r);
@@ -1325,6 +1523,9 @@
       const tr = [...t.querySelectorAll('tbody tr')];
       vis.forEach((r, i) => { tr[i].setAttribute('data-id', String(r.id)); if (r.nul || !valgt(r)) tr[i].classList.add('fra'); if (tilfoejetAf(r)) tr[i].classList.add('tilfoejet'); });
       tabelvaert.appendChild(t);
+      // V-OPBYG.2 N3: den valgte række står valgt igen efter en ny tegning (uden fokus og uden at rulle teksten).
+      const vi = st.valgtRaekke == null ? -1 : vis.findIndex(r => r.id === st.valgtRaekke);
+      if (vi >= 0) { genvaelger = true; t.vaelg(vi); genvaelger = false; }
       // V-MANUEL.2: et tomt "Kendt fra sagen" siger, hvad filteret er.
       if (!vis.length) tabelvaert.appendChild(el('p', 'tabel-tom', !(side ? side.antal.alle : st.analyse.raekker.length) ? 'ingenFund' : st.filter === 'seneste' && !st.soeg.trim() ? 'ingenKendtFraSagen' : 'ingenIFilter'));
       flere.hidden = iAlt <= vis.length;
@@ -1419,14 +1620,15 @@
       d.hoejre.appendChild(c);
       S.anvend(d.hoejre);
     }
-    function tegnFod() {
-      if (G.aktiv !== 'masker') return;
-      const fod = document.getElementById('fod-venstre');
-      const side = st.fil && st.analyse ? st.analyse.side : null;
-      if (st.analyse) { fod.setAttribute('data-t', 'fodMaskerTal'); fod.setAttribute('data-v', String(side ? side.antal.alle : st.analyse.raekker.length)); fod.setAttribute('data-w', String(side ? side.valgte : st.analyse.raekker.filter(valgt).length)); }
-      else { fod.setAttribute('data-t', 'fodMasker'); fod.removeAttribute('data-v'); fod.removeAttribute('data-w'); }
-      S.anvend(fod);
+    /* V-OPBYG.2 N4: tallene til fodlinjen (tegnFodlinje): alle fund, de valgte, og om de er maskeret; null uden fund. */
+    function fodTal() {
+      if (!st.analyse) return null;
+      const side = st.fil ? st.analyse.side : null;
+      const alle = side ? side.antal.alle : st.analyse.raekker.length;
+      if (!alle) return null;
+      return { alle, valgte: side ? side.valgte : st.analyse.raekker.filter(valgt).length, efter: Boolean(st.resultat) };
     }
+    function tegnFod() { tegnFodlinje(); }
 
     /* ── kommandoer og genveje ── */
     G.haandter('masker', 'analyser', () => analyser());
@@ -1469,7 +1671,9 @@
 
     return {
       st, modtag, analyser, analyserIgen, gem, kopierResultat, kopierKvittering, tegn, tegnFod, tegnTabel, tegnInfo, tegnBannere,
-      genvejEnter() { return st.analyse ? gem() : analyser(); },
+      // V-OPBYG.2 N4 (sideeffekt-fund 1 i V-OPBYG.1): mens analysen kører, starter ⌘↵ ikke en analyse til.
+      genvejEnter() { if (st.travl) return Promise.resolve(); return st.analyse ? gem() : analyser(); },
+      fodTal, marker, vaelgRaekke, get markeringer() { return markRanges; },
       filter(id) { st.filter = id === 'denne' ? 'alle' : id; st.visRester = false; st.side = SIDE; if (st.fil) hentSide(); else tegnTabel(); tegnBannere(); },
       aabnFil, gemFil, modtagFil,
       aabnSluppet() { return aabnFil('fil_aabn_sluppet'); },
@@ -1484,6 +1688,8 @@
     };
   })();
 
+  maskerFodTal = M.fodTal;
+
   /* ═════════════════════════════ Demaskér ═════════════════════════════ */
   const D = (function () {
     // V-MANUEL.1: resultatBrugt (kopieret eller gemt; Ryd spørger ellers), adv (Næste advarsel: pladsen i advarslerne).
@@ -1493,12 +1699,12 @@
       const delt = el('div', 'delt lige');
       svarPanel = panel('pSvar');
       svar = tekstVisning('ariaSvar');
-      svarPanel.p.append(svar.pre, svar.afk);
-      ombrydKnap(svarPanel.hoved, svar.pre);
+      svarPanel.p.append(svar.ramme, svar.afk);
+      ombrydKnap(svarPanel.hoved, svar);
       udPanel = panel('pRigtige');
       ud = tekstVisning('ariaRigtige');
-      udPanel.p.append(ud.pre, ud.afk);
-      ombrydKnap(udPanel.hoved, ud.pre);
+      udPanel.p.append(ud.ramme, ud.afk);
+      ombrydKnap(udPanel.hoved, ud);
       delt.append(svarPanel.p, udPanel.p);
       tabelPanel = panel('pAdvarsler', 'advarselpanel');
       tabelvaert = el('div', 'tabelvaert');
@@ -1716,13 +1922,7 @@
       }
       S.anvend(d.hoejre);
     }
-    function tegnFod() {
-      if (G.aktiv !== 'demasker') return;
-      const fod = document.getElementById('fod-venstre');
-      if (st.resultat) { fod.setAttribute('data-t', 'fodDemaskerTal'); fod.setAttribute('data-v', String(st.resultat.koder.length)); fod.setAttribute('data-w', String(advarsler().length)); }
-      else { fod.setAttribute('data-t', 'fodDemasker'); fod.removeAttribute('data-v'); fod.removeAttribute('data-w'); }
-      S.anvend(fod);
-    }
+    function tegnFod() { tegnFodlinje(); }
 
     G.haandter('demasker', 'demasker', () => demasker());
     // V-MANUEL.2 N1: den tomme flades anden handling: sagens indhold, når sagen har koder; ellers Sager (som før).
@@ -1936,7 +2136,11 @@
     if (e.detail.visning === 'masker') M.filter(e.detail.id);
     else if (e.detail.visning === 'demasker') D.filter(e.detail.id);
   });
-  document.addEventListener('grimnir-visning', () => { M.tegnFod(); D.tegnFod(); });
+  // V-OPBYG.2 N4: fodlinjen tegnes for hver visning (også Noter, Sager og Ordbog) og når sagen skifter (sager.js).
+  document.addEventListener('grimnir-visning', () => tegnFodlinje());
+  // V-OPBYG.2 N3: et skjult tekstfelt har ingen geometri; markeringen omkring det synlige tegnes, når Maskér vises.
+  document.addEventListener('grimnir-visning', e => { if (e.detail === 'masker' && M.st.analyse) M.marker(); });
+  document.addEventListener('grimnir-sag', () => tegnFodlinje());
 
   /* Filer fra menuen (Arkiv → Åbn… ⌘O, Gem… ⌘S) og træk og slip (V-FIL.1). Rust sender kun filnavnet eller hvorfor et
      træk blev afvist (flere filer, en mappe). En fil, der slippes uden for Maskér og Demaskér, åbnes i Maskér. */
@@ -1984,5 +2188,5 @@
   M.tegn();
   D.tegn();
   menuSprog();
-  window.GrimnirMaskering = { M, D, utf8Laengde, antalLinjer, stoerrelse, MAKS_BYTES, MAKS_DEMASKER, saetSag, saetGemteSager, kommando, sagFejlTekst, filFejlTekst, banner, get poster() { return poster; } };
+  window.GrimnirMaskering = { M, D, utf8Laengde, antalLinjer, stoerrelse, MAKS_BYTES, MAKS_DEMASKER, saetSag, saetGemteSager, kommando, sagFejlTekst, filFejlTekst, banner, get poster() { return poster; }, tegnFodlinje, kopier, tekstVisning };
 })();

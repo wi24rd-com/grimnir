@@ -64,6 +64,18 @@
 //! for indsat tekst i tilstanden, for en fil sammen med filens resultat. [`kvittering`] bygger teksten af dem. Tallene er
 //! kun tal og typenøgler; de findes, så længe resultatet gør (en ny analyse, Nulstil, en anden sag og en lås fjerner dem).
 //! Kvitteringen er ikke demaskeret tekst: den meldes ikke til [`udklip_kopieret`] og ryddes ikke fra udklipsholderen.
+//!
+//! **Noter (V-OPBYG.2 N1).** En sag har noter ([`grimnir_core::Note`]): [`noter_hent`], [`note_tilfoej`], [`note_ret`] og
+//! [`note_slet`] virker på den åbne sag, også den midlertidige. En navngiven sag gemmes, før ændringen træder i kraft (som
+//! posterne); fejler gemningen, er noterne i hukommelsen uændrede. Den midlertidige sag følger D21 uændret: en sag med
+//! poster **eller noter** har indhold ([`Sag::har_indhold`]), så programmet spørger ved Afslut, og låsen og afslutningen
+//! gemmer den under et dato-navn; "Gem som sag" tager noterne med (de er en del af sagens data). Noterne bruges aldrig af
+//! analysen, maskeringen, lækagetjekket, demaskeringen eller kvitteringen, og intet her skriver dem til log eller konsol.
+//! Låst: hver note-kommando svarer [`UiFejl::Laast`], og porten tjekkes igen, før svaret med noternes tekst gives.
+//!
+//! **Steder i teksten (V-OPBYG.2 N3).** [`AnalyseMed::steder`] og [`Maskering::steder`] har hver forekomst som (start, slut,
+//! række) i UTF-16-enheder (som webvisningens strenge), kun for de første [`MAKS_VIST_UTF16`] enheder, som tekstfeltet
+//! viser. Webvisningen markerer dem med `Range`-objekter på tekstfeltets ene tekstnode (CSS Custom Highlight API).
 
 use std::collections::{HashMap, HashSet};
 use std::hash::{BuildHasher, RandomState};
@@ -74,7 +86,8 @@ use std::thread::ThreadId;
 
 use grimnir_core::{
     analyser as kerne_analyser, demasker_med_steder as kerne_demasker, foreslaa_med_ordbog, foreslaa_moenstre, laekagetjek, masker,
-    Advarsel, AdvarselArt, AfledtArt, Art, Erstatning, Fejl, Fund, Klasse, Ordbog, Pulje, RestArt, Sag, SagData, Sikkerhed, Valg,
+    Advarsel, AdvarselArt, AfledtArt, Art, Erstatning, Fejl, Fund, Klasse, Note, Ordbog, Pulje, RestArt, Sag, SagData, Sikkerhed, Valg,
+    MAKS_NOTER, MAKS_NOTE_TEGN,
 };
 use serde::{Deserialize, Serialize};
 
@@ -85,7 +98,9 @@ use crate::klokke::{self, Klokke, SystemKlokke};
 use crate::kvittering::{self as kvit, Kilde, Tal, TypeTal};
 use crate::laas::{begrundelse, Doer, Grund, Svar, Udloeser};
 use crate::ordbog::{self as ob, FeltFejl, OrdbogPost, Ordbogsfil, PostType};
-use crate::sager::{nulstil, opret_mappe, rens_navn, ryd_midlertidige, tjek_dato, AabenSag, Arkiv, Noegle, Noeglelager, SagFejl, SagsId};
+use crate::sager::{
+    nulstil, nulstil_noter, opret_mappe, rens_navn, ryd_midlertidige, tjek_dato, AabenSag, Arkiv, Noegle, Noeglelager, SagFejl, SagsId,
+};
 use crate::stilstand::{Stilstand, Travl, Ur};
 use crate::udklip::{Indhold, Udklip};
 
@@ -94,6 +109,9 @@ pub const MAKS_BYTES: usize = 5 * 1024 * 1024;
 /// Største tekst, Demaskér tager imod: 8 MiB (8 388 608 bytes). Det maskerede kan blive større end originalen, fordi
 /// koderne kan være længere end værdierne (fund 1 i V-SKAL.2).
 pub const MAKS_DEMASKER: usize = 8 * 1024 * 1024;
+/// V-OPBYG.2 N3: så mange UTF-16-enheder viser tekstfeltet af en indsat tekst (`MAKS_VIST` i maskering.js); kun steder,
+/// der begynder inden for dem, sendes med ([`AnalyseMed::steder`], [`Maskering::steder`]).
+pub const MAKS_VIST_UTF16: usize = 200_000;
 
 /// Den sag, der er i brug: sagen i hukommelsen og, hvis den er navngiven, dens fil og nøgle. `nr` tælles op, hver gang
 /// sagen erstattes (V-FIL.1: en maskeret fil i hukommelsen hører til den sag, der lavede den).
@@ -491,8 +509,8 @@ impl Tilstand {
         self.ordbog().as_ref().map(|o| o.kerne.clone()).unwrap_or_default()
     }
 
-    /// Sand, hvis programmet skal spørge, før det lukkes: en midlertidig sag med poster, og brugeren har ikke allerede
-    /// svaret (Gem som sag, Kassér).
+    /// Sand, hvis programmet skal spørge, før det lukkes: en midlertidig sag med poster eller (V-OPBYG.2) noter, og
+    /// brugeren har ikke allerede svaret (Gem som sag, Kassér).
     ///
     /// Kaldes på hovedtråden (menuen, vinduets lukkeknap); derfor ventes der ikke på sagens lås. Er den optaget (en
     /// maskering af en stor fil kører), spørger programmet hellere end at fryse vinduet (V-FIL.1).
@@ -501,10 +519,10 @@ impl Tilstand {
             return false;
         }
         match self.sag.try_lock() {
-            Ok(a) => a.aaben.is_none() && a.sag.antal_poster() > 0,
+            Ok(a) => a.aaben.is_none() && a.sag.har_indhold(),
             Err(std::sync::TryLockError::Poisoned(e)) => {
                 let a = e.into_inner();
-                a.aaben.is_none() && a.sag.antal_poster() > 0
+                a.aaben.is_none() && a.sag.har_indhold()
             }
             Err(std::sync::TryLockError::WouldBlock) => true,
         }
@@ -671,6 +689,13 @@ pub enum UiFejl {
         /// Grænsen.
         maks: usize,
     },
+    /// V-OPBYG.2 N1: en note blev afvist; intet er ændret. Uden notens tekst.
+    Note {
+        /// `tom` | `for_lang` | `for_mange` | `ukendt`
+        hvad: &'static str,
+        /// Grænsen (tegn for `for_lang`, antal for `for_mange`; ellers 0).
+        maks: usize,
+    },
 }
 
 impl From<FilFejl> for UiFejl {
@@ -776,6 +801,10 @@ pub struct AnalyseMed {
     pub analyse: Analyse,
     /// Hvad der blev af hver tilføjet værdi, i listens rækkefølge.
     pub tilfoejede: Vec<TilfoejetUd>,
+    /// V-OPBYG.2 N3: hver forekomst som (start, slut, rækkens `id`) i UTF-16-enheder, sorteret; kun steder, der begynder
+    /// inden for de første [`MAKS_VIST_UTF16`] enheder. En valgt række: stederne, der maskeres; en fravalgt: stederne fra
+    /// det fulde gennemløb (som `antal`). Står i samme JSON-objekt som analysen (`Analyse` er uændret).
+    pub steder: Vec<(usize, usize, usize)>,
 }
 
 impl std::ops::Deref for AnalyseMed {
@@ -811,6 +840,9 @@ pub struct Maskering {
     pub advarsler: Vec<AdvarselUd>,
     /// Sagens antal poster efter gemningen.
     pub poster: usize,
+    /// V-OPBYG.2 N3: hver kode i den maskerede tekst som (start, slut, rækkens `id`) i UTF-16-enheder, sorteret; kun
+    /// steder, der begynder inden for de første [`MAKS_VIST_UTF16`] enheder.
+    pub steder: Vec<(usize, usize, usize)>,
 }
 
 /// Svaret fra `demasker`.
@@ -855,6 +887,8 @@ pub struct SagStatus {
     pub udloeb: Option<String>,
     /// Sagens valg (D4, D5).
     pub valg: ValgUd,
+    /// V-OPBYG.2 N1: antal noter i sagen.
+    pub noter: usize,
 }
 
 /// En sags valg til UI'et.
@@ -894,6 +928,8 @@ pub struct SagListePost {
     pub aaben: bool,
     /// Årsagen, hvis sagen ikke kan åbnes ("Kan ikke åbnes").
     pub fejl: Option<SagFejl>,
+    /// V-OPBYG.2 N1: antal noter (fra sagens hoved; kroppen læses ikke).
+    pub noter: usize,
 }
 
 // ------------------------------------------------------------------------------------------------------- navne til UI
@@ -1074,6 +1110,10 @@ struct Beregning {
     fund_spaend: Vec<(usize, usize)>,
     /// V-MANUEL.2 N3: forslag til navnemønstre.
     moenstre: Vec<MoensterUd>,
+    /// V-OPBYG.2 N3: hver forekomst i teksten som (byte start, byte slut, rækkens `id`), som `antal` tæller dem.
+    spaend: Vec<(usize, usize, usize)>,
+    /// V-OPBYG.2 N3: rækkens `id` for hver erstatning i `erstatninger` (samme rækkefølge).
+    ers_raekke: Vec<Option<usize>>,
 }
 
 /// Hvilke rækker der maskeres.
@@ -1249,6 +1289,20 @@ fn beregn(sag: &Sag, tekst: &str, udvalg: Udvalg<'_>, rettelser: &[Rettelse], or
             }
         }
     }
+    // V-OPBYG.2 N3: stederne, som antal tæller dem (gruppens plads; rækkens id sættes nedenfor).
+    let mut spaend: Vec<(usize, usize, usize)> = Vec::with_capacity(ers.len());
+    for (i, e) in ers.iter().enumerate() {
+        if let Some(gi) = ers_gruppe[i] {
+            spaend.push((e.start, e.slut, gi));
+        }
+    }
+    for e in &ers_alle {
+        if let Some(&gi) = gruppe_ved.get(&(e.start, e.slut)) {
+            if !effektiv[gi] {
+                spaend.push((e.start, e.slut, gi));
+            }
+        }
+    }
 
     // 3. Rettelser.
     let mut rettet = vec![false; grupper.len()];
@@ -1341,7 +1395,36 @@ fn beregn(sag: &Sag, tekst: &str, udvalg: Udvalg<'_>, rettelser: &[Rettelse], or
         linjer,
         fund_spaend: fund.iter().map(|f| (f.start, f.slut)).collect(),
         moenstre,
+        spaend: spaend.into_iter().map(|(s, e, gi)| (s, e, grupper[gi].id)).collect(),
+        ers_raekke: ers_gruppe.iter().map(|g| g.map(|gi| grupper[gi].id)).collect(),
     })
+}
+
+/// V-OPBYG.2 N3: spænd i `tekst` som (byte start, byte slut, række) omregnet til UTF-16-enheder (webvisningens strenge),
+/// sorteret, og kun dem, der begynder inden for de første [`MAKS_VIST_UTF16`] enheder. Ét gennemløb af teksten; et spænd,
+/// der overlapper det forrige, regnes tilbage fra dér.
+fn steder_utf16(tekst: &str, mut spaend: Vec<(usize, usize, usize)>) -> Vec<(usize, usize, usize)> {
+    spaend.sort_unstable();
+    let enheder = |a: usize, b: usize| tekst.get(a..b).map_or(0, |x| x.chars().map(char::len_utf16).sum::<usize>());
+    let (mut byte, mut enh) = (0usize, 0usize);
+    let mut til = |b: usize| -> usize {
+        if b >= byte {
+            enh += enheder(byte, b);
+            byte = b;
+            enh
+        } else {
+            enh - enheder(b, byte)
+        }
+    };
+    let mut ud = Vec::with_capacity(spaend.len());
+    for (s, e, r) in spaend {
+        let s16 = til(s);
+        if s16 >= MAKS_VIST_UTF16 {
+            break;
+        }
+        ud.push((s16, til(e), r));
+    }
+    ud
 }
 
 // ------------------------------------------------------------------------------------------------------- kvitteringen
@@ -1563,6 +1646,7 @@ fn analyser_i(
         }
     };
     knyt_tilfoejede(&mut b.raekker, noegler, &mut tilfoejet_ud);
+    let steder = steder_utf16(tekst, std::mem::take(&mut b.spaend));
     let ud = AnalyseMed {
         analyse: Analyse {
             advarsler: samlede_advarsler(&b.advarsler, &b.linjer),
@@ -1573,6 +1657,7 @@ fn analyser_i(
             moenstre: b.moenstre,
         },
         tilfoejede: tilfoejet_ud,
+        steder,
     };
     ob::nulstil_kerne(b.aldrig);
     nulstil(b.kladde.til_data());
@@ -1645,6 +1730,22 @@ fn gem_og_masker_i(
     }
     let (ms, forskel) = t.klokke().nu();
     let maskeret = masker(tekst, &b.erstatninger);
+    // V-OPBYG.2 N3: kodernes steder i den maskerede tekst (masker sætter erstatningerne ind i rækkefølge efter start).
+    let steder = {
+        let mut orden: Vec<usize> = (0..b.erstatninger.len()).collect();
+        orden.sort_by_key(|&i| (b.erstatninger[i].start, b.erstatninger[i].slut));
+        let mut forskyd: isize = 0;
+        let mut spaend = Vec::with_capacity(orden.len());
+        for i in orden {
+            let e = &b.erstatninger[i];
+            let s = (e.start as isize + forskyd) as usize;
+            forskyd += e.kode.len() as isize - (e.slut - e.start) as isize;
+            if let Some(r) = b.ers_raekke.get(i).copied().flatten() {
+                spaend.push((s, s + e.kode.len(), r));
+            }
+        }
+        steder_utf16(&maskeret, spaend)
+    };
     let ud_linjer = Linjer::ny(&maskeret);
     let mut rester: Vec<RestUd> = Vec::new();
     let mut plads: HashMap<(&str, &str, &str), usize> = HashMap::new();
@@ -1711,6 +1812,7 @@ fn gem_og_masker_i(
             rester,
             advarsler,
             poster,
+            steder,
         },
         aktuel.nr,
         tal,
@@ -1788,6 +1890,7 @@ fn status(a: &Aktuel) -> SagStatus {
         navn: a.aaben.as_ref().map(|x| x.hoved.navn.clone()),
         udloeb: a.aaben.as_ref().and_then(|x| x.hoved.udloeb.clone()),
         valg: a.sag.valg().into(),
+        noter: a.sag.antal_noter(),
     }
 }
 
@@ -1845,6 +1948,7 @@ pub fn sag_liste(t: &Tilstand) -> Result<Vec<SagListePost>, UiFejl> {
                     udloeb: h.udloeb,
                     aaben,
                     fejl: None,
+                    noter: h.noter,
                 },
                 Err(f) => SagListePost {
                     id: p.id.hex(),
@@ -1855,6 +1959,7 @@ pub fn sag_liste(t: &Tilstand) -> Result<Vec<SagListePost>, UiFejl> {
                     udloeb: None,
                     aaben,
                     fejl: Some(f),
+                    noter: 0,
                 },
             }
         })
@@ -2034,6 +2139,9 @@ pub struct SagIndhold {
     pub fundet: usize,
     /// De første `antal` poster efter type og søgning, sorteret efter type og kode.
     pub raekker: Vec<SagPost>,
+    /// V-OPBYG.2 N1: sagens noter (skrivebeskyttet), kun for en anden sag end den åbne (den åbnes ikke; filen læses som
+    /// erstatningerne). Den åbne sags noter står i fanen Noter ([`noter_hent`]); her er listen tom.
+    pub noter: Vec<NoteUd>,
 }
 
 /// En side af sagens poster efter `valg` (se [`sag_indhold`]).
@@ -2116,6 +2224,7 @@ pub fn sag_indhold(t: &Tilstand, id: Option<&str>, valg: &IndholdValg) -> Result
                 typer,
                 fundet,
                 raekker,
+                noter: Vec::new(),
             };
             drop(a);
             t.aaben()?;
@@ -2125,6 +2234,7 @@ pub fn sag_indhold(t: &Tilstand, id: Option<&str>, valg: &IndholdValg) -> Result
     let id = id.ok_or(UiFejl::IngenArkiv)?;
     let (aaben, data) = t.arkiv()?.aabn(&id)?;
     let (i_alt, typer, fundet, raekker) = indhold_af(&data, valg);
+    let noter = noter_ud(&data.noter);
     nulstil(data);
     let ud = SagIndhold {
         id: Some(aaben.id.hex()),
@@ -2135,6 +2245,7 @@ pub fn sag_indhold(t: &Tilstand, id: Option<&str>, valg: &IndholdValg) -> Result
         typer,
         fundet,
         raekker,
+        noter,
     };
     drop(aaben);
     if let Err(f) = t.aaben() {
@@ -2151,6 +2262,147 @@ fn nulstil_indhold(ud: SagIndhold) {
             zeroize::Zeroize::zeroize(v);
         }
     }
+}
+
+// ------------------------------------------------------------------------------------------------------- noter (V-OPBYG.2)
+
+/// V-OPBYG.2 N1: én note til webvisningen. Har bevidst ingen `Debug` (teksten er brugerens); teksten nulstilles, når
+/// svaret slippes (efter Tauri har sendt det).
+#[derive(Clone, Serialize)]
+pub struct NoteUd {
+    /// Løbenummeret i sagen.
+    pub nr: u64,
+    /// Teksten, som brugeren skrev den.
+    pub tekst: String,
+    /// Oprettet (ms siden 1970, UTC).
+    pub oprettet: u64,
+    /// Sidst rettet (ms siden 1970, UTC), eller `None`.
+    pub rettet: Option<u64>,
+}
+
+impl Drop for NoteUd {
+    fn drop(&mut self) {
+        zeroize::Zeroize::zeroize(&mut self.tekst);
+    }
+}
+
+/// V-OPBYG.2 N1: svaret fra note-kommandoerne: den åbne sags noter i den rækkefølge, de er skrevet. Ingen `Debug`.
+#[derive(Clone, Serialize)]
+pub struct NoterUd {
+    /// Den navngivne sags id (`None`: den midlertidige sag).
+    pub id: Option<String>,
+    /// Den navngivne sags navn.
+    pub navn: Option<String>,
+    /// Noterne.
+    pub noter: Vec<NoteUd>,
+    /// Nummeret på den note, kommandoen lige har tilføjet eller rettet (`None` for de andre).
+    pub nr: Option<u64>,
+    /// Største længde af en note i tegn ([`MAKS_NOTE_TEGN`]).
+    pub maks_tegn: usize,
+    /// Største antal noter ([`MAKS_NOTER`]).
+    pub maks_antal: usize,
+}
+
+fn noter_ud(noter: &[Note]) -> Vec<NoteUd> {
+    noter
+        .iter()
+        .map(|n| NoteUd {
+            nr: n.nr,
+            tekst: n.tekst.clone(),
+            oprettet: n.oprettet,
+            rettet: n.rettet,
+        })
+        .collect()
+}
+
+/// En afvist note som fejl til UI'et (uden tekst).
+fn note_fejl(f: Fejl) -> UiFejl {
+    match f {
+        Fejl::NoteTom => UiFejl::Note { hvad: "tom", maks: 0 },
+        Fejl::NoteForLang { maks } => UiFejl::Note { hvad: "for_lang", maks },
+        Fejl::ForMangeNoter { maks } => UiFejl::Note { hvad: "for_mange", maks },
+        Fejl::UkendtNote { .. } => UiFejl::Note { hvad: "ukendt", maks: 0 },
+        f => UiFejl::from(f),
+    }
+}
+
+/// Svaret med den åbne sags noter. Sagens lås slippes, og porten tjekkes igen, før svaret gives (som [`sag_indhold`]):
+/// er der låst imens, nulstilles teksterne (`Drop`), og svaret er [`UiFejl::Laast`].
+fn svar_noter(t: &Tilstand, a: MutexGuard<'_, Aktuel>, nr: Option<u64>) -> Result<NoterUd, UiFejl> {
+    let ud = NoterUd {
+        id: a.aaben.as_ref().map(|x| x.id.hex()),
+        navn: a.aaben.as_ref().map(|x| x.hoved.navn.clone()),
+        noter: noter_ud(a.sag.noter()),
+        nr,
+        maks_tegn: MAKS_NOTE_TEGN,
+        maks_antal: MAKS_NOTER,
+    };
+    drop(a);
+    t.aaben()?;
+    Ok(ud)
+}
+
+/// V-OPBYG.2 N1: den åbne sags noter (også den midlertidige). Låst: [`UiFejl::Laast`], før noget læses.
+pub fn noter_hent(t: &Tilstand) -> Result<NoterUd, UiFejl> {
+    t.aaben()?;
+    let a = t.sag_aaben()?;
+    svar_noter(t, a, None)
+}
+
+/// Ændrer den åbne sags noter med `aendr` (sagen og tidspunktet fra [`Tilstand::klokke`]). En navngiven sag gemmes, før
+/// ændringen træder i kraft; fejler gemningen, lægges noterne tilbage, som de var, og fejlen gives videre. Den
+/// midlertidige sag ændres kun i hukommelsen (D21 gemmer den ved lås og afslutning). Sagens nummer (`nr`) ændres ikke:
+/// noterne ændrer ikke koderne, så en maskeret fil i hukommelsen hører stadig til sagen.
+fn aendr_noter(t: &Tilstand, aendr: impl FnOnce(&mut Sag, u64) -> Result<Option<u64>, Fejl>) -> Result<NoterUd, UiFejl> {
+    t.aaben()?;
+    let nu = t.klokke().nu().0;
+    let mut a = t.sag_aaben()?;
+    let aktuel = &mut *a;
+    let foer = (aktuel.sag.noter().to_vec(), aktuel.sag.note_taeller());
+    let nr = match aendr(&mut aktuel.sag, nu) {
+        Ok(nr) => nr,
+        Err(f) => {
+            nulstil_noter(foer.0);
+            return Err(note_fejl(f));
+        }
+    };
+    if let Some(aaben) = aktuel.aaben.as_mut() {
+        let mut hoved = aaben.hoved.clone();
+        hoved.sidst_brugt = nu_ms();
+        if let Err(f) = t
+            .arkiv()
+            .and_then(|ark| ark.gem(aaben, hoved, aktuel.sag.data()).map_err(UiFejl::from))
+        {
+            if let Ok((nye, _)) = aktuel.sag.erstat_noter(foer.0, foer.1) {
+                nulstil_noter(nye);
+            }
+            return Err(f);
+        }
+    }
+    nulstil_noter(foer.0);
+    svar_noter(t, a, nr)
+}
+
+/// V-OPBYG.2 N1: tilføjer en note til den åbne sag. Teksten gennemsøges ikke (D27). Afvist: [`UiFejl::Note`].
+pub fn note_tilfoej(t: &Tilstand, tekst: &str) -> Result<NoterUd, UiFejl> {
+    aendr_noter(t, |s, nu| s.tilfoej_note(tekst, nu).map(Some))
+}
+
+/// V-OPBYG.2 N1: retter note `nr` i den åbne sag; den gamle tekst nulstilles.
+pub fn note_ret(t: &Tilstand, nr: u64, tekst: &str) -> Result<NoterUd, UiFejl> {
+    aendr_noter(t, |s, nu| {
+        let mut gammel = s.ret_note(nr, tekst, nu)?;
+        zeroize::Zeroize::zeroize(&mut gammel);
+        Ok(Some(nr))
+    })
+}
+
+/// V-OPBYG.2 N1: sletter note `nr` i den åbne sag; teksten nulstilles.
+pub fn note_slet(t: &Tilstand, nr: u64) -> Result<NoterUd, UiFejl> {
+    aendr_noter(t, |s, _| {
+        nulstil_noter(vec![s.slet_note(nr)?]);
+        Ok(None)
+    })
 }
 
 // ------------------------------------------------------------------------------------------------------- ordbogen
@@ -2547,8 +2799,8 @@ struct Gemt {
 /// nulstiller den. Kaldes med sagens lås holdt (`aktuel`) og **efter** låst er sat, så porten og vagten om nøglelageret
 /// afviser alle andre tråde. Med sagens lås holdt åbner vagten for denne tråd alene ([`Undtagelse`]):
 /// - en navngiven sag, der er ændret uden at være gemt, gemmes med sin egen nøgle;
-/// - en midlertidig sag med poster gemmes som navngiven sag ([`gem_midlertidig`]: ét opslag i nøglelageret, den nye
-///   nøgle);
+/// - en midlertidig sag med poster eller (V-OPBYG.2) noter gemmes som navngiven sag ([`gem_midlertidig`]: ét opslag i
+///   nøglelageret, den nye nøgle);
 /// - en uændret navngiven sag og en tom midlertidig sag gemmes ikke.
 ///
 /// Undtagelsen slippes, før sagen erstattes af `ny` (en tom midlertidig sag); den gamle sags strenge nulstilles, og
@@ -2572,7 +2824,7 @@ fn gem_og_nulstil_sag(t: &Tilstand, aktuel: &mut Aktuel, ny: Sag, indst: &Indsti
             }
         }
         Some(_) => {}
-        None if aktuel.sag.antal_poster() > 0 => {
+        None if aktuel.sag.har_indhold() => {
             gemt.midlertidig = Some(gem_midlertidig(t, &aktuel.sag, indst, engelsk));
         }
         None => {}
@@ -2725,6 +2977,52 @@ pub fn udklip_kopieret(t: &Tilstand, fil: bool) -> Result<bool, UiFejl> {
     Ok(true)
 }
 
+/// V-OPBYG.2 N2: webvisningen har kopieret den åbne sags noter (Kopiér noterne). Som [`udklip_kopieret`] (D21): Rust
+/// husker udklipsholderens tæller, hvis indholdet er Grimnirs, så låsen og afslutningen rydder det ([`ryd_udklip`]).
+/// Indholdet er Grimnirs, når hver note i den åbne sag står i teksten (webvisningen sætter dato og klokkeslæt foran på
+/// brugerens sprog, så hele teksten kan Rust ikke bygge ens); må teksten ikke læses, bruges tælleren alene, som for en
+/// demaskeret tekst. Noternes tekst kopieres kun til sammenligningen og nulstilles bagefter; intet gemmes eller logges.
+/// Svarer sand, hvis tælleren er husket.
+pub fn udklip_noter_kopieret(t: &Tilstand) -> Result<bool, UiFejl> {
+    t.aaben()?;
+    let Some(u) = t.udklip.as_deref() else {
+        return Ok(false);
+    };
+    let noter: Vec<String> = {
+        let a = t.sag_aaben()?;
+        a.sag.noter().iter().map(|n| n.tekst.clone()).collect()
+    };
+    let svar = (|| {
+        let mut h = t.udklip_husk();
+        t.aaben()?;
+        h.taeller = None;
+        if noter.is_empty() {
+            return Ok(false);
+        }
+        let Some(foer) = u.taeller() else {
+            return Ok(false);
+        };
+        match u.tekst() {
+            Indhold::Tekst(tekst) => {
+                if !noter.iter().all(|n| tekst.contains(n.as_str())) {
+                    return Ok(false);
+                }
+            }
+            Indhold::Ingen => return Ok(false),
+            Indhold::MaaIkkeLaeses => {}
+        }
+        if u.taeller() != Some(foer) {
+            return Ok(false);
+        }
+        h.taeller = Some(foer);
+        Ok(true)
+    })();
+    for mut n in noter {
+        zeroize::Zeroize::zeroize(&mut n);
+    }
+    svar
+}
+
 /// V-LAAS.3 N2: låser ved stilstand, når der har været stille i den valgte tid ("Lås efter stilstand"; 5, 15, 30 eller
 /// 60 minutter) og ingen kommando er i gang. Kaldes jævnligt fra en tråd i `lib.rs`. Svarer som [`laas_igen`]; er
 /// Grimnir allerede låst, sker der intet.
@@ -2744,6 +3042,8 @@ pub struct Levende {
     pub noegler: usize,
     /// Originaler i sagen i hukommelsen (én pr. post).
     pub originaler: usize,
+    /// V-OPBYG.2: noter i sagen i hukommelsen.
+    pub noter: usize,
     /// Ordbogens poster i hukommelsen.
     pub ordbogsvaerdier: usize,
     /// Ordbogen er læst (posterne og kernens kopi ligger i hukommelsen).
@@ -2770,6 +3070,7 @@ pub fn levende(t: &Tilstand) -> Levende {
         let a = t.sag();
         l.noegler = usize::from(a.aaben.is_some());
         l.originaler = a.sag.antal_poster();
+        l.noter = a.sag.antal_noter();
     }
     if let Some(o) = t.ordbog.lock().unwrap_or_else(|e| e.into_inner()).as_ref() {
         l.ordbog_laest = true;

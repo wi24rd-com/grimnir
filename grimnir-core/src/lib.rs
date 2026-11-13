@@ -47,7 +47,7 @@ pub use laekage::laekagetjek;
 pub use moenstre::{foreslaa_moenstre, MoensterForslag};
 pub use ordbog::Ordbog;
 pub use original::Original;
-pub use sag::{Enhed, Post, Sag, SagData, Taellere, Valg, FORM_ALENE, FORM_DEL, FORM_ESC2, FORM_PROCENT};
+pub use sag::{Enhed, Note, Post, Sag, SagData, Taellere, Valg, FORM_ALENE, FORM_DEL, FORM_ESC2, FORM_PROCENT, MAKS_NOTER, MAKS_NOTE_TEGN};
 pub use typer::{
     Advarsel, AdvarselArt, AfledtArt, Art, Erstatning, Fejl, Fund, Klasse, Pulje, Rest, RestArt, Sammensat, Sikkerhed, KLASSER,
 };

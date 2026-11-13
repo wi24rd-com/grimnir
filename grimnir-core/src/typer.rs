@@ -403,6 +403,23 @@ pub enum Fejl {
         /// Hvilken del der fejler.
         hvad: &'static str,
     },
+    /// V-OPBYG.2 N1: noten er tom (kun mellemrum).
+    NoteTom,
+    /// V-OPBYG.2 N1: noten er længere end grænsen.
+    NoteForLang {
+        /// Grænsen i tegn.
+        maks: usize,
+    },
+    /// V-OPBYG.2 N1: sagen har allerede så mange noter, den må have.
+    ForMangeNoter {
+        /// Grænsen.
+        maks: usize,
+    },
+    /// V-OPBYG.2 N1: noten findes ikke i sagen.
+    UkendtNote {
+        /// Nummeret, der blev spurgt efter.
+        nr: u64,
+    },
 }
 
 impl fmt::Display for Fejl {
@@ -413,6 +430,10 @@ impl fmt::Display for Fejl {
             Fejl::UgyldigKode { kode } => write!(f, "koden {kode:?} er tom eller begynder eller slutter med et grænsetegn"),
             Fejl::UgyldigtNet { indgang } => write!(f, "net nr. {indgang} i ordbogen kan ikke læses"),
             Fejl::UgyldigeSagsdata { hvad } => write!(f, "sagsdata hænger ikke sammen: {hvad}"),
+            Fejl::NoteTom => write!(f, "noten er tom"),
+            Fejl::NoteForLang { maks } => write!(f, "noten er længere end {maks} tegn"),
+            Fejl::ForMangeNoter { maks } => write!(f, "sagen har allerede {maks} noter"),
+            Fejl::UkendtNote { nr } => write!(f, "note nr. {nr} findes ikke i sagen"),
         }
     }
 }

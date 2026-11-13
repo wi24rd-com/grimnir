@@ -1,7 +1,7 @@
 //! Sager på disk (V-SAG.1, G2; ADR D7, D8, D13): én krypteret fil pr. sag, nøglen i Keychain/Credential Manager.
 //!
 //! **Filen** `<app-data>/sager/<sags-id>.grimnir`. Sags-id er 16 tilfældige bytes som 32 hextegn; det siger intet om
-//! indholdet. Opbygning (formatversion 1), alle tal little-endian:
+//! indholdet. Opbygning (formatversion 1 og 2), alle tal little-endian:
 //!
 //! | Byte | Længde | Indhold |
 //! |---|---|---|
@@ -19,8 +19,14 @@
 //! En del kan derfor hverken flyttes til en anden sags fil, bytte plads med den anden del eller lægges ind som ordbog
 //! (og omvendt). Samme kode læser og skriver begge slags filer ([`byg_krypteret`], [`laes_krypteret`],
 //! [`skriv_atomart`]).
-//! **Hovedet** (navn, oprettet, sidst brugt, udløb, antal poster, skrivetæller) kan læses uden kroppen, så listen kan
-//! vises. **Kroppen** er hele sagen: hovedet igen og sagens data. Skrivetælleren står i begge og skal være ens, så et
+//! **Formatversion 2 (V-OPBYG.2)** er version 1 med noter: hovedet har `noter` (antallet) og kroppens data `noter` og
+//! `note_taeller`. En sag skrives med version 2, når den har noter, ellers med version 1, præcis som før V-OPBYG.2 (felterne
+//! udelades). Versionen står i AAD, så den ikke kan ændres uden nøglen. En ældre Grimnir, der kun kender version 1,
+//! afviser en sag med noter med [`SagFejl::UkendtVersion`] ("filen er fra en nyere udgave af Grimnir") i listen og ved
+//! Åbn, Omdøb og Udløb; den kan derfor ikke gemme sagen igen og miste noterne stiltiende. En sag uden noter kan den
+//! stadig åbne. Ordbogen ([`Ident::Ordbog`]) har altid version 1.
+//! **Hovedet** (navn, oprettet, sidst brugt, udløb, antal poster, antal noter, skrivetæller) kan læses uden kroppen, så
+//! listen kan vises. **Kroppen** er hele sagen: hovedet igen og sagens data. Skrivetælleren står i begge og skal være ens, så et
 //! hoved og en krop fra to forskellige skrivninger ikke kan sættes sammen.
 //!
 //! **Nøglen** er 32 tilfældige bytes pr. sag under tjenesten `com.wi24rd.grimnir`, kontoen `sag:<sags-id>`. Den forlader
@@ -50,14 +56,19 @@ use std::time::{Duration, Instant, SystemTime};
 
 use chacha20poly1305::aead::{Aead, Generate, Payload};
 use chacha20poly1305::{KeyInit, XChaCha20Poly1305, XNonce};
-use grimnir_core::{Enhed, Klasse, Original, Post, SagData, Taellere, Valg, KLASSER};
+use grimnir_core::{Enhed, Klasse, Note, Original, Post, SagData, Taellere, Valg, KLASSER};
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, Zeroizing};
 
 /// Den magiske streng i starten af hver sagsfil.
 pub const MAGI: &[u8; 8] = b"GRIMNIRS";
-/// Filformatets version (D13: fra start, så eksport med adgangssætning kan komme i v2).
+/// Filformatets version (D13: fra start, så eksport med adgangssætning kan komme i en senere version). Ordbogen og en sag
+/// uden noter.
 pub const FORMATVERSION: u16 = 1;
+/// V-OPBYG.2: formatversionen for en sag med noter (version 1 + `noter` i hovedet og `noter`/`note_taeller` i kroppen).
+pub const FORMATVERSION_NOTER: u16 = 2;
+/// De versioner, en sagsfil kan have.
+const SAG_VERSIONER: [u16; 2] = [FORMATVERSION, FORMATVERSION_NOTER];
 /// Tjenesten i Keychain/Credential Manager.
 pub const TJENESTE: &str = "com.wi24rd.grimnir";
 /// Sagsfilernes endelse.
@@ -354,6 +365,13 @@ pub struct Hoved {
     pub poster: usize,
     /// Skrivetæller: én mere ved hver skrivning (D8).
     pub skrivetaeller: u64,
+    /// V-OPBYG.2: antal noter, så listen kan vise det uden at læse kroppen. Udeladt, når det er 0 (formatversion 1).
+    #[serde(default, skip_serializing_if = "er_nul")]
+    pub noter: usize,
+}
+
+fn er_nul(n: &usize) -> bool {
+    *n == 0
 }
 
 /// Kontrollerer og renser et sagsnavn: trimmet, 1–[`MAKS_NAVN`] tegn, uden styretegn.
@@ -414,6 +432,15 @@ struct DataUd<'a> {
     overloeb_meldt: u8,
     rettede_koder: &'a [String],
     aliaser: &'a [(String, usize)],
+    /// V-OPBYG.2: (nummer, tekst, oprettet, rettet). Udeladt uden noter (formatversion 1).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    noter: Vec<(u64, &'a str, u64, Option<u64>)>,
+    #[serde(skip_serializing_if = "er_nul64")]
+    note_taeller: u64,
+}
+
+fn er_nul64(n: &u64) -> bool {
+    *n == 0
 }
 
 /// Sagens data fra JSON. Strengene flyttes ind i kernens typer uden kopi.
@@ -435,6 +462,11 @@ struct DataInd {
     overloeb_meldt: u8,
     rettede_koder: Vec<String>,
     aliaser: Vec<(String, usize)>,
+    /// V-OPBYG.2: mangler i formatversion 1 (en sag gemt før V-OPBYG.2): ingen noter.
+    #[serde(default)]
+    noter: Vec<(u64, String, u64, Option<u64>)>,
+    #[serde(default)]
+    note_taeller: u64,
 }
 
 #[derive(Serialize)]
@@ -481,6 +513,8 @@ fn data_ud(d: &SagData) -> DataUd<'_> {
         overloeb_meldt: d.overloeb_meldt,
         rettede_koder: &d.rettede_koder,
         aliaser: &d.aliaser,
+        noter: d.noter.iter().map(|n| (n.nr, n.tekst.as_str(), n.oprettet, n.rettet)).collect(),
+        note_taeller: if d.noter.is_empty() { 0 } else { d.note_taeller },
     }
 }
 
@@ -539,6 +573,17 @@ fn data_ind(d: DataInd) -> Result<SagData, SagFejl> {
         overloeb_meldt: d.overloeb_meldt,
         rettede_koder: d.rettede_koder,
         aliaser: d.aliaser,
+        noter: d
+            .noter
+            .into_iter()
+            .map(|(nr, tekst, oprettet, rettet)| Note {
+                nr,
+                tekst,
+                oprettet,
+                rettet,
+            })
+            .collect(),
+        note_taeller: d.note_taeller,
     })
 }
 
@@ -571,6 +616,15 @@ pub fn nulstil(d: SagData) {
     for (mut s, _) in d.aliaser {
         s.zeroize();
     }
+    nulstil_noter(d.noter);
+}
+
+/// V-OPBYG.2: nulstiller noternes tekst og slipper dem.
+pub fn nulstil_noter(noter: Vec<Note>) {
+    for n in noter {
+        let mut t = n.tekst;
+        t.zeroize();
+    }
 }
 
 // ------------------------------------------------------------------------------------------------------- filen
@@ -598,19 +652,19 @@ impl Ident<'_> {
     }
 }
 
-fn aad(ident: Ident<'_>, del: &[u8]) -> Vec<u8> {
+fn aad(ident: Ident<'_>, version: u16, del: &[u8]) -> Vec<u8> {
     let i = ident.bytes();
     let mut a = Vec::with_capacity(FAST + i.len() + del.len());
     a.extend_from_slice(MAGI);
-    a.extend_from_slice(&FORMATVERSION.to_le_bytes());
+    a.extend_from_slice(&version.to_le_bytes());
     a.extend_from_slice(i);
     a.extend_from_slice(del);
     a
 }
 
-fn krypter(noegle: &Noegle, ident: Ident<'_>, del: &[u8], klar: &[u8]) -> Result<(XNonce, Vec<u8>), SagFejl> {
+fn krypter(noegle: &Noegle, ident: Ident<'_>, version: u16, del: &[u8], klar: &[u8]) -> Result<(XNonce, Vec<u8>), SagFejl> {
     let nonce = XNonce::try_generate().map_err(|_| SagFejl::Tilfaeldighed)?;
-    let aad = aad(ident, del);
+    let aad = aad(ident, version, del);
     // `encrypt` kopierer klarteksten til en buffer med plads til mærket og krypterer den på stedet (aead 0.6.1,
     // `Aead::encrypt`), så der ikke står en ekstra kopi af klarteksten tilbage.
     let c = noegle
@@ -620,9 +674,9 @@ fn krypter(noegle: &Noegle, ident: Ident<'_>, del: &[u8], klar: &[u8]) -> Result
     Ok((nonce, c))
 }
 
-fn dekrypter(noegle: &Noegle, ident: Ident<'_>, del: &[u8], nonce: &[u8], c: &[u8]) -> Result<Zeroizing<Vec<u8>>, SagFejl> {
+fn dekrypter(noegle: &Noegle, ident: Ident<'_>, version: u16, del: &[u8], nonce: &[u8], c: &[u8]) -> Result<Zeroizing<Vec<u8>>, SagFejl> {
     let nonce = XNonce::try_from(nonce).map_err(|_| SagFejl::Beskadiget)?;
-    let aad = aad(ident, del);
+    let aad = aad(ident, version, del);
     noegle
         .chiffer()
         .decrypt(&nonce, Payload { msg: c, aad: &aad })
@@ -691,14 +745,19 @@ pub fn json_klar<T: Serialize + ?Sized>(v: &T, anslaaet: usize) -> Result<Nulsti
     Ok(b)
 }
 
-/// Hele filens bytes for et hoved og en krop i klartekst (JSON). Fælles for sager og ordbogen.
+/// Hele filens bytes for et hoved og en krop i klartekst (JSON) med formatversion 1. Fælles for sager og ordbogen.
 pub fn byg_krypteret(noegle: &Noegle, ident: Ident<'_>, hoved_klar: &[u8], krop_klar: &[u8]) -> Result<Vec<u8>, SagFejl> {
-    let (n1, c1) = krypter(noegle, ident, b"hoved", hoved_klar)?;
-    let (n2, c2) = krypter(noegle, ident, b"krop", krop_klar)?;
+    byg_krypteret_v(noegle, ident, FORMATVERSION, hoved_klar, krop_klar)
+}
+
+/// Som [`byg_krypteret`] med en given formatversion (V-OPBYG.2: 2 for en sag med noter). Versionen står i filen og i AAD.
+pub fn byg_krypteret_v(noegle: &Noegle, ident: Ident<'_>, version: u16, hoved_klar: &[u8], krop_klar: &[u8]) -> Result<Vec<u8>, SagFejl> {
+    let (n1, c1) = krypter(noegle, ident, version, b"hoved", hoved_klar)?;
+    let (n2, c2) = krypter(noegle, ident, version, b"krop", krop_klar)?;
     let l1 = u32::try_from(c1.len()).map_err(|_| SagFejl::Beskadiget)?;
     let mut ud = Vec::with_capacity(FAST + 2 * NONCE + 12 + c1.len() + c2.len());
     ud.extend_from_slice(MAGI);
-    ud.extend_from_slice(&FORMATVERSION.to_le_bytes());
+    ud.extend_from_slice(&version.to_le_bytes());
     ud.extend_from_slice(&n1);
     ud.extend_from_slice(&l1.to_le_bytes());
     ud.extend_from_slice(&c1);
@@ -726,11 +785,21 @@ pub fn anslaa_krop(hoved: &Hoved, d: &SagData) -> usize {
     n += d.sid_domaener.iter().map(|x| s(x.som_tekst())).sum::<usize>();
     n += d.reserverede_navne.iter().chain(&d.rettede_koder).map(|x| s(x)).sum::<usize>();
     n += d.aliaser.iter().map(|(x, _)| s(x) + 24).sum::<usize>();
+    n += d.noter.iter().map(|x| s(&x.tekst) + 64).sum::<usize>();
     n
 }
 
-/// Hele filens bytes for et hoved og en sag. Klarteksten (JSON) nulstilles efter krypteringen.
+/// Hele filens bytes for et hoved og en sag. Klarteksten (JSON) nulstilles efter krypteringen. V-OPBYG.2: formatversion 2,
+/// når sagen har noter, ellers 1; `hoved.noter` skal være antallet af noter (ellers [`SagFejl::Beskadiget`]).
 fn byg_fil(noegle: &Noegle, id: &SagsId, hoved: &Hoved, data: &SagData) -> Result<Vec<u8>, SagFejl> {
+    if hoved.noter != data.noter.len() {
+        return Err(SagFejl::Beskadiget);
+    }
+    let version = if data.noter.is_empty() {
+        FORMATVERSION
+    } else {
+        FORMATVERSION_NOTER
+    };
     let hoved_klar = json_klar(hoved, 2 * hoved.navn.len() + 256)?;
     let krop_klar = json_klar(
         &KropUd {
@@ -739,28 +808,34 @@ fn byg_fil(noegle: &Noegle, id: &SagsId, hoved: &Hoved, data: &SagData) -> Resul
         },
         anslaa_krop(hoved, data),
     )?;
-    byg_krypteret(noegle, Ident::Sag(id), hoved_klar.bytes(), krop_klar.bytes())
+    byg_krypteret_v(noegle, Ident::Sag(id), version, hoved_klar.bytes(), krop_klar.bytes())
 }
 
-fn tjek_start(start: &[u8]) -> Result<(), SagFejl> {
+/// Den magiske streng og versionen; svarer med versionen, hvis den er blandt `kendte`.
+fn tjek_start(start: &[u8], kendte: &[u16]) -> Result<u16, SagFejl> {
     if start.len() < FAST || &start[..8] != MAGI {
         return Err(SagFejl::Beskadiget);
     }
     let v = u16::from_le_bytes([start[8], start[9]]);
-    if v != FORMATVERSION {
+    if !kendte.contains(&v) {
         return Err(SagFejl::UkendtVersion { version: v });
     }
-    Ok(())
+    Ok(v)
 }
 
-/// Læser og dekrypterer kun hovedet (starten af filen). Fælles for sager og ordbogen.
+/// Læser og dekrypterer kun hovedet (starten af filen) med formatversion 1. Fælles for sager og ordbogen.
 pub fn laes_krypteret_hoved(fil: &Path, ident: Ident<'_>, noegle: &Noegle) -> Result<Zeroizing<Vec<u8>>, SagFejl> {
+    laes_krypteret_hoved_v(fil, ident, noegle, &[FORMATVERSION]).map(|(_, k)| k)
+}
+
+/// Som [`laes_krypteret_hoved`] for en af versionerne `kendte`; svarer også med filens version.
+fn laes_krypteret_hoved_v(fil: &Path, ident: Ident<'_>, noegle: &Noegle, kendte: &[u16]) -> Result<(u16, Zeroizing<Vec<u8>>), SagFejl> {
     let mut f = File::open(fil)?;
     let mut start = [0u8; FAST + NONCE + 4];
     if f.read_exact(&mut start[..FAST]).is_err() {
         return Err(SagFejl::Beskadiget);
     }
-    tjek_start(&start[..FAST])?;
+    let version = tjek_start(&start[..FAST], kendte)?;
     f.read_exact(&mut start[FAST..]).map_err(|_| SagFejl::Beskadiget)?;
     let l1 = u32::from_le_bytes(start[FAST + NONCE..].try_into().map_err(|_| SagFejl::Beskadiget)?);
     if l1 > MAKS_HOVED {
@@ -768,16 +843,21 @@ pub fn laes_krypteret_hoved(fil: &Path, ident: Ident<'_>, noegle: &Noegle) -> Re
     }
     let mut c1 = vec![0u8; l1 as usize];
     f.read_exact(&mut c1).map_err(|_| SagFejl::Beskadiget)?;
-    dekrypter(noegle, ident, b"hoved", &start[FAST..FAST + NONCE], &c1)
+    dekrypter(noegle, ident, version, b"hoved", &start[FAST..FAST + NONCE], &c1).map(|k| (version, k))
 }
 
 /// Hoved og krop i klartekst; nulstilles, når de slippes.
 pub type Klartekst = (Zeroizing<Vec<u8>>, Zeroizing<Vec<u8>>);
 
-/// Læser og dekrypterer hele filen: (hoved, krop) i klartekst. Filen skal slutte præcis efter kroppen.
+/// Læser og dekrypterer hele filen med formatversion 1: (hoved, krop) i klartekst. Filen skal slutte præcis efter kroppen.
 pub fn laes_krypteret(fil: &Path, ident: Ident<'_>, noegle: &Noegle) -> Result<Klartekst, SagFejl> {
+    laes_krypteret_v(fil, ident, noegle, &[FORMATVERSION]).map(|(_, k)| k)
+}
+
+/// Som [`laes_krypteret`] for en af versionerne `kendte`; svarer også med filens version.
+fn laes_krypteret_v(fil: &Path, ident: Ident<'_>, noegle: &Noegle, kendte: &[u16]) -> Result<(u16, Klartekst), SagFejl> {
     let b = fs::read(fil)?;
-    tjek_start(&b)?;
+    let version = tjek_start(&b, kendte)?;
     let del = |fra: usize, til: usize| b.get(fra..til).ok_or(SagFejl::Beskadiget);
     let mut pos = FAST;
     let n1 = del(pos, pos + NONCE)?;
@@ -795,28 +875,54 @@ pub fn laes_krypteret(fil: &Path, ident: Ident<'_>, noegle: &Noegle) -> Result<K
     if pos + l2 != b.len() {
         return Err(SagFejl::Beskadiget);
     }
-    let hoved = dekrypter(noegle, ident, b"hoved", n1, c1)?;
-    let krop = dekrypter(noegle, ident, b"krop", n2, c2)?;
-    Ok((hoved, krop))
+    let hoved = dekrypter(noegle, ident, version, b"hoved", n1, c1)?;
+    let krop = dekrypter(noegle, ident, version, b"krop", n2, c2)?;
+    Ok((version, (hoved, krop)))
+}
+
+/// V-OPBYG.2: hovedet passer til versionen: noter kun i version 2, og version 2 kun med noter.
+fn tjek_hoved_version(hoved: &Hoved, version: u16) -> Result<(), SagFejl> {
+    if (version == FORMATVERSION_NOTER) != (hoved.noter > 0) {
+        return Err(SagFejl::Beskadiget);
+    }
+    Ok(())
 }
 
 /// Læser kun hovedet (starten af filen).
 pub fn laes_hoved(mappe: &Path, id: &SagsId, noegle: &Noegle) -> Result<Hoved, SagFejl> {
-    let klar = laes_krypteret_hoved(&sti(mappe, id), Ident::Sag(id), noegle)?;
-    serde_json::from_slice(&klar).map_err(|_| SagFejl::Beskadiget)
+    let (version, klar) = laes_krypteret_hoved_v(&sti(mappe, id), Ident::Sag(id), noegle, &SAG_VERSIONER)?;
+    let hoved: Hoved = serde_json::from_slice(&klar).map_err(|_| SagFejl::Beskadiget)?;
+    tjek_hoved_version(&hoved, version)?;
+    Ok(hoved)
 }
 
-/// Læser hele sagen. Hoved og krop skal have samme skrivetæller.
+/// Læser hele sagen. Hoved og krop skal have samme skrivetæller. V-OPBYG.2: antallet af noter i hovedet skal passe til
+/// kroppen og til versionen.
 pub fn laes(mappe: &Path, id: &SagsId, noegle: &Noegle) -> Result<(Hoved, SagData), SagFejl> {
-    let (hoved_klar, krop_klar) = laes_krypteret(&sti(mappe, id), Ident::Sag(id), noegle)?;
+    let (version, (hoved_klar, krop_klar)) = laes_krypteret_v(&sti(mappe, id), Ident::Sag(id), noegle, &SAG_VERSIONER)?;
     let hoved: Hoved = serde_json::from_slice(&hoved_klar).map_err(|_| SagFejl::Beskadiget)?;
     let krop: KropInd = serde_json::from_slice(&krop_klar).map_err(|_| SagFejl::Beskadiget)?;
     drop(krop_klar);
-    if krop.hoved != hoved {
+    if krop.hoved != hoved || hoved.noter != krop.data.noter.len() {
+        nulstil_noter(data_noter(krop.data));
         return Err(SagFejl::Beskadiget);
     }
+    tjek_hoved_version(&hoved, version)?;
     let data = data_ind(krop.data)?;
     Ok((hoved, data))
+}
+
+/// Noterne fra kroppen, der ikke blev læst færdig (så teksten kan nulstilles).
+fn data_noter(d: DataInd) -> Vec<Note> {
+    d.noter
+        .into_iter()
+        .map(|(nr, tekst, oprettet, rettet)| Note {
+            nr,
+            tekst,
+            oprettet,
+            rettet,
+        })
+        .collect()
 }
 
 /// Filnavnet uden endelse (`<sags-id>`, `ordbog`, `indstillinger`): stammen i navnene på midlertidige filer og låse.
@@ -1059,6 +1165,7 @@ impl Arkiv {
             udloeb,
             poster: data.poster.len(),
             skrivetaeller: 1,
+            noter: data.noter.len(),
         };
         self.lager.gem(&id, &noegle)?;
         if let Err(e) = skriv(&self.mappe, &id, &noegle, &hoved, data) {
@@ -1103,6 +1210,7 @@ impl Arkiv {
         }
         hoved.skrivetaeller = aaben.hoved.skrivetaeller + 1;
         hoved.poster = data.poster.len();
+        hoved.noter = data.noter.len();
         skriv_med(&self.mappe, &aaben.id, &aaben.noegle, hoved, data, foer_omdoeb)
     }
 

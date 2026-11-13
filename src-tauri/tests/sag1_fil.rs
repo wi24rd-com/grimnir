@@ -231,10 +231,11 @@ fn ukendt_version() {
     let (data, _) = sag_med_tekst();
     let id = a.opret(NAVN, None, &data, 1).unwrap().id;
     let mut b = bytes(&m, &id);
-    b[8..10].copy_from_slice(&2u16.to_le_bytes());
+    // V-OPBYG.2: version 2 er en sag med noter (kendt); den første ukendte er nu 3 (opbyg2.rs prøver version 2).
+    b[8..10].copy_from_slice(&3u16.to_le_bytes());
     std::fs::write(sti(&m.0, &id), &b).unwrap();
-    assert_eq!(a.aabn(&id).err(), Some(SagFejl::UkendtVersion { version: 2 }));
-    assert!(matches!(&a.liste().unwrap()[0].hoved, Err(SagFejl::UkendtVersion { version: 2 })));
+    assert_eq!(a.aabn(&id).err(), Some(SagFejl::UkendtVersion { version: 3 }));
+    assert!(matches!(&a.liste().unwrap()[0].hoved, Err(SagFejl::UkendtVersion { version: 3 })));
     b[0] = b'X';
     std::fs::write(sti(&m.0, &id), &b).unwrap();
     assert_eq!(a.aabn(&id).err(), Some(SagFejl::Beskadiget));
@@ -403,6 +404,7 @@ fn laes_og_skriv_direkte() {
         udloeb: None,
         poster: data.poster.len(),
         skrivetaeller: 3,
+        noter: 0,
     };
     skriv_med(&m.0, &id, &n, &h, &data, &mut || Ok(())).unwrap();
     let (h2, d2) = laes(&m.0, &id, &n).unwrap();
@@ -426,6 +428,7 @@ fn sags_id_er_bundet_til_filen_ogsaa_med_samme_noegle() {
         udloeb: None,
         poster: data.poster.len(),
         skrivetaeller: 1,
+        noter: 0,
     };
     skriv_med(&m.0, &ida, &n, &h, &data, &mut || Ok(())).unwrap();
     std::fs::copy(sti(&m.0, &ida), sti(&m.0, &idb)).unwrap();

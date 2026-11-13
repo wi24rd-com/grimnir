@@ -34,7 +34,10 @@ const tjek = (navn, betingelse, detalje = '') => {
    ikke kan brydes, i hver type. Ændres en tekst, mangler den her, og testen fejler: mål den igen. */
 const MAALT_TH = { '✓': 11, 'Type': 32, 'Fundet værdi': 92, 'Fundet': 49, 'værdi': 40, 'Erstatning': 77, 'Antal': 41, 'Status': 47, 'Hvad': 34, 'Tekst': 40, 'Linje': 34, 'Kode': 34, 'Navn': 35, 'Værdier': 55, 'Oprettet': 64, 'Sidst brugt': 81, 'Sidst': 36, 'brugt': 41, 'Udløber': 57, 'Ordbog': 52, 'Værdi eller mønster': 143, 'Værdi': 40, 'eller': 37, 'mønster': 60, 'Note': 34, 'Value found': 86, 'Value': 40, 'found': 43, 'Replacement': 90, 'Count': 44, 'What': 37, 'Text': 32, 'Line': 27, 'Code': 34, 'Name': 36, 'Values': 48, 'Created': 56, 'Last used': 68, 'Last': 32, 'used': 33, 'Expires': 51, 'Dictionary': 76, 'Value or pattern': 118, 'or': 17, 'pattern': 55,
   // V-OPBYG.1 N5: Sagers kolonne hedder Erstatninger (målt i WKWebView; kalibreret: Værdier 54,9 og Values 47,3 som før).
-  'Erstatninger': 92, 'Replacements': 97 };
+  'Erstatninger': 92, 'Replacements': 97,
+  // V-OPBYG.2 N1: Sagers kolonne Noter (målt i WKWebView samme sted: Noter 40,9, Notes 40,8; Erstatninger 91,3 og Replacements
+  // 96,9 som kontrol, rundet op til tallene ovenfor).
+  'Noter': 41, 'Notes': 41 };
 const MAALT_CHIP = { 'Sikker': 69, 'Fra ordbog': 89, 'Sandsynlig': 91, 'Tjek selv': 81, 'Version': 75, 'Original står tilbage': 140, 'Ligner følsom værdi': 142, 'Sat tilbage': 95, 'Ukendt adresse i sagens net': 193, 'Ukendt kode': 102, 'Andre store/små bogstaver': 185, 'Maskine uden domæne': 162, 'Domæne alene': 113, 'Escaped skråstreg': 134, 'URL-kodet': 87, 'Ikke i svaret': 100, 'Ligner en anden sag': 146, 'Pulje løb over: egne net': 162, 'Pulje løb over: offentlige adresser': 221, 'Pulje løb over: MAC-adresser': 196, 'Pulje løb over: IPv6': 137, 'Åben': 64, 'Udløber snart': 106, 'Udløbet': 75, 'Kan ikke åbnes': 117, 'Certain': 76, 'From dictionary': 117, 'Probable': 78, 'Check yourself': 117, 'Original left behind': 136, 'Looks sensitive': 116, 'Put back': 84, 'Unknown address in the case network': 250, 'Unknown code': 116, 'Different upper/lower case': 181, 'Machine without domain': 169, 'Domain alone': 105, 'Escaped backslash': 138, 'URL-encoded': 105, 'Not in the reply': 119, 'Looks like another case': 166, 'Pool ran out: own networks': 184, 'Pool ran out: public addresses': 201, 'Pool ran out: MAC addresses': 194, 'Pool ran out: IPv6': 128, 'Open': 64, 'Expiring soon': 105, 'Expired': 73, 'Cannot be opened': 135,
   // V-OPBYG.1 N2: status er resultatet (målt i WKWebView med kittets chip og de pakkede skrifter, rundet op; kalibreret: Sikker
   // giver 69 som før). Tjek selv har nu advarslens udseende (målt 77,9 og 113,8); de gamle, bredere tal (81, 117) står.
@@ -51,7 +54,7 @@ const MAALT_KNAPORD = { 'Altid': 27, 'Aldrig': 35, 'Always': 43, 'Never': 35 };
 const VAERDI_MIN = 140;
 // V-LAAS.4 N3: 1920 er med som bred skærm; overgangene er de brudpunkter, CSS'en har (1100, 1200 og 1720; 1200 står i BREDDER).
 // V-FANER.2: 1024 er Grimnirs mindste vindue (app.css og tauri.conf.json); 900 (kittets standard) regnes stadig med.
-const BREDDER = [900, 1024, 1200, 1600, 1920];
+const BREDDER = [900, 1024, 1200, 1400, 1600, 1920]; // V-OPBYG.2: 1400 er startvinduet
 // V-PUDS.1 N3: 1839/1840, hvor ordet i Altid/Aldrig kommer igen, når fundene står side om side.
 // V-PUDS.3 N3: 943/944, hvor cellerne i Maskér får deres almindelige polstring igen, og 1013 (Erstatning: 15 tegn derfra).
 const OVERGANGE = [943, 944, 1013, 1099, 1100, 1199, 1719, 1720, 1839, 1840];
@@ -146,7 +149,8 @@ const kitMinRegel = /^calc\(var\(--vindue-min-bredde, (\d+)px\) \/ var\(--tekst-
 const kitStandard = kitMinRegel ? Number(kitMinRegel[1]) : null;
 const appMin = Number((/:root \{ --vindue-min-bredde: (\d+)px; \}/.exec(laes('ui/assets/app.css')) || [])[1]);
 const vinduMin = appMin || kitStandard;
-tjek('mindste vindue: kittets standard er 900 px, Grimnirs er 1024 px i både app.css (--vindue-min-bredde) og tauri.conf.json (det mindste, der regnes på), standard 1200 px', kitStandard === 900 && vinduMin === 1024 && konf.minWidth === 1024 && konf.width === 1200 && BREDDER.includes(vinduMin), `${kitStandard} / ${appMin} / ${konf.minWidth} / ${konf.width}`);
+// V-OPBYG.2 N4: startvinduet er 1400 × 900 (før 1200 × 800); 1400 regnes med som bredde.
+tjek('V-OPBYG.2 N4: mindste vindue: kittets standard er 900 px, Grimnirs er 1024 px i både app.css (--vindue-min-bredde) og tauri.conf.json (det mindste, der regnes på), start 1400 px', kitStandard === 900 && vinduMin === 1024 && konf.minWidth === 1024 && konf.width === 1400 && konf.height === 900 && BREDDER.includes(vinduMin) && BREDDER.includes(konf.width), `${kitStandard} / ${appMin} / ${konf.minWidth} / ${konf.width}`);
 
 /* V-LAAS.4 N3: feltet i Erstatning er et <input class="mono"> i en tabelcelle: skriften fra .mono, polstring og kant fra
    .tabel td input. */
@@ -195,7 +199,8 @@ const TABELLER = [
   { klasse: 'fundtabel', fil: 'ui/assets/maskering.js', vaert: 'masker', vaerdi: 3, kol: ['kolMasker', 'kolType', 'kolVaerdi', 'kolErstatning', 'kolAntal', 'kolStatus', 'kolOrdbog'], chips: { 6: ['stMaskeres', 'stBevares', 'stTjek', 'stMaskeret', 'stBevaret'] }, ord: { 2: ART }, sikker: { 2: ['stSikker', 'stOrdbog', 'stSandsynlig', 'stTjek', 'stVersion', 'stTilfoejet'] } },
   { klasse: 'resttabel', fil: 'ui/assets/maskering.js', vaert: 'masker', vaerdi: 3, kol: ['kolHvad', 'kolType', 'kolTekst', 'kolAntal', 'kolLinje'], chips: { 1: ['rest_original', 'rest_nyt_fund'] }, ord: { 2: ART } },
   { klasse: 'advtabel', fil: 'ui/assets/maskering.js', vaert: 'panel', vaerdi: 2, kol: ['kolHvad', 'kolKode', 'kolAntal', 'kolLinje'], chips: { 1: Object.keys(T.da).filter(k => k.startsWith('adv_')) } },
-  { klasse: 'sagtabel', fil: 'ui/assets/sager.js', vaert: 'flade', vaerdi: 1, kol: ['kolNavn', 'kolVaerdier', 'kolOprettet', 'kolSidstBrugt', 'kolUdloeber', 'kolStatus'], chips: { 6: ['stAaben', 'stUdloeberSnart', 'stUdloebet', 'stKanIkke'] } },
+  // V-OPBYG.2 N1: kolonnen Noter efter Erstatninger; Status er nu 7. kolonne.
+  { klasse: 'sagtabel', fil: 'ui/assets/sager.js', vaert: 'flade', vaerdi: 1, kol: ['kolNavn', 'kolVaerdier', 'kolNoter', 'kolOprettet', 'kolSidstBrugt', 'kolUdloeber', 'kolStatus'], chips: { 7: ['stAaben', 'stUdloeberSnart', 'stUdloebet', 'stKanIkke'] } },
   { klasse: 'ordbogtabel', fil: 'ui/assets/ordbog.js', vaert: 'flade', vaerdi: 2, kol: ['kolType', 'kolVaerdiMoenster', 'kolNote'] },
 ];
 
@@ -374,14 +379,15 @@ tjek('V-PUDS.3 N3: den smalle regel for fundtabellen står ved max-width 943 px 
    tal (Fra ordbog 88,1 → 89, From dictionary 116,1 → 117, Altid 26,9 → 27, Aldrig 34,9 → 35, Always 42,3 → 43, Never 34,7 → 35,
    Maskine 55,4 → 56, Domæne 60,0 → 61, Machine 56,6 → 57). Valglisten er målt med sin naturlige bredde (width: auto) for de
    bredeste typeord: ordet, polstringen fra app.css, kanten og WebKits egen 1 px. */
-const MAALT_CHIP_MANUEL = { 'Tilføjet': 66, 'Added': 64 };
+/* V-OPBYG.2 N4 (sideeffekt-fund 2 i V-OPBYG.1): "Tilføjet" er ikke længere en chip i Status, men sikkerheden dæmpet ved typen
+   (målt i MAALT_SIKKER: Tilføjet 39, Added 38). Tjekket nedenfor prøver den i Type-kolonnen ved siden af valglisten. */
 /* Ordet i Fjern er målt (Fjern 29,5 → 30, Remove 46,6 → 47), men vises aldrig: med ord ville Always + Remove være 158 px i
    Ordbog-kolonnens 148 px på engelsk. Fjern er derfor altid kun krydset (24 px; reglen i app.css prøves nedenfor). */
 const MAALT_KNAPORD_MANUEL = { 'Fjern': 30, 'Remove': 47 };
 const MAALT_VALG = { da: { 'Domæne': 87, 'Maskine': 82, 'Ord': 51 }, en: { 'Machine': 63, 'Domain': 57, 'Word': 42 } };
 const TYPER_UI = ((laes('ui/assets/maskering.js').match(/const TYPER = \[([^\]]+)\]/) || [])[1] || '').split(',').map(x => x.trim().replace(/'/g, ''));
 tjek('V-OPBYG.1 N2: statusordene (Maskeres, Bevares, Tjek selv, Maskeret, Bevaret) og sikkerheden ved typen er målt i begge sprog, og Status bruger ikke længere sikkerheden som chip', ['da', 'en'].every(sp => ['stMaskeres', 'stBevares', 'stTjek', 'stMaskeret', 'stBevaret'].every(k => T[sp][k] in MAALT_CHIP) && ['stSikker', 'stOrdbog', 'stSandsynlig', 'stTjek', 'stVersion', 'stTilfoejet'].every(k => T[sp][k] in MAALT_SIKKER)) && !TABELLER.find(t => t.klasse === 'fundtabel').chips[6].includes('stSikker'));
-tjek('V-MANUEL.1: chippen Tilføjet og ordet i Fjern er målt i begge sprog', ['da', 'en'].every(sp => T[sp].stTilfoejet in MAALT_CHIP_MANUEL && T[sp].kFjern in MAALT_KNAPORD_MANUEL));
+tjek('V-OPBYG.2 N4: Tilføjet (sikkerheden ved typen) og ordet i Fjern er målt i begge sprog', ['da', 'en'].every(sp => T[sp].stTilfoejet in MAALT_SIKKER && T[sp].kFjern in MAALT_KNAPORD_MANUEL));
 tjek(`V-MANUEL.1: valglistens typer (${TYPER_UI.join(', ')}) er alle målt, og den bredeste valgliste er målt i hvert sprog`, TYPER_UI.length === 5 && ['da', 'en'].every(sp => {
   const ord = TYPER_UI.map(t => T[sp]['art_' + t]);
   const bredest = Math.max(...ord.map(o => MAALT_ORD[o]));
@@ -427,10 +433,11 @@ for (const trin of TRIN) for (const sprog of ['da', 'en']) {
     mindstType = Math.min(mindstType, indhold(1));
     const valg = Math.max(...Object.values(MAALT_VALG[sprog]));
     if (valg > indhold(1)) brud.push(`${W}: valglisten ${valg} > ${indhold(1)}`);
-    if (MAALT_CHIP_MANUEL[T[sprog].stTilfoejet] > indhold(5)) brud.push(`${W}: chippen`);
+    // Valglisten og "Tilføjet" står i Type; ordet kan stå under listen, så hvert af dem skal kunne være i kolonnen.
+    if (MAALT_SIKKER[T[sprog].stTilfoejet] > indhold(1)) brud.push(`${W}: Tilføjet ved typen`);
     if (ordbogBreddeTilfoejet(sprog, W, trin.navn) > indhold(6)) brud.push(`${W}: Altid og Fjern`);
   }
-  tjek(`V-MANUEL.1: ${trin.navn} ${sprog}: en tilføjet række: valglisten (${Math.max(...Object.values(MAALT_VALG[sprog]))} px; Type har mindst ${mindstType} px), chippen Tilføjet og Altid + Fjern kan være i deres kolonne ved hver bredde (${n} bredder)`, brud.length === 0, brud.slice(0, 4).join('; '));
+  tjek(`V-OPBYG.2 N4: ${trin.navn} ${sprog}: en tilføjet række: valglisten (${Math.max(...Object.values(MAALT_VALG[sprog]))} px; Type har mindst ${mindstType} px), Tilføjet ved typen og Altid + Fjern kan være i deres kolonne ved hver bredde (${n} bredder)`, brud.length === 0, brud.slice(0, 4).join('; '));
 }
 
 console.log('\nKolonnebredder (px i layoutet, med polstring), regnet ud fra CSS\'en uden rullebjælke (lille og stor: V-KITBRUG.1):');

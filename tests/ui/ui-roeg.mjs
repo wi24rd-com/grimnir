@@ -78,6 +78,8 @@ function side({ hash = '', lager = {}, platform = 'macos', rust = null, foer = n
         if (cmd === 'sag_status') return { poster: 0, id: null, navn: null, udloeb: null };
         if (cmd === 'sag_liste') return [];
         if (cmd === 'menu_sprog') return null;
+        // V-OPBYG.2: uden en efterlignet Rust for noterne har sagen ingen noter.
+        if (cmd === 'noter_hent') return { id: null, navn: null, noter: [], nr: null, maks_tegn: 4000, maks_antal: 200 };
         throw new Error('ukendt kommando ' + cmd);
       },
     },
@@ -91,7 +93,8 @@ function side({ hash = '', lager = {}, platform = 'macos', rust = null, foer = n
   return { w, d: w.document, kald, emit, tast, scripts, jsdomFejl };
 }
 const synlige = d => [...d.querySelectorAll('section.visning')].filter(s => !s.hidden).map(s => s.dataset.visning);
-const VIS = ['masker', 'demasker', 'sager', 'ordbog'];
+// V-OPBYG.2 N2: fem visninger; Noter mellem Demaskér og Sager.
+const VIS = ['masker', 'demasker', 'noter', 'sager', 'ordbog'];
 // V-KITBRUG.2 N3 (G11): hvorfor en kommando er slået fra, står i kittets værktøjstip (aria-describedby → role="tooltip"),
 // ikke i title. Teksten i tippet, eller null, hvis der intet tip er.
 const forklaring = b => { const t = b && b.ownerDocument.getElementById(b.getAttribute('aria-describedby') || ''); return t && t.getAttribute('role') === 'tooltip' ? t.textContent : null; };
@@ -136,41 +139,47 @@ const plads = b => (b.parentElement.classList.contains('tip-plads') ? b.parentEl
   // V-FANER.2: visningerne er store knapper forrest i båndet (i hvert af de fire bånd; links er den viste visnings).
   const links = [...d.querySelectorAll('#baand > [data-visning]:not([hidden]) .vk')];
   const alleLinks = [...d.querySelectorAll('#baand .vk')];
-  tjek('visningerne står forrest i båndet: fire i fast rækkefølge', JSON.stringify(links.map(a => a.dataset.visning)) === JSON.stringify(VIS));
-  tjek('aria-current="page" kun på den aktive visning (i alle fire bånd)', alleLinks.filter(a => a.getAttribute('aria-current') === 'page').map(a => a.dataset.visning).join() === 'masker,masker,masker,masker');
-  tjek('genvejene står i visningsknappernes værktøjstip (⌘1–⌘4 på macOS)', links.map(a => forklaring(a)).join() === '⌘1,⌘2,⌘3,⌘4');
+  tjek('V-OPBYG.2: visningerne står forrest i båndet: fem i fast rækkefølge (Noter mellem Demaskér og Sager)', JSON.stringify(links.map(a => a.dataset.visning)) === JSON.stringify(VIS));
+  tjek('V-OPBYG.2: aria-current="page" kun på den aktive visning (i alle fem bånd)', alleLinks.filter(a => a.getAttribute('aria-current') === 'page').map(a => a.dataset.visning).join() === 'masker,masker,masker,masker,masker');
+  tjek('V-OPBYG.2: genvejene står i visningsknappernes værktøjstip (⌘1–⌘5 på macOS)', links.map(a => forklaring(a)).join() === '⌘1,⌘2,⌘3,⌘4,⌘5');
   for (const [i, id] of VIS.entries()) {
     s.w.location.hash = id;
     await vent(5);
     tjek(`#${id} viser ${id}`, JSON.stringify(synlige(d)) === JSON.stringify([id]));
-    tjek(`${id}: aria-current flytter med`, alleLinks.filter(a => a.getAttribute('aria-current') === 'page').map(a => a.dataset.visning).join() === [id, id, id, id].join());
+    tjek(`${id}: aria-current flytter med`, alleLinks.filter(a => a.getAttribute('aria-current') === 'page').map(a => a.dataset.visning).join() === VIS.map(() => id).join());
     const bar = d.querySelector(`#baand > [data-visning="${id}"]`);
     tjek(`${id}: kun visningens CommandBar vises`, !bar.hidden && [...d.querySelectorAll('#baand > [data-visning]')].filter(b => !b.hidden).length === 1);
     tjek(`${id}: én primær kommando på Start`, bar.querySelectorAll('.grupper[data-fane="start"] .cb.pri').length === 1);
     // Uden tekst er alt nedtonet med en forklaring, undtagen Indsæt i Maskér og Demaskér, Ny sag i Sager (V-SAG.1),
     // Tilføj post og Prøv på tekst i Ordbog (V-ORDBOG.1) og Åbn fil i Maskér og Demaskér (V-FIL.1).
-    tjek(`${id}: kommandoerne er nedtonede med forklaring`, [...bar.querySelectorAll('.grupper[data-fane="start"] .cb:not(.vk)')].every(b => (b.getAttribute('aria-disabled') === 'true' && (forklaring(b) || '').length > 10) || (['indsaet', 'aabn-fil'].includes(b.dataset.kommando) && ['masker', 'demasker'].includes(id)) || (['ny-sag', 'gem-som-sag'].includes(b.dataset.kommando) && id === 'sager') || (['tilfoej-post', 'proev'].includes(b.dataset.kommando) && id === 'ordbog')));
+    tjek(`${id}: kommandoerne er nedtonede med forklaring`, [...bar.querySelectorAll('.grupper[data-fane="start"] .cb:not(.vk)')].every(b => (b.getAttribute('aria-disabled') === 'true' && (forklaring(b) || '').length > 10) || (['indsaet', 'aabn-fil'].includes(b.dataset.kommando) && ['masker', 'demasker'].includes(id)) || (['ny-sag', 'gem-som-sag'].includes(b.dataset.kommando) && id === 'sager') || (['tilfoej-post', 'proev'].includes(b.dataset.kommando) && id === 'ordbog') || (b.dataset.kommando === 'ny-note' && id === 'noter')));
     tjek(`${id}: tom tilstand med overskrift og én sætning`, (() => { const t = d.querySelector(`section[data-visning="${id}"] .tomt`); const p = t && t.querySelector('p').textContent; return t && t.querySelector('h2').textContent.length > 3 && p.length > 20 && (p.match(/[.]\s/g) || []).length === 0 && p.endsWith('.'); })());
-    tjek(`${id}: fodlinjen siger, hvad fladen viser`, /^0 /.test(d.getElementById('fod-venstre').textContent));
+    tjek(`V-OPBYG.2 N4: ${id}: fodlinjen siger sagens navn og antallet af gemte erstatninger`, d.getElementById('fod-venstre').textContent === 'Midlertidig sag · 0 gemte erstatninger', d.getElementById('fod-venstre').textContent);
     tjek(`${id}: træets valgte punkt har aria-current`, d.querySelectorAll(`.navdel[data-visning="${id}"] .tr[aria-current="true"]`).length === 1);
     tjek(`${id}: ${i + 1}. visning`, bar.querySelectorAll('.vk')[i]?.getAttribute('aria-current') === 'page' && bar.querySelectorAll('.vk')[i]?.dataset.visning === id);
   }
   // V-MANUEL.1: Ryd (Maskér og Demaskér), Fortryd og Gentag (gruppen Rediger) og Maskér dette (gruppen Maskering).
   // V-OPBYG.1 (D27): skitsens ord og rækkefølge (Maskér markering under Rediger; Gem som sag… først i Sager).
-  const kommandoer = { masker: ['Indsæt', 'Åbn fil', 'Ryd', 'Fortryd', 'Gentag', 'Maskér markering', 'Analysér igen', 'Maskér', 'Før og efter', 'Kopiér maskeret tekst', 'Gem maskeret fil', 'Kopiér kvittering'], demasker: ['Indsæt', 'Åbn fil', 'Ryd', 'Demaskér', 'Næste advarsel', 'Kopiér resultat', 'Gem som fil'], sager: ['Gem som sag…', 'Ny sag', 'Vis indhold', 'Åbn i Maskér', 'Omdøb', 'Udløb', 'Eksportér', 'Importér', 'Slet sag'], ordbog: ['Tilføj post', 'Ret', 'Prøv på tekst', 'Importér', 'Eksportér', 'Fjern post'] };
+  const kommandoer = { masker: ['Indsæt', 'Åbn fil', 'Ryd', 'Fortryd', 'Gentag', 'Maskér markering', 'Analysér igen', 'Maskér', 'Før og efter', 'Kopiér maskeret tekst', 'Gem maskeret fil', 'Kopiér kvittering'], demasker: ['Indsæt', 'Åbn fil', 'Ryd', 'Demaskér', 'Næste advarsel', 'Kopiér resultat', 'Gem som fil'], noter: ['Ny note', 'Ret note', 'Slet note', 'Kopiér noterne'], sager: ['Gem som sag…', 'Ny sag', 'Vis indhold', 'Åbn i Maskér', 'Omdøb', 'Udløb', 'Eksportér', 'Importér', 'Slet sag'], ordbog: ['Tilføj post', 'Ret', 'Prøv på tekst', 'Importér', 'Eksportér', 'Fjern post'] };
   for (const [id, liste] of Object.entries(kommandoer)) {
     const ord = [...d.querySelectorAll(`#baand > [data-visning="${id}"] .grupper[data-fane="start"] .cb:not(.vk)`)].map(b => b.textContent.trim());
     tjek(`${id}: kommandoerne fra design/skaerme/`, JSON.stringify(ord) === JSON.stringify(liste), JSON.stringify(ord));
   }
   const prim = Object.fromEntries(VIS.map(id => [id, d.querySelector(`#baand > [data-visning="${id}"] .cb.pri`).textContent.trim()]));
-  tjek('primære kommandoer (Demaskér er primær i Demaskér, M4)', JSON.stringify(prim) === JSON.stringify({ masker: 'Maskér', demasker: 'Demaskér', sager: 'Ny sag', ordbog: 'Tilføj post' }), JSON.stringify(prim));
-  // ⌘1–⌘4
+  tjek('primære kommandoer (Demaskér er primær i Demaskér, M4)', JSON.stringify(prim) === JSON.stringify({ masker: 'Maskér', demasker: 'Demaskér', noter: 'Ny note', sager: 'Ny sag', ordbog: 'Tilføj post' }), JSON.stringify(prim));
+  // ⌘1–⌘5 (V-OPBYG.2: ⌘3 Noter, ⌘4 Sager, ⌘5 Ordbog)
   s.tast('2', { metaKey: true, code: 'Digit2' });
   await vent(5);
   tjek('⌘2 skifter til Demaskér', synlige(d).join() === 'demasker');
+  s.tast('3', { metaKey: true, code: 'Digit3' });
+  await vent(5);
+  tjek('V-OPBYG.2: ⌘3 skifter til Noter', synlige(d).join() === 'noter');
   s.tast('4', { metaKey: true, code: 'Digit4' });
   await vent(5);
-  tjek('⌘4 skifter til Ordbog', synlige(d).join() === 'ordbog');
+  tjek('V-OPBYG.2: ⌘4 skifter til Sager (før Ordbog)', synlige(d).join() === 'sager');
+  s.tast('5', { metaKey: true, code: 'Digit5' });
+  await vent(5);
+  tjek('V-OPBYG.2: ⌘5 skifter til Ordbog', synlige(d).join() === 'ordbog');
   s.tast('1', { ctrlKey: true, code: 'Digit1' });
   await vent(5);
   tjek('Ctrl+1 gør intet på macOS', synlige(d).join() === 'ordbog');
@@ -207,10 +216,13 @@ const plads = b => (b.parentElement.classList.contains('tip-plads') ? b.parentEl
 {
   const s = side({ platform: 'windows' });
   await vent();
-  tjek('Windows: genvejene står som Ctrl+1–4 (i visningsknappernes værktøjstip)', [...s.d.querySelectorAll('#baand > [data-visning]:not([hidden]) .vk')].map(a => forklaring(a)).join() === 'Ctrl+1,Ctrl+2,Ctrl+3,Ctrl+4');
+  tjek('V-OPBYG.2: Windows: genvejene står som Ctrl+1–5 (i visningsknappernes værktøjstip)', [...s.d.querySelectorAll('#baand > [data-visning]:not([hidden]) .vk')].map(a => forklaring(a)).join() === 'Ctrl+1,Ctrl+2,Ctrl+3,Ctrl+4,Ctrl+5');
   s.tast('3', { ctrlKey: true, code: 'Digit3' });
   await vent(5);
-  tjek('Windows: Ctrl+3 skifter til Sager', synlige(s.d).join() === 'sager');
+  tjek('V-OPBYG.2: Windows: Ctrl+3 skifter til Noter', synlige(s.d).join() === 'noter');
+  s.tast('4', { ctrlKey: true, code: 'Digit4' });
+  await vent(5);
+  tjek('V-OPBYG.2: Windows: Ctrl+4 skifter til Sager', synlige(s.d).join() === 'sager');
   s.tast(',', { ctrlKey: true, code: 'Comma' });
   tjek('Windows: Ctrl+, åbner Indstillinger', s.d.getElementById('dlg-indst').hasAttribute('open'));
   tjek('Windows: ingen plads til trafiklys (data-platform)', s.d.documentElement.getAttribute('data-platform') === 'windows');
@@ -263,7 +275,7 @@ const plads = b => (b.parentElement.classList.contains('tip-plads') ? b.parentEl
   const vaelgSprog = v => { const r = d.querySelector(`input[name="indst-sprog"][value="${v}"]`); r.checked = true; r.dispatchEvent(new s.w.Event('change', { bubbles: true })); };
   vaelgSprog('en');
   tjek('English: lang="en"', d.documentElement.lang === 'en');
-  tjek('English: visningerne', [...bar.querySelectorAll('.vk .vk-navn')].map(x => x.textContent).join() === 'Mask,Unmask,Cases,Dictionary');
+  tjek('V-OPBYG.2: English: visningerne (Notes mellem Unmask og Cases)', [...bar.querySelectorAll('.vk .vk-navn')].map(x => x.textContent).join() === 'Mask,Unmask,Notes,Cases,Dictionary');
   tjek('English: kommandoer og grupper', bar.querySelector('[data-kommando="gem-masker"]').textContent.trim() === 'Mask' && [...bar.querySelectorAll('.cap')].slice(0, 2).map(c => c.textContent).join() === 'Text,Edit');
   tjek('English: aria-label og title følger med', d.getElementById('aabn-indst').getAttribute('aria-label') === 'Open settings' && forklaring(bar.querySelector('[data-kommando="analyser"]')) === 'Paste a text first' && forklaring(bar.querySelector('[data-kommando="kvittering"]')) === 'Mask the text first');
   tjek('English: placeholder følger med', d.querySelector('section[data-visning="masker"] input').placeholder === 'Search the findings');
@@ -292,7 +304,7 @@ for (const sprog of ['da', 'en']) {
   tjek(`${sprog}: ingen data-t uden oversættelse i begge sprog`, mangler.length === 0, [...new Set(mangler)].join(', '));
   tjek(`${sprog}: da og en har de samme nøgler`, JSON.stringify(Object.keys(T.da).sort()) === JSON.stringify(Object.keys(T.en).sort()));
   const chips = [...d.querySelectorAll('.chip')];
-  tjek(`${sprog}: der er StatusChips (én pr. visning)`, chips.length === 4, String(chips.length));
+  tjek(`V-OPBYG.2: ${sprog}: der er StatusChips (én pr. visning, fem)`, chips.length === 5, String(chips.length));
   const daarlige = chips.filter(c => { const sym = c.querySelector('[aria-hidden="true"]'); const ord = c.querySelector('.ord'); return !sym || !sym.textContent.trim() || !ord || ord.textContent.trim().length < 2; });
   tjek(`${sprog}: hver StatusChip har symbol og ord`, daarlige.length === 0, daarlige.map(c => c.outerHTML).join(' '));
   const tomme = [...d.querySelectorAll('[data-t]')].filter(el => !el.textContent.trim());
@@ -496,7 +508,7 @@ const raekkeMed = (d, id) => d.querySelector(`section[data-visning="masker"] .fu
   const trae = n => d.querySelector(`.navdel[data-visning="masker"] [data-punkt="${n}"] .ant`).textContent;
   tjek('V-OPBYG.1: træets antal: alle 5, maskeres 3, bevares 2, kræver gennemgang 1, hemmeligheder 2, kendt fra sagen 0', [trae('alle'), trae('masker'), trae('bevar'), trae('tjek'), trae('hemmelig'), trae('seneste')].join() === '5,3,2,1,2,0');
   tjek('V-OPBYG.1: filtrene i fast rækkefølge: Alle fund, Maskeres, Bevares, Kræver gennemgang, Hemmeligheder, Kendt fra sagen', [...d.querySelectorAll('.navdel[data-visning="masker"] [data-punkt] > span:not(.ant)')].map(x => x.textContent).filter(Boolean).join('|') === 'Denne tekst|Alle fund|Maskeres|Bevares|Kræver gennemgang|Hemmeligheder|Kendt fra sagen', [...d.querySelectorAll('.navdel[data-visning="masker"] [data-punkt] > span:not(.ant)')].map(x => x.textContent).join('|'));
-  tjek('fodlinjen: antal fund og antal valgt', d.getElementById('fod-venstre').textContent === '5 fund · 3 maskeres');
+  tjek('V-OPBYG.2 N4: fodlinjen som skitsen: værdier · maskeres · bevares', d.getElementById('fod-venstre').textContent === '5 værdier · 3 maskeres · 2 bevares', d.getElementById('fod-venstre').textContent);
   tjek('værktøjslinjen: "1 venter på dig"', sek.querySelector('.vl .chip').textContent === '!1 venter på dig');
   tjek('søgefeltet er aktivt efter analysen', !soeg.disabled);
 
@@ -540,7 +552,7 @@ const raekkeMed = (d, id) => d.querySelector(`section[data-visning="masker"] .fu
   const sidste = ak2[ak2.length - 1][1];
   tjek('ny analyse med fravalg og rettelse (én, efter 350 ms)', ak2.length === 2 && JSON.stringify(sidste.fravalgt.sort((a, b) => a - b)) === '[6,67,70]' && JSON.stringify(sidste.rettelser) === '[{"id":24,"kode":"kunde01"}]', JSON.stringify(sidste));
   tjek('rettelsen står i rækken', raekkeMed(d, 24).querySelector('input[data-felt="kode"]').value === 'kunde01');
-  tjek('fodlinjen følger valget', d.getElementById('fod-venstre').textContent === '5 fund · 2 maskeres');
+  tjek('fodlinjen følger valget', d.getElementById('fod-venstre').textContent === '5 værdier · 2 maskeres · 3 bevares', d.getElementById('fod-venstre').textContent);
 
   // ⌘↵: Maskér (V-OPBYG.1: analysen skete ved indsætningen, så første ⌘↵ maskerer)
   s.tast('Enter', { metaKey: true });
@@ -868,14 +880,14 @@ const aaben = (d, id) => { const e = d.getElementById(id); return Boolean(e && e
   const r = sagRaekker(d);
   tjek('Sager: alle fem sager i listen, tom tilstand skjult', r.length === 5 && sek.querySelector('.tomt').hidden);
   const hoved = [...sek.querySelectorAll('.sagtabel thead th')].map(t => t.textContent);
-  tjek('V-OPBYG.1 N5: Sager: kolonnerne Navn, Erstatninger (før Værdier), Oprettet, Sidst brugt, Udløber, Status', JSON.stringify(hoved) === JSON.stringify(['Navn', 'Erstatninger', 'Oprettet', 'Sidst brugt', 'Udløber', 'Status']), JSON.stringify(hoved));
+  tjek('V-OPBYG.2 N1: Sager: kolonnerne Navn, Erstatninger, Noter, Oprettet, Sidst brugt, Udløber, Status', JSON.stringify(hoved) === JSON.stringify(['Navn', 'Erstatninger', 'Noter', 'Oprettet', 'Sidst brugt', 'Udløber', 'Status']), JSON.stringify(hoved));
   const chipTekst = id => sagRaekke(d, id).querySelector('.chip').textContent;
   tjek('Sager: StatusChip Åben, Udløber snart, Udløbet, Kan ikke åbnes', chipTekst(hexId(1)) === '✓Åben' && chipTekst(hexId(2)) === '!Udløber snart' && chipTekst(hexId(3)) === '×Udløbet' && chipTekst(hexId(4)) === '×Kan ikke åbnes' && chipTekst(hexId(5)) === '✓Åben', [1, 2, 3, 4, 5].map(i => chipTekst(hexId(i))).join(','));
   tjek('Sager: "Kan ikke åbnes" har årsagen i title og et navn ud fra id', sagRaekke(d, hexId(4)).querySelector('.chip').title === 'Sagen kan ikke åbnes: nøglen mangler i nøgleringen' && sagRaekke(d, hexId(4)).textContent.startsWith('Sag 44444444…'));
-  tjek('Sager: Udløber viser Aldrig eller datoen', sagRaekke(d, hexId(1)).children[4].textContent === 'Aldrig' && /\d/.test(sagRaekke(d, hexId(2)).children[4].textContent));
+  tjek('Sager: Udløber viser Aldrig eller datoen', sagRaekke(d, hexId(1)).children[5].textContent === 'Aldrig' && /\d/.test(sagRaekke(d, hexId(2)).children[5].textContent));
   const ant = id => d.querySelector(`.navdel[data-visning="sager"] [data-punkt="${id}"] .ant`).textContent;
   tjek('Sager: træet tæller Alle 5, Udløber snart 2, Ingen udløb 1', ant('alle') === '5' && ant('udloeber') === '2' && ant('uden-udloeb') === '1' && d.querySelector('.navdel[data-visning="sager"] [data-punkt="uden-udloeb"]').textContent.includes('Ingen udløb'));
-  tjek('Sager: chip og fodlinje siger 5 sager', sek.querySelector('.vl .chip').textContent === 'i5 sager' && d.getElementById('fod-venstre').textContent === '5 sager');
+  tjek('V-OPBYG.2 N4: Sager: chippen siger 5 sager, fodlinjen sagens navn og gemte erstatninger', sek.querySelector('.vl .chip').textContent === 'i5 sager' && d.getElementById('fod-venstre').textContent === 'Midlertidig sag · 0 gemte erstatninger', d.getElementById('fod-venstre').textContent);
   w.Grimnir.dele.sager.trae.vaelg('udloeber'); await vent(5);
   tjek('træ: Udløber snart viser to', sagRaekker(d).length === 2);
   w.Grimnir.dele.sager.trae.vaelg('alle'); await vent(5);
@@ -1150,7 +1162,7 @@ const enter = (w, el) => el.dispatchEvent(new w.KeyboardEvent('keydown', { key: 
   tjek('Ordbog: hjælpen om navnemønstre med Prøv på tekst', sek.querySelector('.hjaelpelinje').textContent.includes('srv-### fanger srv-068, også uden domæne') && sek.querySelector('.hjaelpelinje button').textContent === 'Prøv på tekst');
   const ant = id => d.querySelector(`.navdel[data-visning="ordbog"] [data-punkt="${id}"] .ant`).textContent;
   tjek('Ordbog: træet tæller listerne og typerne', [ant('altid'), ant('aldrig'), ant('t-domaene'), ant('t-netbios'), ant('t-navnemoenster'), ant('t-eget_net'), ant('t-ord'), ant('t-person')].join() === '4,2,1,0,1,1,1,0');
-  tjek('Ordbog: chip og fodlinje siger 6 poster', sek.querySelector('.vl .chip').textContent === 'i6 poster' && d.getElementById('fod-venstre').textContent === '6 poster');
+  tjek('V-OPBYG.2 N4: Ordbog: chippen siger 6 poster, fodlinjen sagens navn og gemte erstatninger', sek.querySelector('.vl .chip').textContent === 'i6 poster' && /^Midlertidig sag · \d+ (gemt erstatning|gemte erstatninger)$/.test(d.getElementById('fod-venstre').textContent), d.getElementById('fod-venstre').textContent);
   const T = w.Grimnir.dele.ordbog.trae;
   T.vaelg('aldrig'); await vent();
   tjek('træ: Maskér aldrig viser to', oRaekker(d).length === 2 && sek.querySelectorAll('.ordbogtabel tr.gruppe').length === 1);
@@ -1581,7 +1593,8 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   tjek('tabellen: 500 rækker ad gangen, "Viser 500 af 1200"', fundRaekker(d).length === 500 && sek.querySelector('.flere').textContent.includes('500') && sek.querySelector('.flere').textContent.includes('1200') && !sek.querySelector('.flere').hidden);
   const trae = n => d.querySelector(`.navdel[data-visning="masker"] [data-punkt="${n}"] .ant`).textContent;
   tjek('træets antal er over alle rækker (fra Rust)', [trae('alle'), trae('tjek'), trae('hemmelig'), trae('seneste')].join() === '1200,1,1,0');
-  tjek('fodlinjen: alle fund og antal valgt (fra Rust)', d.getElementById('fod-venstre').textContent === '1200 fund · 1199 maskeres', d.getElementById('fod-venstre').textContent);
+  // V-OPBYG.1: ⌘↵ er Maskér, når analysen er der (filen analyseres ved åbningen), så filen er maskeret her.
+  tjek('V-OPBYG.2 N4: fodlinjen: værdier, maskeret og bevaret efter maskeringen (fra Rust)', d.getElementById('fod-venstre').textContent === '1200 værdier · 1199 maskeret · 1 bevaret', d.getElementById('fod-venstre').textContent);
   sek.querySelector('.flere button').click();
   await vent(5);
   tjek('Vis flere: fil_raekker med 1000', s.kald.some(k => k[0] === 'fil_raekker' && k[1].side.antal === 1000) && fundRaekker(d).length === 1000);
@@ -1607,7 +1620,7 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   cb.dispatchEvent(new w.Event('change', { bubbles: true }));
   await vent(400);
   const fa2 = s.kald.filter(k => k[0] === 'fil_analyser').pop();
-  tjek('et fravalg sendes til Rust (fil_analyser med fravalgt)', fa2[1].fravalgt.includes(70) && d.getElementById('fod-venstre').textContent === '1200 fund · 1198 maskeres', d.getElementById('fod-venstre').textContent);
+  tjek('et fravalg sendes til Rust (fil_analyser med fravalgt)', fa2[1].fravalgt.includes(70) && d.getElementById('fod-venstre').textContent === '1200 værdier · 1198 maskeres · 2 bevares', d.getElementById('fod-venstre').textContent);
   s.tast('Enter', { metaKey: true });
   await vent(10);
   tjek('Gem og maskér: fil_gem_og_masker uden tekst', s.kald.some(k => k[0] === 'fil_gem_og_masker' && !('tekst' in k[1]) && k[1].fravalgt.includes(70)));
@@ -2032,10 +2045,10 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   const s = side({ hash: '#sager', rust });
   const { d, w } = s;
   await vent(20);
-  tjek('R4: Sager: chip og fodlinje siger "1 sag"', d.querySelector('section[data-visning="sager"] .vl .chip').textContent === 'i1 sag' && d.getElementById('fod-venstre').textContent === '1 sag');
+  tjek('V-OPBYG.2 N4: R4: Sager: chippen siger "1 sag"; fodlinjen sagens navn og gemte erstatninger', d.querySelector('section[data-visning="sager"] .vl .chip').textContent === 'i1 sag' && /^Midlertidig sag · \d+ (gemt erstatning|gemte erstatninger)$/.test(d.getElementById('fod-venstre').textContent), d.getElementById('fod-venstre').textContent);
   w.location.hash = 'ordbog';
   await vent(10);
-  tjek('R4: Ordbog: chip og fodlinje siger "1 post"', d.querySelector('section[data-visning="ordbog"] .vl .chip').textContent === 'i1 post' && d.getElementById('fod-venstre').textContent === '1 post');
+  tjek('V-OPBYG.2 N4: R4: Ordbog: chippen siger "1 post"; fodlinjen sagens navn og gemte erstatninger', d.querySelector('section[data-visning="ordbog"] .vl .chip').textContent === 'i1 post' && /^Midlertidig sag · \d+ (gemt erstatning|gemte erstatninger)$/.test(d.getElementById('fod-venstre').textContent), d.getElementById('fod-venstre').textContent);
 }
 
 // ── V-LAAS.2: låseskærmen. Efterlignet Rust: låst ved start, laas_op svarer fra en kø, og hver kommando med sager,
@@ -2111,7 +2124,7 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
   tjek('Lås: låseskærmen ligger på arbejdsfladen (#arb)', d.getElementById('laas').parentElement.id === 'arb');
   tjek('Lås: beskeden efter annullering', d.getElementById('laas-besked').textContent === 'Grimnir er stadig låst. Tryk Lås op for at prøve igen.', d.getElementById('laas-besked').textContent);
   tjek('Lås: fokus står på Lås op', d.activeElement === d.getElementById('laas-op'), d.activeElement && d.activeElement.id);
-  tjek('Lås: båndet (med visningerne) og træet er inert, med forklaring i title', [...d.getElementById('baand').children].every(e => e.hasAttribute('inert')) && [...d.querySelectorAll('#baand .vk')].length === 16 && d.getElementById('navdele').hasAttribute('inert') && d.getElementById('baand').title === 'Grimnir er låst. Lås op for at bruge visningerne og kommandoerne.' && d.querySelector('nav.nav').title.length > 20);
+  tjek('Lås: båndet (med visningerne) og træet er inert, med forklaring i title', [...d.getElementById('baand').children].every(e => e.hasAttribute('inert')) && [...d.querySelectorAll('#baand .vk')].length === 25 && d.getElementById('navdele').hasAttribute('inert') && d.getElementById('baand').title === 'Grimnir er låst. Lås op for at bruge visningerne og kommandoerne.' && d.querySelector('nav.nav').title.length > 20);
   tjek('Lås: titellinjen er ikke inert (Indstillinger virker)', !d.querySelector('header.titel').closest('[inert]') && !d.getElementById('aabn-indst').closest('[inert]'));
   tjek('Lås: UI\'et har ikke spurgt efter sager, ordbog eller filer', fremmedeKald(kald).length === 0 && rust.st.kaldLaast.length === 0, JSON.stringify(fremmedeKald(kald)));
   const alt = altIDom(d);
@@ -2167,7 +2180,7 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
   tjek('Lås: alle laas_op-kald var på dansk', rust.st.opKald.every(x => x === 'da') && rust.st.opKald.length === 4, JSON.stringify(rust.st.opKald));
   s.tast('3', { metaKey: true, code: 'Digit3' });
   await vent(5);
-  tjek('Lås: låst op virker ⌘3 igen', synlige(d).join() === 'sager');
+  tjek('Lås: låst op virker ⌘3 igen', synlige(d).join() === 'noter');
 }
 {
   // Ok med det samme: låseskærmen forsvinder uden flere dialoger; guiden vises først nu (den bruger ordbogen).
@@ -2199,7 +2212,7 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
   tjek('Lås: ikke tilgængelig → banner med den aftalte sætning', b && b.classList.contains('info') && b.querySelector('.ord').textContent === 'Denne maskine kan ikke bekræfte, hvem du er. Grimnir er ikke låst.' && b.getAttribute('role') === 'status', b && b.textContent);
   s.tast('3', { metaKey: true, code: 'Digit3' });
   await vent(10);
-  tjek('Lås: banneret står også efter visningsskift (vedvarende)', d.querySelectorAll('#laas-banner .ban').length === 1 && synlige(d).join() === 'sager');
+  tjek('Lås: banneret står også efter visningsskift (vedvarende)', d.querySelectorAll('#laas-banner .ban').length === 1 && synlige(d).join() === 'noter');
   // Engelsk: banneret skifter sprog.
   s.w.Sprog.saet('en');
   await vent(5);
@@ -4263,9 +4276,11 @@ async function manuelSide(o = {}) {
 // V-OPBYG.1: målt igen i WKWebView (scratchpad/maal: en kopi af ui/, 1800 × 900, intet flyttet): fanerne står i deres egen
 // række, så båndet har kun visningens kommandoer (skitsens ord; Sager har Gem som sag…). bred er den sidste gruppes højre kant
 // + båndets luft til højre (12 px × trin).
-const MAALT_BAAND = {"lille":{"da":{"masker":{"grp":[188.2,239.1,234.8,344],"knap":[57.6,57.6,57.6,57.6,57.6,108.5,86,57.6,75.8,127.2,102.4,100],"bred":1060},"demasker":{"grp":[188.2,179,180.3],"knap":[57.6,57.6,57.6,69,96.4,90.5,77.1],"bred":590.6},"sager":{"grp":[445.2,139.1,68.4],"knap":[95.6,57.6,72.9,83.1,57.6,57.6,65.6,59.9,57.6],"bred":695.8},"ordbog":{"grp":[224.5,139.1,78.4],"knap":[68.3,57.6,83.3,59.9,65.6,67.6],"bred":485.2}},"en":{"masker":{"grp":[193.1,223.5,259.5,307.1],"knap":[57.6,62.5,57.6,57.6,57.6,93,87.8,57.6,98.7,108.2,102.8,81.7],"bred":1037.2},"demasker":{"grp":[193.1,156.9,162.2],"knap":[57.6,62.5,57.6,59,84.4,74.8,74.7],"bred":555.4},"sager":{"grp":[475,128.8,87.3],"knap":[92.9,67.5,92.1,86.5,57.7,57.6,57.6,57.6,76.5],"bred":734.3},"ordbog":{"grp":[212,128.8,97.7],"knap":[67.9,57.6,71.1,57.6,57.6,86.9],"bred":481.7}}},"normal":{"da":{"masker":{"grp":[209,265.4,260.4,381.6],"knap":[64,64,64,64,64,120.4,95.4,64,84,141.1,113.6,110.9],"bred":1176.3},"demasker":{"grp":[209,198.4,199.9],"knap":[64,64,64,76.5,106.9,100.4,85.5],"bred":655.3},"sager":{"grp":[494,154,76],"knap":[106.1,64,80.8,92.1,64,64,72.7,66.3,64],"bred":772},"ordbog":{"grp":[249,154,87],"knap":[75.7,64,92.3,66.3,72.7,75],"bred":538}},"en":{"masker":{"grp":[214.2,248.1,287.8,340.6],"knap":[64,69.2,64,64,64,103.1,97.4,64,109.5,120.1,114,90.5],"bred":1150.8},"demasker":{"grp":[214.2,173.9,179.8],"knap":[64,69.2,64,65.3,93.6,83,82.8],"bred":615.9},"sager":{"grp":[526.8,143,96.8],"knap":[103,74.8,102.2,95.9,64,64,64,64,84.8],"bred":814.6},"ordbog":{"grp":[235,143,108.4],"knap":[75.3,64,78.8,64,64,96.4],"bred":534.4}}},"stor":{"da":{"masker":{"grp":[235,298.2,292.3,428.5],"knap":[72,72,72,72,72,135.2,107.1,72,94.2,158.5,127.6,124.5],"bred":1321.5},"demasker":{"grp":[235,222.5,224.4],"knap":[72,72,72,85.8,120,112.7,96],"bred":736},"sager":{"grp":[554.8,172.6,85.5],"knap":[119.1,72,90.6,103.4,72,72,81.5,74.3,72],"bred":867},"ordbog":{"grp":[279.5,172.6,97.6],"knap":[84.9,72,103.6,74.3,81.5,84.1],"bred":603.7}},"en":{"masker":{"grp":[240.6,278.7,323.2,382.5],"knap":[72,77.6,72,72,72,115.7,109.3,72,122.9,134.8,128,101.6],"bred":1292.5},"demasker":{"grp":[240.6,195,201.8],"knap":[72,77.6,72,73.2,105,93.1,93],"bred":691.4},"sager":{"grp":[591.6,160.8,108.6],"knap":[115.6,83.9,114.7,107.6,72,72,72,72,95.1],"bred":915},"ordbog":{"grp":[263.8,160.8,121.7],"knap":[84.4,72,88.4,72,72,108.2],"bred":600.2}}}};
+const MAALT_BAAND = {"lille":{"da":{"masker":{"grp":[188.2,239.1,234.8,344],"knap":[57.6,57.6,57.6,57.6,57.6,108.5,86,57.6,75.8,127.2,102.4,100],"bred":1060},"demasker":{"grp":[188.2,179,180.3],"knap":[57.6,57.6,57.6,69,96.4,90.5,77.1],"bred":590.6},"noter":{"grp":[193,102.6],"knap":[57.6,58.6,61.4,91.8],"bred":328},"sager":{"grp":[445.2,139.1,68.4],"knap":[95.6,57.6,72.9,83.1,57.6,57.6,65.6,59.9,57.6],"bred":695.8},"ordbog":{"grp":[224.5,139.1,78.4],"knap":[68.3,57.6,83.3,59.9,65.6,67.6],"bred":485.2}},"en":{"masker":{"grp":[193.1,223.5,259.5,307.1],"knap":[57.6,62.5,57.6,57.6,57.6,93,87.8,57.6,98.7,108.2,102.8,81.7],"bred":1037.2},"demasker":{"grp":[193.1,156.9,162.2],"knap":[57.6,62.5,57.6,59,84.4,74.8,74.7],"bred":555.4},"noter":{"grp":[217.3,104.6],"knap":[65.9,61.3,74.7,93.8],"bred":354.2},"sager":{"grp":[475,128.8,87.3],"knap":[92.9,67.5,92.1,86.5,57.7,57.6,57.6,57.6,76.5],"bred":734.3},"ordbog":{"grp":[212,128.8,97.7],"knap":[67.9,57.6,71.1,57.6,57.6,86.9],"bred":481.7}}},"normal":{"da":{"masker":{"grp":[209,265.4,260.4,381.6],"knap":[64,64,64,64,64,120.4,95.4,64,84,141.1,113.6,110.9],"bred":1176.3},"demasker":{"grp":[209,198.4,199.9],"knap":[64,64,64,76.5,106.9,100.4,85.5],"bred":655.3},"noter":{"grp":[213.9,113.8],"knap":[64,64.9,68,101.8],"bred":363.8},"sager":{"grp":[494,154,76],"knap":[106.1,64,80.8,92.1,64,64,72.7,66.3,64],"bred":772},"ordbog":{"grp":[249,154,87],"knap":[75.7,64,92.3,66.3,72.7,75],"bred":538}},"en":{"masker":{"grp":[214.2,248.1,287.8,340.6],"knap":[64,69.2,64,64,64,103.1,97.4,64,109.5,120.1,114,90.5],"bred":1150.8},"demasker":{"grp":[214.2,173.9,179.8],"knap":[64,69.2,64,65.3,93.6,83,82.8],"bred":615.9},"noter":{"grp":[240.7,116],"knap":[73,67.9,82.8,104],"bred":392.7},"sager":{"grp":[526.8,143,96.8],"knap":[103,74.8,102.2,95.9,64,64,64,64,84.8],"bred":814.6},"ordbog":{"grp":[235,143,108.4],"knap":[75.3,64,78.8,64,64,96.4],"bred":534.4}}},"stor":{"da":{"masker":{"grp":[235,298.2,292.3,428.5],"knap":[72,72,72,72,72,135.2,107.1,72,94.2,158.5,127.6,124.5],"bred":1321.5},"demasker":{"grp":[235,222.5,224.4],"knap":[72,72,72,85.8,120,112.7,96],"bred":736},"noter":{"grp":[240.1,127.8],"knap":[72,72.8,76.3,114.3],"bred":408.4},"sager":{"grp":[554.8,172.6,85.5],"knap":[119.1,72,90.6,103.4,72,72,81.5,74.3,72],"bred":867},"ordbog":{"grp":[279.5,172.6,97.6],"knap":[84.9,72,103.6,74.3,81.5,84.1],"bred":603.7}},"en":{"masker":{"grp":[240.6,278.7,323.2,382.5],"knap":[72,77.6,72,72,72,115.7,109.3,72,122.9,134.8,128,101.6],"bred":1292.5},"demasker":{"grp":[240.6,195,201.8],"knap":[72,77.6,72,73.2,105,93.1,93],"bred":691.4},"noter":{"grp":[269.9,130.3],"knap":[81.9,76.1,92.9,116.8],"bred":440.7},"sager":{"grp":[591.6,160.8,108.6],"knap":[115.6,83.9,114.7,107.6,72,72,72,72,95.1],"bred":915},"ordbog":{"grp":[263.8,160.8,121.7],"knap":[84.4,72,88.4,72,72,108.2],"bred":600.2}}}};
 // V-OPBYG.1: det, kittets Mere flyttede i WKWebView ved 1024 × 560 og 1200 × 800 (samme kopi).
-const MAALT_FLYTTET = {"1024 lille da":{"masker":["gem-fil","kvittering"],"demasker":[],"sager":[],"ordbog":[]},"1200 lille da":{"masker":[],"demasker":[],"sager":[],"ordbog":[]},"1024 lille en":{"masker":["kvittering"],"demasker":[],"sager":[],"ordbog":[]},"1200 lille en":{"masker":[],"demasker":[],"sager":[],"ordbog":[]},"1024 normal da":{"masker":["gem-fil","kvittering"],"demasker":[],"sager":[],"ordbog":[]},"1200 normal da":{"masker":[],"demasker":[],"sager":[],"ordbog":[]},"1024 normal en":{"masker":["gem-fil","kvittering"],"demasker":[],"sager":[],"ordbog":[]},"1200 normal en":{"masker":[],"demasker":[],"sager":[],"ordbog":[]},"1024 stor da":{"masker":["kopier","gem-fil","kvittering"],"demasker":[],"sager":[],"ordbog":[]},"1200 stor da":{"masker":["gem-fil","kvittering"],"demasker":[],"sager":[],"ordbog":[]},"1024 stor en":{"masker":["kopier","gem-fil","kvittering"],"demasker":[],"sager":[],"ordbog":[]},"1200 stor en":{"masker":["gem-fil","kvittering"],"demasker":[],"sager":[],"ordbog":[]}};
+// V-OPBYG.2 N2: Noters bånd målt på samme måde (scratchpad/wk: en kopi af ui/, 1800 × 900; de fire andre bånd målte præcis
+// som V-OPBYG.1's tal); ved 1024 og 1200 px flytter Mere intet i Noter.
+const MAALT_FLYTTET = {"1024 lille da":{"masker":["gem-fil","kvittering"],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1200 lille da":{"masker":[],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1024 lille en":{"masker":["kvittering"],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1200 lille en":{"masker":[],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1024 normal da":{"masker":["gem-fil","kvittering"],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1200 normal da":{"masker":[],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1024 normal en":{"masker":["gem-fil","kvittering"],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1200 normal en":{"masker":[],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1024 stor da":{"masker":["kopier","gem-fil","kvittering"],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1200 stor da":{"masker":["gem-fil","kvittering"],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1024 stor en":{"masker":["kopier","gem-fil","kvittering"],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1200 stor en":{"masker":["gem-fil","kvittering"],"demasker":[],"noter":[],"sager":[],"ordbog":[]}};
 const visKnapper = d => [...d.querySelectorAll('#baand > [data-visning]:not([hidden]) .vk')];
 const aktuelle = d => [...d.querySelectorAll('#baand .vk[aria-current="page"]')].map(a => a.dataset.visning);
 const tastPaa = (w, el, key, x = {}) => { const e = new w.KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...x }); if (el) el.dispatchEvent(e); return e; };
@@ -4277,40 +4292,40 @@ const klikVis = async (w, a, id) => { const p = visningSkift(w, id); a.click(); 
   const titel = d.querySelector('header.titel');
   tjek('V-OPBYG.1 (D27): fanerne er båndets egne: titellinjen, låsebanneret og båndet står lige efter hinanden; fanerne står øverst inde i hvert bånd (.cmd-faner), og der er ingen #faner, ingen fanerække fra 2.6.0 og ingen tablist', titel.nextElementSibling.id === 'laas-banner' && d.getElementById('laas-banner').nextElementSibling.id === 'baand' && !d.getElementById('faner') && [...d.querySelectorAll('#baand > [data-visning]')].every(b => b.firstElementChild.classList.contains('cmd-faner')) && !d.querySelector('.vfaner, .vf, [role="tablist"], [role="tab"], .tabs') && !/id="faner"/.test(ui('index.html')));
   const baandene = [...d.querySelectorAll('#baand > [data-visning]')];
-  tjek('V-OPBYG.1: hvert af de fire bånd har fanerne øverst (role="group", navnet er nøglen visninger: Visninger) og kun visningens egne grupper under dem (ingen gruppe Visninger)', baandene.length === 4 && baandene.every(b => { const f = b.querySelector(':scope > .cmd-faner'); return f && f.getAttribute('role') === 'group' && f.getAttribute('data-t-aria') === 'visninger' && f.getAttribute('aria-label') === 'Visninger' && !b.querySelector('.grp-visninger') && ![...b.querySelectorAll('.grupper .cap')].some(c => c.textContent === 'Visninger'); }));
-  tjek('V-OPBYG.1: fire faner i fast rækkefølge i hvert bånd: links til #id (.vk.vfane, ikke .cb) uden ikon, som skitsen; Ordbog står for sig til højre (hoejre); navnene er de samme tekster som før', baandene.every(b => { const v = [...b.querySelectorAll('.cmd-faner .vk')]; return v.length === 4 && v.every((a, i) => a.tagName === 'A' && a.classList.contains('vfane') && !a.classList.contains('cb') && a.getAttribute('href') === '#' + VIS[i] && a.dataset.visning === VIS[i] && !a.querySelector('svg') && a.firstElementChild.className === 'vk-navn' && a.classList.contains('hoejre') === (VIS[i] === 'ordbog')) && v.map(a => a.querySelector('.vk-navn').textContent).join() === 'Maskér,Demaskér,Sager,Ordbog'; }) && ['vMasker', 'vDemasker', 'vSager', 'vOrdbog'].map(k => w.Sprog.TEKST.da[k]).join() === 'Maskér,Demaskér,Sager,Ordbog');
-  tjek('V-FANER.2: visningsknapperne er links (ingen rolle, ingen aria-selected, ingen aria-controls), båndet er role="group" med sit navn, og arbejdsfladen er ikke længere et fanepanel', d.querySelectorAll('#baand .vk').length === 16 && [...d.querySelectorAll('#baand .vk')].every(a => !a.hasAttribute('role') && !a.hasAttribute('aria-selected') && !a.hasAttribute('aria-controls')) && baandene.every(b => b.getAttribute('role') === 'group' && b.getAttribute('aria-label') === 'Handlingsbånd') && [...d.querySelectorAll('section.visning')].every(x => !x.hasAttribute('role') && x.getAttribute('aria-label')));
-  tjek('V-FANER.2: aria-current="page" står kun på Maskér, i alle fire bånd', aktuelle(d).join() === 'masker,masker,masker,masker');
-  tjek('V-FANER.2: genvejene ⌘1–⌘4 står i knappens værktøjstip og i aria-keyshortcuts (Meta+1–4)', visKnapper(d).map(a => forklaring(a)).join() === '⌘1,⌘2,⌘3,⌘4' && visKnapper(d).map(a => a.getAttribute('aria-keyshortcuts')).join() === 'Meta+1,Meta+2,Meta+3,Meta+4');
+  tjek('V-OPBYG.2: hvert af de fem bånd har fanerne øverst (role="group", navnet er nøglen visninger: Visninger) og kun visningens egne grupper under dem (ingen gruppe Visninger)', baandene.length === 5 && baandene.every(b => { const f = b.querySelector(':scope > .cmd-faner'); return f && f.getAttribute('role') === 'group' && f.getAttribute('data-t-aria') === 'visninger' && f.getAttribute('aria-label') === 'Visninger' && !b.querySelector('.grp-visninger') && ![...b.querySelectorAll('.grupper .cap')].some(c => c.textContent === 'Visninger'); }));
+  tjek('V-OPBYG.2: fem faner i fast rækkefølge i hvert bånd (Noter mellem Demaskér og Sager): links til #id (.vk.vfane, ikke .cb) uden ikon, som skitsen; Ordbog står for sig til højre (hoejre); navnene er de samme tekster som før', baandene.every(b => { const v = [...b.querySelectorAll('.cmd-faner .vk')]; return v.length === 5 && v.every((a, i) => a.tagName === 'A' && a.classList.contains('vfane') && !a.classList.contains('cb') && a.getAttribute('href') === '#' + VIS[i] && a.dataset.visning === VIS[i] && !a.querySelector('svg') && a.firstElementChild.className === 'vk-navn' && a.classList.contains('hoejre') === (VIS[i] === 'ordbog')) && v.map(a => a.querySelector('.vk-navn').textContent).join() === 'Maskér,Demaskér,Noter,Sager,Ordbog'; }) && ['vMasker', 'vDemasker', 'vNoter', 'vSager', 'vOrdbog'].map(k => w.Sprog.TEKST.da[k]).join() === 'Maskér,Demaskér,Noter,Sager,Ordbog');
+  tjek('V-FANER.2: visningsknapperne er links (ingen rolle, ingen aria-selected, ingen aria-controls), båndet er role="group" med sit navn, og arbejdsfladen er ikke længere et fanepanel', d.querySelectorAll('#baand .vk').length === 25 && [...d.querySelectorAll('#baand .vk')].every(a => !a.hasAttribute('role') && !a.hasAttribute('aria-selected') && !a.hasAttribute('aria-controls')) && baandene.every(b => b.getAttribute('role') === 'group' && b.getAttribute('aria-label') === 'Handlingsbånd') && [...d.querySelectorAll('section.visning')].every(x => !x.hasAttribute('role') && x.getAttribute('aria-label')));
+  tjek('V-OPBYG.2: aria-current="page" står kun på Maskér, i alle fem bånd', aktuelle(d).join() === 'masker,masker,masker,masker,masker');
+  tjek('V-OPBYG.2: genvejene ⌘1–⌘5 står i knappens værktøjstip og i aria-keyshortcuts (Meta+1–5)', visKnapper(d).map(a => forklaring(a)).join() === '⌘1,⌘2,⌘3,⌘4,⌘5' && visKnapper(d).map(a => a.getAttribute('aria-keyshortcuts')).join() === 'Meta+1,Meta+2,Meta+3,Meta+4,Meta+5');
   const kit = ui('assets/kit.css');
   tjek('V-OPBYG.1 (CSS): den åbne fane har båndets flade, en kant, fed skrift og en streg på 2 px i accent øverst (ikke kun farve), og den hænger sammen med båndet (margin -1 px over rækkens kant)', /\n\.vfane\[aria-current="page"\] \{ background: var\(--surface-raised\); border-color: var\(--border\); font-weight: 600; box-shadow: inset 0 2px 0 var\(--accent\); \}/.test(kit) && /\n\.cmd \{ flex: none; background: var\(--surface-raised\);/.test(kit) && /margin-bottom: -1px;/.test(kit));
   const mereKn = [...d.querySelectorAll('#baand .cb-mere')];
-  tjek('V-FANER.2: Mere står sidst i hvert bånd (efter grupperne), lukket, med aria-haspopup="menu", navnet Mere og menuen skjult; uden målte bredder (jsdom) er alt plads, og Mere er skjult', mereKn.length === 4 && mereKn.every(m => m.parentElement.classList.contains('mere-plads') && m.parentElement.parentElement.lastElementChild === m.parentElement && m.parentElement.hidden && m.getAttribute('aria-haspopup') === 'menu' && m.getAttribute('aria-expanded') === 'false' && m.textContent === 'Mere' && d.getElementById(m.getAttribute('aria-controls'))?.hidden));
+  tjek('V-FANER.2: Mere står sidst i hvert bånd (efter grupperne), lukket, med aria-haspopup="menu", navnet Mere og menuen skjult; uden målte bredder (jsdom) er alt plads, og Mere er skjult', mereKn.length === 5 && mereKn.every(m => m.parentElement.classList.contains('mere-plads') && m.parentElement.parentElement.lastElementChild === m.parentElement && m.parentElement.hidden && m.getAttribute('aria-haspopup') === 'menu' && m.getAttribute('aria-expanded') === 'false' && m.textContent === 'Mere' && d.getElementById(m.getAttribute('aria-controls'))?.hidden));
   // Klik, mellemrum, piletaster, ⌘1–⌘4
-  const okSager = await klikVis(w, visKnapper(d)[2], 'sager');
-  tjek('V-FANER.2: et klik på Sager viser Sager (adressen #sager), og Sager er den åbne i alle fire bånd', okSager && synlige(d).join() === 'sager' && w.location.hash === '#sager' && aktuelle(d).join() === 'sager,sager,sager,sager');
+  const okSager = await klikVis(w, visKnapper(d)[3], 'sager');
+  tjek('V-OPBYG.2: et klik på Sager viser Sager (adressen #sager), og Sager er den åbne i alle fem bånd', okSager && synlige(d).join() === 'sager' && w.location.hash === '#sager' && aktuelle(d).join() === 'sager,sager,sager,sager,sager');
   const baand = () => [...d.querySelectorAll('#baand > [data-visning]')].filter(b => !b.hidden);
   tjek('V-OPBYG.1: kun Sagers bånd vises, med fanerne øverst og Sagers kommandoer under dem (Gem som sag… først)', baand().length === 1 && baand()[0].dataset.visning === 'sager' && baand()[0].querySelector('.cmd-faner + .grupper [data-kommando]').dataset.kommando === 'gem-som-sag');
-  const ord = visKnapper(d)[3];
+  const ord = visKnapper(d)[4];
   ord.focus();
   const pOrd = visningSkift(w, 'ordbog');
   const mel = tastPaa(w, ord, ' ');
   tjek('V-FANER.2: mellemrum på Ordbog åbner Ordbog (som Enter på et link; kittet), og siden ruller ikke', mel.defaultPrevented && (await pOrd) && synlige(d).join() === 'ordbog' && aktuelle(d)[0] === 'ordbog');
   const vk = visKnapper(d);
-  vk[3].focus();
-  const pil = tastPaa(w, vk[3], 'ArrowLeft'), pil2 = tastPaa(w, vk[3], 'ArrowRight');
-  tjek('V-FANER.2: piletaster gør intet på en visningsknap (båndets regel: Tab går fra knap til knap)', !pil.defaultPrevented && !pil2.defaultPrevented && w.location.hash === '#ordbog' && d.activeElement === vk[3]);
+  vk[4].focus();
+  const pil = tastPaa(w, vk[4], 'ArrowLeft'), pil2 = tastPaa(w, vk[4], 'ArrowRight');
+  tjek('V-FANER.2: piletaster gør intet på en visningsknap (båndets regel: Tab går fra knap til knap)', !pil.defaultPrevented && !pil2.defaultPrevented && w.location.hash === '#ordbog' && d.activeElement === vk[4]);
   const p2 = visningSkift(w, 'demasker');
   s.tast('2', { metaKey: true, code: 'Digit2' });
-  tjek('V-FANER.2: ⌘2 viser Demaskér og flytter aria-current', (await p2) && synlige(d).join() === 'demasker' && aktuelle(d).join() === 'demasker,demasker,demasker,demasker');
+  tjek('V-FANER.2: ⌘2 viser Demaskér og flytter aria-current', (await p2) && synlige(d).join() === 'demasker' && aktuelle(d).join() === 'demasker,demasker,demasker,demasker,demasker');
   // En dialog åben: et klik og ⌘3 gør intet; lukket igen virker de.
   d.getElementById('aabn-indst').click();
   const kl = new w.MouseEvent('click', { bubbles: true, cancelable: true });
-  visKnapper(d)[2].dispatchEvent(kl);
+  visKnapper(d)[3].dispatchEvent(kl);
   s.tast('3', { metaKey: true, code: 'Digit3' });
   tjek('V-FANER.2: med en dialog åben gør et klik på en visning og ⌘3 intet (klikket stoppes; adressen og aria-current står)', aaben(d, 'dlg-indst') && kl.defaultPrevented && w.location.hash === '#demasker' && aktuelle(d)[0] === 'demasker');
   d.querySelector('#dlg-indst [data-svar="luk"]').click();
-  tjek('V-FANER.2: lukket igen virker knapperne', (await klikVis(w, visKnapper(d)[2], 'sager')) && synlige(d).join() === 'sager');
+  tjek('V-FANER.2: lukket igen virker knapperne', (await klikVis(w, visKnapper(d)[3], 'sager')) && synlige(d).join() === 'sager');
   // Fanen Vis er væk; venstre side er kun træet; titellinjen er uændret.
   tjek('V-FANER.2: ingen fane Vis: båndene har ingen fanerække, ingen data-fane="vis" og ingen knapper for tema eller sprog', !d.querySelector('#baand .tabs, #baand .tab, #baand [role="tablist"], [data-fane="vis"]') && !d.querySelector('[data-kommando^="tema-"], [data-kommando^="sprog-"]') && [...d.querySelectorAll('#baand > [data-visning]')].every(b => b.classList.contains('enkel') && b.querySelectorAll('.grupper').length === 1));
   tjek('V-FANER.2: koden og teksterne, der kun hørte til fanen Vis og fanerækken, er væk (visFane, opdaterVis, faneVis, faneStart, faner: true, #faner)', !/visFane|opdaterVis|faneVis|faneStart|tema-lys|sprog-da|faner: true|\$\('faner'\)/.test(ui('assets/app.js')) && !/'faner'/.test(ui('assets/laas.js')) && !/#faner/.test(ui('assets/app.css')) && !['faneVis', 'faneStart'].some(k => k in w.Sprog.TEKST.da || k in w.Sprog.TEKST.en));
@@ -4318,7 +4333,7 @@ const klikVis = async (w, a, id) => { const p = visningSkift(w, id); a.click(); 
   tjek('V-FANER.2: alt, fanen Vis havde, findes under tandhjulet: tema (Lys, Mørk, System) og sprog (Dansk, English) i Indstillinger, og tekststørrelsen der og i menuen Vis', ['lys', 'moerk', 'system'].every(v => d.querySelector(`#dlg-indst input[name="indst-tema"][value="${v}"]`)) && ['da', 'en'].every(v => d.querySelector(`#dlg-indst input[name="indst-sprog"][value="${v}"]`)) && d.querySelectorAll('#dlg-indst input[name="indst-tekst"]').length === 3 && /TEKST_STOERRE[\s\S]*TEKST_MINDRE[\s\S]*TEKST_NORMAL/.test(fs.readFileSync(path.join(repo, 'src-tauri', 'src', 'programmenu.rs'), 'utf8')));
   d.querySelector('#dlg-indst [data-svar="luk"]').click();
   const nav = d.querySelector('nav.nav');
-  tjek('V-OPBYG.1: venstre side er træet med filtre og under det den aktuelle sag og "Alt behandles på denne maskine" (intet visningsskift, ingen #skift, ingen faner, ingen visningsknapper)', [...nav.children].map(e => e.id || e.className).join() === 'navdele,sagdel,sagdel-lokalt' && !d.getElementById('skift') && !nav.querySelector('.skift, .vs, .vfaner, .vf, .vk') && d.querySelectorAll('nav.nav .navdel .trae').length === 4);
+  tjek('V-OPBYG.1: venstre side er træet med filtre og under det den aktuelle sag og "Alt behandles på denne maskine" (intet visningsskift, ingen #skift, ingen faner, ingen visningsknapper)', [...nav.children].map(e => e.id || e.className).join() === 'navdele,sagdel,sagdel-lokalt' && !d.getElementById('skift') && !nav.querySelector('.skift, .vs, .vfaner, .vf, .vk') && d.querySelectorAll('nav.nav .navdel .trae').length === 5);
   const nd = d.querySelector('.navdel[data-visning="sager"]');
   tjek('V-FANER.2: venstre side fylder hele højden: den aktive visnings del og dens træ fylder ruden (flex 1, min-height 0), og navdele fylder nav', cssVaerdi(d.getElementById('navdele'), 'flex') === '1' && cssVaerdi(nd, 'flex') === '1 1 auto' && cssVaerdi(nd.querySelector('.trae'), 'flex') === '1 1 auto' && cssVaerdi(nd.querySelector('.trae'), 'min-height') === '0' && cssVaerdi(nd.querySelector('.trae'), 'overflow') === 'auto');
   tjek('V-OPBYG.1: titellinjen: mærke, navn, slogan, sagen, sagens knap, Vejledning, Lås og tandhjulet (N7 lægger Vejledning og Lås til)', [...titel.children].map(e => e.className || e.tagName).join() === 'mrk,B,slogan-plads,hoejre' && [...titel.querySelector('.hoejre').children].map(e => e.id).join() === 'sag,sag-knap,vejledning,laas-nu,aabn-indst' && !titel.querySelector('.vk, .vf, [role="tab"]'));
@@ -4329,7 +4344,7 @@ const klikVis = async (w, a, id) => { const p = visningSkift(w, id); a.click(); 
   const raekke = fokuserbar.map(omraade).filter((x, i, a) => i === 0 || a[i - 1] !== x);
   tjek('V-FANER.2: Tab-rækkefølgen er titellinjen, båndet, venstre side, arbejdsfladen (ingen række over båndet)', raekke.join(' → ') === 'titellinje → bånd → venstre → arbejdsflade', raekke.join(' → '));
   const iBaand = fokuserbar.filter(e => omraade(e) === 'bånd');
-  tjek('V-FANER.2: i båndet kommer først de fire visninger (hver sit Tab-stop, også den åbne), så Maskérs kommandoer i rækkefølge', iBaand.slice(0, 4).map(a => a.dataset.visning).join() === VIS.join() && iBaand.slice(4).map(b => b.dataset.kommando).join() === 'indsaet,aabn-fil,ryd,fortryd,gentag,masker-dette,analyser,gem-masker,foer-efter,kopier,gem-fil,kvittering', iBaand.map(e => e.dataset.visning || e.dataset.kommando).join());
+  tjek('V-OPBYG.2: i båndet kommer først de fem visninger (hver sit Tab-stop, også den åbne), så Maskérs kommandoer i rækkefølge', iBaand.slice(0, 5).map(a => a.dataset.visning).join() === VIS.join() && iBaand.slice(5).map(b => b.dataset.kommando).join() === 'indsaet,aabn-fil,ryd,fortryd,gentag,masker-dette,analyser,gem-masker,foer-efter,kopier,gem-fil,kvittering', iBaand.map(e => e.dataset.visning || e.dataset.kommando).join());
 }
 {
   // Låst: båndet med visningerne er nedtonet og kan ikke bruges, og ⌘1–⌘4 gør intet. Første forsøg annulleres, andet (Enter) lykkes.
@@ -4338,14 +4353,14 @@ const klikVis = async (w, a, id) => { const p = visningSkift(w, id); a.click(); 
   const { d, w } = s;
   // Første forsøg (annulleret) er færdigt: beskeden står, og Lås op kan bruges igen.
   await ventTil(w, () => d.getElementById('laas-besked').textContent === 'Grimnir er stadig låst. Tryk Lås op for at prøve igen.' && !d.getElementById('laas-op').disabled);
-  tjek('V-FANER.2 (låst): båndet med fanerne er inert og forklarer i title; CSS nedtoner båndet og skjuler tippet; ingen regel for #faner længere', laaseskaerm(d) && [...d.getElementById('baand').children].every(e => e.hasAttribute('inert')) && d.querySelectorAll('#baand .vk').length === 16 && [...d.querySelectorAll('#baand .vk')].every(a => a.closest('[inert]')) && d.getElementById('baand').title === 'Grimnir er låst. Lås op for at bruge visningerne og kommandoerne.' && CSS_REGLER.some(r => r.sel === 'html[data-laast] #baand' && r.decl.opacity === '.45') && CSS_REGLER.some(r => r.sel === 'html[data-laast] .nav' && r.decl.opacity === '.45') && CSS_REGLER.some(r => r.sel === 'html[data-laast] #baand .tip' && r.decl.display === 'none') && !CSS_REGLER.some(r => /#faner/.test(r.sel)), JSON.stringify([laaseskaerm(d), [...d.getElementById('baand').children].map(e => e.hasAttribute('inert')).join(), d.getElementById('baand').title, CSS_REGLER.filter(r => /data-laast\] #baand/.test(r.sel)).map(r => r.sel + JSON.stringify(r.decl))]));
+  tjek('V-FANER.2 (låst): båndet med fanerne er inert og forklarer i title; CSS nedtoner båndet og skjuler tippet; ingen regel for #faner længere', laaseskaerm(d) && [...d.getElementById('baand').children].every(e => e.hasAttribute('inert')) && d.querySelectorAll('#baand .vk').length === 25 && [...d.querySelectorAll('#baand .vk')].every(a => a.closest('[inert]')) && d.getElementById('baand').title === 'Grimnir er låst. Lås op for at bruge visningerne og kommandoerne.' && CSS_REGLER.some(r => r.sel === 'html[data-laast] #baand' && r.decl.opacity === '.45') && CSS_REGLER.some(r => r.sel === 'html[data-laast] .nav' && r.decl.opacity === '.45') && CSS_REGLER.some(r => r.sel === 'html[data-laast] #baand .tip' && r.decl.display === 'none') && !CSS_REGLER.some(r => /#faner/.test(r.sel)), JSON.stringify([laaseskaerm(d), [...d.getElementById('baand').children].map(e => e.hasAttribute('inert')).join(), d.getElementById('baand').title, CSS_REGLER.filter(r => /data-laast\] #baand/.test(r.sel)).map(r => r.sel + JSON.stringify(r.decl))]));
   const kl = new w.MouseEvent('click', { bubbles: true, cancelable: true });
-  visKnapper(d)[2].dispatchEvent(kl);
+  visKnapper(d)[3].dispatchEvent(kl);
   s.tast('3', { metaKey: true, code: 'Digit3' });
-  tjek('V-FANER.2 (låst): et klik på en visning og ⌘3 gør intet (klikket stoppes; adressen og aria-current står)', kl.defaultPrevented && w.location.hash === '' && aktuelle(d).join() === 'masker,masker,masker,masker');
+  tjek('V-FANER.2 (låst): et klik på en visning og ⌘3 gør intet (klikket stoppes; adressen og aria-current står)', kl.defaultPrevented && w.location.hash === '' && aktuelle(d).join() === 'masker,masker,masker,masker,masker');
   s.tast('Enter');
   const op = await ventTil(w, () => !laaseskaerm(d));
-  tjek('V-FANER.2 (låst op): båndet er ikke længere inert, title er væk, og et klik på Sager viser Sager', op && ![...d.getElementById('baand').children].some(e => e.hasAttribute('inert')) && !d.getElementById('baand').hasAttribute('title') && (await klikVis(w, visKnapper(d)[2], 'sager')) && synlige(d).join() === 'sager', JSON.stringify([op, synlige(d), d.getElementById('baand').title]));
+  tjek('V-FANER.2 (låst op): båndet er ikke længere inert, title er væk, og et klik på Sager viser Sager', op && ![...d.getElementById('baand').children].some(e => e.hasAttribute('inert')) && !d.getElementById('baand').hasAttribute('title') && (await klikVis(w, visKnapper(d)[3], 'sager')) && synlige(d).join() === 'sager', JSON.stringify([op, synlige(d), d.getElementById('baand').title]));
 }
 {
   // Begge sprog og Windows.
@@ -4354,12 +4369,12 @@ const klikVis = async (w, a, id) => { const p = visningSkift(w, id); a.click(); 
   await ventTil(w, () => !laaseskaerm(d));
   // V-OPBYG.1: fanernes række har gruppens navn (aria-label) i stedet for et gruppenavn i båndet.
   const f = visKnapper(d), cap = () => d.querySelector('#baand > [data-visning]:not([hidden]) .cmd-faner').getAttribute('aria-label');
-  tjek('V-FANER.2 (English, Windows): gruppen hedder Views, knapperne Mask, Unmask, Cases, Dictionary, genvejene er Ctrl+1–4 (Control+1–4), og Mere hedder More', cap() === 'Views' && f.map(a => a.querySelector('.vk-navn').textContent).join() === 'Mask,Unmask,Cases,Dictionary' && f.map(a => forklaring(a)).join() === 'Ctrl+1,Ctrl+2,Ctrl+3,Ctrl+4' && f.map(a => a.getAttribute('aria-keyshortcuts')).join() === 'Control+1,Control+2,Control+3,Control+4' && [...d.querySelectorAll('#baand .cb-mere')].every(m => m.textContent === 'More') && w.Sprog.TEKST.da.kMere === 'Mere' && w.Sprog.TEKST.en.kMere === 'More');
+  tjek('V-OPBYG.2 (English, Windows): gruppen hedder Views, knapperne Mask, Unmask, Notes, Cases, Dictionary, genvejene er Ctrl+1–5 (Control+1–5), og Mere hedder More', cap() === 'Views' && f.map(a => a.querySelector('.vk-navn').textContent).join() === 'Mask,Unmask,Notes,Cases,Dictionary' && f.map(a => forklaring(a)).join() === 'Ctrl+1,Ctrl+2,Ctrl+3,Ctrl+4,Ctrl+5' && f.map(a => a.getAttribute('aria-keyshortcuts')).join() === 'Control+1,Control+2,Control+3,Control+4,Control+5' && [...d.querySelectorAll('#baand .cb-mere')].every(m => m.textContent === 'More') && w.Sprog.TEKST.da.kMere === 'Mere' && w.Sprog.TEKST.en.kMere === 'More');
   w.Sprog.saet('da');
-  tjek('V-FANER.2: et sprogskift skifter knappernes navne, gruppens navn og Mere uden genindlæsning', cap() === 'Visninger' && f.map(a => a.querySelector('.vk-navn').textContent).join() === 'Maskér,Demaskér,Sager,Ordbog' && d.querySelector('#baand .cb-mere').textContent === 'Mere');
+  tjek('V-FANER.2: et sprogskift skifter knappernes navne, gruppens navn og Mere uden genindlæsning', cap() === 'Visninger' && f.map(a => a.querySelector('.vk-navn').textContent).join() === 'Maskér,Demaskér,Noter,Sager,Ordbog' && d.querySelector('#baand .cb-mere').textContent === 'Mere');
   const p4 = visningSkift(w, 'ordbog');
-  s.tast('4', { ctrlKey: true, code: 'Digit4' });
-  tjek('V-FANER.2 (Windows): Ctrl+4 viser Ordbog og flytter aria-current', (await p4) && synlige(d).join() === 'ordbog' && aktuelle(d).join() === 'ordbog,ordbog,ordbog,ordbog');
+  s.tast('5', { ctrlKey: true, code: 'Digit5' });
+  tjek('V-OPBYG.2 (Windows): Ctrl+5 viser Ordbog og flytter aria-current', (await p4) && synlige(d).join() === 'ordbog' && aktuelle(d).join() === 'ordbog,ordbog,ordbog,ordbog,ordbog');
 }
 {
   // ── Én række ved den nye mindste bredde, regnet i jsdom ud fra bredder målt i WKWebView (som kolonner.mjs) ──
@@ -4410,18 +4425,18 @@ const klikVis = async (w, a, id) => { const p = visningSkift(w, id); a.click(); 
     w.Sprog.saet(sp);
     for (const id of VIS) { const r = regn(id, MAALT_BAAND[t][sp][id], z, 5000); kontrol.push(Math.abs(r.bredde - MAALT_BAAND[t][sp][id].bred)); }
   }
-  tjek('V-FANER.2 (regnet): kontrol: regnestykket giver båndets målte bredde i alle 24 kombinationer (trin × sprog × visning) inden for 0,6 px', kontrol.length === 24 && Math.max(...kontrol) <= 0.6, Math.max(...kontrol).toFixed(2));
+  tjek('V-OPBYG.2 (regnet): kontrol: regnestykket giver båndets målte bredde i alle 30 kombinationer (trin × sprog × visning, med Noter) inden for 0,6 px', kontrol.length === 30 && Math.max(...kontrol) <= 0.6, Math.max(...kontrol).toFixed(2));
   // Ved 1024 og 1200 px flytter kittets tilpas() det samme som i WKWebView, og rækken står på én linje.
   for (const W of [1024, 1200]) for (const [t, z] of Object.entries(Z)) for (const sp of ['da', 'en']) {
     w.Sprog.saet(sp);
     const ud = VIS.map(id => ({ id, ...regn(id, MAALT_BAAND[t][sp][id], z, W) }));
     const maalt = MAALT_FLYTTET[`${W} ${t} ${sp}`];
-    tjek(`V-FANER.2 (regnet, ${W} px, ${t}, ${sp}): én række i alle fire visninger, og Mere flytter det samme som målt i WKWebView`, ud.every(r => r.sidste <= r.plads + 1 && JSON.stringify(r.flyttet) === JSON.stringify(maalt[r.id])), JSON.stringify(ud.map(r => [r.id, r.flyttet, Math.round(r.sidste), Math.round(r.plads)])) + ' målt ' + JSON.stringify(maalt));
+    tjek(`V-OPBYG.2 (regnet, ${W} px, ${t}, ${sp}): én række i alle fem visninger, og Mere flytter det samme som målt i WKWebView`, ud.every(r => r.sidste <= r.plads + 1 && JSON.stringify(r.flyttet) === JSON.stringify(maalt[r.id])), JSON.stringify(ud.map(r => [r.id, r.flyttet, Math.round(r.sidste), Math.round(r.plads)])) + ' målt ' + JSON.stringify(maalt));
   }
   // V-OPBYG.1 N8: ved normal tekst i 1200 × 800 står alle fire bånd helt på én række på begge sprog (Maskér har 12 kommandoer).
   {
     const ved1200 = ['da', 'en'].map(sp => { w.Sprog.saet(sp); return VIS.map(id => regn(id, MAALT_BAAND.normal[sp][id], 1, 1200)); }).flat();
-    tjek('V-OPBYG.1 N8 (regnet og målt): normal, 1200 px, begge sprog: alle fire bånd står helt på én række uden Mere (Maskér: 12 kommandoer)', ved1200.every(r => !r.flyttet.length && r.sidste <= r.plads + 1) && MAALT_BAAND.normal.da.masker.knap.length === 12 && ['1200 normal da', '1200 normal en'].every(k => Object.values(MAALT_FLYTTET[k]).every(x => !x.length)), JSON.stringify(ved1200.map(r => r.flyttet)));
+    tjek('V-OPBYG.2 (regnet og målt): normal, 1200 px, begge sprog: alle fem bånd står helt på én række uden Mere (Maskér: 12 kommandoer)', ved1200.every(r => !r.flyttet.length && r.sidste <= r.plads + 1) && MAALT_BAAND.normal.da.masker.knap.length === 12 && ['1200 normal da', '1200 normal en'].every(k => Object.values(MAALT_FLYTTET[k]).every(x => !x.length)), JSON.stringify(ved1200.map(r => r.flyttet)));
   }
   // Ved normal står Demaskér, Sager og Ordbog helt fra 1024 px på begge sprog; for hver bredde fra 1024 til 2000 px står
   // båndet på én række, visningerne flyttes aldrig, og den primære kommando flyttes kun, når alle andre er flyttet.
@@ -4432,7 +4447,7 @@ const klikVis = async (w, a, id) => { const p = visningSkift(w, id); a.click(); 
       const r = regn(id, MAALT_BAAND[t][sp][id], z, W);
       if (r.sidste > r.plads + 1 || r.visningerFlyttet || (r.pri && !r.andre) || (t === 'normal' && id !== 'masker' && r.flyttet.length)) brud.push(`${W} ${id}`);
     }
-    tjek(`V-FANER.2 (regnet, ${t}, ${sp}): 1024–2000 px: én række i alle fire visninger, visningerne flyttes aldrig, den primære sidst${t === 'normal' ? ', og kun Maskér bruger Mere' : ''}`, brud.length === 0, brud.slice(0, 5).join(', '));
+    tjek(`V-OPBYG.2 (regnet, ${t}, ${sp}): 1024–2000 px: én række i alle fem visninger, visningerne flyttes aldrig, den primære sidst${t === 'normal' ? ', og kun Maskér bruger Mere' : ''}`, brud.length === 0, brud.slice(0, 5).join(', '));
   }
   // Mere i Grimnir (1024 px, normal, dansk, Maskér): menuen, Tab-rækkefølgen og et punkt, der klikker den skjulte knap.
   w.Sprog.saet('da');
@@ -4440,7 +4455,7 @@ const klikVis = async (w, a, id) => { const p = visningSkift(w, id); a.click(); 
   const bar = G.dele.masker.bar, mk = bar.mere.knap, menu = bar.mere.menu;
   tjek('V-OPBYG.1 (Mere, 1024 px): Mere vises sidst i Maskérs bånd; Gem maskeret fil og Kopiér kvittering står i den, Maskér (primær) og Kopiér maskeret tekst i båndet', !mk.parentElement.hidden && JSON.stringify(r.flyttet) === '["gem-fil","kvittering"]' && !bar.knap('gem-masker').hasAttribute('data-i-mere') && !bar.knap('kopier').hasAttribute('data-i-mere') && !bar.rod.querySelector('.grp[data-mere-tom]'), JSON.stringify(r.flyttet));
   const fok = [...bar.rod.querySelectorAll('a[href], button')].filter(e => e.tabIndex >= 0 && !e.closest('[hidden], .tip') && !e.hasAttribute('data-i-mere') && !e.closest('.grp[data-mere-tom]') && !e.closest('.mere-menu'));
-  tjek('V-FANER.2 (Mere): Tab i båndet: visningerne, de synlige kommandoer og Mere til sidst', fok.at(-1) === mk && fok.slice(0, 4).every(a => a.classList.contains('vk')) && fok.length === 4 + 10 + 1, fok.map(e => e.dataset.visning || e.dataset.kommando || 'mere').join());
+  tjek('V-FANER.2 (Mere): Tab i båndet: visningerne, de synlige kommandoer og Mere til sidst', fok.at(-1) === mk && fok.slice(0, 5).every(a => a.classList.contains('vk')) && fok.length === 5 + 10 + 1, fok.map(e => e.dataset.visning || e.dataset.kommando || 'mere').join());
   mk.focus();
   mk.click();
   const punkter = [...menu.querySelectorAll('.mere-punkt')];
@@ -4544,7 +4559,7 @@ const traePunkter = d => [...d.querySelectorAll('.navdel[data-visning="sager"] .
   tjek('V-MANUEL.2 N1: en hemmelighed står som prikker med Vis; værdien er ikke sendt og står ikke i DOM\'en', hRaekke && hRaekke.querySelector('.prikker') && !/Hemmelig-/.test(altIDom(d)) && hRaekke.querySelector('[data-felt="vis"]').textContent === 'Vis' && hRaekke.querySelector('[data-felt="vis"]').getAttribute('aria-label') === 'Vis værdien for GRIMNIR_SECRET_0001');
   tjek('V-MANUEL.2 N1: venstre side viser sagens typer med antal', JSON.stringify(traePunkter(d)) === JSON.stringify(['Sagens indhold214', 'Maskine54', 'Bruger54', 'Hemmelighed53', 'IPv4, eget net53']), JSON.stringify(traePunkter(d)));
   tjek('V-MANUEL.2 N1: søgefeltet søger i koder og værdier, og filterknappen viser valget', d.querySelector('section[data-visning="sager"] input[type="search"]').placeholder === 'Søg i koder og værdier' && sek.querySelector('.fl span').textContent === 'Sagens indhold');
-  tjek('V-MANUEL.2 N1: fokus står på Tilbage, og fodlinjen tæller', d.activeElement === d.getElementById('indhold-tilbage') && d.getElementById('fod-venstre').textContent === '214 værdier i sagen · 214 vist');
+  tjek('V-OPBYG.2 N4: fokus står på Tilbage; fodlinjen siger sagen og dens gemte erstatninger (antallet i panelhovedet)', d.activeElement === d.getElementById('indhold-tilbage') && /· \d+ (gemt erstatning|gemte erstatninger)$/.test(d.getElementById('fod-venstre').textContent), d.getElementById('fod-venstre').textContent);
   tjek('V-MANUEL.2 N1: læst, ikke åbnet: banneret siger det (den midlertidige sag er stadig den åbne)', sek.querySelector('.sagindhold .bannere').textContent.includes('Sagen er kun læst, ikke åbnet: den midlertidige sag er stadig den åbne.') && !s.kald.some(k => k[0] === 'sag_aabn'));
   // Vis hemmeligheden: kun den sendes, og Skjul skjuler den igen.
   klik(w, hRaekke.querySelector('[data-felt="vis"]')); await vent(10);
@@ -4562,7 +4577,7 @@ const traePunkter = d => [...d.querySelectorAll('.navdel[data-visning="sager"] .
   // Tilbage (Esc): listen står igen, værdierne er væk fra DOM'en, og søgningen og træet er listens.
   d.getElementById('indhold-tilbage').dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); await vent(5);
   tjek('V-MANUEL.2 N1: Esc går tilbage til listen; ingen værdier står tilbage i DOM\'en', !indholdVises(d) && sagRaekker(d).length === 5 + 1 && !/srv-opdigtet|bruger-0|Hemmelig-/.test(altIDom(d)));
-  tjek('V-MANUEL.2 N1: tilbage i listen: træet, søgefeltet og fodlinjen er listens, fokus på den valgte sag', JSON.stringify(traePunkter(d)) === JSON.stringify(['Sager', 'Alle6', 'Udløber snart2', 'Ingen udløb2']) && soeg.placeholder === 'Søg i sagerne' && soeg.value === '' && d.activeElement === sagRaekke(d, hexId(1)) && d.getElementById('fod-venstre').textContent === '6 sager', JSON.stringify(traePunkter(d)));
+  tjek('V-OPBYG.2 N4: tilbage i listen: træet og søgefeltet er listens, fodlinjen sagens, fokus på den valgte sag', JSON.stringify(traePunkter(d)) === JSON.stringify(['Sager', 'Alle6', 'Udløber snart2', 'Ingen udløb2']) && soeg.placeholder === 'Søg i sagerne' && soeg.value === '' && d.activeElement === sagRaekke(d, hexId(1)) && /· \d+ (gemt erstatning|gemte erstatninger)$/.test(d.getElementById('fod-venstre').textContent), JSON.stringify(traePunkter(d)));
   // Enter på en række viser indholdet; den viste hemmelighed fra før er skjult igen.
   sagRaekke(d, hexId(1)).dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); await vent(10);
   tjek('V-MANUEL.2 N1: Enter på rækken viser indholdet igen, og hemmeligheden er skjult igen', indholdVises(d) && JSON.stringify(kald[kald.length - 1].valg.vist) === '[]' && !/Hemmelig-/.test(altIDom(d)));
@@ -4858,6 +4873,311 @@ const naesteI = (d, v) => [...d.querySelectorAll(`#baand > [data-visning="${v}"]
   tjek('V-OPBYG.1 N7: Vejledning, der ikke kan åbnes: et banner under titellinjen siger det og kan lukkes', ban && d.querySelector('#laas-banner .ban[data-vejledning]').textContent.includes('Vejledningen kunne ikke åbnes i browseren.'));
   klik(w, d.querySelector('#laas-banner .ban[data-vejledning] button'));
   tjek('V-OPBYG.1 N7: … og Luk fjerner banneret', !d.querySelector('#laas-banner .ban[data-vejledning]'));
+}
+
+// ══════════════════════════ V-OPBYG.2: Noter, linjenumre og markering, fodlinje og startvindue ══════════════════════════
+// Efterlignet Rust for noterne (felterne som NoterUd og NoteUd i src-tauri/src/maskering.rs; fejlene som UiFejl::Note) oven på
+// falskSagRust. Tidspunkterne er kl. 12 UTC, så datoen er den samme i enhver tidszone fra −11 til +11. Kun opdigtede data.
+const NOTE_MS = Date.UTC(2026, 10, 13, 12, 0);
+function falskNoterRust({ noter = [], sager = [] } = {}) {
+  const r = falskSagRust({ sager });
+  let liste = noter.map(n => ({ rettet: null, ...n }));
+  let taeller = Math.max(0, ...liste.map(n => n.nr));
+  let nu = NOTE_MS + 3600000;
+  const kald = [];
+  const navn = () => (r.st.aaben ? r.st.db.find(x => x.id === r.st.aaben).navn : null);
+  const ud = nr => ({ id: r.st.aaben, navn: navn(), noter: liste.map(n => ({ ...n })), nr: nr == null ? null : nr, maks_tegn: 4000, maks_antal: 200 });
+  const tjekTekst = t => { if (!t || !t.trim()) throw { art: 'note', hvad: 'tom', maks: 0 }; if ([...t].length > 4000) throw { art: 'note', hvad: 'for_lang', maks: 4000 }; };
+  Object.defineProperty(r.st, 'noter', { get: () => liste });
+  r.st.noteKald = kald;
+  return {
+    ...r,
+    sag_status: () => ({ ...r.sag_status(), noter: liste.length }),
+    noter_hent: () => { kald.push(['noter_hent']); return ud(); },
+    note_tilfoej: ({ tekst }) => { kald.push(['note_tilfoej', tekst]); tjekTekst(tekst); liste.push({ nr: ++taeller, tekst, oprettet: nu += 60000, rettet: null }); return ud(taeller); },
+    note_ret: ({ nr, tekst }) => { kald.push(['note_ret', nr, tekst]); tjekTekst(tekst); const n = liste.find(x => x.nr === nr); if (!n) throw { art: 'note', hvad: 'ukendt', maks: 0 }; n.tekst = tekst; n.rettet = nu += 60000; return ud(nr); },
+    note_slet: ({ nr }) => { kald.push(['note_slet', nr]); const i = liste.findIndex(x => x.nr === nr); if (i < 0) throw { art: 'note', hvad: 'ukendt', maks: 0 }; liste.splice(i, 1); if (!liste.length) taeller = 0; return ud(); },
+    udklip_kopieret: a => { kald.push(['udklip_kopieret', a]); return true; },
+  };
+}
+const TO_NOTER = () => [
+  { nr: 1, tekst: 'Sendt den maskerede log til leverandøren (opdigtet sag 4471).', oprettet: NOTE_MS },
+  { nr: 2, tekst: 'De beder om loggen fra fw-syd02.\nHusk samme sag.', oprettet: NOTE_MS + 1800000, rettet: NOTE_MS + 2400000 },
+];
+const noteLi = d => [...d.querySelectorAll('section[data-visning="noter"] .noteliste[role="listbox"] li.note')];
+const tidDa = ms => new Date(ms).toLocaleString('da-DK', { dateStyle: 'long', timeStyle: 'short' });
+const tast2 = (w, el, key, x = {}) => { const e = new w.KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...x }); el.dispatchEvent(e); return e; };
+
+// ── N2: fanen Noter: forklaring, liste, valg med mus og tastatur, båndet, ny, ret, slet, ⌘↵, fejl ──
+{
+  const rust = falskNoterRust({ noter: TO_NOTER() });
+  const skrevet = [];
+  const s = side({ hash: '#noter', rust, foer: w => Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async t => { skrevet.push(t); } }, configurable: true }) });
+  const { d, w } = s;
+  await ventTil(w, () => noteLi(d).length === 2);
+  const sek = d.querySelector('section[data-visning="noter"]');
+  tjek('V-OPBYG.2 N2: fanen Noter står mellem Demaskér og Sager og er åben (#noter)', synlige(d).join() === 'noter' && [...d.querySelectorAll('#baand > [data-visning="noter"] .vk')].map(a => a.dataset.visning).join() === VIS.join());
+  tjek('V-OPBYG.2 N2: noterne hentes fra Rust, når fanen åbnes (noter_hent)', rust.st.noteKald.some(k => k[0] === 'noter_hent'));
+  const ban = sek.querySelector('.bannere .ban.info .ord');
+  tjek('V-OPBYG.2 N2: forklaringen for den midlertidige sag: noterne følger med, når sagen gemmes under et navn, og kommer aldrig med i den maskerede tekst eller kvitteringen', ban && ban.textContent === 'Noterne hører til den midlertidige sag. De følger med, når sagen gemmes under et navn, og kommer aldrig med i den maskerede tekst eller kvitteringen.', ban && ban.textContent);
+  const li = noteLi(d);
+  tjek('V-OPBYG.2 N2: listen er en liste (role="listbox" med navn), hver note en option; i tidsorden; én er et Tab-stop', sek.querySelector('.noteliste').getAttribute('aria-label') === 'Noter' && li.every(x => x.getAttribute('role') === 'option' && x.getAttribute('aria-selected') === 'false') && li.map(x => x.dataset.nr).join() === '1,2' && li.filter(x => x.tabIndex === 0).length === 1);
+  tjek('V-OPBYG.2 N2: dato og klokkeslæt i sprogets format; en rettet note siger "rettet <tidspunkt>"; linjeskift står, som de er skrevet', li[0].querySelector('.note-tid').textContent === tidDa(NOTE_MS) && /^13\. november 2026/.test(li[0].querySelector('.note-tid').textContent) && li[1].querySelector('.note-tid').textContent === tidDa(NOTE_MS + 1800000) + ' · rettet ' + tidDa(NOTE_MS + 2400000) && li[1].querySelector('.note-tekst').textContent === 'De beder om loggen fra fw-syd02.\nHusk samme sag.', li.map(x => x.querySelector('.note-tid').textContent).join(' | '));
+  const ret = knapI(d, 'noter', 'ret-note'), slet = knapI(d, 'noter', 'slet-note');
+  tjek('V-OPBYG.2 N2: uden et valg er Ret note og Slet note slået fra med forklaringen "Vælg en note først"; Ny note og Kopiér noterne virker', !kommandoAktiv(d, 'noter', 'ret-note') && !kommandoAktiv(d, 'noter', 'slet-note') && forklaring(ret) === 'Vælg en note først' && forklaring(slet) === 'Vælg en note først' && kommandoAktiv(d, 'noter', 'ny-note') && kommandoAktiv(d, 'noter', 'kopier-noter'));
+  klik(w, li[0]);
+  tjek('V-OPBYG.2 N2: et klik vælger noten (aria-selected, fokus, Tab-stop), og Ret note og Slet note bliver slået til', li[0].getAttribute('aria-selected') === 'true' && d.activeElement === li[0] && li[0].tabIndex === 0 && li[1].tabIndex === -1 && kommandoAktiv(d, 'noter', 'ret-note') && kommandoAktiv(d, 'noter', 'slet-note'));
+  tast2(w, li[0], 'ArrowDown');
+  tjek('V-OPBYG.2 N2: pil ned flytter valget og fokus til næste note', d.activeElement === li[1] && li[1].getAttribute('aria-selected') === 'true' && li[0].getAttribute('aria-selected') === 'false');
+  tast2(w, li[1], 'Home');
+  tjek('V-OPBYG.2 N2: Home går til den første note (End til den sidste)', d.activeElement === li[0] && (tast2(w, li[0], 'End'), d.activeElement === li[1]));
+  // Ny note: båndet sætter fokus i feltet; ⌘↵ gemmer.
+  klik(w, knapI(d, 'noter', 'ny-note'));
+  const ta = d.getElementById('note-tekst');
+  tjek('V-OPBYG.2 N2: Ny note sætter fokus i feltet Ny note (et almindeligt textarea med etiket og skitsens hjælpetekst; ⌘↵ står under det)', d.activeElement === ta && ta.tagName === 'TEXTAREA' && d.querySelector('label[for="note-tekst"]').textContent === 'Ny note' && ta.placeholder === 'Hvem har du sendt loggen til, hvad svarede de, og hvad mangler du at følge op på?' && d.getElementById('note-hj').textContent === '⌘↵ gemmer noten.');
+  ta.value = 'Ringet til leverandøren.\r\nVenter på svar.';
+  tast2(w, ta, 'Enter', { metaKey: true });
+  await ventTil(w, () => noteLi(d).length === 3);
+  // Et textarea giver linjeskift som LF (HTML: feltets værdi normaliserer CRLF); de gemmes, som feltet giver dem.
+  tjek('V-OPBYG.2 N2: ⌘↵ i feltet gemmer noten (note_tilfoej med teksten, linjeskift som feltet giver dem); feltet tømmes, og fokus bliver i feltet', JSON.stringify(rust.st.noteKald.find(k => k[0] === 'note_tilfoej')) === JSON.stringify(['note_tilfoej', 'Ringet til leverandøren.\nVenter på svar.']) && ta.value === '' && d.activeElement === ta);
+  tjek('V-OPBYG.2 N2: den nye note er valgt, og venstre side siger Noter 3', noteLi(d)[2].getAttribute('aria-selected') === 'true' && d.getElementById('sagdel-noter-antal').textContent === '3' && d.getElementById('sagdel-noter').getAttribute('aria-label') === 'Noter: 3. Åbn fanen Noter');
+  // Gem note med knappen; en tom note afvises med en fejl ved feltet.
+  ta.value = '   ';
+  klik(w, d.getElementById('note-gem'));
+  await ventTil(w, () => !d.getElementById('note-fejl').hidden);
+  tjek('V-OPBYG.2 N2: en tom note afvises med en fejl ved feltet (role="alert", aria-invalid), og intet er tilføjet', d.getElementById('note-fejl').textContent === 'Skriv noget i noten først.' && d.getElementById('note-fejl').getAttribute('role') === 'alert' && ta.getAttribute('aria-invalid') === 'true' && noteLi(d).length === 3);
+  ta.value = 'x'.repeat(4001);
+  ta.dispatchEvent(new w.Event('input', { bubbles: true }));
+  tjek('V-OPBYG.2 N2: fejlen forsvinder, når der skrives i feltet', d.getElementById('note-fejl').hidden && !ta.hasAttribute('aria-invalid'));
+  klik(w, d.getElementById('note-gem'));
+  await ventTil(w, () => !d.getElementById('note-fejl').hidden);
+  tjek('V-OPBYG.2 N2: en for lang note: "Noten er for lang: højst 4000 tegn."', d.getElementById('note-fejl').textContent === 'Noten er for lang: højst 4000 tegn.', d.getElementById('note-fejl').textContent);
+  // Ret: den ugemte tekst bliver stående og kommer igen efter rettelsen.
+  ta.value = 'Ugemt kladde';
+  klik(w, noteLi(d)[0]);
+  klik(w, knapI(d, 'noter', 'ret-note'));
+  tjek('V-OPBYG.2 N2: Ret note åbner noten i feltet (etiketten Ret note, knapperne Gem og Annullér)', ta.value === TO_NOTER()[0].tekst && d.querySelector('label[for="note-tekst"]').textContent === 'Ret note' && !d.getElementById('note-annuller').hidden && d.getElementById('note-gem').textContent.trim() === 'Gem' && d.activeElement === ta);
+  tast2(w, ta, 'Escape');
+  tjek('V-OPBYG.2 N2: Esc (som Annullér) lægger den ugemte tekst tilbage og sætter fokus på noten', ta.value === 'Ugemt kladde' && d.querySelector('label[for="note-tekst"]').textContent === 'Ny note' && d.getElementById('note-annuller').hidden && d.activeElement === noteLi(d)[0]);
+  klik(w, knapI(d, 'noter', 'ret-note'));
+  ta.value = 'Sendt til leverandøren, rettet';
+  klik(w, d.getElementById('note-gem'));
+  await ventTil(w, () => noteLi(d)[0].querySelector('.note-tekst').textContent === 'Sendt til leverandøren, rettet');
+  tjek('V-OPBYG.2 N2: Gem retter noten (note_ret med nummer og tekst); den viser "rettet <tidspunkt>", og den ugemte tekst står i feltet igen', JSON.stringify(rust.st.noteKald.filter(k => k[0] === 'note_ret').at(-1)) === JSON.stringify(['note_ret', 1, 'Sendt til leverandøren, rettet']) && / · rettet /.test(noteLi(d)[0].querySelector('.note-tid').textContent) && ta.value === 'Ugemt kladde' && d.activeElement === noteLi(d)[0]);
+  // Slet: kittets bekræftelse med fokus på Annullér.
+  klik(w, knapI(d, 'noter', 'slet-note'));
+  await ventTil(w, () => aaben(d, 'dlg-slet-note'));
+  const dlg = d.getElementById('dlg-slet-note');
+  tjek('V-OPBYG.2 N2: Slet note spørger med kittets bekræftelse (farlig), fokus på Annullér, og nævner notens tidspunkt', aaben(d, 'dlg-slet-note') && d.activeElement && d.activeElement.textContent.trim() === 'Annullér' && dlg.querySelector('.modal-tekst').textContent === `Noten fra ${tidDa(NOTE_MS)} slettes fra sagen. Det kan ikke fortrydes.`);
+  klik(w, d.activeElement);
+  await ventTil(w, () => !aaben(d, 'dlg-slet-note'));
+  tjek('V-OPBYG.2 N2: Annullér sletter intet', !rust.st.noteKald.some(k => k[0] === 'note_slet') && noteLi(d).length === 3);
+  klik(w, knapI(d, 'noter', 'slet-note'));
+  await ventTil(w, () => aaben(d, 'dlg-slet-note'));
+  klik(w, [...d.getElementById('dlg-slet-note').querySelectorAll('button')].find(b => b.textContent.trim() === 'Slet note'));
+  await ventTil(w, () => noteLi(d).length === 2);
+  tjek('V-OPBYG.2 N2: Slet note sletter (note_slet med nummeret), og den næste note er valgt', JSON.stringify(rust.st.noteKald.find(k => k[0] === 'note_slet')) === JSON.stringify(['note_slet', 1]) && noteLi(d)[0].getAttribute('aria-selected') === 'true' && d.getElementById('sagdel-noter-antal').textContent === '2');
+  // Kopiér noterne: teksten med tidspunkterne; Rust får besked (D21).
+  klik(w, knapI(d, 'noter', 'kopier-noter'));
+  await ventTil(w, () => rust.st.noteKald.some(k => k[0] === 'udklip_kopieret'));
+  tjek('V-OPBYG.2 N2: Kopiér noterne lægger sagens navn, tidspunkterne og noterne i udklipsholderen og melder det til Rust (udklip_kopieret med noter: true)', skrevet.length === 1 && skrevet[0].startsWith('Noter · Midlertidig sag\n\n') && skrevet[0].includes('De beder om loggen fra fw-syd02.\nHusk samme sag.') && skrevet[0].includes('Ringet til leverandøren.\nVenter på svar.') && JSON.stringify(rust.st.noteKald.find(k => k[0] === 'udklip_kopieret')[1]) === '{"fil":false,"noter":true}');
+  tjek('V-OPBYG.2 N2: … og en besked siger, at Grimnir rydder dem ved lås og afslutning', [...sek.querySelectorAll('.bannere .ban.ok .ord')].some(b => /rydder Grimnir dem, når den låser, og når du lukker den/.test(b.textContent)));
+  // Søgning i noterne.
+  skriv(w, d.querySelector('section[data-visning="noter"] .vl input'), 'fw-syd02');
+  tjek('V-OPBYG.2 N2: søgningen viser kun de noter, der indeholder teksten', noteLi(d).length === 1 && noteLi(d)[0].dataset.nr === '2');
+  skriv(w, d.querySelector('section[data-visning="noter"] .vl input'), '');
+  // Faneskift: noterne fjernes fra DOM'en; den ugemte tekst bliver stående; tilbage hentes de igen.
+  const foerHent = rust.st.noteKald.filter(k => k[0] === 'noter_hent').length;
+  w.location.hash = 'masker';
+  await visningSkift(w, 'masker');
+  tjek('V-OPBYG.2 N2: en anden fane fjerner noternes tekst fra DOM\'en, men den ugemte tekst i feltet bliver stående', noteLi(d).length === 0 && !d.querySelector('section[data-visning="noter"]').textContent.includes('fw-syd02') && ta.value === 'Ugemt kladde');
+  s.tast('3', { metaKey: true, code: 'Digit3' });
+  await ventTil(w, () => noteLi(d).length === 2);
+  tjek('V-OPBYG.2 N2: ⌘3 åbner Noter igen, og noterne hentes på ny fra Rust', synlige(d).join() === 'noter' && rust.st.noteKald.filter(k => k[0] === 'noter_hent').length === foerHent + 1);
+  // English.
+  w.Sprog.saet('en');
+  tjek('V-OPBYG.2 N2 (English): Notes, New note, Edit note, Delete note, Copy the notes; the explanation and the time in English', knapI(d, 'noter', 'ny-note').textContent.trim() === 'New note' && knapI(d, 'noter', 'ret-note').textContent.trim() === 'Edit note' && knapI(d, 'noter', 'slet-note').textContent.trim() === 'Delete note' && knapI(d, 'noter', 'kopier-noter').textContent.trim() === 'Copy the notes' && sek.querySelector('.bannere .ban.info .ord').textContent.startsWith('The notes belong to the temporary case.') && /13 November 2026/.test(noteLi(d)[1].querySelector('.note-tid').textContent), noteLi(d)[1].querySelector('.note-tid').textContent);
+  w.Sprog.saet('da');
+  // En dialog åben: Ny note og ⌘1 gør intet bag dialogen (som de andre faner).
+  d.getElementById('aabn-indst').click();
+  s.tast('1', { metaKey: true, code: 'Digit1' });
+  tjek('V-OPBYG.2 N2: med en dialog åben skifter ⌘1 ikke fanen', synlige(d).join() === 'noter' && aaben(d, 'dlg-indst'));
+  d.querySelector('#dlg-indst [data-svar="luk"]').click();
+}
+{
+  // Tom tilstand og en navngiven sag.
+  const rust = falskNoterRust({ sager: [{ id: hexId(1), navn: 'Supportsag 0042', poster: 3 }] });
+  rust.sag_aabn({ id: hexId(1) });
+  const s = side({ hash: '#noter', rust });
+  const { d, w } = s;
+  await ventTil(w, () => !d.querySelector('section[data-visning="noter"] .tomt').hidden);
+  const tom = d.querySelector('section[data-visning="noter"] .tomt');
+  tjek('V-OPBYG.2 N2: uden noter står kittets tomme tilstand med én sætning og Ny note som handling', tom.querySelector('h2').textContent === 'Ingen noter endnu' && (tom.querySelector('p').textContent.match(/[.]\s/g) || []).length === 0 && d.getElementById('note-tom-ny').textContent.trim() === 'Ny note' && !kommandoAktiv(d, 'noter', 'kopier-noter') && forklaring(knapI(d, 'noter', 'kopier-noter')) === 'Sagen har ingen noter endnu');
+  klik(w, d.getElementById('note-tom-ny'));
+  tjek('V-OPBYG.2 N2: Ny note i den tomme tilstand viser feltet med fokus', d.activeElement === d.getElementById('note-tekst') && !d.querySelector('section[data-visning="noter"] .arbejde.noter').hidden);
+  const ban = d.querySelector('section[data-visning="noter"] .bannere .ban.info .ord');
+  tjek('V-OPBYG.2 N2: forklaringen for en navngiven sag nævner sagen', ban && ban.textContent === 'Noterne hører til sagen «Supportsag 0042». De gemmes krypteret sammen med sagen og kommer aldrig med i den maskerede tekst eller kvitteringen.', ban && ban.textContent);
+  tjek('V-OPBYG.2 N4: fodlinjen siger sagens navn og antallet af gemte erstatninger', d.getElementById('fod-venstre').textContent === 'Supportsag 0042 · 3 gemte erstatninger', d.getElementById('fod-venstre').textContent);
+}
+{
+  // Låst: intet hentes; fanen er inert; efter oplåsningen hentes noterne.
+  // Første svar (annulleret) bruges af UI'ets eget laas_op ved start; Enter giver ok.
+  const rust = { ...falskNoterRust({ noter: TO_NOTER() }), ...falskLaasRust({ svar: [{ svar: 'annulleret' }, { svar: 'ok' }] }) };
+  const nr = falskNoterRust({ noter: TO_NOTER() });
+  for (const k of ['noter_hent', 'note_tilfoej', 'note_ret', 'note_slet']) rust[k] = nr[k];
+  const s = side({ hash: '#noter', rust });
+  const { d, w } = s;
+  await vent(20);
+  tjek('V-OPBYG.2 N2 (låst): intet hentes, mens Grimnir er låst, og intet fra noterne står i DOM\'en', laaseskaerm(d) && !nr.st.noteKald.length && noteLi(d).length === 0 && !d.documentElement.textContent.includes('leverandøren'));
+  s.tast('Enter');
+  await ventTil(w, () => noteLi(d).length === 2);
+  tjek('V-OPBYG.2 N2 (låst op): står fanen Noter åben, hentes noterne lige efter oplåsningen', !laaseskaerm(d) && nr.st.noteKald.filter(k => k[0] === 'noter_hent').length === 1, JSON.stringify([laaseskaerm(d), nr.st.noteKald, noteLi(d).length]));
+}
+
+// ── N1/N2: venstre side, Sagers kolonne Noter, sagens indhold og spørgsmålet ved en midlertidig sag med noter ──
+{
+  const sager = [{ id: hexId(1), navn: 'Supportsag 0042', poster: 214, noter: 3 }, { id: hexId(2), navn: 'Backup-script', poster: 17, noter: 0 }];
+  const rust = falskNoterRust({ noter: [TO_NOTER()[0]], sager });
+  const indhold = rust.sag_indhold;
+  rust.sag_indhold = a => ({ ...indhold(a), noter: a.id === hexId(1) ? TO_NOTER() : [] });
+  const s = side({ hash: '#sager', rust });
+  const { d, w } = s;
+  await ventTil(w, () => sagRaekker(d).length === 2);
+  tjek('V-OPBYG.2 N2: venstre side: "Noter 1" under Gemte erstatninger (i alle faner)', d.getElementById('sagdel-noter').textContent === 'Noter1' && d.getElementById('sagdel-erst').nextElementSibling === d.getElementById('sagdel-noter'));
+  tjek('V-OPBYG.2 N1: Sagers kolonne Noter viser antallet pr. sag (fra listen; ingen sag åbnes)', sagRaekke(d, hexId(1)).children[2].textContent === '3' && sagRaekke(d, hexId(2)).children[2].textContent === '0' && !rust.st.indholdKald.length);
+  sagRaekke(d, hexId(1)).dispatchEvent(new w.MouseEvent('dblclick', { bubbles: true }));
+  await ventTil(w, () => Boolean(d.querySelector('.noter-laes')));
+  const laes = d.querySelector('.noter-laes');
+  tjek('V-OPBYG.2 N1: sagens indhold for en anden sag viser dens noter under erstatningerne, kun til at læse (ingen liste med valg, ingen knapper)', laes && laes.previousElementSibling && laes.previousElementSibling.matches('.indholdtabel, .tabel-tom, table') && laes.querySelectorAll('li.note').length === 2 && !laes.querySelector('[role="listbox"], [role="option"], button') && laes.querySelector('h4').textContent === 'Noter' && laes.textContent.includes('Husk samme sag.'));
+  klik(w, d.getElementById('indhold-tilbage'));
+  klik(w, d.getElementById('sagdel-noter'));
+  await ventTil(w, () => synlige(d).join() === 'noter');
+  tjek('V-OPBYG.2 N2: et klik på Noter i venstre side åbner fanen Noter', synlige(d).join() === 'noter');
+  // En midlertidig sag med kun noter: før en anden sag åbnes, spørges der (D21).
+  w.location.hash = 'sager';
+  await ventTil(w, () => sagRaekker(d).length === 2);
+  klik(w, sagRaekke(d, hexId(2)));
+  klik(w, knapI(d, 'sager', 'aabn-i-masker'));
+  await ventTil(w, () => aaben(d, 'dlg-kasser'));
+  tjek('V-OPBYG.2 N1 (D21): en midlertidig sag med noter (og ingen værdier) spørges der om, før en anden sag åbnes, og teksten nævner noterne', aaben(d, 'dlg-kasser') && d.querySelector('#dlg-kasser .modal-tekst').textContent === 'Den midlertidige sag har 0 værdier og 1 note, som kun ligger i hukommelsen. Kasserer du den, går noterne tabt, og svar med dens koder kan ikke demaskeres.', d.querySelector('#dlg-kasser .modal-tekst').textContent);
+}
+
+// ── N3: linjenumre og markering (CSS.highlights efterlignet: et Map og en Highlight-klasse, som i WebKit) ──
+const NTEKST = 'login fra pc-0042 til srv-web01\r\nbackup kørt af backup-bruger på srv-web01\rx\nsrv-web01 genstartet 🙂\n';
+function falskMarkRust() {
+  const R = [
+    { id: 10, art: 'vaert', status: 'sikker', standard: true, vaerdier: ['pc-0042'], koder: ['h0002'] },
+    { id: 22, art: 'vaert', status: 'sikker', standard: true, vaerdier: ['srv-web01'], koder: ['h0001'] },
+    { id: 33, art: 'ord', status: 'tjek', standard: false, vaerdier: ['backup'], koder: ['ord0001'] },
+  ];
+  const steder = (t, v) => { const ud = []; for (const [r, x] of v) { let i = -1; while ((i = t.indexOf(x, i + 1)) !== -1) ud.push([i, i + x.length, r.id]); } return ud.sort((a, b) => a[0] - b[0] || a[1] - b[1]); };
+  const kald = [];
+  let svar = null;
+  return {
+    kald,
+    vent(fn) { svar = fn; },
+    analyser: a => {
+      kald.push(['analyser', a]);
+      const raekker = R.map(r => ({ ...r, laast: false, hemmelig: false, antal: a.tekst.split(r.vaerdier[0]).length - 1, linje: 1, rettet: false, kendt: false, tilfoejet: null, valgt: a.fravalgt == null ? r.standard : !a.fravalgt.includes(r.id) }));
+      const ud = { raekker, fejl: [], advarsler: [], bytes: a.tekst.length, linjer: 4, moenstre: [], tilfoejede: [], steder: steder(a.tekst, R.map(r => [r, r.vaerdier[0]])) };
+      return svar ? new Promise(ok => { const f = svar; svar = null; f(() => ok(ud)); }) : ud;
+    },
+    gem_og_masker: a => { let m = a.tekst; const v = R.filter(r => !a.fravalgt.includes(r.id)); for (const r of v) m = m.split(r.vaerdier[0]).join(r.koder[0]); return { maskeret: m, rester: [], advarsler: [], poster: v.length, steder: steder(m, v.map(r => [r, r.koder[0]])) }; },
+    sag_status: () => ({ poster: 0 }),
+  };
+}
+const hlFoer = w => { w.CSS = { highlights: new Map() }; w.Highlight = class Highlight extends Set { constructor(...r) { super(r); this.priority = 0; } }; };
+const hl = (w, navn) => { const h = w.CSS.highlights.get(navn); return h ? [...h].map(r => r.startContainer.data.slice(r.startOffset, r.endOffset)) : []; };
+{
+  const rust = falskMarkRust();
+  const s = side({ rust, foer: hlFoer });
+  const { d, w } = s;
+  await ventTil(w, () => !laaseskaerm(d));
+  const sek = d.querySelector('section[data-visning="masker"]');
+  const pre = sek.querySelector('pre.tekst'), numre = sek.querySelector('.linjenumre');
+  indsaet(w, d.querySelector('section[data-visning="masker"] .tomt'), NTEKST);
+  await ventTil(w, () => fundRaekker(d).length === 3);
+  tjek('V-OPBYG.2 N3: teksten er stadig én tekstnode efter analysen og markeringen (intet <span>)', pre.childNodes.length === 1 && pre.firstChild.nodeType === 3 && pre.firstChild.data === NTEKST && !pre.querySelector('*'));
+  tjek('V-OPBYG.2 N3: linjenumrene står i en søjle ved siden af teksten (ikke i den), aria-hidden, med samme skrift (mono)', numre && numre.parentElement === pre.parentElement && numre.nextElementSibling === pre && !pre.contains(numre) && numre.getAttribute('aria-hidden') === 'true' && numre.classList.contains('mono'));
+  tjek('V-OPBYG.2 N3: ét nummer pr. linje på skærmen: LF og CRLF er linjeskift, et enligt CR og et linjeskift til sidst giver ingen ny linje (målt i WebKit)', numre.textContent === '1\n2\n3', JSON.stringify(numre.textContent));
+  const css = ui('assets/app.css');
+  tjek('V-OPBYG.2 N3 (CSS): numrene kan ikke markeres (user-select: none) og har ingen plads i Kopiér; skjult søjle vises ikke', /\.linjenumre \{[^}]*-webkit-user-select: none; user-select: none;/.test(css) && /\.linjenumre\[hidden\] \{ display: none; \}/.test(css));
+  tjek('V-OPBYG.2 N3: værdier, der maskeres, er markeret (grimnir-masker); et usikkert fund, der ikke maskeres, stiplet (grimnir-usikker)', JSON.stringify(hl(w, 'grimnir-masker')) === JSON.stringify(['pc-0042', 'srv-web01', 'srv-web01', 'srv-web01']) && JSON.stringify(hl(w, 'grimnir-usikker')) === JSON.stringify(['backup', 'backup']) && !w.CSS.highlights.has('grimnir-valgt'), JSON.stringify([hl(w, 'grimnir-masker'), hl(w, 'grimnir-usikker')]));
+  tjek('V-OPBYG.2 N3 (CSS): ::highlight for alle fire, aldrig kun farve (understreget, stiplet, flade og streg over og under, flade og understreget)', /::highlight\(grimnir-masker\) \{ text-decoration-line: underline; text-decoration-style: solid;/.test(css) && /::highlight\(grimnir-usikker\) \{ text-decoration-line: underline; text-decoration-style: dashed;/.test(css) && /::highlight\(grimnir-valgt\) \{ background-color: var\(--warn-soft\); text-decoration-line: underline overline;/.test(css) && /::highlight\(grimnir-kode\) \{ background-color: var\(--ok-soft\); text-decoration-line: underline;/.test(css));
+  // En afkrydsning opdaterer markeringen med det samme (før analysen er kørt igen).
+  const kald = rust.kald.length;
+  const cb = d.querySelector('section[data-visning="masker"] .fundtabel tr[data-id="33"] input[type="checkbox"]');
+  cb.checked = true;
+  cb.dispatchEvent(new w.Event('change', { bubbles: true }));
+  tjek('V-OPBYG.2 N3: en afkrydsning af "Tjek selv" gør stiplet til understreget med det samme (uden at vente på analysen)', rust.kald.length === kald && hl(w, 'grimnir-masker').filter(x => x === 'backup').length === 2 && !w.CSS.highlights.has('grimnir-usikker'));
+  // Valg af en række: alle steder markeres som valgt.
+  klik(w, d.querySelector('section[data-visning="masker"] .fundtabel tr[data-id="22"]'));
+  tjek('V-OPBYG.2 N3: den valgte række markeres alle steder (grimnir-valgt, højere prioritet)', JSON.stringify(hl(w, 'grimnir-valgt')) === JSON.stringify(['srv-web01', 'srv-web01', 'srv-web01']) && w.CSS.highlights.get('grimnir-valgt').priority === 2 && w.Grimnir && pre.childNodes.length === 1);
+  // Skift + piletaster markerer i den ene tekstnode som før.
+  pre.focus();
+  const sel = d.getSelection();
+  sel.removeAllRanges();
+  tast2(w, pre, 'ArrowRight', { shiftKey: true, altKey: true });
+  tjek('V-OPBYG.2 N3: Skift + ⌥ + pil højre markerer stadig ordet i den ene tekstnode (flyt)', sel.toString() === 'login' && sel.anchorNode === pre.firstChild);
+  sel.removeAllRanges();
+  // Ombryd skjuler numrene.
+  const ob = sek.querySelector('.ombryd-knap');
+  klik(w, ob);
+  tjek('V-OPBYG.2 N3: under Ombryd er linjenumrene skjult (de ville ikke stå ud for de ombrudte linjer)', numre.hidden && pre.classList.contains('ombryd'));
+  klik(w, ob);
+  tjek('V-OPBYG.2 N3: uden Ombryd står de igen', !numre.hidden);
+  // Maskér: koderne markeres; den valgte række følger med.
+  klik(w, knapI(d, 'masker', 'gem-masker'));
+  await ventTil(w, () => w.CSS.highlights.has('grimnir-kode'));
+  tjek('V-OPBYG.2 N3: efter maskeringen er koderne markeret (grimnir-kode), og ingen værdier er markeret som før', JSON.stringify(hl(w, 'grimnir-kode')) === JSON.stringify(['h0002', 'h0001', 'ord0001', 'ord0001', 'h0001', 'h0001']) && !w.CSS.highlights.has('grimnir-masker') && JSON.stringify(hl(w, 'grimnir-valgt')) === JSON.stringify(['h0001', 'h0001', 'h0001']) && pre.childNodes.length === 1, JSON.stringify(hl(w, 'grimnir-kode')));
+  tjek('V-OPBYG.2 N4: fodlinjen efter maskeringen: "3 værdier · 3 maskeret · 0 bevaret"', d.getElementById('fod-venstre').textContent === '3 værdier · 3 maskeret · 0 bevaret', d.getElementById('fod-venstre').textContent);
+  // Før og efter: tilbage til teksten markeres værdierne igen.
+  klik(w, knapI(d, 'masker', 'foer-efter'));
+  tjek('V-OPBYG.2 N3: Før og efter viser den indsatte tekst med værdierne markeret igen', pre.firstChild.data === NTEKST && hl(w, 'grimnir-masker').length === 6 && !w.CSS.highlights.has('grimnir-kode'));
+  tjek('V-OPBYG.2 N3: ingen linje siger, at markeringen mangler (API\'et findes)', sek.querySelector('.markinfo').hidden);
+}
+{
+  // Demaskér: linjenumre i begge paneler; ingen markering. Uden CSS.highlights: linjen siger det, og alt andet virker.
+  const s = side({ hash: '#demasker', rust: falskRust() });
+  const { d, w } = s;
+  await ventTil(w, () => !laaseskaerm(d));
+  const n = [...d.querySelectorAll('section[data-visning="demasker"] .linjenumre')];
+  tjek('V-OPBYG.2 N3: Demaskér har linjenumre i begge paneler (svaret og resultatet)', n.length === 2 && n.every(x => x.nextElementSibling && x.nextElementSibling.matches('pre.tekst')));
+  const m = side({ rust: falskRust() });
+  await ventTil(m.w, () => !laaseskaerm(m.d));
+  indsaet(m.w, m.d.querySelector('section[data-visning="masker"] .tomt'), TEKST);
+  await ventTil(m.w, () => fundRaekker(m.d).length > 0);
+  const info = m.d.querySelector('section[data-visning="masker"] .markinfo');
+  tjek('V-OPBYG.2 N3: en webvisning uden CSS.highlights: linjen under teksten siger, at værdierne ikke kan markeres; teksten er én tekstnode', !info.hidden && info.textContent === 'Denne webvisning kan ikke markere værdierne i teksten.' && m.d.querySelector('section[data-visning="masker"] pre.tekst').childNodes.length === 1);
+}
+{
+  // ⌘↵ mens analysen kører, starter ikke en analyse til (sideeffekt-fund 1 i V-OPBYG.1).
+  const rust = falskMarkRust();
+  let slip = null;
+  const s = side({ rust, foer: hlFoer });
+  const { d, w } = s;
+  await ventTil(w, () => !laaseskaerm(d));
+  rust.vent(f => { slip = f; });
+  indsaet(w, d.querySelector('section[data-visning="masker"] .tomt'), NTEKST);
+  await ventTil(w, () => rust.kald.length === 1);
+  s.tast('Enter', { metaKey: true });
+  s.tast('Enter', { metaKey: true });
+  await vent(5);
+  tjek('V-OPBYG.2 N4: ⌘↵ mens analysen kører, starter ingen analyse til (og maskerer ikke)', rust.kald.filter(k => k[0] === 'analyser').length === 1 && !s.kald.some(k => k[0] === 'gem_og_masker'));
+  slip();
+  await ventTil(w, () => fundRaekker(d).length === 3);
+  s.tast('Enter', { metaKey: true });
+  await ventTil(w, () => s.kald.some(k => k[0] === 'gem_og_masker'));
+  tjek('V-OPBYG.2 N4: når analysen er der, er ⌘↵ Maskér som før', s.kald.some(k => k[0] === 'gem_og_masker') && rust.kald.filter(k => k[0] === 'analyser').length === 1);
+}
+{
+  // N4: startvinduet og kilderne.
+  const konf = JSON.parse(fs.readFileSync(path.join(repo, 'src-tauri', 'tauri.conf.json'), 'utf8')).app.windows[0];
+  tjek('V-OPBYG.2 N4: startvinduet er 1400 × 900; mindste mål er uændret 1024 × 560', konf.width === 1400 && konf.height === 900 && konf.minWidth === 1024 && konf.minHeight === 560);
+  const nj = ui('assets/noter.js');
+  const njKode = nj.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  tjek('V-OPBYG.2: noter.js skriver intet til konsollen eller localStorage og sætter ingen stil (koden uden kommentarer)', !/console\.|localStorage|sessionStorage|\.style\./.test(njKode) && njKode.length > 5000);
+  tjek('V-OPBYG.2: index.html indlæser noter.js efter sager.js', /assets\/sager\.js" defer><\/script>\n<script src="assets\/noter\.js" defer>/.test(ui('index.html')));
 }
 
 console.log(`\n${ok + fejl} tjek: ${ok} ok, ${fejl} fejl`);

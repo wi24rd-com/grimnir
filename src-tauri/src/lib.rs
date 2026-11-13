@@ -6,7 +6,7 @@
 //! `indstillinger_gem` og `sag_valg`; filerne (V-FIL.1): `fil_aabn`, `fil_aabn_sluppet`, `fil_luk`, `fil_analyser`,
 //! `fil_raekker`, `fil_gem_og_masker`, `fil_demasker`, `fil_kopi`, `fil_gem` og `ordbog_start_forfra`; låsen (V-LAAS.2,
 //! V-LAAS.3): `laas_status`, `laas_op` og `aktivitet`; udklipsholderen (V-LAAS.4): `udklip_kopieret`; kvitteringen
-//! (V-KVIT.1): `kvittering`.
+//! (V-KVIT.1): `kvittering`; noterne (V-OPBYG.2): `noter_hent`, `note_tilfoej`, `note_ret` og `note_slet`.
 //!
 //! **Låsen (V-LAAS.2).** Grimnir starter altid låst ([`Tilstand::ved_start`]; V-LAAS.3 N1, ADR D20). UI'et kalder
 //! `laas_op` én gang ved start; døren ([`laas::platformens`]: Touch ID med adgangskoden som reserve på macOS) svarer i
@@ -66,8 +66,9 @@ mod programmenu;
 use indstillinger::Indstillinger;
 use laas::Udloeser;
 use maskering::{
-    AnalyseMed, Demaskering, FilAnalyse, FilDemaskering, FilInfo, FilMaskering, IndholdValg, LaasStatus, LaasSvar, Maskering, OrdbogUd,
-    Proeve, RaekkeSide, Rettelse, SagIndhold, SagListePost, SagStatus, SideValg, StartForfra, Tilfoejet, Tilstand, UiFejl, Visning,
+    AnalyseMed, Demaskering, FilAnalyse, FilDemaskering, FilInfo, FilMaskering, IndholdValg, LaasStatus, LaasSvar, Maskering, NoterUd,
+    OrdbogUd, Proeve, RaekkeSide, Rettelse, SagIndhold, SagListePost, SagStatus, SideValg, StartForfra, Tilfoejet, Tilstand, UiFejl,
+    Visning,
 };
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -281,8 +282,42 @@ fn aktivitet() {}
 /// udklipsholderens tæller, hvis indholdet er Grimnirs, så låsen kan rydde den ([`maskering::udklip_kopieret`]). Kaldes
 /// ikke efter Kopiér i Maskér. Tæller som aktivitet (som hver kommando).
 #[tauri::command(async)]
-fn udklip_kopieret(tilstand: State<'_, Tilstand>, fil: bool) -> Result<bool, UiFejl> {
+fn udklip_kopieret(tilstand: State<'_, Tilstand>, fil: bool, noter: Option<bool>) -> Result<bool, UiFejl> {
+    // V-OPBYG.2 N2: `noter`: webvisningen har kopieret den åbne sags noter (Kopiér noterne); samme regel (D21).
+    if noter == Some(true) {
+        return maskering::udklip_noter_kopieret(&tilstand);
+    }
     maskering::udklip_kopieret(&tilstand, fil)
+}
+
+/// V-OPBYG.2 N1: den åbne sags noter (også den midlertidige). Låst: `laast`.
+#[tauri::command(async)]
+fn noter_hent(tilstand: State<'_, Tilstand>) -> Result<NoterUd, UiFejl> {
+    maskering::noter_hent(&tilstand)
+}
+
+/// V-OPBYG.2 N1: en ny note i den åbne sag; en navngiven sag gemmes straks. Teksten gennemsøges ikke (D27).
+#[tauri::command(async)]
+fn note_tilfoej(tilstand: State<'_, Tilstand>, tekst: String) -> Result<NoterUd, UiFejl> {
+    let r = maskering::note_tilfoej(&tilstand, &tekst);
+    let mut tekst = tekst;
+    zeroize::Zeroize::zeroize(&mut tekst);
+    r
+}
+
+/// V-OPBYG.2 N1: retter en note i den åbne sag; en navngiven sag gemmes straks.
+#[tauri::command(async)]
+fn note_ret(tilstand: State<'_, Tilstand>, nr: u64, tekst: String) -> Result<NoterUd, UiFejl> {
+    let r = maskering::note_ret(&tilstand, nr, &tekst);
+    let mut tekst = tekst;
+    zeroize::Zeroize::zeroize(&mut tekst);
+    r
+}
+
+/// V-OPBYG.2 N1: sletter en note i den åbne sag; en navngiven sag gemmes straks.
+#[tauri::command(async)]
+fn note_slet(tilstand: State<'_, Tilstand>, nr: u64) -> Result<NoterUd, UiFejl> {
+    maskering::note_slet(&tilstand, nr)
 }
 
 /// V-KVIT.1: kvitteringen for seneste maskering i Maskér som ren tekst (`fil`: den åbne fils resultat; `sprog`: UI'ets
@@ -614,6 +649,10 @@ pub fn run() {
         sag_indhold,
         vejledning_aabn,
         laas_nu,
+        noter_hent,
+        note_tilfoej,
+        note_ret,
+        note_slet,
         udklip_kopieret
     ]);
     tauri::Builder::default()

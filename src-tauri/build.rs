@@ -43,6 +43,11 @@ const KOMMANDOER: &[&str] = &[
     // V-OPBYG.1 N7: Vejledning (beder styresystemet åbne en fast adresse) og Lås i titellinjen.
     "vejledning_aabn",
     "laas_nu",
+    // V-OPBYG.2 N1: noterne i den åbne sag.
+    "noter_hent",
+    "note_tilfoej",
+    "note_ret",
+    "note_slet",
 ];
 
 fn main() {

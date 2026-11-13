@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-note-ret"
+description = "Enables the note_ret command without any pre-configured scope."
+commands.allow = ["note_ret"]
+
+[[permission]]
+identifier = "deny-note-ret"
+description = "Denies the note_ret command without any pre-configured scope."
+commands.deny = ["note_ret"]

@@ -60,6 +60,12 @@ fn uden_tilfoejede_er_analysen_som_foer() {
     // Webvisningen får ét objekt: Analyse-felterne og tilfoejede (tom).
     let mut jb = serde_json::to_value(&b).unwrap();
     assert_eq!(jb.as_object_mut().unwrap().remove("tilfoejede"), Some(serde_json::json!([])));
+    // V-OPBYG.2 N3: og stederne i teksten (til markeringen); de står ikke i `Analyse`.
+    assert_eq!(
+        jb.as_object_mut().unwrap().remove("steder"),
+        Some(serde_json::to_value(&b.steder).unwrap())
+    );
+    assert!(!b.steder.is_empty());
     assert_eq!(serde_json::to_value(&a).unwrap(), jb);
     assert!(b.tilfoejede.is_empty() && a.raekker.iter().all(|r| r.tilfoejet.is_none()));
 }

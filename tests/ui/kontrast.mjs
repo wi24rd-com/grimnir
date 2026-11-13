@@ -422,6 +422,20 @@ export const PAR = [
   ['text-muted', 'surface', TEKST, 'V-OPBYG.1 sikkerheden ved typen og "bevares som den er"'],
   ['text-muted', 'surface', TEKST, 'V-OPBYG.1 Aktuel sag: overskrift, status og "Alt behandles på denne maskine"'],
   ['accent', 'surface', TEKST, 'V-OPBYG.1 Aktuel sag: fluebenet ved Gemmes automatisk'],
+  // V-OPBYG.2 (Grimnir, app.css): markeringen i teksten (::highlight; understregning i ok, stiplet i warn, den valgte række og
+  // koderne med en flade bag teksten), linjenumrene (sekundær tekst på surface-raised med en kant i border), fanen Noter
+  // (tidspunktet i sekundær tekst, den valgte note med en kant i accent på accent-soft, fejlen i danger).
+  ['ok', 'surface', KANT, 'V-OPBYG.2 markering: understregningen under en værdi, der maskeres'],
+  ['warn', 'surface', KANT, 'V-OPBYG.2 markering: den stiplede streg under et usikkert fund (Tjek selv)'],
+  ['text', 'warn-soft', TEKST, 'V-OPBYG.2 markering: teksten i den valgte række (flade)'],
+  ['warn', 'warn-soft', KANT, 'V-OPBYG.2 markering: stregen over og under den valgte række'],
+  ['text', 'ok-soft', TEKST, 'V-OPBYG.2 markering: en kode efter maskeringen (flade)'],
+  ['ok', 'ok-soft', KANT, 'V-OPBYG.2 markering: understregningen under en kode'],
+  ['text-muted', 'surface-raised', TEKST, 'V-OPBYG.2 linjenumrene'],
+  ['text-muted', 'surface', TEKST, 'V-OPBYG.2 Noter: tidspunktet over en note'],
+  ['text', 'accent-soft', TEKST, 'V-OPBYG.2 Noter: teksten i den valgte note'],
+  ['accent', 'accent-soft', KANT, 'V-OPBYG.2 Noter: kanten om den valgte note'],
+  ['danger', 'surface', TEKST, 'V-OPBYG.2 Noter: fejlen under feltet'],
 ];
 
 /* En farve fra et tokennavn eller fra mix(A N%, B): A og B blandet i srgb, N % af A. */

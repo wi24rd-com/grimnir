@@ -25,6 +25,9 @@ use grimnir_lib::maskering::{
 use grimnir_lib::maskering::kvittering;
 // V-MANUEL.2: den nye kommando `sag_indhold` står også i listen (`alle_kommandoer`).
 use grimnir_lib::maskering::{sag_indhold, IndholdValg};
+// V-OPBYG.2: noterne (`noter_hent`, `note_tilfoej`, `note_ret`, `note_slet`) og Kopiér noterne (`udklip_kopieret` med
+// `noter`) står også i listen (`alle_kommandoer`).
+use grimnir_lib::maskering::{note_ret, note_slet, note_tilfoej, noter_hent, udklip_noter_kopieret};
 use grimnir_lib::sager::{HukommelsesLager, Noegle, Noeglelager, SagFejl, SagsId};
 
 /// En midlertidig mappe, der slettes igen.
@@ -150,6 +153,12 @@ fn alle_kommandoer(t: &Tilstand, fil: &std::path::Path, id: &str) -> Vec<(&'stat
         // V-MANUEL.2: sagens indhold (den åbne og en sag på disk).
         ("sag_indhold", j(sag_indhold(t, None, &IndholdValg::default()).map(|x| v(&x)))),
         ("sag_indhold", j(sag_indhold(t, Some(id), &IndholdValg::default()).map(|x| v(&x)))),
+        // V-OPBYG.2.
+        ("noter_hent", j(noter_hent(t).map(|x| v(&x)))),
+        ("note_tilfoej", j(note_tilfoej(t, "Ringet til leverandøren").map(|x| v(&x)))),
+        ("note_ret", j(note_ret(t, 1, "Ringet igen").map(|x| v(&x)))),
+        ("note_slet", j(note_slet(t, 1).map(|x| v(&x)))),
+        ("udklip_kopieret", j(udklip_noter_kopieret(t).map(|x| v(&x)))),
     ]
 }
 

@@ -1,9 +1,10 @@
-/* Grimnir — programskallen bygget af kittet (window.Kit). Fire visninger (Maskér, Demaskér, Sager, Ordbog), hver med sin
+/* Grimnir — programskallen bygget af kittet (window.Kit). Fem visninger (Maskér, Demaskér, Noter, Sager, Ordbog; V-OPBYG.2:
+   Noter), hver med sin
    CommandBar (uden egen fanerække), sit træ i NavPane, sin værktøjslinje og en tom tilstand. V-FANER.2 (D26): der står
    kun ét bånd: de fire visninger er store knapper forrest i det (kittets visninger i commandBar, links til #id med
    aria-current="page"), og resten er den valgte visnings kommandoer; det, der ikke er plads til på én række, står i
    kittets Mere-menu sidst i båndet. Visningen står i adressen (#masker …) og skiftes med knapperne eller ⌘1–⌘4 (Ctrl på
-   Windows). Fanen Vis er væk (V-FANER.1): tema og sprog står under tandhjulet
+   Windows; V-OPBYG.2: ⌘1–⌘5). Fanen Vis er væk (V-FANER.1): tema og sprog står under tandhjulet
    (Indstillinger), tekststørrelsen i Indstillinger og i menuen Vis. Maskér og Demaskér (maskering.js), Sager
    (sager.js), Ordbog (ordbog.js) og Indstillinger (indstillinger.js) virker via window.Grimnir; resten af kommandoerne
    fra design/skaerme/ står nedtonet med en forklaring, til funktionen kommer (v2).
@@ -74,6 +75,20 @@
       ],
       trae: [
         { id: 'dette', t: 'tDetteSvar', boern: [{ id: 'alle', t: 'tAlleKoder', antal: 0 }, { id: 'advarsler', t: 'tAdvarsler', antal: 0 }, { id: 'ikke-brugt', t: 'tIkkeBrugt', antal: 0 }] },
+      ],
+      valgt: 'alle',
+    },
+    /* V-OPBYG.2 N2: fanen Noter mellem Demaskér og Sager, som skitsen (noter.js). Båndet: Noter (Ny note, Ret note, Slet note)
+       og Del (Kopiér noterne). Træet har ét punkt med antallet. */
+    {
+      id: 'noter', t: 'vNoter', ikon: 'rediger', soeg: 'soegNoter', chip: 'chipIngenNoter',
+      tom: ['tomNoterH', 'tomNoterP'],
+      grupper: [
+        { t: 'gNoter', knapper: [aktiv('noter', 'ny-note', 'kNyNote', 'plus', true, true), aktiv('noter', 'ret-note', 'kRetNote', 'rediger'), aktiv('noter', 'slet-note', 'kSletNote', 'slet')] },
+        { t: 'gDel', knapper: [aktiv('noter', 'kopier-noter', 'kKopierNoter', 'kopier')] },
+      ],
+      trae: [
+        { id: 'noter', t: 'tNoterISagen', boern: [{ id: 'alle', t: 'tAlleNoter', antal: 0 }] },
       ],
       valgt: 'alle',
     },
@@ -241,7 +256,6 @@
   }, true);
   const markér = id => { for (const v of VISNINGER) dele[v.id].bar.visninger.markér(id); };
 
-  const fodVenstre = $('fod-venstre');
   let aktivVisning = null;
   function vis(id) {
     if (!ID.includes(id)) id = ID[0];
@@ -253,8 +267,7 @@
       dele[v.id].sek.hidden = !on;
     }
     markér(id);
-    fodVenstre.setAttribute('data-t', VISNINGER.find(v => v.id === id).fod);
-    S.anvend(fodVenstre);
+    // V-OPBYG.2 N4: fodlinjen tegnes af maskering.js (tegnFodlinje) ved 'grimnir-visning', ens i alle visninger.
     document.dispatchEvent(new CustomEvent('grimnir-visning', { detail: id }));
   }
   const fraAdresse = () => vis(decodeURIComponent(location.hash.slice(1)));
@@ -357,9 +370,10 @@
   const TEKST_KODE = { NumpadAdd: 'større', NumpadSubtract: 'mindre', Numpad0: 'nulstil' };
   const TEKST_MENU = { 'tekst-stoerre': 'større', 'tekst-mindre': 'mindre', 'tekst-normal': 'nulstil' };
 
-  // Tastatur: ⌘1–⌘4 (Ctrl på Windows); Ctrl+, på Windows (på macOS fanger programmenuen ⌘,). Visningernes egne
-  // genveje (⌘↵, ⇧⌘C) står i maskering.js. V-KITBRUG.2 N5: ⌘1–⌘4 gør intet, mens en dialog er åben (som de andre
-  // genveje): visningen bag dialogen skifter ikke.
+  // Tastatur: ⌘1–⌘5 (Ctrl på Windows; V-OPBYG.2: ⌘1 Maskér, ⌘2 Demaskér, ⌘3 Noter, ⌘4 Sager, ⌘5 Ordbog, i fanernes
+  // rækkefølge); Ctrl+, på Windows (på macOS fanger programmenuen ⌘,). Visningernes egne genveje (⌘↵, ⇧⌘C) står i
+  // maskering.js. V-KITBRUG.2 N5: ⌘1–⌘5 gør intet, mens en dialog er åben (som de andre genveje): visningen bag
+  // dialogen skifter ikke.
   document.addEventListener('keydown', e => {
     const modTast = mac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey;
     if (!modTast || e.altKey) return;

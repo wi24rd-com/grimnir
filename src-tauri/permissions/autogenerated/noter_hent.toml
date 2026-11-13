@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-noter-hent"
+description = "Enables the noter_hent command without any pre-configured scope."
+commands.allow = ["noter_hent"]
+
+[[permission]]
+identifier = "deny-noter-hent"
+description = "Denies the noter_hent command without any pre-configured scope."
+commands.deny = ["noter_hent"]
