@@ -2,6 +2,24 @@
 
 Første tal stiger, når et program skal ændre noget for at følge med. Andet tal ved nyt. Tredje tal ved rettelser.
 
+## 2.7.0 — 2026-11-12
+
+Ét bånd, og visningerne som store knapper i det (Jans beslutning D26 efter fanerækken fra 2.6.0; ønskerne K41 og K42 fra Huginn and Muninn og G21 fra Grimnir). Intet er omdøbt eller fjernet, og der er ingen nye funktioner: det nye er indstillinger på `Kit.commandBar` og CSS. Uden de nye indstillinger er alt som i 2.6.0 (testet med Huginn and Muninns og Grimnirs bånd fra 2.6.0 og fanerækken; alle 428 regelsæt i 2.6.0's `kit.css` står uændrede). Fanerækken fra 2.6.0 (`faner: true`) virker som før.
+
+### Nyt
+
+- **Visningerne som store knapper forrest i båndet:** `Kit.commandBar(rod, { udenFaner: true, visninger: { t, punkter: [...] } })` (samme data som visningsskiftet) giver en første gruppe med én `.cb` pr. visning: et link til `#id` (`.vk`, `.vk-navn`) med `aria-current="page"` på den åbne, `antal`/`kraever` øverst til højre på knappen, `deaktiveret`/`hvorfor` og genvejen i et værktøjstip, og et langt navn afkortet med … (det fulde navn i tippet). `baand.visninger` har `links`, `markér(id)` og `saetPunkt(id, {…})`. Mellemrum åbner som Enter (K42).
+- **`aria-current="page"` på en båndknap** (`.cb[aria-current="page"]`): flade og vægt som en trykket knap og en streg på 2 px i accent (ikke kun farve); `baand.saetAktuel(id, til)` sætter den på en kommando, fx Indstillinger, mens den er åben (K41).
+- **Mere:** `mere: { t }` giver en Mere-knap sidst i båndet (`.med-mere`, `.mere-vist`, `.mere-plads`); kommandoer, der ikke er plads til på én række, flyttes bagfra ind i dens menu (`.mere-menu`, `.mere-punkt`, `.mere-tekst`, `.mere-navn`, `.mere-hvorfor`) med samme navne, ikoner og tilstande; visningerne, elementer og den primære kommando bliver (den primære flyttes sidst). `baand.tilpas()` og `baand.mere` (G21).
+- **Programmets eget mindstemål:** `--vindue-min-bredde` og `--vindue-min-hoejde` på `:root` i programmets CSS (standard 900 px og 560 px); kittet deler målet med tekststørrelsen som før.
+- **Reglen "ét bånd; ingen række over det"** i `KOMPONENTER.md` (AppShell), og hvornår fanerækken fra 2.6.0 alligevel må bruges.
+- `.tip-tom`: et værktøjstip uden indhold vises ikke.
+- Demoen viser båndet med visningerne, et tal, en visning slået fra, Indstillinger med `aria-current`, og Mere i et smalt bånd, i begge temaer og sprog. Kontrasttesten måler de nye par.
+
+### Ændret
+
+- `Tokens.xaml` og `tokens.css` har versionen 2.7.0 i første linje. Ingen token er tilføjet eller ændret.
+
 ## 2.6.0 — 2026-11-12
 
 Visningerne kan stå som faner øverst (Grimnir bad om det, D25). Intet er omdøbt eller fjernet, og der er ingen nye funktioner: det nye er en indstilling på `Kit.visningsskift` og CSS. Uden indstillingen er alt som i 2.5.0, undtagen det, der står under "Ændret". Huginn and Muninns opsætning (otte visninger nederst i navigationsruden, båndet uden faner) bygger præcis det samme som med 2.5.0.

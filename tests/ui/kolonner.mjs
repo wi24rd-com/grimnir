@@ -1,6 +1,7 @@
 // V-RET.1 R1: regnetest for tabellernes kolonner. jsdom har ingen layout, så bredderne regnes ud fra CSS'en: NavPane'ens
 // bredde (kit.css), arbejdsfladens polstring, gitteret i Maskér og hvornår det stables (app.css), panelernes kant og hver
-// tabels kolonnevariabler (--k1 … --k7, --celle, --tabel-min, også de engelske og dem i @media). For 900 (mindste), 1200
+// tabels kolonnevariabler (--k1 … --k7, --celle, --tabel-min, også de engelske og dem i @media). For 1024 (mindste fra
+// V-FANER.2; 900, kittets standard og Grimnirs mindste før, regnes stadig), 1200
 // (standard), 1600 og 1920 px og overgangene imellem regnes det ud, at værdikolonnen får mindst 140 px, at tabellen ikke ruller
 // vandret, og at hver overskrift, chip og typeord kan være i sin kolonne (målt i WebKit, se MAALT_*).
 //
@@ -41,7 +42,8 @@ const MAALT_KNAPORD = { 'Altid': 27, 'Aldrig': 35, 'Always': 43, 'Never': 35 };
 
 const VAERDI_MIN = 140;
 // V-LAAS.4 N3: 1920 er med som bred skærm; overgangene er de brudpunkter, CSS'en har (1100, 1200 og 1720; 1200 står i BREDDER).
-const BREDDER = [900, 1200, 1600, 1920];
+// V-FANER.2: 1024 er Grimnirs mindste vindue (app.css og tauri.conf.json); 900 (kittets standard) regnes stadig med.
+const BREDDER = [900, 1024, 1200, 1600, 1920];
 // V-PUDS.1 N3: 1839/1840, hvor ordet i Altid/Aldrig kommer igen, når fundene står side om side.
 // V-PUDS.3 N3: 943/944, hvor cellerne i Maskér får deres almindelige polstring igen, og 1013 (Erstatning: 15 tegn derfra).
 const OVERGANGE = [943, 944, 1013, 1099, 1100, 1199, 1719, 1720, 1839, 1840];
@@ -129,9 +131,14 @@ tjek('Maskér: fundene står under teksten op til ' + STAK_TIL + ' px og side om
 // V-KITBRUG.1 N2: lille som normal; stor fra 1720 × 1,125 = 1935 px vindue.
 tjek('V-KITBRUG.1: lille: fundene står under teksten op til 1719 px (som normal)', stakTil('lille') === 1719, String(stakTil('lille')));
 tjek('V-KITBRUG.1: stor: fundene står under teksten op til 1934 px (1720 × 1,125)', stakTil('stor') === 1934, String(stakTil('stor')));
-const vinduMin = px(decl(KIT, '.vindue', 'min-width'));
 const konf = JSON.parse(laes('src-tauri/tauri.conf.json')).app.windows[0];
-tjek('mindste vindue er 900 px i både kit.css og tauri.conf.json (det mindste, der regnes på)', vinduMin === 900 && konf.minWidth === 900 && konf.width === 1200, `${vinduMin} / ${konf.minWidth} / ${konf.width}`);
+// V-FANER.2: kit 2.7.0's sidste regel for .vindue er calc(var(--vindue-min-bredde, 900px) / var(--tekst-zoom)): kittets
+// standard er stadig 900 px, og Grimnir sætter sit eget mindstemål (--vindue-min-bredde i app.css). Regnet ved normal (zoom 1).
+const kitMinRegel = /^calc\(var\(--vindue-min-bredde, (\d+)px\) \/ var\(--tekst-zoom\)\)$/.exec(decl(KIT, '.vindue', 'min-width') || '');
+const kitStandard = kitMinRegel ? Number(kitMinRegel[1]) : null;
+const appMin = Number((/:root \{ --vindue-min-bredde: (\d+)px; \}/.exec(laes('ui/assets/app.css')) || [])[1]);
+const vinduMin = appMin || kitStandard;
+tjek('mindste vindue: kittets standard er 900 px, Grimnirs er 1024 px i både app.css (--vindue-min-bredde) og tauri.conf.json (det mindste, der regnes på), standard 1200 px', kitStandard === 900 && vinduMin === 1024 && konf.minWidth === 1024 && konf.width === 1200 && BREDDER.includes(vinduMin), `${kitStandard} / ${appMin} / ${konf.minWidth} / ${konf.width}`);
 
 /* V-LAAS.4 N3: feltet i Erstatning er et <input class="mono"> i en tabelcelle: skriften fra .mono, polstring og kant fra
    .tabel td input. */

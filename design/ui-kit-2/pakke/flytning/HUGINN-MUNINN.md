@@ -94,6 +94,24 @@ Programmet får hele Kit 2's skal (se beslutningen øverst). Trin 1–6 lægger 
 
 **Fra 2.6.0 kan visningerne stå som faner øverst** (`Kit.visningsskift(…, { faner: true })` under titellinjen, båndet under med `udenFaner` og navigationsruden kun med træet; se AppShell og NavPane i `KOMPONENTER.md`). Det er en mulighed, programmet selv vælger: Huginn and Muninns opsætning (otte visninger nederst i navigationsruden med `Kit.visningsskift` uden `faner`, båndet med `udenFaner`) er uændret og bygger præcis det samme som med 2.5.0 (en test sammenligner). Det eneste, der ser anderledes ud, er en valgt tabelrække under musen: den viser nu valget, ikke hover-fladen.
 
+### Fra 2.7.0: ét bånd, visningerne i det (D26, K41, K42)
+
+**Jans beslutning D26 (2026-11-12):** der står kun båndet med de store knapper under titellinjen; ingen række med små knapper eller faner over det. Visningerne er store knapper forrest i båndet, og resten af båndet er den valgte visnings kommandoer. Huginn and Muninn har allerede bygget det selv (commit `7ce5bdd`, oven på `Kit.commandBar` med `udenFaner`); 2.7.0 har det i kittet, så programmets egen kode kan gå ud. Fanerækken fra 2.6.0 (`faner: true`) virker stadig og bruges ikke af nogen af programmerne.
+
+Sådan skifter programmet sin egen kode ud med kittets, punkt for punkt (`ui/assets/ramme.js` og `app.css`):
+
+1. **Gruppen Visninger forrest:** i stedet for gruppen `{ t: 'navH', knapper: SKIFT.map(…) }` i `faner[0].grupper` gives `visninger: { t: 'navH', punkter: SKIFT.map(([tast, id, t, ikon]) => ({ id, t, ikon, genvej: (mac ? '⌘' : 'Ctrl+') + tast, genvejAria: (mac ? 'Meta+' : 'Control+') + tast })) }` til `Kit.commandBar`. Knapperne bliver links til `#id` (`<a class="cb vk" data-visning="…">`) i stedet for `<button>` med `ved`; programmets lytter på `a[data-visning]` (der kalder `aabnGenvej`) fanger dem, når den sættes efter båndet er bygget. Id'erne `vis-<id>` sætter programmet selv på `baand.visninger.links`, hvis tests eller CSS bruger dem.
+2. **`aria-current="page"` og udseendet (K41):** `baand.visninger.markér(id)` i stedet for programmets egen `markér`; de to regler `.cb[aria-current="page"]` i `app.css` kan slettes. **Det, der ser anderledes ud:** kittets regel har også en streg på 2 px forneden i accent (D26 kræver mere end farve), og den gælder alle `.cb` med `aria-current`.
+3. **Grebet:** `baand.visninger` har `links`, `markér(id)` og `saetPunkt(id, { deaktiveret, hvorfor, antal, kraever, antalAriaT|antalAria })` med samme form som programmets `skift`. Programmets IIFE (`const skift = (() => { … })()`) kan gå ud; `navTilstand()` og `aabnGenvej()` kalder `baand.visninger.saetPunkt` som før.
+4. **Tal på knappen (K42):** `saetPunkt('siden-sidst', { antal, kraever: true, antalAria })` giver kittets pille øverst til højre (`.cb.vk > .ant-kraever`: samme mål og farver som programmets regel). Reglerne `.cb { position: relative; }` og `.cb > .ant` i `app.css` kan slettes.
+5. **Genvejen og hvorfor i tippet:** kittets værktøjstip (mus og tastatur) i stedet for `title` (`b.title = b.dataset.genvej`); slået fra siger tippet `hvorfor` (`navUdenToken`). `aria-keyshortcuts` sætter kittet.
+6. **Indstillinger i båndet med `aria-current`:** `baand.saetAktuel('indst', punkt === 'indstillinger')` i stedet for `setAttribute`/`removeAttribute` på `#indst-knap`.
+7. **Et langt navn:** kittet afkorter `.vk-navn` med … (højst 152 px, som programmets 9,5rem) og viser det fulde navn øverst i tippet, når det er afkortet (kittet ser efter, lige før tippet vises, så et land, programmet skriver i `#nav-land`, er med). Reglerne `#nav-land { … }` og `.cb > span { white-space: nowrap; }` kan slettes, når `#nav-land` er `.vk-navn` på Land (`baand.visninger.links` → `.vk-navn`).
+
+**Mindstemålet:** `:root { --vindue-min-bredde: 1100px; }` i `app.css` i stedet for de tre regler for `.vindue` (kittet regner lille og stor). **Én række:** med `mere: { t: '…' }` står båndet altid på én række (Mere samler det, der ikke er plads til; visningerne og landevælgeren bliver); uden den ombrydes båndet ved stor under ca. 1240 px som i dag. Målt i kittets demo (WebKit, 2.7.0): se HANDOFF-V-FANER.2.
+
+**K41 og K42 er opfyldt med 2.7.0.** Tilbage står K39 og K40 (tabellen), som ikke er med i 2.7.0, og K27 (3.0.0).
+
 Det af `--board-*`, der ikke har en modpart i kittet, bliver programmets eget og peger på kittets flader og tekstfarver.
 
 ## Det, der ikke kan flyttes endnu

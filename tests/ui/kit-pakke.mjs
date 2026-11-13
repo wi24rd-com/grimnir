@@ -86,6 +86,61 @@ function bygV250(K, d) {
   u.tabelValgt = tab.outerHTML;
   return u;
 }
+// Pakke 2.7.0 (V-FANER.2: visningerne i båndet, aria-current på en båndknap, Mere, programmets mindstemål): de nye navne.
+// Ingen nye funktioner og intet nyt ikon. Det, der ikke står her eller i de ældre lister, må ikke findes.
+const V270_FUNKTIONER = [];
+const V270_KLASSER = ['vk', 'vk-navn', 'vk-tip-navn', 'tip-tom', 'med-mere', 'mere-vist', 'mere-plads', 'mere-menu', 'mere-punkt', 'mere-tekst', 'mere-hvorfor', 'mere-navn'];
+// V-FANER.2: fire eksempler (Huginn and Muninns bånd med syv visninger som almindelige knapper, som i commit 7ce5bdd;
+// Grimnirs bånd med hvorforTip; et bånd med faner og trykkede knapper; fanerækken med faner: true), bygget af 2.6.0's
+// kit.js (git show 2425f1a:design/ui-kit-2/pakke/web/kit.js) med bygV260 herunder. 2.7.0 skal bygge dem byte for byte
+// ens. V260_CSS er de 428 regelsæt i 2.6.0's kit.css (som V250_CSS): hvert af dem skal stå uændret i 2.7.0's kit.css.
+const V260_UDSEENDE = {"hamBaand260":"<div class=\"cmd enkel\" role=\"group\" data-t-aria=\"baandAria\"><div class=\"grupper\" id=\"kit-cb1-panel-start\" data-fane=\"start\"><div class=\"grp\" role=\"group\" aria-labelledby=\"kit-cb1-grp-1\"><div class=\"kn\"><button class=\"cb\" type=\"button\" data-kommando=\"vis-overblik\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 7h6l2 2h10v10H3z\"></path></svg><span data-t=\"nav0\"></span></button><button class=\"cb\" type=\"button\" data-kommando=\"vis-siden\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><rect x=\"4\" y=\"5\" width=\"16\" height=\"15\" rx=\"1.5\"></rect><path d=\"M4 10h16M8 3v4M16 3v4\"></path></svg><span data-t=\"nav1\"></span></button><button class=\"cb\" type=\"button\" data-kommando=\"vis-vaernet\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z\"></path></svg><span data-t=\"nav2\"></span></button><button class=\"cb\" type=\"button\" data-kommando=\"vis-robotter\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M4 5h16l-6 7v6l-4 2v-8z\"></path></svg><span data-t=\"nav3\"></span></button><button class=\"cb\" type=\"button\" data-kommando=\"vis-login\" aria-disabled=\"true\" data-t-title=\"navUdenToken\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><rect x=\"5\" y=\"11\" width=\"14\" height=\"9\" rx=\"2\"></rect><path d=\"M8 11V8a4 4 0 0 1 8 0v3\"></path></svg><span data-t=\"nav4\"></span></button><button class=\"cb\" type=\"button\" data-kommando=\"vis-land\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"9\"></circle><path d=\"M3 12h18\"></path><path d=\"M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z\"></path></svg><span data-t=\"nav5\"></span></button><button class=\"cb\" type=\"button\" data-kommando=\"vis-besoeg\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z\"></path><circle cx=\"12\" cy=\"12\" r=\"2.5\"></circle></svg><span data-t=\"nav6\"></span></button></div><span class=\"cap\" data-t=\"navH\" id=\"kit-cb1-grp-1\"></span></div><div class=\"grp\" role=\"group\" aria-labelledby=\"kit-cb1-grp-2\"><div class=\"kn\"><button class=\"cb pri\" type=\"button\" data-kommando=\"hent\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M7 5l12 7-12 7z\"></path></svg><span data-t=\"hentNu\"></span></button></div><span class=\"cap\" data-t=\"gData\" id=\"kit-cb1-grp-2\"></span></div><div class=\"grp\" role=\"group\" aria-labelledby=\"kit-cb1-grp-3\"><div class=\"kn\"><div class=\"baand-el\"><div class=\"seg\" role=\"radiogroup\" aria-label=\"L\"><button class=\"seg-v\" data-t=\"dk\" type=\"button\" role=\"radio\" data-valg=\"dk\" aria-checked=\"true\" tabindex=\"0\"></button><button class=\"seg-v\" data-t=\"se\" type=\"button\" role=\"radio\" data-valg=\"se\" aria-checked=\"false\" tabindex=\"-1\"></button></div></div></div><span class=\"cap\" data-t=\"gLand\" id=\"kit-cb1-grp-3\"></span></div><div class=\"grp\" role=\"group\" aria-labelledby=\"kit-cb1-grp-4\"><div class=\"kn\"><button class=\"cb\" type=\"button\" data-kommando=\"vejledning\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z\"></path><path d=\"M9 8h6M9 12h6\"></path></svg><span data-t=\"vejledningAabn\"></span></button></div><span class=\"cap\" data-t=\"gHjaelp\" id=\"kit-cb1-grp-4\"></span></div><div class=\"grp\" role=\"group\" aria-labelledby=\"kit-cb1-grp-5\"><div class=\"kn\"><button class=\"cb\" type=\"button\" data-kommando=\"indst\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M9.4 5.2L10.1 2.2L13.9 2.2L14.6 5.2A7.3 7.3 0 0 1 16.6 6.3L19.6 5.4L21.5 8.7L19.2 10.9A7.3 7.3 0 0 1 19.2 13.1L21.5 15.3L19.6 18.6L16.6 17.7A7.3 7.3 0 0 1 14.6 18.8L13.9 21.8L10.1 21.8L9.4 18.8A7.3 7.3 0 0 1 7.4 17.7L4.5 18.6L2.5 15.3L4.8 13.1A7.3 7.3 0 0 1 4.8 10.9L2.5 8.7L4.5 5.4L7.4 6.3A7.3 7.3 0 0 1 9.4 5.2z\"></path><circle cx=\"12\" cy=\"12\" r=\"3\"></circle></svg><span data-t=\"navIndst\"></span></button></div><span class=\"cap\" data-t=\"gProgram\" id=\"kit-cb1-grp-5\"></span></div></div></div>","grimnirBaand260":"<div class=\"cmd enkel\" role=\"group\" data-t-aria=\"cmdAria\"><div class=\"grupper\" id=\"kit-cb2-panel-start\" data-fane=\"start\"><div class=\"grp\" role=\"group\" aria-labelledby=\"kit-cb2-grp-1\"><div class=\"kn\"><button class=\"cb\" type=\"button\" data-kommando=\"indsaet\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M9 4h6v3H9z\"></path><path d=\"M9 5H6v15h12V5h-3\"></path></svg><span data-t=\"kIndsaet\"></span></button><button class=\"cb\" type=\"button\" data-kommando=\"aabn-fil\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M6 3h8l4 4v14H6z\"></path><path d=\"M14 3v4h4\"></path></svg><span data-t=\"kAabnFil\"></span></button><span class=\"tip-plads\"><button class=\"cb\" type=\"button\" data-kommando=\"ryd\" aria-disabled=\"true\" aria-describedby=\"kit-tip1\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M4 7h16\"></path><path d=\"M9 7V4h6v3\"></path><path d=\"M6 7l1 13h10l1-13\"></path></svg><span data-t=\"kRyd\"></span></button><span class=\"tip\" data-t=\"hvorforIndsaetFoerst\" id=\"kit-tip1\" role=\"tooltip\" hidden=\"\"></span></span></div><span class=\"cap\" data-t=\"gTekst\" id=\"kit-cb2-grp-1\"></span></div><div class=\"grp\" role=\"group\" aria-labelledby=\"kit-cb2-grp-2\"><div class=\"kn\"><button class=\"cb\" type=\"button\" data-kommando=\"analyser\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"11\" cy=\"11\" r=\"6.5\"></circle><path d=\"M20 20l-4.2-4.2\"></path></svg><span data-t=\"kAnalyser\"></span></button><span class=\"tip-plads\"><button class=\"cb pri\" type=\"button\" data-kommando=\"gem\" aria-disabled=\"true\" aria-describedby=\"kit-tip3\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z\"></path></svg><span data-t=\"kGemMasker\"></span></button><span class=\"tip\" data-t=\"hvorforIndsaetFoerst\" id=\"kit-tip3\" role=\"tooltip\" hidden=\"\"></span></span></div><span class=\"cap\" data-t=\"gMaskering\" id=\"kit-cb2-grp-2\"></span></div><div class=\"grp\" role=\"group\" aria-labelledby=\"kit-cb2-grp-3\"><div class=\"kn\"><span class=\"tip-plads\"><button class=\"cb\" type=\"button\" data-kommando=\"kopier\" aria-disabled=\"true\" aria-describedby=\"kit-tip4\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><rect x=\"8\" y=\"8\" width=\"12\" height=\"12\" rx=\"2\"></rect><path d=\"M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2\"></path></svg><span data-t=\"kKopier\"></span></button><span class=\"tip\" data-t=\"hvorforIntet\" id=\"kit-tip4\" role=\"tooltip\" hidden=\"\"></span></span></div><span class=\"cap\" data-t=\"gResultat\" id=\"kit-cb2-grp-3\"></span></div></div></div>","baandFaner260":"<div class=\"cmd\"><div class=\"tabs\" role=\"tablist\" data-t-aria=\"c\"><button class=\"tab\" data-t=\"faneStart\" type=\"button\" id=\"kit-cb3-fane-start\" role=\"tab\" aria-controls=\"kit-cb3-panel-start\" data-fane=\"start\" aria-selected=\"false\" tabindex=\"-1\"></button><button class=\"tab on\" data-t=\"faneVis\" type=\"button\" id=\"kit-cb3-fane-vis\" role=\"tab\" aria-controls=\"kit-cb3-panel-vis\" data-fane=\"vis\" aria-selected=\"true\" tabindex=\"0\"></button></div><div class=\"grupper\" id=\"kit-cb3-panel-start\" role=\"tabpanel\" aria-labelledby=\"kit-cb3-fane-start\" data-fane=\"start\" hidden=\"\"><div class=\"grp\" role=\"group\" aria-labelledby=\"kit-cb3-grp-1\"><div class=\"kn\"><button class=\"cb\" type=\"button\" data-kommando=\"k\" aria-disabled=\"true\" data-t-title=\"hvorforY\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><rect x=\"8\" y=\"8\" width=\"12\" height=\"12\" rx=\"2\"></rect><path d=\"M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2\"></path></svg><span data-t=\"k\"></span></button></div><span class=\"cap\" data-t=\"g\" id=\"kit-cb3-grp-1\"></span></div></div><div class=\"grupper\" id=\"kit-cb3-panel-vis\" role=\"tabpanel\" aria-labelledby=\"kit-cb3-fane-vis\" data-fane=\"vis\"><div class=\"grp\" role=\"group\" aria-labelledby=\"kit-cb3-grp-2\"><div class=\"kn\"><button class=\"cb\" type=\"button\" data-kommando=\"lys\" aria-pressed=\"true\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"4\"></circle><path d=\"M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4\"></path></svg><span data-t=\"kLys\"></span></button><button class=\"cb\" type=\"button\" data-kommando=\"moerk\" aria-pressed=\"false\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z\"></path></svg><span data-t=\"kMoerk\"></span></button></div><span class=\"cap\" data-t=\"g2\" id=\"kit-cb3-grp-2\"></span></div></div></div>","faner260":"<div class=\"vfaner\" role=\"tablist\" data-t-aria=\"visninger\"><span class=\"tip-plads\"><a class=\"vf\" href=\"#a\" data-visning=\"a\" id=\"kit-vf1-a\" role=\"tab\" aria-selected=\"false\" tabindex=\"-1\" aria-controls=\"p-a\" aria-keyshortcuts=\"Meta+1\" aria-describedby=\"kit-tip5\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 7h6l2 2h10v10H3z\"></path></svg><span class=\"vf-navn\">Maskér</span></a><span class=\"tip\" id=\"kit-tip5\" role=\"tooltip\" hidden=\"\">⌘1</span></span><span class=\"tip-plads\"><a class=\"vf on\" href=\"#b\" data-visning=\"b\" id=\"kit-vf1-b\" role=\"tab\" aria-selected=\"true\" tabindex=\"0\" aria-keyshortcuts=\"Meta+2\" aria-describedby=\"kit-tip6\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z\"></path><circle cx=\"12\" cy=\"12\" r=\"2.5\"></circle></svg><span class=\"vf-navn\">Demaskér</span><span class=\"ant ant-kraever\" data-ant=\"\" aria-hidden=\"true\">3</span><span class=\"skjult-tekst\" data-t=\"kraever\" data-ant=\"\" data-v=\"3\"></span></a><span class=\"tip\" id=\"kit-tip6\" role=\"tooltip\" hidden=\"\">⌘2</span></span><span class=\"tip-plads\"><a class=\"vf\" href=\"#c\" data-visning=\"c\" id=\"kit-vf1-c\" role=\"tab\" aria-selected=\"false\" tabindex=\"-1\" aria-keyshortcuts=\"Meta+3\" aria-describedby=\"kit-tip9\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M3 7h6l2 2h10v10H3z\"></path></svg><span class=\"vf-navn\">Sager</span></a><span class=\"tip\" id=\"kit-tip9\" role=\"tooltip\" hidden=\"\">⌘3</span></span><span class=\"tip-plads\"><a class=\"vf\" href=\"#e\" data-visning=\"e\" id=\"kit-vf1-e\" role=\"tab\" aria-selected=\"false\" tabindex=\"-1\" aria-keyshortcuts=\"Meta+4\" aria-describedby=\"kit-tip8\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z\"></path><path d=\"M9 8h6M9 12h6\"></path></svg><span class=\"vf-navn\" data-t=\"vOrdbog\"></span></a><span class=\"tip\" id=\"kit-tip8\" role=\"tooltip\" hidden=\"\">⌘4</span></span></div>"};
+const V260_CSS = 'b190a4ef6d78 409377812557 d1f2fba0fee4 924c8f394378 ec4b4383b83e 0143fe6bf004 35536ac589ba 30f14d46d775 6624c59b1dda 6ea6907e8bf8 3793d111fa24 984ea12ba4ba 6258e84a1b6a ad5bcb4996f1 6887ca054512 461477af8c96 a63a3a4a42d9 f4b74169d18b 23e7dce574fb ef561db9f258 5932ecd9b430 4acb95b7e823 50fef3ae45f9 d11de26b222a 0b475e80baee 7a759713688d 4c1f316f40be cde81eecc6c9 4b1772b092f1 309327801d65 411bb3d20631 e7ea6ce7526b f46c3da72ee4 0cd03c31cd27 6a50500acd65 25400fc1ffa7 ed49f487cfb2 d149e08dafc8 3230f5dfe710 882c2d62daf2 0c7941af3149 6e08cc21aa7a ae03b46128f1 7d479d36932a 13ad0510f046 97c93a14fc6c c4f0fb911a5f e7e7c196bfab d5b3ed75e9ba be44149f96e8 82937e7f2fb5 4093dc3a78e3 fe7962986e3d 4a7a6f70ae4e 8724ac29b7aa c9efdadb7fdb fb825e6aca7a 290155dbd7b2 5679ed9e9148 3d63e1d73ff2 f0978d077b7a 41771f787729 39a3bb761aae 39cc6c1d6f17 df25cf69e096 0bae53a29990 8c881bacdd88 7ffbc0eea02f 892c38f0d160 fee7dbe59bed 60f0b6dd4822 58a4e3de5ada dd3be7ff0585 4267f57e49c2 b84f2e47d40c 9b4bc25dc04c 0afd187b0d7f f1aa38e27148 94dab5879c17 137019628abd cd71e47a708c 209375a8a752 b2d05b8b3b50 e6ce25f732cf f7a3eeb2b285 91fbeac243d3 69ab9d08fdc6 177894c15dc1 3505d04c9e52 ae48175dd362 4e4925e67d0e 5f543e1217db 713cd42a0391 0f49519987f0 b1c54bb7f3c5 6f0e6a8fd2b1 17d75932ba1c 115e40a28f03 25e374e0738f 84e6b900d215 f28df7225655 a815fb6f2442 334364b43e74 263a8067dc4d ac8725ecd8c5 5ac5d197f8ea 1a53e4f7f56f ecc609f64065 0ef0e07379c4 284668c27492 d5d19afa859a 24b787134cee 3357e64f464f 2bb429ca8da1 e81cfce9f2f5 0dea90d65476 797318bde205 2c7bd0abd66a 76769cd390e9 2e19a229cbf1 2746ccea05f5 fef7cc48eca5 3d130f39b8d8 aa678e720616 e6949c94f0e0 65453d5c3fb9 2bb26a310ee5 78655e5cf7fb d08d8ff9d091 465bc54ce53e 2e5415fa2e47 6d8721a8057e d9dda73d7168 b24e81ee91fc b6060c702302 c136c038edeb 7b38fe385404 bbca3f3427c4 493e9fc39d3e 7c78a24d9b47 a0cca174a853 defdd4ce0195 3d35b39b9366 89993201dab1 a28f8541ce1e bf2808bd8f73 9ec9c37adcd7 84fa9ba397a1 a883cc71cd9b c00ab124c17c b66508277fcd a0263fec4e4f 5b745b9c3987 b2e4bd0b51c5 8039c9c621f3 e57ce32dd366 4543aeccd3ba d73d63697ed2 f06170329e34 3bedabff7584 3278d0ab0376 e5c92fc21db4 282e0857e5e3 adc5f48eb4ec 04a291c6d307 7bb895cb3c7b a7337386b5b7 ea9d1063b81f 95e4833d5011 c67b0ba95ad8 8f0b47b2b730 d48d6a948d89 f8baae03570c 6d4779f90b70 896ffaf32e37 35d67bdf65dd 884d5fa4b25d faec89a0a013 c5747a92d409 b501dbcdaf3b 7769eaaa9d19 b608345f7e46 cd49f6e190fc c6d8f486098e 8bba4bdc2dd2 3373b5c9269c c7a3e1c69891 59d772711ccb fe34d04ca0ab 5c7a162882dd ca3d1b1e1266 36a4e3133b3d 58c9f0850ab1 6785cfaa8005 d578c044a037 923f052a9401 a407258b352b c40dc0f78133 8f9ff39024aa 2ae8e80ca28b d075df8c1855 c2c39e8fd684 a99a3f3fddf7 0a207469f6d2 11f82fc57689 9aafd4778abc b4b86e647a1e 26d2b6936cfe 05fe13dc43e8 a542cbf168e0 ee3bb335f4c2 b3976c8c5a4b 122825554c01 0401d094e821 ecf3eedbfda8 030c6181d018 899f796fdb47 e676a9ec7450 2464f974fa73 cb17c7c795de 9ecb0c2f6df5 35756666dc27 835314f5b2bb 8408a6595ec9 0bb5a16c6dcf 7af4ef6997a6 16f02fb1593b 7c3d3f793d0f 8c04e6ab91ff 3cff18cfd75e d101f3b872f1 8dd6d629a4f1 9ed3d52c251d bf29e1b0be06 5b70721323fc 1d77b0fed7c0 21638a31e852 39e808599140 a7dfbd1d5095 4543899ecb75 ff468e679756 61dc7ffde18a 3fc901e105ff f47f024b0704 e02094fc1b3b 0fe1ace9b301 7ea8b7f6ce67 5beabb8fa16f ce8a78d7e268 717f696c5077 b2bef74511d0 bc09dcf79023 ccd74ede1ede 1901cc4669f8 66656c4a984f 1b35cb7c30b6 edce040e535a 24ee1f3ca490 51b2a1dccf89 685b60f4e253 ff5cebfc0fc0 5727efb6e335 c76e5d6b7438 717abd1bf6de ace6d58385bc e70ab8eb8088 1a463ebb48e3 cf454ca8329c 639ea8b614f4 74f8965076a1 5500039c3654 3aa25df0d9cf debbbc1543ab 51468f27ca60 9a70191e7705 8acf3d5fcb19 aeaa125379e9 6e231331a761 3db30fd8f6be 52040de8b213 cebfce58b90c 8150a60cce65 4d5414aeaa1e e16d3fdb4c6d 63c3fba4f115 f75714dca935 523ab8a43949 d9811186f5da 6db1f62e0aed 7353fc47ad9d 25e88fa359a8 ad9369e607f4 82c341d94ca7 07ee1d29ec08 33e8982e41a1 3fc26df4707a 37fa1f76f344 1b3d73a79e95 c0636c5d7a02 98a997ac3a29 77b781480735 de900e9c0032 ad8b9eb74097 5866a508c8dc 3dbbe95f20c9 6acb7b415f18 0520d2d1d203 e0b0a850c8c4 55da6355a712 1b1e1cb8cdc9 dfbaafe8158a dc6463b8219a d33367fd8be2 d366dcb3fcfd 73bf6386e037 0966364b9b4d 32b580a307a1 10b0cfce811a e90a7cbaf40e b31c6ed3cb96 b91a6005b873 99814ba10c3c eabc92a61135 47467690b67d dcedc9b057ab 5c25fa196964 73737ba6b65e 1317c98c00c8 c440c7cfe35e ae6653284738 e8cf78279f79 e0af9167c8b9 314a7982fd8d b475a4e3cc5d c7f202e9a81e d91fdda4798c 583fce862fad 8b137904e118 75c9bfe2472f da13505695cf 7f287ce582b7 e1c596a489e8 b8c2e2cbbfb7 11b88541d331 95831ee430d4 72f444d728dc 9af52163e19f 5f573258f928 1221eacc313f 6a30b46ef62e 94575ecd3cc0 7ff55fcbf19b 5ee9b951ba9f ac8862c4dd48 c9225a36c000 29865614dd5f faf459681a38 96ef10cb11fd d41b559c1506 3d55930e6154 24c35a38d634 73c7d18e755b 5028aa2de4aa 72b48de84219 e57b2294d0e4 3fc41a242034 2a4a4f699336 61ad74317522 c3cbe2183517 d42c1e03c362 5d4cf771279e a20e1aa903a6 a657ad1c1a97 66042d8d1de3 c28074ec32aa 574857d3ebab e0c077813c0d 334d5f7a646a bb34754b77e2 e3948830670d d38f9a5cd091 91debb9b0280 c3ce26bff44b 8157d2cb8841 f1f4a94d072c 366958f260c8 76c679abb5f4 eeacccda9e9f 0cd547e415cd 20a233ec4d72 10e4419d3462 bd23855b000e 6f9cca07ebf0 7e17cdbd5d5b fb08b4961555 b85397905a1f 2fbf9c11162d 06e02f5b683d f374dc4e7747 ba8ca11749fe 8ebd26d26924 3f24c19324ab c2ca69303549 ce20ba43b580 e90015459634 0bce4fe15bd2 5402d3f9258f ffc35358d5fc 332f87ce484a 9e226be92266 5a1d0c7d67e4 ca974a4e4483 c834639652da 042bec9a6b25 d93302577e9d 07284a92cdab b7d0fead6a8c 703903c942bc 3c151da6d997 f54b70238033 1cb771de32cc de168055e22a cb129956abe1 ee0525fea661 579d6e607070 295561e9864d b99c4df2d65d c833b58f411c'.split(' ');
+function bygV260(K, d) {
+  const u = {};
+  // Huginn and Muninns bånd i 2.6.0 (commit 7ce5bdd): syv visninger som almindelige .cb, Hent nu, en vælger-plads, vejledning og Indstillinger.
+  const b1 = d.createElement('div');
+  const ham = K.commandBar(b1, { ariaT: 'baandAria', udenFaner: true, faner: [{ id: 'start', t: 'baandAria', grupper: [
+    { t: 'navH', knapper: ['overblik', 'siden', 'vaernet', 'robotter', 'login', 'land', 'besoeg'].map((id, i) => ({ id: 'vis-' + id, t: 'nav' + i, ikon: ['mappe', 'kalender', 'skjold', 'filter', 'laas', 'sprog', 'oeje'][i], ved: () => { } })) },
+    { t: 'gData', knapper: [{ id: 'hent', t: 'hentNu', ikon: 'afspil', pri: true }] },
+    { t: 'gLand', knapper: [{ id: 'land', element: K.segment({ aria: 'L', valg: [{ id: 'dk', t: 'dk' }, { id: 'se', t: 'se' }], valgt: 'dk' }).rod }] },
+    { t: 'gHjaelp', knapper: [{ id: 'vejledning', t: 'vejledningAabn', ikon: 'bog' }] },
+    { t: 'gProgram', knapper: [{ id: 'indst', t: 'navIndst', ikon: 'tandhjul' }] },
+  ] }] });
+  ham.saetDeaktiveret('vis-login', true, 'navUdenToken');
+  ham.saetDeaktiveret('vis-robotter', true, 'navUdenToken');
+  ham.saetDeaktiveret('vis-robotter', false);
+  u.hamBaand260 = b1.outerHTML;
+  // Grimnirs bånd i 2.6.0 (Maskér): hvorforTip, fire grupper, kommandoer slået fra med hvorfor, slået til og fra udefra.
+  const b2 = d.createElement('div');
+  const gr = K.commandBar(b2, { ariaT: 'cmdAria', hvorforTip: true, udenFaner: true, faner: [{ id: 'start', grupper: [
+    { t: 'gTekst', knapper: [{ id: 'indsaet', t: 'kIndsaet', ikon: 'indsaet' }, { id: 'aabn-fil', t: 'kAabnFil', ikon: 'fil' }, { id: 'ryd', t: 'kRyd', ikon: 'slet', deaktiveret: true, hvorfor: 'hvorforIndsaetFoerst' }] },
+    { t: 'gMaskering', knapper: [{ id: 'analyser', t: 'kAnalyser', ikon: 'soeg', deaktiveret: true, hvorfor: 'hvorforIndsaetFoerst' }, { id: 'gem', t: 'kGemMasker', ikon: 'skjold', pri: true, deaktiveret: true, hvorfor: 'hvorforIndsaetFoerst' }] },
+    { t: 'gResultat', knapper: [{ id: 'kopier', t: 'kKopier', ikon: 'kopier', deaktiveret: true }] },
+  ] }] });
+  gr.saetDeaktiveret('analyser', false);
+  gr.saetDeaktiveret('kopier', true, 'hvorforIntet');
+  u.grimnirBaand260 = b2.outerHTML;
+  // Et bånd med faner og trykket knap; et bånd uden hvorforTip (hvorfor i title).
+  const b3 = d.createElement('div');
+  const bf = K.commandBar(b3, { ariaT: 'c', faner: [{ id: 'start', t: 'faneStart', grupper: [{ t: 'g', knapper: [{ id: 'k', t: 'k', ikon: 'kopier', deaktiveret: true, hvorfor: 'hvorforX' }] }] }, { id: 'vis', t: 'faneVis', grupper: [{ t: 'g2', knapper: [{ id: 'lys', t: 'kLys', ikon: 'sol', trykket: true }, { id: 'moerk', t: 'kMoerk', ikon: 'maane', trykket: false }] }] }] });
+  bf.vaelgFane('vis');
+  bf.saetDeaktiveret('k', false);
+  bf.saetDeaktiveret('k', true, 'hvorforY');
+  u.baandFaner260 = b3.outerHTML;
+  // Fanerækken fra 2.6.0 (faner: true) med genveje, tal, punkt slået fra og panel.
+  const f1 = d.createElement('div');
+  const vf = K.visningsskift(f1, [
+    { id: 'a', tekst: 'Maskér', ikon: 'mappe', genvej: '⌘1', genvejAria: 'Meta+1', panel: 'p-a' },
+    { id: 'b', tekst: 'Demaskér', ikon: 'oeje', genvej: '⌘2', genvejAria: 'Meta+2', antal: 3, kraever: true, antalAriaT: 'kraever' },
+    { id: 'c', tekst: 'Sager', ikon: 'mappe', genvej: '⌘3', genvejAria: 'Meta+3', deaktiveret: true, hvorfor: 'hvorforToken' },
+    { id: 'e', t: 'vOrdbog', ikon: 'bog', genvej: '⌘4', genvejAria: 'Meta+4' },
+  ], { ariaT: 'visninger', faner: true });
+  vf.markér('b');
+  vf.saetPunkt('c', { deaktiveret: false });
+  u.faner260 = f1.outerHTML;
+  return u;
+}
 const V240_FARVER = ['text-disabled', 'ok-mark-hover', 'warn-mark-hover', 'danger-mark-hover', 'info-mark-hover', 'none-mark-hover'];
 const V230_KLASSER = ['fchips', 'fchip', 'fchip-mark', 'kasse', 'kasse-top', 'kasse-handling', 'kasse-indhold', 'fyld', 'kasse-fod', 'sfliser', 'sflise', 'sflise-navn', 'sflise-tal', 'sflise-under', 'sflise-pil', 'tomt', 'tomt-ikon', 'tomt-h', 'tomt-p', 'lille', 'frem', 'ubestemt', 'frem-tekst', 'frem-bjaelke', 'snurr', 'tip-plads', 'tip', 'under', 'venstre-kant', 'afk-felt', 'afk', 'afk-boks', 'afk-tekst', 'afk-hj', 'valgsaet', 'vandret', 'tilfra', 'tilfra-ord', 'tilfra-til', 'tilfra-fra', 'vliste', 'modal', 'bred', 'modal-top', 'modal-luk', 'modal-tekst', 'modal-indhold', 'modal-fod', 'sorter', 'sorter-pil', 'kolgruppe', 'sideskift', 'sideskift-nr', 'sideskift-pr'];
 
@@ -162,7 +217,7 @@ function bygV240(K, d) {
   const mangler = skal.filter(f => !fs.existsSync(path.join(PAKKE, f)));
   tjek('pakken har alle sine filer', mangler.length === 0, mangler.join(', '));
   // V-KVIT.1 N4: pakken er 2.0.1 (kun dokumenter: licensteksten, beslutningen om Huginn and Muninn, noten om Sandbox).
-  tjek('VERSION er 2.6.0', VERSION === '2.6.0' && pk('VERSION') === '2.6.0\n', JSON.stringify(pk('VERSION')));
+  tjek('VERSION er 2.7.0', VERSION === '2.7.0' && pk('VERSION') === '2.7.0\n', JSON.stringify(pk('VERSION')));
   const log = pk('CHANGELOG.md');
   const foerste = /^## (\d+\.\d+\.\d+) — (\d{4}-\d{2}-\d{2})$/m.exec(log);
   tjek('CHANGELOG: første post er pakkens version med en dato', Boolean(foerste) && foerste[1] === VERSION, foerste ? foerste[0] : 'ingen post');
@@ -412,7 +467,7 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
   const w = dom.window;
   const kodeFunktioner = new Set([...Object.keys(w.Kit).map(k => 'Kit.' + k), ...Object.keys(w.Tema).map(k => 'Tema.' + k), ...Object.keys(w.KitSprog).map(k => 'KitSprog.' + k), ...Object.keys(w.Tekst).map(k => 'Tekst.' + k)]);
   tjek('kittet stiller Kit (34 navne fra 2.5.0), Tema (3), KitSprog (1) og fra 2.3.0 Tekst (6) til rådighed', Object.keys(w.Kit).length === 34 && Object.keys(w.Tema).length === 3 && Object.keys(w.KitSprog).length === 1 && Object.keys(w.Tekst).length === 6, [...kodeFunktioner].join(', '));
-  tjek('kit.css har 178 klasser i sine vælgere fra 2.6.0 (kontrol af læsningen)', cssKlasser.size === 178 && cssKlasser.has('btn') && cssKlasser.has('skjult-tekst') && !cssKlasser.has('woff2'), String(cssKlasser.size));
+  tjek('kit.css har 190 klasser i sine vælgere fra 2.7.0 (kontrol af læsningen)', cssKlasser.size === 190 && cssKlasser.has('btn') && cssKlasser.has('skjult-tekst') && !cssKlasser.has('woff2'), String(cssKlasser.size));
 
   const uden = afsnit.filter(a => klasserI(a).length + funktionerI(a).length === 0).map(a => a.navn);
   tjek('hver komponent i KOMPONENTER.md nævner mindst én klasse eller funktion', uden.length === 0, uden.join(', '));
@@ -536,7 +591,7 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
   tjek('2.2.0: hvert ikon fra 2.0.0 findes stadig (27), og der er ingen nye', V200_IKONER.length === 27 && mIk.length === 0 && JSON.stringify(Object.keys(K.IKONER)) === JSON.stringify(V200_IKONER), mIk.join(', '));
   tjek('2.2.0: de nye navne er Kit.vaelger, Kit.sidepanel og Kit.segment (og fra 2.3.0, 2.4.0, 2.5.0 og 2.6.0 kun dem i V230_FUNKTIONER, V240_FUNKTIONER, V250_FUNKTIONER og V260_FUNKTIONER)', JSON.stringify(fn.filter(f => !V200_FUNKTIONER.includes(f) && !V230_FUNKTIONER.includes(f) && !V240_FUNKTIONER.includes(f) && !V250_FUNKTIONER.includes(f) && !V260_FUNKTIONER.includes(f))) === JSON.stringify(['Kit.vaelger', 'Kit.sidepanel', 'Kit.segment']), fn.filter(f => !V200_FUNKTIONER.includes(f)).join(', '));
   const nyeKl = ['enkel', 'baand-el', 'taet', 'vlg', 'vlg-knap', 'vlg-vaerdi', 'vlg-pop', 'op', 'hoejre-kant', 'vlg-soeg', 'vlg-liste', 'vlg-p', 'aktiv', 'vlg-mark', 'vlg-boks', 'vlg-alle', 'vlg-navn', 'vlg-ingen', 'sidepanel', 'over', 'sp-top', 'sp-luk', 'sp-indhold', 'seg', 'seg-v'];
-  tjek('2.2.0: kit.css har de 25 nye klasser og ingen andre nye (ud over dem i V230_KLASSER fra 2.3.0, V240_KLASSER fra 2.4.0, V250_KLASSER fra 2.5.0 og V260_KLASSER fra 2.6.0)', nyeKl.length === 25 && JSON.stringify([...cssKlasser].filter(k => !V200_KLASSER.includes(k) && !V230_KLASSER.includes(k) && !V240_KLASSER.includes(k) && !V250_KLASSER.includes(k) && !V260_KLASSER.includes(k)).sort()) === JSON.stringify([...nyeKl].sort()), [...cssKlasser].filter(k => !V200_KLASSER.includes(k)).join(', '));
+  tjek('2.2.0: kit.css har de 25 nye klasser og ingen andre nye (ud over dem i V230_KLASSER fra 2.3.0, V240_KLASSER fra 2.4.0, V250_KLASSER fra 2.5.0, V260_KLASSER fra 2.6.0 og V270_KLASSER fra 2.7.0)', nyeKl.length === 25 && JSON.stringify([...cssKlasser].filter(k => !V200_KLASSER.includes(k) && !V230_KLASSER.includes(k) && !V240_KLASSER.includes(k) && !V250_KLASSER.includes(k) && !V260_KLASSER.includes(k) && !V270_KLASSER.includes(k)).sort()) === JSON.stringify([...nyeKl].sort()), [...cssKlasser].filter(k => !V200_KLASSER.includes(k)).join(', '));
   function bygEksempler(K2, d2) {
     const b = d2.createElement('div');
     K2.commandBar(b, { ariaT: 'cmdAria', valgt: 'vis', faner: [
@@ -1188,7 +1243,7 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
   tjek('KOMPONENTER.md: "Findes ikke endnu" er rettet: StatusTile, Dialog, Værktøjstip, Tom tilstand, Fremdrift, afkrydsning, kontakt og valgliste står ikke længere som manglende', !/\| (StatusTile|Dialog|Værktøjstip|Tom tilstand|Fremdrift) \|/.test(findes) && !/\| Afkrydsning, kontakt/.test(findes) && /\| Cover \|/.test(findes) && /\| Menu \|/.test(findes) && /Fra 2\.3\.0 er Dialog, Afkrydsning, Kontakt, Radiogruppe, Valgliste, StatusTile, Kasse \(kort\), Tom tilstand, Fremdrift, Værktøjstip, Filterchip og Tekststørrelse kode/.test(findes));
   const hm = pk('flytning/HUGINN-MUNINN.md');
   tjek('flytning/HUGINN-MUNINN.md: K10–K17 står som opfyldt i 2.3.0 med hvad de afløser; det siges, at alle 17 er opfyldt; tekststørrelse og komponenterne står ikke længere som umulige at flytte', ['K10', 'K11', 'K12', 'K13', 'K14', 'K15', 'K16', 'K17'].every(k => new RegExp('\\| ' + k + ' [^|]*\\| 2\\.3\\.0 \\|[^\\n]*Afløser').test(hm)) && /\*\*Alle 17 ønsker \(K1–K17\) er opfyldt med 2\.3\.0\.\*\*/.test(hm) && !/\| Tekststørrelse i tre trin \(`data-density`\) \| Kit 2 har én størrelse/.test(hm) && !/\| Dialoger, afkrydsning/.test(hm) && /compact` → `lille`/.test(hm) && /K18–K21/.test(hm));
-  tjek('demo 2.3.0: versionen på siden er 2.3.0 eller nyere (fra 2.6.0: 2.6.0)', (pk('demo/index.html').match(/data-v="2\.[3456]\.0"/g) || []).length === 3);
+  tjek('demo 2.3.0: versionen på siden er 2.3.0 eller nyere (fra 2.7.0: 2.7.0)', (pk('demo/index.html').match(/data-v="2\.[34567]\.0"/g) || []).length === 3);
   tjek('KOMPONENTER.md: Filterchip har alle syv dele og siger, at .chip ikke kan klikkes', harDele('Filterchip') && /aria-pressed/.test(afsnitAf('Filterchip')) && /kan ikke klikkes/.test(afsnitAf('Filterchip')));
 
   w.close();
@@ -1912,7 +1967,7 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
     }
     const nuH = new Set(regler.map(r => crypto.createHash('sha256').update(r).digest('hex').slice(0, 12)));
     const borte = V250_CSS.filter(h => !nuH.has(h));
-    tjek(`2.6.0: alle ${V250_CSS.length} regelsæt i 2.5.0's kit.css står uændrede (kun tilføjelser; i alt ${regler.length})`, V250_CSS.length === 409 && borte.length === 0 && regler.length === 428, borte.length + ' ændret eller fjernet');
+    tjek(`2.6.0: alle ${V250_CSS.length} regelsæt i 2.5.0's kit.css står uændrede (kun tilføjelser; i alt ${regler.length})`, V250_CSS.length === 409 && borte.length === 0 && regler.length >= 428, borte.length + ' ændret eller fjernet');
   }
 
   // ── Fanerne ──
@@ -2046,6 +2101,287 @@ const demoFil = path.join(PAKKE, 'demo', 'index.html');
   tjek('demo 2.6.0: mørkt tema sættes på siden med fanerne', d.documentElement.getAttribute('data-tema') === 'moerk' && Boolean(d.querySelector('#demo-faner260 .vf.on')));
   const da = Object.keys(w.Sprog.TEKST.da), en = Object.keys(w.Sprog.TEKST.en);
   tjek('demo 2.6.0: dansk og engelsk har de samme nøgler, og ingen nøgle på siden mangler', JSON.stringify(da.slice().sort()) === JSON.stringify(en.slice().sort()) && [...d.querySelectorAll('[data-t],[data-t-aria]')].every(e => ['data-t', 'data-t-aria'].every(x => !e.hasAttribute(x) || e.getAttribute(x) in w.Sprog.TEKST.da)));
+  w.close();
+}
+
+// ── Pakke 2.7.0 (V-FANER.2, D26): ét bånd, visningerne som store knapper i det, aria-current på en båndknap, Mere og programmets mindstemål ──
+{
+  const css = pk('web/kit.css'), md = pk('KOMPONENTER.md'), readme = pk('README.md'), log = pk('CHANGELOG.md'), hm = pk('flytning/HUGINN-MUNINN.md');
+  const afsnitAf = navn => { const i = md.indexOf('\n## ' + navn + '\n'); return i < 0 ? '' : md.slice(i, md.indexOf('\n## ', i + 1)); };
+  const ny = () => {
+    const dom = new JSDOM('<!doctype html><html data-kit-praefiks="proeve"><body></body></html>', { runScripts: 'outside-only', url: 'http://kit.invalid/', pretendToBeVisual: true });
+    for (const f of ['tema.js', 'sprogmotor.js', 'kit.js']) dom.window.eval(pk('web/' + f));
+    return dom.window;
+  };
+  const fejlAf = f => { try { f(); return ''; } catch (e) { return String(e.message); } };
+  const cssUden = css.replace(/\/\*[\s\S]*?\*\//g, '').replace(/@font-face\s*\{[^}]*\}/g, '').replace(/@keyframes[^{]*\{(?:[^{}]*\{[^}]*\})*[^}]*\}/g, ' ').replace(/\{[^}]*\}/g, ' ');
+  const cssKlasser = new Set([...cssUden.matchAll(/\.([a-z][a-z0-9-]*)/g)].map(m => m[1]));
+  tjek('2.7.0: de nye klasser (V270_KLASSER) findes i kit.css, og der er ingen nye funktioner og intet nyt ikon (Kit har stadig 34 navne, 27 ikoner)', V270_KLASSER.every(k => cssKlasser.has(k)) && V270_FUNKTIONER.length === 0 && Object.keys(ny().Kit).length === 34 && Object.keys(ny().Kit.IKONER).length === 27, V270_KLASSER.filter(k => !cssKlasser.has(k)).join());
+
+  // Huginn and Muninns og Grimnirs bånd fra 2.6.0, fanerækken og 2.6.0's CSS er uændrede.
+  {
+    const w = ny();
+    const nu = bygV260(w.Kit, w.document);
+    const forskel = Object.keys(V260_UDSEENDE).filter(k => nu[k] !== V260_UDSEENDE[k]);
+    tjek(`2.7.0: uden de nye indstillinger bygger kittet ${Object.keys(V260_UDSEENDE).length} eksempler byte for byte som 2.6.0 (Huginn and Muninns bånd med syv visninger som knapper, Grimnirs bånd med hvorforTip, bånd med faner, fanerækken med faner: true)`, Object.keys(V260_UDSEENDE).length === 4 && forskel.length === 0, forskel.join(', '));
+    const w2 = ny();
+    const nu250 = bygV250(w2.Kit, w2.document);
+    tjek('2.7.0: og 2.5.0-eksemplerne er stadig byte for byte de samme', Object.keys(V250_UDSEENDE).every(k => nu250[k] === V250_UDSEENDE[k]));
+    const regler = [];
+    const ren = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    let dybde = 0, start = 0;
+    for (let i = 0; i < ren.length; i++) {
+      if (ren[i] === '{') dybde++;
+      else if (ren[i] === '}') { dybde--; if (dybde === 0) { regler.push(ren.slice(start, i + 1).replace(/\s+/g, ' ').trim()); start = i + 1; } }
+    }
+    const nuH = new Set(regler.map(r => crypto.createHash('sha256').update(r).digest('hex').slice(0, 12)));
+    const borte = V260_CSS.filter(h => !nuH.has(h));
+    tjek(`2.7.0: alle ${V260_CSS.length} regelsæt i 2.6.0's kit.css står uændrede (kun tilføjelser; i alt ${regler.length})`, V260_CSS.length === 428 && borte.length === 0 && regler.length === 459, borte.length + ' ændret eller fjernet');
+  }
+
+  // ── Visningerne i båndet ──
+  const w = ny(), d = w.document, K = w.Kit;
+  const tipAf = a => { const t = d.getElementById(a.getAttribute('aria-describedby') || ''); return t && t.getAttribute('role') === 'tooltip' ? t : null; };
+  const tast = (el, key, x = {}) => { const e = new w.KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...x }); el.dispatchEvent(e); return e; };
+  const VIS = [
+    { id: 'a', tekst: 'Oversigt', ikon: 'mappe', genvej: '⌘1', genvejAria: 'Meta+1' },
+    { id: 'b', tekst: 'Siden sidst', ikon: 'kalender', genvej: '⌘2', genvejAria: 'Meta+2', antal: 3, kraever: true, antalAriaT: 'kraever' },
+    { id: 'c', tekst: 'Login', ikon: 'laas', genvej: '⌘3', genvejAria: 'Meta+3', deaktiveret: true, hvorfor: 'hvorforToken' },
+    { id: 'e', t: 'vLand', ikon: 'sprog' },
+  ];
+  const rod = d.createElement('div');
+  d.body.appendChild(rod);
+  const bar = K.commandBar(rod, { ariaT: 'cmdAria', udenFaner: true, hvorforTip: true, visninger: { t: 'gVisninger', punkter: VIS }, faner: [{ id: 'start', grupper: [
+    { t: 'gData', knapper: [{ id: 'hent', t: 'kHent', ikon: 'afspil', pri: true }, { id: 'eks', t: 'kEks', ikon: 'eksport', deaktiveret: true, hvorfor: 'hvorforIngen' }] },
+    { t: 'gProgram', knapper: [{ id: 'indst', t: 'kIndst', ikon: 'tandhjul' }] },
+  ] }] });
+  const v = bar.visninger, lk = id => v.links.find(a => a.dataset.visning === id);
+  const grp = [...rod.querySelectorAll('.grupper > .grp')];
+  tjek('visninger: første gruppe i båndet (.grp-visninger, role="group", navnet fra programmet), adskilt fra kommandoerne med båndets gruppeskille; båndet er stadig .cmd.enkel med role="group"', grp[0].classList.contains('grp-visninger') && grp[0].getAttribute('role') === 'group' && d.getElementById(grp[0].getAttribute('aria-labelledby'))?.getAttribute('data-t') === 'gVisninger' && grp[0].lastElementChild.className === 'cap' && grp.length === 3 && rod.className === 'cmd enkel' && rod.getAttribute('role') === 'group');
+  tjek('visninger: én stor knap pr. visning i fast rækkefølge: et link til #id (<a class="cb vk">, data-visning) med ikon over navn (.vk-navn); ingen rolle, ingen faneattributter', v.links.length === 4 && v.links.every((a, i) => a.tagName === 'A' && a.className === 'cb vk' && a.getAttribute('href') === '#' + VIS[i].id && a.dataset.visning === VIS[i].id && a.firstElementChild.tagName.toLowerCase() === 'svg' && a.children[1].className === 'vk-navn' && !a.hasAttribute('role') && !a.hasAttribute('aria-selected') && !a.hasAttribute('tabindex')) && lk('a').children[1].textContent === 'Oversigt' && lk('e').children[1].getAttribute('data-t') === 'vLand' && !lk('e').querySelector('svg + svg'));
+  tjek('visninger: genvejen står i et værktøjstip (role="tooltip", aria-describedby) og i aria-keyshortcuts; uden genvej intet aria-keyshortcuts', tipAf(lk('a'))?.querySelector('.vk-tip-tekst').textContent === '⌘1' && tipAf(lk('a')).hidden && lk('a').getAttribute('aria-keyshortcuts') === 'Meta+1' && !lk('e').hasAttribute('aria-keyshortcuts'));
+  tjek('visninger: uden genvej, hvorfor og et afkortet navn vises tippet ikke (.tip-tom)', tipAf(lk('e'))?.classList.contains('tip-tom') && !tipAf(lk('a')).classList.contains('tip-tom'));
+  const antB = lk('b').querySelector(':scope > .ant');
+  tjek('visninger: antal og kraever på knappen (.ant .ant-kraever, aria-hidden, og skjult tekst med nøglen og tallet)', antB && antB.className === 'ant ant-kraever' && antB.textContent === '3' && antB.getAttribute('aria-hidden') === 'true' && antB.nextElementSibling?.className === 'skjult-tekst' && antB.nextElementSibling.getAttribute('data-t') === 'kraever' && antB.nextElementSibling.getAttribute('data-v') === '3');
+  tjek('visninger: en visning slået fra har aria-disabled, kan stadig nås med Tab, og tippet siger hvorfor i stedet for genvejen (ingen title)', lk('c').getAttribute('aria-disabled') === 'true' && lk('c').tabIndex === 0 && tipAf(lk('c'))?.querySelector('.vk-tip-tekst').getAttribute('data-t') === 'hvorforToken' && !tipAf(lk('c')).querySelector('.vk-tip-tekst').textContent && !lk('c').hasAttribute('title'));
+  tjek('visninger: ingen er åben fra start (programmet kalder markér)', !v.links.some(a => a.hasAttribute('aria-current')));
+  v.markér('b');
+  tjek('visninger: markér sætter aria-current="page" på én og fjerner det fra de andre (ingen klasse on, ingen aria-selected)', lk('b').getAttribute('aria-current') === 'page' && v.links.filter(a => a.hasAttribute('aria-current')).length === 1 && !v.links.some(a => a.classList.contains('on') || a.hasAttribute('aria-selected')));
+  v.markér(null);
+  tjek('visninger: markér(null) fjerner aria-current fra alle (fx mens Indstillinger er åben)', !v.links.some(a => a.hasAttribute('aria-current')));
+  v.markér('a');
+  v.saetPunkt('b', { antal: 0, kraever: false, antalAriaT: null });
+  tjek('visninger: saetPunkt ændrer tallet uden at bygge båndet om (samme link, et .ant uden pille og uden skjult tekst)', lk('b') === v.links[1] && lk('b').querySelectorAll(':scope > [data-ant]').length === 1 && lk('b').querySelector(':scope > .ant').className === 'ant' && lk('b').querySelector(':scope > .ant').textContent === '0' && !lk('b').querySelector('.skjult-tekst'));
+  v.saetPunkt('b', { antal: null });
+  tjek('visninger: antal: null fjerner tallet', !lk('b').querySelector('[data-ant]'));
+  v.saetPunkt('c', { deaktiveret: false });
+  tjek('visninger: slået til igen: genvejen står i tippet (samme tip-plads, ét tip), og aria-disabled er væk', !lk('c').hasAttribute('aria-disabled') && tipAf(lk('c'))?.querySelector('.vk-tip-tekst').textContent === '⌘3' && lk('c').parentElement.querySelectorAll('.tip').length === 1);
+  v.saetPunkt('c', { deaktiveret: true, hvorfor: { tekst: 'Mangler en nøgle' } });
+  tjek('visninger: slået fra igen med en færdig tekst: tippet siger den', lk('c').getAttribute('aria-disabled') === 'true' && tipAf(lk('c'))?.querySelector('.vk-tip-tekst').textContent === 'Mangler en nøgle');
+  tjek('visninger: en ukendt visning i saetPunkt giver en fejl', /ukendt visning: x/.test(fejlAf(() => v.saetPunkt('x', { antal: 1 }))));
+  // Klik, mellemrum, piletaster.
+  const gik = [];
+  rod.addEventListener('click', e => { const x = e.target.closest('.vk'); if (x) gik.push((e.defaultPrevented ? '!' : '') + x.dataset.visning); });
+  lk('c').click();
+  tjek('visninger: et klik på en visning slået fra gør intet (preventDefault)', gik.join() === '!c' && w.location.hash === '');
+  lk('e').focus();
+  const mel = tast(lk('e'), ' ');
+  tjek('visninger: mellemrum på en visning klikker den (som Enter på et link) og ruller ikke siden', mel.defaultPrevented && gik.at(-1) === 'e');
+  const medMeta = tast(lk('e'), ' ', { metaKey: true }), pil = tast(lk('e'), 'ArrowLeft'), enter = tast(lk('e'), 'Enter');
+  tjek('visninger: ⌘ + mellemrum, piletaster og Enter (linkets egen) håndteres ikke af kittet', !medMeta.defaultPrevented && !pil.defaultPrevented && !enter.defaultPrevented && gik.length === 2);
+  // Et afkortet navn: det fulde navn står øverst i tippet (kittet ser efter, lige før tippet vises).
+  const navnE = lk('e').querySelector('.vk-navn');
+  navnE.textContent = 'Danmark og et meget langt land';
+  w.Range.prototype.getBoundingClientRect = function () { return { width: this.startContainer === navnE ? 200 : 10 }; };
+  navnE.getBoundingClientRect = () => ({ width: 152 });
+  lk('e').dispatchEvent(new w.Event('mouseenter'));
+  const tipE = tipAf(lk('e'));
+  tjek('visninger: et afkortet navn står helt øverst i tippet (.vk-tip-navn), og tippet vises (ikke .tip-tom)', !tipE.querySelector('.vk-tip-navn').hidden && tipE.querySelector('.vk-tip-navn').textContent === 'Danmark og et meget langt land' && !tipE.classList.contains('tip-tom'));
+  navnE.getBoundingClientRect = () => ({ width: 300 });
+  lk('e').dispatchEvent(new w.Event('focus'));
+  tjek('visninger: når navnet ikke længere er afkortet, er det væk fra tippet igen (og tippet uden genvej vises ikke)', tipE.querySelector('.vk-tip-navn').hidden && tipE.classList.contains('tip-tom'));
+  delete w.Range.prototype.getBoundingClientRect;
+  // saetAktuel (K41)
+  bar.saetAktuel('indst', true);
+  tjek('saetAktuel: en kommando får aria-current="page" (fx Indstillinger, mens den er åben) og mister den igen; en ukendt giver en fejl', bar.knap('indst').getAttribute('aria-current') === 'page' && (bar.saetAktuel('indst', false), !bar.knap('indst').hasAttribute('aria-current')) && /ukendt kommando: x/.test(fejlAf(() => bar.saetAktuel('x', true))));
+  tjek('visninger og mere kræver udenFaner, og højst otte visninger', /kræver udenFaner/.test(fejlAf(() => K.commandBar(d.createElement('div'), { faner: [{ id: 's', grupper: [] }], visninger: { punkter: [] } }))) && /kræver udenFaner/.test(fejlAf(() => K.commandBar(d.createElement('div'), { faner: [{ id: 's', grupper: [] }], mere: { t: 'm' } }))) && /højst otte visninger \(fik 9\)/.test(fejlAf(() => K.commandBar(d.createElement('div'), { udenFaner: true, faner: [{ id: 's', grupper: [] }], visninger: { punkter: Array.from({ length: 9 }, (_, i) => ({ id: 'v' + i, tekst: 'V' })) } }))));
+  const b2a = d.createElement('div'), b2b = d.createElement('div');
+  K.commandBar(b2a, { udenFaner: true, faner: [{ id: 's', grupper: [{ t: 'g', knapper: [{ id: 'k', t: 'k' }] }] }] });
+  tjek('uden de nye indstillinger har båndet ingen visninger, ingen Mere og ingen saetAktuel/tilpas (som 2.6.0)', !b2a.querySelector('.vk, .mere-plads') && !b2a.classList.contains('med-mere') && (() => { const r = K.commandBar(b2b, { udenFaner: true, faner: [{ id: 's', grupper: [] }] }); return !('visninger' in r) && !('saetAktuel' in r) && !('tilpas' in r) && !('mere' in r); })());
+
+  // ── Mere ──
+  // Placeringer regnet i jsdom: hver knap er B px bred (2 px mellem knapperne), en gruppe har 12 px luft til højre og 1 px
+  // skille, 12 px mellem grupperne og 12 px i hver side af rækken (0 til højre, når Mere vises; Mere-pladsen er 88 px).
+  const rodM = d.createElement('div');
+  d.body.appendChild(rodM);
+  const KN = n => Array.from({ length: n }, (_, i) => i);
+  const mb = K.commandBar(rodM, { ariaT: 'c', udenFaner: true, hvorforTip: true, visninger: { t: 'gV', punkter: [{ id: 'a', tekst: 'A', ikon: 'mappe' }, { id: 'b', tekst: 'B', ikon: 'oeje' }] }, mere: { t: 'kMere' }, faner: [{ id: 's', grupper: [
+    { t: 'g1', knapper: [{ id: 'k1', tekst: 'K1', ikon: 'fil', pri: true }, { id: 'k2', tekst: 'K2', ikon: 'gem' }] },
+    { t: 'g2', knapper: [{ id: 'k3', tekst: 'K3', ikon: 'kopier', deaktiveret: true, hvorfor: 'hvorforK3' }, { id: 'el', element: K.segment({ aria: 'S', valg: [{ id: 'x', t: 'x' }, { id: 'y', t: 'y' }], valgt: 'x' }).rod }, { id: 'k4', tekst: 'K4', ikon: 'sol', trykket: true }] },
+    { t: 'g3', knapper: [{ id: 'k5', tekst: 'K5', ikon: 'slet' }, { id: 'k6', tekst: 'K6', ikon: 'plus' }] },
+  ] }] });
+  const panelM = rodM.querySelector('.grupper'), plads = rodM.querySelector('.mere-plads'), mk = mb.mere.knap, menu = mb.mere.menu;
+  tjek('mere: Mere-knappen står sidst i båndet efter rækken (.mere-plads), med aria-haspopup="menu", aria-expanded="false", aria-controls til menuen (role="menu", navngivet af knappen) og ikonet ned; båndet har .med-mere', rodM.classList.contains('med-mere') && rodM.lastElementChild === plads && mk.className === 'cb cb-mere' && mk.getAttribute('aria-haspopup') === 'menu' && mk.getAttribute('aria-expanded') === 'false' && d.getElementById(mk.getAttribute('aria-controls')) === menu && menu.getAttribute('role') === 'menu' && menu.getAttribute('aria-labelledby') === mk.id && menu.hidden && mk.querySelector('svg path')?.getAttribute('d') === K.IKONER.ned[0][1].d && mk.querySelector('span').getAttribute('data-t') === 'kMere');
+  tjek('mere: uden layout (bredde 0) er Mere skjult, og intet flyttes', plads.hidden && mb.mere.flyttet.length === 0 && !rodM.classList.contains('mere-vist'));
+  let W = 2000;
+  const B = 60;
+  const grpM = [...panelM.querySelectorAll(':scope > .grp')];
+  const lag = () => {
+    const vist = rodM.classList.contains('mere-vist'), pos = new Map();
+    let x = 12, n = 0;
+    grpM.forEach((g, i) => {
+      if (g.hasAttribute('data-mere-tom') || g.hidden) return;
+      const synlige = [...g.querySelector('.kn').children].filter(c => !(c.matches('[data-i-mere]') || c.querySelector(':scope > [data-i-mere]')));
+      const b = synlige.length * B + (synlige.length - 1) * 2 + 12 + (i < grpM.length - 1 || vist ? 1 : 0);
+      if (n++) x += 12;
+      pos.set(g, [x, x + b]);
+      x += b;
+    });
+    return { pos, indhold: x + (vist ? 0 : 12) };
+  };
+  const rect = (l, r) => ({ left: l, right: r, width: r - l, top: 0, bottom: 54, height: 54 });
+  panelM.getBoundingClientRect = () => rect(0, Math.min(lag().indhold, W - (rodM.classList.contains('mere-vist') ? 88 : 0)));
+  for (const g of grpM) g.getBoundingClientRect = () => { const p = lag().pos.get(g) || [0, 0]; return rect(p[0], p[1]); };
+  const sidsteHoejre = () => [...lag().pos.values()].at(-1)[1];
+  mb.tilpas();
+  const naturlig = lag().indhold;
+  tjek('mere: er der plads til alt, er Mere skjult, og intet flyttes (kontrol af regnestykket: rækken er ' + naturlig + ' px)', naturlig === 12 + (122 + 12 + 1) + 12 + (122 + 12 + 1) + 12 + (184 + 12 + 1) + 12 + (122 + 12) + 12 && plads.hidden && mb.mere.flyttet.length === 0);
+  W = naturlig - 12;
+  mb.tilpas();
+  const kunLuft = plads.hidden && mb.mere.flyttet.length === 0;
+  W = naturlig - 14;
+  mb.tilpas();
+  tjek('mere: rækken passer, så længe den sidste gruppe (med sin egen luft) er inden for båndet: 12 px for lidt fjerner kun rækkens luft til højre; 14 px for lidt: Mere vises, og kommandoerne flyttes bagfra, til rækken passer (k6, k5; gruppen g3 er tom og skjult)', kunLuft && !plads.hidden && rodM.classList.contains('mere-vist') && JSON.stringify(mb.mere.flyttet) === '["k5","k6"]' && grpM[3].hasAttribute('data-mere-tom') && sidsteHoejre() <= W - 88 + 1, JSON.stringify(mb.mere.flyttet));
+  W = 520;
+  mb.tilpas();
+  const ved520 = JSON.stringify(mb.mere.flyttet) === '["k3","k4","k5","k6"]';
+  W = 440;
+  mb.tilpas();
+  tjek('mere: smallere (520 px: k3–k6; 440 px: også k2): den primære flyttes sidst, et element (vælger/segment) og visningerne flyttes aldrig, og en gruppe med et element bliver stående', ved520 && JSON.stringify(mb.mere.flyttet) === '["k2","k3","k4","k5","k6"]' && !mb.knap('k1').hasAttribute('data-i-mere') && !rodM.querySelector('.vk[data-i-mere]') && !grpM[2].hasAttribute('data-mere-tom') && grpM[1].hasAttribute('data-mere-tom') === false && sidsteHoejre() <= W - 88 + 1, JSON.stringify(mb.mere.flyttet));
+  W = 400;
+  mb.tilpas();
+  tjek('mere: endnu smallere: også den primære flyttes, når alle andre er flyttet; gruppen g1 er så tom og skjult', JSON.stringify(mb.mere.flyttet) === '["k1","k2","k3","k4","k5","k6"]' && grpM[1].hasAttribute('data-mere-tom'), JSON.stringify(mb.mere.flyttet));
+  tjek('mere (CSS): en flyttet knap er skjult i båndet (også i sin .tip-plads), og en tom gruppe skjules', /\n\.cmd\.med-mere \.kn > \[data-i-mere\], \.cmd\.med-mere \.kn > \.tip-plads:has\(> \[data-i-mere\]\), \.cmd\.med-mere \.grp\[data-mere-tom\] \{ display: none; \}/.test(css) && mb.knap('k3').hasAttribute('data-i-mere') && mb.knap('k3').parentElement.classList.contains('tip-plads'));
+  W = 440;
+  mb.tilpas();
+  // Menuen med tastaturet. (Tippets tekst sættes her i hånden; testen kører ikke sprogmodulet.)
+  tipAf(mb.knap('k3')).textContent = 'Vælg en række først';
+  mk.focus();
+  mk.click();
+  const p = () => [...menu.querySelectorAll('.mere-punkt')];
+  tjek('mere: Enter/mellemrum på Mere (et klik uden mus) åbner menuen med fokus på første punkt; aria-expanded="true"', !menu.hidden && mk.getAttribute('aria-expanded') === 'true' && d.activeElement === p()[0]);
+  tjek('mere: punkterne er de flyttede i båndets rækkefølge, med samme navn og ikon; tabindex −1 (fokus flyttes med piletasterne)', p().map(x => x.dataset.kommando).join() === 'k2,k3,k4,k5,k6' && p().every(x => x.querySelector('.mere-navn').textContent === x.dataset.kommando.toUpperCase() && x.querySelector('svg') && x.tabIndex === -1) && p()[0].querySelector('svg path').getAttribute('d') === K.IKONER.gem[0][1].d);
+  const k3 = p()[1], k4 = p()[2];
+  tjek('mere: en kommando slået fra er aria-disabled med hvorfor under navnet (.mere-hvorfor, aria-describedby; teksten fra knappens tip)', k3.getAttribute('aria-disabled') === 'true' && d.getElementById(k3.getAttribute('aria-describedby'))?.className === 'mere-hvorfor' && d.getElementById(k3.getAttribute('aria-describedby')).textContent === tipAf(mb.knap('k3')).textContent);
+  tjek('mere: en kommando, der kan trykkes ind, er et menuitemcheckbox med aria-checked; de andre menuitem', k4.getAttribute('role') === 'menuitemcheckbox' && k4.getAttribute('aria-checked') === 'true' && p().filter(x => x !== k4).every(x => x.getAttribute('role') === 'menuitem'));
+  tast(p()[0], 'ArrowDown');
+  const ned1 = d.activeElement === p()[1];
+  tast(p()[1], 'ArrowUp');
+  tast(p()[0], 'ArrowUp');
+  const rundt = d.activeElement === p().at(-1);
+  tast(d.activeElement, 'Home');
+  const home = d.activeElement === p()[0];
+  tast(d.activeElement, 'End');
+  tjek('mere: pil ned og op flytter (rundt), Home og End går til første og sidste', ned1 && rundt && home && d.activeElement === p().at(-1));
+  const esc = tast(d.activeElement, 'Escape');
+  tjek('mere: Esc lukker menuen med fokus på Mere (og stopper tastetrykket)', esc.defaultPrevented && menu.hidden && d.activeElement === mk && mk.getAttribute('aria-expanded') === 'false');
+  tast(mk, 'ArrowUp');
+  tjek('mere: pil op på Mere åbner med fokus på sidste punkt; Tab lukker og går videre (ikke stoppet)', !menu.hidden && d.activeElement === p().at(-1) && (() => { const t = tast(d.activeElement, 'Tab'); return !t.defaultPrevented && menu.hidden; })());
+  // Menuen med musen: fokus og markering bliver, et klik udenfor lukker.
+  const felt = d.createElement('input');
+  d.body.appendChild(felt);
+  felt.focus();
+  const ned = new w.MouseEvent('mousedown', { bubbles: true, cancelable: true });
+  mk.dispatchEvent(ned);
+  mk.dispatchEvent(new w.MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 }));
+  tjek('mere: med musen åbner menuen uden at flytte fokus (mousedown stoppes; G23: en markering i teksten bliver)', ned.defaultPrevented && !menu.hidden && d.activeElement === felt);
+  const escUde = new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+  felt.dispatchEvent(escUde);
+  tjek('mere: Esc lukker også, når fokus ikke er i menuen', escUde.defaultPrevented && menu.hidden);
+  mk.dispatchEvent(new w.MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 }));
+  d.body.dispatchEvent(new w.MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+  tjek('mere: et klik uden for menuen lukker den', menu.hidden);
+  // Et punkt klikker den skjulte knap; et punkt slået fra gør intet.
+  const klik = [];
+  for (const id of ['k2', 'k3']) mb.knap(id).addEventListener('click', () => klik.push(id));
+  mk.dispatchEvent(new w.MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 }));
+  p()[1].click();
+  const efterFra = !menu.hidden && klik.length === 0;
+  p()[0].click();
+  tjek('mere: et punkt slået fra gør intet (menuen bliver); et punkt slået til lukker menuen og klikker den skjulte knap (samme handling)', efterFra && JSON.stringify(klik) === '["k2"]' && menu.hidden);
+  mk.focus();
+  mk.click();
+  mb.saetDeaktiveret('k3', false);
+  tjek('mere: saetDeaktiveret med menuen åben bygger den om (k3 er slået til, uden hvorfor)', !menu.hidden && !p()[1].hasAttribute('aria-disabled') && !p()[1].querySelector('.mere-hvorfor'));
+  mb.tilpas();
+  tjek('mere: tilpas lukker en åben menu', menu.hidden);
+  // Den primære flyttes sidst, også når den ikke står først: tre knapper på 60 px i én gruppe (p2 er primær).
+  {
+    const rp = d.createElement('div');
+    d.body.appendChild(rp);
+    const bp = K.commandBar(rp, { udenFaner: true, mere: { t: 'kMere' }, faner: [{ id: 's', grupper: [{ t: 'g', knapper: [{ id: 'p1', tekst: 'P1' }, { id: 'p2', tekst: 'P2', pri: true }, { id: 'p3', tekst: 'P3' }] }] }] });
+    const pp = rp.querySelector('.grupper'), gp = pp.querySelector('.grp');
+    const synl = () => [...gp.querySelectorAll('.cb')].filter(b => !b.hasAttribute('data-i-mere')).length;
+    const hoejre = () => 12 + synl() * 60 + (synl() - 1) * 2 + 12 + (rp.classList.contains('mere-vist') ? 1 : 0);
+    const Wp = 12 + 60 + 12 + 1 + 88;
+    pp.getBoundingClientRect = () => rect(0, Math.min(hoejre() + 12, Wp - (rp.classList.contains('mere-vist') ? 88 : 0)));
+    gp.getBoundingClientRect = () => rect(12, hoejre());
+    bp.tilpas();
+    tjek('mere: den primære flyttes sidst, også når den står i midten (plads til én knap: P1 og P3 i Mere, P2 i båndet)', JSON.stringify(bp.mere.flyttet) === '["p1","p3"]' && !bp.knap('p2').hasAttribute('data-i-mere'), JSON.stringify(bp.mere.flyttet));
+  }
+  // Programmets egen hidden røres ikke.
+  grpM[3].hidden = true;
+  W = 2000;
+  mb.tilpas();
+  tjek('mere: en gruppe, programmet selv har skjult (hidden), røres ikke og står ikke i menuen', grpM[3].hidden && !grpM[3].hasAttribute('data-mere-tom') && plads.hidden && mb.mere.flyttet.length === 0);
+
+  // ── CSS ──
+  const regel = vaelger => { const i = css.indexOf('\n' + vaelger + ' {'); return i < 0 ? '' : css.slice(i, css.indexOf('}', i) + 1); };
+  tjek('CSS: aria-current="page" på en båndknap har flade og vægt som trykket og en streg på 2 px i accent (ikke kun farve) og ikonet i accent; aria-pressed er uændret', /\{ background: var\(--accent-soft\); border-color: var\(--accent-soft\); font-weight: 600; box-shadow: inset 0 -2px 0 var\(--accent\); \}/.test(regel('.cb[aria-current="page"]')) && /\n\.cb\[aria-current="page"\] svg \{ stroke: var\(--accent\); \}/.test(css) && /\n\.cb\[aria-pressed="true"\] \{ background: var\(--accent-soft\); border-color: var\(--accent-soft\); font-weight: 600; \}/.test(css));
+  tjek('CSS: en visningsknap er et link uden understregning; navnet afkortes med … ved 152 px; tallet står øverst til højre, en pille ved kraever', /\na\.cb \{ text-decoration: none; \}/.test(css) && /\n\.vk-navn \{ max-width: 152px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; \}/.test(css) && /\n\.cb\.vk \{ position: relative; \}/.test(css) && /position: absolute; top: 2px; right: 4px;/.test(regel('.cb.vk > .ant')) && /border: 1px solid var\(--danger\); border-radius: var\(--radius-pill\);/.test(regel('.cb.vk > .ant-kraever')) && /font-weight: 700;/.test(regel('.cb.vk > .ant-kraever')));
+  tjek('CSS: Mere: båndet står på én række (nowrap, grupperne krymper ikke), Mere sidst efter et skille, menuen under Mere ved dens højre kant og inden for vinduet ved alle trin', /\n\.cmd\.med-mere \{ display: flex; align-items: flex-start; \}/.test(css) && /\n\.cmd\.med-mere > \.grupper \{ flex: 0 1 auto; min-width: 0; flex-wrap: nowrap; \}/.test(css) && /\n\.cmd\.med-mere > \.grupper > \.grp \{ flex: none; \}/.test(css) && /\n\.cmd\.mere-vist > \.grupper > \.grp:last-child \{ border-right: 1px solid var\(--border\); \}/.test(css) && /position: absolute; top: calc\(100% - var\(--space-1\)\); right: var\(--space-3\);/.test(regel('.mere-menu')) && /max-height: calc\(100vh \/ var\(--tekst-zoom\) - 160px\)/.test(regel('.mere-menu')));
+  tjek('CSS: menupunktet slået fra: ikon og navn nedtonet (.5), hvorfor i sekundær tekst uden nedtoning; fokusring i info', /\n\.mere-punkt\[aria-disabled="true"\] > svg, \.mere-punkt\[aria-disabled="true"\] \.mere-navn \{ opacity: \.5; \}/.test(css) && /color: var\(--text-muted\);/.test(regel('.mere-hvorfor')) && !/opacity/.test(regel('.mere-hvorfor')) && /\n\.mere-punkt:focus-visible \{ outline: 2px solid var\(--info\); outline-offset: -2px; \}/.test(css));
+  tjek('CSS: programmets eget mindstemål: én regel efter tekststørrelsens, der deler --vindue-min-bredde og --vindue-min-hoejde (standard 900 og 560 px) med --tekst-zoom for .vindue og :root[data-tekst] .vindue; de gamle regler står', css.lastIndexOf('\n.vindue, :root[data-tekst] .vindue { min-width: calc(var(--vindue-min-bredde, 900px) / var(--tekst-zoom)); min-height: calc(var(--vindue-min-hoejde, 560px) / var(--tekst-zoom)); }') > css.indexOf(':root[data-tekst="stor"] .vindue {') && css.indexOf(':root[data-tekst="stor"] .vindue {') > 0);
+  tjek('CSS: et værktøjstip med .tip-tom vises aldrig', /\n\.tip\.tip-tom \{ display: none; \}/.test(css));
+  // Programmets mindstemål regnet: med --vindue-min-bredde 1024px er vinduet 1024 px på skærmen i alle tre trin.
+  const regn = (bredde, zoom) => bredde / zoom * zoom;
+  tjek('regnet: med --vindue-min-bredde 1024px er .vindue 1024/0,9 = 1137,8 px ved lille og 1024/1,125 = 910,2 px ved stor i layoutet, altså 1024 px på skærmen; uden variablen 900 px som før', Math.abs(1024 / 0.9 - 1137.78) < 0.01 && Math.abs(1024 / 1.125 - 910.22) < 0.01 && [0.9, 1, 1.125].every(z => Math.abs(regn(1024, z) - 1024) < 1e-9 && Math.abs(regn(900, z) - 900) < 1e-9));
+
+  // ── Dokumenterne ──
+  const a270 = log.slice(log.indexOf('## 2.7.0'), log.indexOf('\n## 2.6.0'));
+  tjek('CHANGELOG 2.7.0: første post med kun dato; Nyt (visninger, aria-current/saetAktuel, Mere, mindstemålet, reglen, .tip-tom); intet omdøbt eller fjernet; fanerækken virker som før', log.indexOf('## 2.7.0 — 2026-11-12') > 0 && log.indexOf('## 2.7.0') < log.indexOf('## 2.6.0') && /### Nyt/.test(a270) && ['visninger', 'saetAktuel', 'mere', '--vindue-min-bredde', 'ét bånd', '.tip-tom', 'K41', 'K42', 'G21', 'D26'].every(o => a270.includes(o)) && /Intet er omdøbt eller fjernet/.test(a270) && /`faner: true`\) virker som før/.test(a270));
+  tjek('KOMPONENTER.md (AppShell): reglen "ét bånd; ingen række over det", hvornår fanerækken fra 2.6.0 må bruges, og programmets eget mindstemål', /### Ét bånd; ingen række over det \(regel fra 2\.7\.0, D26\)/.test(afsnitAf('AppShell')) && /### Programmets eget mindstemål \(fra 2\.7\.0\)/.test(afsnitAf('AppShell')) && /Fanerækken virker som før og fjernes ikke, men den må kun bruges/.test(afsnitAf('AppShell')) && /--vindue-min-bredde/.test(afsnitAf('AppShell')));
+  tjek('KOMPONENTER.md (CommandBar): visningerne og Mere har afsnit med rollerne, hvad en skærmlæser hører, mere end farve, tal, tip, afkortning, tastatur og regel for én række; de nye klasser står i klasselisten', /### Visningerne som store knapper forrest i båndet \(fra 2\.7\.0, D26, K41, K42\)/.test(afsnitAf('CommandBar')) && /### Mere: båndet står altid på én række \(fra 2\.7\.0, G21\)/.test(afsnitAf('CommandBar')) && ['aria-current="page"', 'skærmlæser', 'ikke prøvet', 'streg på 2 px', 'Tab-stop', 'mellemrum', 'piletaster bruges ikke', 'afkortes med …', 'saetAktuel', 'menuitemcheckbox', 'Esc', 'getBoundingClientRect', 'primære'].every(o => afsnitAf('CommandBar').includes(o)) && V270_KLASSER.filter(k => k !== 'tip-tom').every(k => afsnitAf('CommandBar').includes('`.' + k + '`')) && afsnitAf('Værktøjstip').includes('`.tip-tom`'));
+  tjek('README 2.7.0: indholdslisten og "Byg skærmen" nævner visningerne i båndet, Mere og mindstemålet', /fra 2\.7\.0 kan `Kit\.commandBar` have visningerne forrest \(`visninger`\) og Mere \(`mere`\)/.test(readme) && /Fra 2\.7\.0 er reglen ét bånd og ingen række over det/.test(readme) && /--vindue-min-bredde/.test(readme));
+  tjek('flytning/HUGINN-MUNINN.md: D26, udskiftningen punkt for punkt (syv punkter), K41 og K42 opfyldt, og det, der står tilbage (K39, K40)', /### Fra 2\.7\.0: ét bånd, visningerne i det \(D26, K41, K42\)/.test(hm) && /Jans beslutning D26/.test(hm) && [1, 2, 3, 4, 5, 6, 7].every(n => new RegExp('\\n' + n + '\\. \\*\\*').test(hm.slice(hm.indexOf('### Fra 2.7.0')))) && /\*\*K41 og K42 er opfyldt med 2\.7\.0\.\*\*/.test(hm) && /K39 og K40/.test(hm.slice(hm.indexOf('### Fra 2.7.0'))) && /ramme\.js/.test(hm) && /fanerækken fra 2\.6\.0 \(`faner: true`\) virker stadig/i.test(hm));
+}
+{
+  // Demoen 2.7.0 med pakkens rigtige filer, i begge sprog og temaer.
+  const dom = await JSDOM.fromFile(demoFil, { runScripts: 'dangerously', resources: 'usable', pretendToBeVisual: true, virtualConsole: new VirtualConsole() });
+  const w = dom.window, d = w.document;
+  w.HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
+  await new Promise(r => (d.readyState === 'complete' ? r() : w.addEventListener('load', r)));
+  await vent(20);
+  const tekst = id => d.getElementById(id).textContent;
+  const synligt = () => [...d.querySelectorAll('#demo-baand270 > [data-visning]')].filter(b => !b.hidden);
+  const vk = () => [...synligt()[0].querySelectorAll('.vk')];
+  tjek('demo 2.7.0: ét bånd under titellinjen (ingen række over), Oversigt åben (aria-current), fire visninger med navn forrest og gruppen Visninger, Siden sidst med tal, Login slået fra', synligt().length === 1 && synligt()[0].dataset.visning === 'oversigt' && d.getElementById('demo-baand270').previousElementSibling.className === 'titel' && vk().map(a => a.querySelector('.vk-navn').textContent).join() === 'Oversigt,Siden sidst,Angreb,Login' && vk()[0].getAttribute('aria-current') === 'page' && synligt()[0].querySelector('.grp-visninger .cap').textContent === 'Visninger' && vk()[1].querySelector('.ant-kraever')?.textContent === '3' && vk()[3].getAttribute('aria-disabled') === 'true' && d.getElementById(vk()[3].getAttribute('aria-describedby'))?.textContent === 'Login kræver en API-nøgle under Indstillinger.');
+  vk()[2].click();
+  tjek('demo 2.7.0: et klik på Angreb åbner den: dens bånd vises, og aria-current flytter', synligt()[0].dataset.visning === 'angreb' && vk()[2].getAttribute('aria-current') === 'page' && tekst('baand270-valgt') === 'Valgt: Angreb' && w.location.hash === '');
+  vk()[3].click();
+  tjek('demo 2.7.0: et klik på Login (slået fra) gør intet', synligt()[0].dataset.visning === 'angreb');
+  synligt()[0].querySelector('[data-kommando="indst"]').click();
+  tjek('demo 2.7.0: Indstillinger er en kommando med aria-current, mens den er åben, og ingen visning er åben imens', synligt()[0].querySelector('[data-kommando="indst"]').getAttribute('aria-current') === 'page' && !vk().some(a => a.hasAttribute('aria-current')) && tekst('baand270-valgt') === 'Valgt: Indstillinger er åben');
+  d.dispatchEvent(new w.KeyboardEvent('keydown', { key: '¡', code: 'Digit1', altKey: true, bubbles: true, cancelable: true }));
+  tjek('demo 2.7.0: genvejen Alt+1 står i tippet og åbner Oversigt (Indstillinger lukker)', synligt()[0].dataset.visning === 'oversigt' && vk()[0].getAttribute('aria-current') === 'page' && !synligt()[0].querySelector('[data-kommando="indst"]').hasAttribute('aria-current') && d.getElementById(vk()[0].getAttribute('aria-describedby'))?.textContent === 'Alt+1');
+  const smal = d.getElementById('demo-baand270-mere'), otte = d.getElementById('demo-baand270-otte');
+  tjek('demo 2.7.0: et smalt bånd med Mere (de fire visninger, ni kommandoer) og otte visninger som Huginn and Muninn (Hent nu, Vejledning, Indstillinger, Mere)', smal.classList.contains('med-mere') && smal.closest('.demo-baand-smal') && smal.querySelectorAll('.vk').length === 4 && smal.querySelectorAll('.grupper .cb:not(.vk)').length === 8 && smal.querySelector('.cb-mere').textContent === 'Mere' && otte.querySelectorAll('.vk').length === 8 && otte.querySelector('.vk[aria-current="page"]').dataset.visning === 'overblik' && otte.querySelector('.vk[data-visning="siden"] .ant-kraever')?.textContent === '4' && [...otte.querySelectorAll('.grupper .cb:not(.vk)')].map(b => b.dataset.kommando).join() === 'hent,vejledning,indst');
+  w.Sprog.saet('en');
+  tjek('demo 2.7.0 (English): knapperne, gruppen, Mere og teksterne følger sproget', vk().map(a => a.querySelector('.vk-navn').textContent).join() === 'Overview,Since last time,Attacks,Login' && synligt()[0].querySelector('.grp-visninger .cap').textContent === 'Views' && smal.querySelector('.cb-mere').textContent === 'More' && d.querySelector('[data-t="h270Baand"]').textContent === 'One command bar: the views as large buttons (from 2.7.0)');
+  w.Tema.saet('moerk');
+  tjek('demo 2.7.0: mørkt tema sættes på siden med båndet', d.documentElement.getAttribute('data-tema') === 'moerk' && Boolean(d.querySelector('#demo-baand270 .vk[aria-current="page"]')));
+  const da = Object.keys(w.Sprog.TEKST.da), en = Object.keys(w.Sprog.TEKST.en);
+  tjek('demo 2.7.0: dansk og engelsk har de samme nøgler, og ingen nøgle på siden mangler', JSON.stringify(da.slice().sort()) === JSON.stringify(en.slice().sort()) && [...d.querySelectorAll('[data-t],[data-t-aria]')].every(e => ['data-t', 'data-t-aria'].every(x => !e.hasAttribute(x) || e.getAttribute(x) in w.Sprog.TEKST.da)));
   w.close();
 }
 

@@ -27,6 +27,8 @@
       gTekst: 'Tekst', gMaskering: 'Maskering', gResultat: 'Resultat', gSvar: 'Svar', gDemaskering: 'Demaskering',
       gSag: 'Sag', gDeling: 'Deling', gOprydning: 'Oprydning', gOrdbog: 'Ordbog', gTema: 'Tema', gSprog: 'Sprog',
       kIndsaet: 'Indsæt', kAabnFil: 'Åbn fil', kAnalyser: 'Analysér', kGemMasker: 'Gem og maskér', kFoerEfter: 'Før og efter',
+      // V-FANER.2 (G21): kittets Mere sidst i båndet (de kommandoer, der ikke er plads til på én række).
+      kMere: 'Mere',
       kKopier: 'Kopiér', kKvittering: 'Kopiér kvittering', kDemasker: 'Demaskér', kNaesteAdvarsel: 'Næste advarsel',
       kKopierResultat: 'Kopiér resultat', kGemFil: 'Gem som fil', kNySag: 'Ny sag', kAabnIMasker: 'Åbn i Maskér',
       kEksporter: 'Eksportér', kImporter: 'Importér', kSletSag: 'Slet sag', kTilfoejPost: 'Tilføj post',
@@ -336,6 +338,7 @@
       gTekst: 'Text', gMaskering: 'Masking', gResultat: 'Result', gSvar: 'Reply', gDemaskering: 'Unmasking',
       gSag: 'Case', gDeling: 'Sharing', gOprydning: 'Clean-up', gOrdbog: 'Dictionary', gTema: 'Theme', gSprog: 'Language',
       kIndsaet: 'Paste', kAabnFil: 'Open file', kAnalyser: 'Analyse', kGemMasker: 'Save and mask', kFoerEfter: 'Before and after',
+      kMere: 'More',
       kKopier: 'Copy', kKvittering: 'Copy receipt', kDemasker: 'Unmask', kNaesteAdvarsel: 'Next warning',
       kKopierResultat: 'Copy result', kGemFil: 'Save as file', kNySag: 'New case', kAabnIMasker: 'Open in Mask',
       kEksporter: 'Export', kImporter: 'Import', kSletSag: 'Delete case', kTilfoejPost: 'Add entry',

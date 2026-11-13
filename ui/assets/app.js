@@ -1,11 +1,13 @@
 /* Grimnir — programskallen bygget af kittet (window.Kit). Fire visninger (Maskér, Demaskér, Sager, Ordbog), hver med sin
-   CommandBar (V-FANER.1: uden egen fanerække, kun visningens kommandoer), sit træ i NavPane, sin værktøjslinje og en tom
-   tilstand. Visningen står i adressen (#masker …) og skiftes med fanerne øverst (V-FANER.1, D25: kittets visningsskift med
-   faner: true, under titellinjen) eller ⌘1–⌘4 (Ctrl på Windows). Fanen Vis er væk: tema og sprog står under tandhjulet
+   CommandBar (uden egen fanerække), sit træ i NavPane, sin værktøjslinje og en tom tilstand. V-FANER.2 (D26): der står
+   kun ét bånd: de fire visninger er store knapper forrest i det (kittets visninger i commandBar, links til #id med
+   aria-current="page"), og resten er den valgte visnings kommandoer; det, der ikke er plads til på én række, står i
+   kittets Mere-menu sidst i båndet. Visningen står i adressen (#masker …) og skiftes med knapperne eller ⌘1–⌘4 (Ctrl på
+   Windows). Fanen Vis er væk (V-FANER.1): tema og sprog står under tandhjulet
    (Indstillinger), tekststørrelsen i Indstillinger og i menuen Vis. Maskér og Demaskér (maskering.js), Sager
    (sager.js), Ordbog (ordbog.js) og Indstillinger (indstillinger.js) virker via window.Grimnir; resten af kommandoerne
    fra design/skaerme/ står nedtonet med en forklaring, til funktionen kommer (v2).
-   V-LAAS.2: mens <html data-laast> står (laas.js), er fanerne (før visningsskiftet) og båndet nedtonede, og ⌘1–⌘4 gør intet;
+   V-LAAS.2: mens <html data-laast> står (laas.js), er båndet (med visningerne) nedtonet, og ⌘1–⌘4 gør intet;
    Indstillinger (⌘, / Ctrl+,) og Om virker.
    Rust giver: kerne_version (fodlinjen), hændelsen 'menu' ("om" | "indstillinger" | "afslut"; "aabn" | "gem" håndteres
    af maskering.js; V-KITBRUG.2: "tekst-stoerre" | "tekst-mindre" | "tekst-normal" fra menuen Vis), hændelsen 'fuldskaerm'
@@ -109,6 +111,9 @@
   const laast = () => document.documentElement.hasAttribute('data-laast');
   const baand = $('baand'), navdele = $('navdele'), arb = $('arb');
   const dele = {};
+  /* V-FANER.2 (D26): de fire visninger forrest i hvert bånd: ikon og navn, genvejen ⌘1–⌘4 (Ctrl på Windows) i knappens
+     værktøjstip og i aria-keyshortcuts. Gruppenavnet er den nøgle, fanerækken havde som navn (Visninger/Views). */
+  const VIS_PUNKTER = VISNINGER.map((v, i) => ({ id: v.id, t: v.t, ikon: v.ikon, genvej: mod + (i + 1), genvejAria: (mac ? 'Meta+' : 'Control+') + (i + 1) }));
 
   for (const v of VISNINGER) {
     // CommandBar
@@ -116,8 +121,9 @@
     cmd.dataset.visning = v.id;
     baand.appendChild(cmd);
     // V-KITBRUG.2 N3 (G11): "hvorfor" en kommando er slået fra, står i kittets værktøjstip (mus og tastatur), ikke i title.
-    // V-FANER.1: båndet har kun visningens kommandoer (udenFaner: ingen fanerække; fanerne øverst skifter visning).
-    const bar = K.commandBar(cmd, { ariaT: 'cmdAria', hvorforTip: true, udenFaner: true, faner: [{ id: 'start', grupper: v.grupper }] });
+    // V-FANER.2 (D26): ét bånd uden fanerække: visningerne forrest, så visningens kommandoer, og Mere sidst (G21: det, der
+    // ikke er plads til på én række, står i Mere-menuen).
+    const bar = K.commandBar(cmd, { ariaT: 'cmdAria', hvorforTip: true, udenFaner: true, visninger: { t: 'visninger', punkter: VIS_PUNKTER }, mere: { t: 'kMere' }, faner: [{ id: 'start', grupper: v.grupper }] });
 
     // NavPane: overskrift og træ
     const nd = document.createElement('div');
@@ -133,8 +139,7 @@
     const sek = document.createElement('section');
     sek.className = 'visning';
     sek.id = 'visning-' + v.id;
-    // V-FANER.1: arbejdsfladen er det panel, visningens fane viser (fanen har aria-controls hertil); navnet er visningens.
-    sek.setAttribute('role', 'tabpanel');
+    // Arbejdsfladen er et område med visningens navn (V-FANER.2: ikke længere et fanepanel; visningerne er links).
     sek.dataset.visning = v.id;
     sek.setAttribute('data-t-aria', v.t);
     const vl = document.createElement('div');
@@ -203,17 +208,13 @@
     dele[v.id] = { cmd, bar, nd, sek, trae, flTekst, soeg: inp, hoejre, flade, tom, tomP: p };
   }
 
-  /* V-FANER.1 (D25): visningerne som faner øverst (kittets visningsskift med faner: true): ikon og navn, genvejen ⌘1–⌘4
-     (Ctrl på Windows) som hjælpetekst i fanens værktøjstip, aria-controls til visningens arbejdsflade. Et klik og
-     piletasterne (kittet klikker fanen) går via adressen som før. Mens Grimnir er låst, er rækken inert og nedtonet
-     (laas.js, app.css); med en dialog åben dækker dialogen siden. Begge dele holdes også her: et klik på en fane gør intet,
-     mens der er låst, eller en dialog er åben (som ⌘1–⌘4). */
-  const skift = K.visningsskift($('faner'), VISNINGER.map((v, i) => ({
-    id: v.id, t: v.t, ikon: v.ikon, genvej: mod + (i + 1), genvejAria: (mac ? 'Meta+' : 'Control+') + (i + 1), panel: 'visning-' + v.id,
-  })), { ariaT: 'visninger', faner: true });
-  $('faner').addEventListener('click', e => {
-    if (e.target.closest('.vf') && (laast() || document.querySelector('dialog[open]'))) e.preventDefault();
+  /* V-FANER.2: et klik (og mellemrum, som kittet gør til et klik) på en visningsknap går via adressen som før. Mens
+     Grimnir er låst, er båndet inert og nedtonet (laas.js, app.css); med en dialog åben dækker dialogen siden. Begge dele
+     holdes også her: et klik gør intet, mens der er låst, eller en dialog er åben (som ⌘1–⌘4). */
+  baand.addEventListener('click', e => {
+    if (e.target.closest('.vk') && (laast() || document.querySelector('dialog[open]'))) e.preventDefault();
   }, true);
+  const markér = id => { for (const v of VISNINGER) dele[v.id].bar.visninger.markér(id); };
 
   const fodVenstre = $('fod-venstre');
   let aktivVisning = null;
@@ -226,7 +227,7 @@
       dele[v.id].nd.hidden = !on;
       dele[v.id].sek.hidden = !on;
     }
-    skift.markér(id);
+    markér(id);
     fodVenstre.setAttribute('data-t', VISNINGER.find(v => v.id === id).fod);
     S.anvend(fodVenstre);
     document.dispatchEvent(new CustomEvent('grimnir-visning', { detail: id }));

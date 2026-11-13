@@ -91,6 +91,8 @@
   .demo-afk250 td:first-child { width: 40px; }
   /* 2.6.0: fanerne øverst i en lille skal; den smalle ramme viser, hvordan otte faner afkortes. */
   .demo-faner-smal { max-width: 720px; }
+  /* 2.7.0: et smalt bånd, hvor Mere samler det, der ikke er plads til. */
+  .demo-baand-smal { max-width: 600px; }
 </style>
 </head>
 <body>
@@ -98,7 +100,7 @@
   <header class="titel">
     <span class="mrk" aria-hidden="true">W</span>
     <b data-t="appNavn">Wi24rd UI Kit 2</b>
-    <span data-t="undertitel" data-v="2.6.0" id="pakkeversion">Demo · pakke 2.0.1</span>
+    <span data-t="undertitel" data-v="2.7.0" id="pakkeversion">Demo · pakke 2.0.1</span>
     <span class="hoejre">
       <button type="button" class="rk" id="skift-tema" data-t-aria="ariaSkiftTema" data-t-title="ariaSkiftTema"></button>
       <button type="button" class="rk" id="skift-sprog" data-t-aria="ariaSkiftSprog" data-t="skiftSprog"></button>
@@ -155,6 +157,30 @@
               <div id="demo-faner260-otte"></div>
             </div>
             <p class="demo-valgt" id="faner260-otte-valgt" data-t="intetValgt"></p>
+            <h3 data-t="h270Baand"></h3>
+            <p data-t="p270Baand"></p>
+            <div class="demo-ramme demo-aaben">
+              <div class="titel"><span class="mrk" aria-hidden="true">W</span><b data-t="appNavn"></b></div>
+              <div id="demo-baand270"></div>
+              <div class="midte demo-midte">
+                <nav class="nav" data-t-aria="navAria"><h3 data-t="navDemoH"></h3><ul id="demo-trae270"></ul></nav>
+                <main class="arb"><p class="demo-valgt" id="baand270-valgt" data-t="intetValgt"></p></main>
+              </div>
+            </div>
+            <h3 data-t="h270Mere"></h3>
+            <p data-t="p270Mere"></p>
+            <div class="demo-ramme demo-aaben demo-baand-smal">
+              <div class="titel"><span class="mrk" aria-hidden="true">W</span><b data-t="appNavn"></b></div>
+              <div id="demo-baand270-mere"></div>
+            </div>
+            <p class="demo-valgt" id="baand270-mere-valgt" data-t="intetValgt"></p>
+            <h3 data-t="h270Otte"></h3>
+            <p data-t="p270Otte"></p>
+            <div class="demo-ramme demo-aaben">
+              <div class="titel"><span class="mrk" aria-hidden="true">W</span><b data-t="appNavn"></b></div>
+              <div id="demo-baand270-otte"></div>
+            </div>
+            <p class="demo-valgt" id="baand270-otte-valgt" data-t="intetValgt"></p>
           </section>
 
           <section class="demo-sektion" data-gruppe="skal" data-navn="CommandBar">
@@ -202,7 +228,7 @@
             <h2>StatusFooter</h2>
             <p data-t="pStatusFooter"></p>
             <div class="demo-ramme">
-              <div class="fodl"><span data-t="fodVenstre" data-v="16" data-w="13"></span><span class="h"><span id="demo-fod-laas"></span><span data-t="fodVersion" data-v="2.6.0"></span></span></div>
+              <div class="fodl"><span data-t="fodVenstre" data-v="16" data-w="13"></span><span class="h"><span id="demo-fod-laas"></span><span data-t="fodVersion" data-v="2.7.0"></span></span></div>
             </div>
             <h3 data-t="h250Fod"></h3>
             <p data-t="p250Fod"></p>
@@ -479,7 +505,7 @@
 
       <footer class="fodl">
         <span id="fod-antal" data-t="fodAntal" data-v="0"></span>
-        <span class="h"><span id="fod-laas"></span><span data-t="fodVersion" data-v="2.6.0"></span></span>
+        <span class="h"><span id="fod-laas"></span><span data-t="fodVersion" data-v="2.7.0"></span></span>
       </footer>
     </main>
   </div>

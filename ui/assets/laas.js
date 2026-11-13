@@ -46,8 +46,9 @@
   let venter = false;
 
   const knapOp = $('laas-op'), knapAfslut = $('laas-afslut'), besked = $('laas-besked'), bannerRod = $('laas-banner');
-  const nedtonet = () => [...$('baand').children, $('navdele'), $('faner')];
-  const forklaret = () => [$('faner'), $('baand'), document.querySelector('nav.nav')];
+  // V-FANER.2: visningerne står i båndet (ingen række over det).
+  const nedtonet = () => [...$('baand').children, $('navdele')];
+  const forklaret = () => [$('baand'), document.querySelector('nav.nav')];
 
   /* Beskeden under knapperne: en nøgle (og et tal) eller ingen. */
   function saetBesked(t, v, fejl) {

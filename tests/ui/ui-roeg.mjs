@@ -119,31 +119,32 @@ const plads = b => (b.parentElement.classList.contains('tip-plads') ? b.parentEl
   const { d } = s;
   await vent();
   tjek('starter på Maskér', JSON.stringify(synlige(d)) === '["masker"]', JSON.stringify(synlige(d)));
-  // V-FANER.1: visningerne er faner øverst (#faner), ikke længere visningsskiftet nederst i NavPane.
-  const links = [...d.querySelectorAll('#faner .vf')];
-  tjek('fanerne øverst har fire visninger i fast rækkefølge', JSON.stringify(links.map(a => a.dataset.visning)) === JSON.stringify(VIS));
-  tjek('aria-selected="true" kun på den aktive fane', links.filter(a => a.getAttribute('aria-selected') === 'true').map(a => a.dataset.visning).join() === 'masker');
-  tjek('genvejene står i fanernes værktøjstip (⌘1–⌘4 på macOS)', links.map(a => forklaring(a)).join() === '⌘1,⌘2,⌘3,⌘4');
+  // V-FANER.2: visningerne er store knapper forrest i båndet (i hvert af de fire bånd; links er den viste visnings).
+  const links = [...d.querySelectorAll('#baand > [data-visning]:not([hidden]) .vk')];
+  const alleLinks = [...d.querySelectorAll('#baand .vk')];
+  tjek('visningerne står forrest i båndet: fire i fast rækkefølge', JSON.stringify(links.map(a => a.dataset.visning)) === JSON.stringify(VIS));
+  tjek('aria-current="page" kun på den aktive visning (i alle fire bånd)', alleLinks.filter(a => a.getAttribute('aria-current') === 'page').map(a => a.dataset.visning).join() === 'masker,masker,masker,masker');
+  tjek('genvejene står i visningsknappernes værktøjstip (⌘1–⌘4 på macOS)', links.map(a => forklaring(a)).join() === '⌘1,⌘2,⌘3,⌘4');
   for (const [i, id] of VIS.entries()) {
     s.w.location.hash = id;
     await vent(5);
     tjek(`#${id} viser ${id}`, JSON.stringify(synlige(d)) === JSON.stringify([id]));
-    tjek(`${id}: aria-selected flytter med`, links.filter(a => a.getAttribute('aria-selected') === 'true').map(a => a.dataset.visning).join() === id);
+    tjek(`${id}: aria-current flytter med`, alleLinks.filter(a => a.getAttribute('aria-current') === 'page').map(a => a.dataset.visning).join() === [id, id, id, id].join());
     const bar = d.querySelector(`#baand > [data-visning="${id}"]`);
     tjek(`${id}: kun visningens CommandBar vises`, !bar.hidden && [...d.querySelectorAll('#baand > [data-visning]')].filter(b => !b.hidden).length === 1);
     tjek(`${id}: én primær kommando på Start`, bar.querySelectorAll('.grupper[data-fane="start"] .cb.pri').length === 1);
     // Uden tekst er alt nedtonet med en forklaring, undtagen Indsæt i Maskér og Demaskér, Ny sag i Sager (V-SAG.1),
     // Tilføj post og Prøv på tekst i Ordbog (V-ORDBOG.1) og Åbn fil i Maskér og Demaskér (V-FIL.1).
-    tjek(`${id}: kommandoerne er nedtonede med forklaring`, [...bar.querySelectorAll('.grupper[data-fane="start"] .cb')].every(b => (b.getAttribute('aria-disabled') === 'true' && (forklaring(b) || '').length > 10) || (['indsaet', 'aabn-fil'].includes(b.dataset.kommando) && ['masker', 'demasker'].includes(id)) || (b.dataset.kommando === 'ny-sag' && id === 'sager') || (['tilfoej-post', 'proev'].includes(b.dataset.kommando) && id === 'ordbog')));
+    tjek(`${id}: kommandoerne er nedtonede med forklaring`, [...bar.querySelectorAll('.grupper[data-fane="start"] .cb:not(.vk)')].every(b => (b.getAttribute('aria-disabled') === 'true' && (forklaring(b) || '').length > 10) || (['indsaet', 'aabn-fil'].includes(b.dataset.kommando) && ['masker', 'demasker'].includes(id)) || (b.dataset.kommando === 'ny-sag' && id === 'sager') || (['tilfoej-post', 'proev'].includes(b.dataset.kommando) && id === 'ordbog')));
     tjek(`${id}: tom tilstand med overskrift og én sætning`, (() => { const t = d.querySelector(`section[data-visning="${id}"] .tomt`); const p = t && t.querySelector('p').textContent; return t && t.querySelector('h2').textContent.length > 3 && p.length > 20 && (p.match(/[.]\s/g) || []).length === 0 && p.endsWith('.'); })());
     tjek(`${id}: fodlinjen siger, hvad fladen viser`, /^0 /.test(d.getElementById('fod-venstre').textContent));
     tjek(`${id}: træets valgte punkt har aria-current`, d.querySelectorAll(`.navdel[data-visning="${id}"] .tr[aria-current="true"]`).length === 1);
-    tjek(`${id}: ${i + 1}. visning`, Boolean(links[i]?.classList.contains('on')));
+    tjek(`${id}: ${i + 1}. visning`, bar.querySelectorAll('.vk')[i]?.getAttribute('aria-current') === 'page' && bar.querySelectorAll('.vk')[i]?.dataset.visning === id);
   }
   // V-MANUEL.1: Ryd (Maskér og Demaskér), Fortryd og Gentag (gruppen Rediger) og Maskér dette (gruppen Maskering).
   const kommandoer = { masker: ['Indsæt', 'Åbn fil', 'Ryd', 'Fortryd', 'Gentag', 'Maskér dette', 'Analysér', 'Gem og maskér', 'Før og efter', 'Kopiér', 'Gem maskeret fil', 'Kopiér kvittering'], demasker: ['Indsæt', 'Åbn fil', 'Ryd', 'Demaskér', 'Næste advarsel', 'Kopiér resultat', 'Gem som fil'], sager: ['Ny sag', 'Vis indhold', 'Åbn i Maskér', 'Omdøb', 'Udløb', 'Eksportér', 'Importér', 'Slet sag'], ordbog: ['Tilføj post', 'Ret', 'Prøv på tekst', 'Importér', 'Eksportér', 'Fjern post'] };
   for (const [id, liste] of Object.entries(kommandoer)) {
-    const ord = [...d.querySelectorAll(`#baand > [data-visning="${id}"] .grupper[data-fane="start"] .cb`)].map(b => b.textContent.trim());
+    const ord = [...d.querySelectorAll(`#baand > [data-visning="${id}"] .grupper[data-fane="start"] .cb:not(.vk)`)].map(b => b.textContent.trim());
     tjek(`${id}: kommandoerne fra design/skaerme/`, JSON.stringify(ord) === JSON.stringify(liste), JSON.stringify(ord));
   }
   const prim = Object.fromEntries(VIS.map(id => [id, d.querySelector(`#baand > [data-visning="${id}"] .cb.pri`).textContent.trim()]));
@@ -191,7 +192,7 @@ const plads = b => (b.parentElement.classList.contains('tip-plads') ? b.parentEl
 {
   const s = side({ platform: 'windows' });
   await vent();
-  tjek('Windows: genvejene står som Ctrl+1–4 (i fanernes værktøjstip)', [...s.d.querySelectorAll('#faner .vf')].map(a => forklaring(a)).join() === 'Ctrl+1,Ctrl+2,Ctrl+3,Ctrl+4');
+  tjek('Windows: genvejene står som Ctrl+1–4 (i visningsknappernes værktøjstip)', [...s.d.querySelectorAll('#baand > [data-visning]:not([hidden]) .vk')].map(a => forklaring(a)).join() === 'Ctrl+1,Ctrl+2,Ctrl+3,Ctrl+4');
   s.tast('3', { ctrlKey: true, code: 'Digit3' });
   await vent(5);
   tjek('Windows: Ctrl+3 skifter til Sager', synlige(s.d).join() === 'sager');
@@ -241,21 +242,21 @@ const plads = b => (b.parentElement.classList.contains('tip-plads') ? b.parentEl
   const s = side();
   const { d } = s;
   await vent();
-  tjek('sprog: dansk som standard', d.documentElement.lang === 'da' && d.querySelector('.vf[data-visning="masker"] .vf-navn')?.textContent === 'Maskér');
+  tjek('sprog: dansk som standard', d.documentElement.lang === 'da' && d.querySelector('.vk[data-visning="masker"] .vk-navn')?.textContent === 'Maskér');
   const bar = d.querySelector('#baand > [data-visning="masker"]');
   // V-FANER.1: fanen Vis er væk; sproget vælges under tandhjulet (Indstillinger, radiogruppen indst-sprog).
   const vaelgSprog = v => { const r = d.querySelector(`input[name="indst-sprog"][value="${v}"]`); r.checked = true; r.dispatchEvent(new s.w.Event('change', { bubbles: true })); };
   vaelgSprog('en');
   tjek('English: lang="en"', d.documentElement.lang === 'en');
-  tjek('English: visningerne', [...d.querySelectorAll('.vf .vf-navn')].map(x => x.textContent).join() === 'Mask,Unmask,Cases,Dictionary');
-  tjek('English: kommandoer og grupper', bar.querySelector('[data-kommando="gem-masker"]').textContent.trim() === 'Save and mask' && bar.querySelector('.cap').textContent === 'Text');
+  tjek('English: visningerne', [...bar.querySelectorAll('.vk .vk-navn')].map(x => x.textContent).join() === 'Mask,Unmask,Cases,Dictionary');
+  tjek('English: kommandoer og grupper', bar.querySelector('[data-kommando="gem-masker"]').textContent.trim() === 'Save and mask' && [...bar.querySelectorAll('.cap')].slice(0, 2).map(c => c.textContent).join() === 'Views,Text');
   tjek('English: aria-label og title følger med', d.getElementById('aabn-indst').getAttribute('aria-label') === 'Open settings' && forklaring(bar.querySelector('[data-kommando="analyser"]')) === 'Paste a text first' && forklaring(bar.querySelector('[data-kommando="kvittering"]')) === 'Save and mask first');
   tjek('English: placeholder følger med', d.querySelector('section[data-visning="masker"] input').placeholder === 'Search the findings');
   tjek('English: fodlinjen og kernen', d.getElementById('fod-lokalt').textContent.trim() === 'Only on this machine' && /^Core /.test(d.getElementById('fod-kerne').textContent));
   tjek('English: gemt', s.w.localStorage.getItem('grimnir-sprog') === 'en');
   const igen = side({ lager: { 'grimnir-sprog': 'en' } });
   await vent();
-  tjek('gemt sprog bruges ved start', igen.d.documentElement.lang === 'en' && igen.d.querySelector('.vf .vf-navn')?.textContent === 'Mask');
+  tjek('gemt sprog bruges ved start', igen.d.documentElement.lang === 'en' && igen.d.querySelector('.vk .vk-navn')?.textContent === 'Mask');
   vaelgSprog('da');
   tjek('tilbage til dansk', d.documentElement.lang === 'da' && bar.querySelector('[data-kommando="gem-masker"]').textContent.trim() === 'Gem og maskér');
 }
@@ -328,12 +329,7 @@ for (const sprog of ['da', 'en']) {
   pkt[0].dispatchEvent(new w.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
   tjek('Kit: højre folder ud', pkt[0].getAttribute('aria-expanded') === 'true' && !pkt[0].parentElement.querySelector('ul').hidden);
   tjek('Kit: et klik i træet skifter ikke visning', synlige(d).join() === 'masker');
-  // V-FANER.1: piletaster mellem fanerne øverst (båndet har ingen faner længere).
-  const tabs = [...d.querySelectorAll('#faner .vf')];
-  tabs[0]?.focus();
-  tabs[0]?.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
-  await vent(5);
-  tjek('Kit: fanerne øverst: pil højre vælger næste visning', tabs[1]?.getAttribute('aria-selected') === 'true' && d.activeElement === tabs[1] && synlige(d).join() === 'demasker');
+  // V-FANER.2: visningerne er knapper i båndet; piletaster bruges ikke (båndets regel), mellemrum åbner (prøvet i V-FANER.2-blokken).
 }
 
 // ══════════════════════════ V-SKAL.2: Maskér og Demaskér ══════════════════════════
@@ -2077,7 +2073,7 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
   tjek('Lås: låseskærmen ligger på arbejdsfladen (#arb)', d.getElementById('laas').parentElement.id === 'arb');
   tjek('Lås: beskeden efter annullering', d.getElementById('laas-besked').textContent === 'Grimnir er stadig låst. Tryk Lås op for at prøve igen.', d.getElementById('laas-besked').textContent);
   tjek('Lås: fokus står på Lås op', d.activeElement === d.getElementById('laas-op'), d.activeElement && d.activeElement.id);
-  tjek('Lås: båndet, fanerne øverst og træet er inert, med forklaring i title', [...d.getElementById('baand').children].every(e => e.hasAttribute('inert')) && d.getElementById('faner').hasAttribute('inert') && d.getElementById('faner').title === 'Grimnir er låst. Lås op for at bruge visningerne og kommandoerne.' && d.getElementById('navdele').hasAttribute('inert') && d.getElementById('baand').title === 'Grimnir er låst. Lås op for at bruge visningerne og kommandoerne.' && d.querySelector('nav.nav').title.length > 20);
+  tjek('Lås: båndet (med visningerne) og træet er inert, med forklaring i title', [...d.getElementById('baand').children].every(e => e.hasAttribute('inert')) && [...d.querySelectorAll('#baand .vk')].length === 16 && d.getElementById('navdele').hasAttribute('inert') && d.getElementById('baand').title === 'Grimnir er låst. Lås op for at bruge visningerne og kommandoerne.' && d.querySelector('nav.nav').title.length > 20);
   tjek('Lås: titellinjen er ikke inert (Indstillinger virker)', !d.querySelector('header.titel').closest('[inert]') && !d.getElementById('aabn-indst').closest('[inert]'));
   tjek('Lås: UI\'et har ikke spurgt efter sager, ordbog eller filer', fremmedeKald(kald).length === 0 && rust.st.kaldLaast.length === 0, JSON.stringify(fremmedeKald(kald)));
   const alt = altIDom(d);
@@ -2126,7 +2122,7 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
   tjek('Lås: stadig ingen kald efter data', rust.st.kaldLaast.length === 0 && !/Uglebo|Kragevig/.test(altIDom(d)));
   s.tast('Enter');
   await vent(30);
-  tjek('Lås: ok → låseskærmen er væk', !laaseskaerm(d) && !d.getElementById('baand').hasAttribute('title') && ![...d.getElementById('baand').children].some(x => x.hasAttribute('inert')) && !d.getElementById('faner').hasAttribute('inert') && !d.getElementById('faner').hasAttribute('title'));
+  tjek('Lås: ok → låseskærmen er væk', !laaseskaerm(d) && !d.getElementById('baand').hasAttribute('title') && ![...d.getElementById('baand').children].some(x => x.hasAttribute('inert')) && !d.querySelector('#baand .vk[inert], #baand [inert] .vk'));
   tjek('Lås: ok → Sager og Ordbog henter nu (kontrol: navnet står i DOM\'en)', kald.some(([c]) => c === 'sag_liste') && kald.some(([c]) => c === 'ordbog_hent') && /Uglebo-sagen/.test(altIDom(d)), JSON.stringify(fremmedeKald(kald)));
   tjek('Lås: ok → intet banner', d.getElementById('laas-banner').children.length === 0);
   tjek('Lås: ok → "Vis guiden igen" virker igen', !d.getElementById('indst-guide').disabled && !d.getElementById('indst-guide').hasAttribute('title'));
@@ -4212,118 +4208,210 @@ async function manuelSide(o = {}) {
   tjek('V-MANUEL.1: de tilføjede værdier sendes kun til Rust (invoke) og står kun i hukommelsen (st.tilfoejede)', (m.match(/tilfoejede: tilfoejede\(\)/g) || []).length === 4);
 }
 
-// ══════════════════════════ V-FANER.1 (D25): visningerne som faner øverst ══════════════════════════
-// Maskér, Demaskér, Sager og Ordbog står som faner under titellinjen (kittets visningsskift med faner: true); båndet viser
-// kun den valgte visnings kommandoer; fanen Vis er væk (tema og sprog i Indstillinger, tekststørrelsen i Indstillinger og
-// menuen Vis); venstre side er kun træet. Kun opdigtede data.
-const fanerAf = d => [...d.querySelectorAll('#faner .vf')];
+// ══════════════════════════ V-FANER.2 (D26): ét bånd, visningerne som store knapper forrest ══════════════════════════
+// Erstatter V-FANER.1's fanerække over båndet. Maskér, Demaskér, Sager og Ordbog står som store knapper (kittets visninger
+// i commandBar: links til #id med aria-current="page") forrest i hvert af de fire bånd; resten er visningens kommandoer,
+// og det, der ikke er plads til på én række, står i kittets Mere-menu. Fanen Vis er stadig væk; venstre side er kun
+// træet. Ingen fast ventetid: testene venter på hændelsen grimnir-visning eller på en tilstand i DOM'en (MutationObserver)
+// med en grænse, der kun nås, når det, der ventes på, ikke sker. Kun opdigtede data.
+const MAALT_BAAND = {"lille":{"da":{"masker":{"grp":[257.7,188.2,128.8,335,274.4],"knap":[57.6,67.8,57.6,57.6,57.6,57.6,57.6,57.6,57.6,83.2,61.1,97.8,75.8,57.6,102.4,100],"bred":1248.8},"demasker":{"grp":[259,188.2,179,180.3],"knap":[57.6,69,57.6,57.6,57.6,57.6,57.6,69,96.4,90.5,77.1],"bred":860.4},"sager":{"grp":[257.7,347.8,139.1,68.4],"knap":[57.6,67.8,57.6,57.6,57.6,72.9,83.1,57.6,57.6,65.6,59.9,57.6],"bred":866.9},"ordbog":{"grp":[257.7,224.5,139.1,78.4],"knap":[57.6,67.8,57.6,57.6,68.3,57.6,83.3,59.9,65.6,67.6],"bred":753.7}},"en":{"masker":{"grp":[258.7,193.1,128.8,333.5,256.5],"knap":[57.6,58,57.6,68.3,57.6,62.5,57.6,57.6,57.6,65.1,57.6,95,98.7,57.6,102.8,81.7],"bred":1235.3},"demasker":{"grp":[259.7,193.1,156.9,162.2],"knap":[57.6,59,57.6,68.3,57.6,62.5,57.6,59,84.4,74.8,74.7],"bred":825.8},"sager":{"grp":[258.7,380.3,128.8,87.3],"knap":[57.6,58,57.6,68.3,67.5,92.1,86.5,57.7,57.6,57.6,57.6,76.5],"bred":909},"ordbog":{"grp":[260.5,212,128.8,97.7],"knap":[57.6,58,57.6,70.1,67.9,57.6,71.1,57.6,57.6,86.9],"bred":752.9}}},"normal":{"da":{"masker":{"grp":[286.1,209,143,371.3,304.5],"knap":[64,75.1,64,64,64,64,64,64,64,92.2,67.7,108.5,84,64,113.6,110.9],"bred":1385.9},"demasker":{"grp":[287.5,209,198.4,199.9],"knap":[64,76.5,64,64,64,64,64,76.5,106.9,100.4,85.5],"bred":954.8},"sager":{"grp":[286.1,385.9,154,76],"knap":[64,75.1,64,64,64,80.8,92.1,64,64,72.7,66.3,64],"bred":962},"ordbog":{"grp":[286.1,249,154,87],"knap":[64,75.1,64,64,75.7,64,92.3,66.3,72.7,75],"bred":836}},"en":{"masker":{"grp":[286.9,214.2,143,369.9,284.6],"knap":[64,64.2,64,75.7,64,69.2,64,64,64,72.1,64,105.3,109.5,64,114,90.5],"bred":1370.7},"demasker":{"grp":[288,214.2,173.9,179.8],"knap":[64,65.3,64,75.7,64,69.2,64,65.3,93.6,83,82.8],"bred":915.9},"sager":{"grp":[286.9,421.8,143,96.8],"knap":[64,64.2,64,75.7,74.8,102.2,95.9,64,64,64,64,84.8],"bred":1008.5},"ordbog":{"grp":[288.9,235,143,108.4],"knap":[64,64.2,64,77.7,75.3,64,78.8,64,64,96.4],"bred":835.3}}},"stor":{"da":{"masker":{"grp":[321.5,235,160.8,416.6,342.1],"knap":[72,84.2,72,72,72,72,72,72,72,103.5,75.9,121.8,94.2,72,127.6,124.5],"bred":1556.9},"demasker":{"grp":[323,235,222.5,224.4],"knap":[72,85.8,72,72,72,72,72,85.8,120,112.7,96],"bred":1072.5},"sager":{"grp":[321.5,433.5,172.6,85.5],"knap":[72,84.2,72,72,72,90.6,103.4,72,72,81.5,74.3,72],"bred":1080.6},"ordbog":{"grp":[321.5,279.5,172.6,97.6],"knap":[72,84.2,72,72,84.9,72,103.6,74.3,81.5,84.1],"bred":938.7}},"en":{"masker":{"grp":[322.2,240.6,160.8,415.3,319.6],"knap":[72,72,72,85,72,77.6,72,72,72,80.9,72,118.2,122.9,72,128,101.6],"bred":1539.5},"demasker":{"grp":[323.4,240.6,195,201.8],"knap":[72,73.2,72,85,72,77.6,72,73.2,105,93.1,93],"bred":1028.3},"sager":{"grp":[322.2,473.7,160.8,108.6],"knap":[72,72,72,85,83.9,114.7,107.6,72,72,72,72,95.1],"bred":1132.8},"ordbog":{"grp":[324.5,263.8,160.8,121.7],"knap":[72,72,72,87.2,84.4,72,88.4,72,72,108.2],"bred":938.2}}}};
+const MAALT_FLYTTET = {"1024 lille da":{"masker":["foer-efter","kopier","gem-fil","kvittering"],"demasker":[],"sager":[],"ordbog":[]},"1024 lille en":{"masker":["foer-efter","kopier","gem-fil","kvittering"],"demasker":[],"sager":[],"ordbog":[]},"1024 normal da":{"masker":["analyser","foer-efter","kopier","gem-fil","kvittering"],"demasker":[],"sager":[],"ordbog":[]},"1024 normal en":{"masker":["analyser","foer-efter","kopier","gem-fil","kvittering"],"demasker":[],"sager":[],"ordbog":[]},"1024 stor da":{"masker":["masker-dette","analyser","foer-efter","kopier","gem-fil","kvittering"],"demasker":["kopier-resultat","gem-fil"],"sager":["importer","slet-sag"],"ordbog":[]},"1024 stor en":{"masker":["masker-dette","analyser","foer-efter","kopier","gem-fil","kvittering"],"demasker":[],"sager":["importer","slet-sag"],"ordbog":[]},"1200 lille da":{"masker":["gem-fil","kvittering"],"demasker":[],"sager":[],"ordbog":[]},"1200 lille en":{"masker":["gem-fil","kvittering"],"demasker":[],"sager":[],"ordbog":[]},"1200 normal da":{"masker":["kopier","gem-fil","kvittering"],"demasker":[],"sager":[],"ordbog":[]},"1200 normal en":{"masker":["kopier","gem-fil","kvittering"],"demasker":[],"sager":[],"ordbog":[]},"1200 stor da":{"masker":["foer-efter","kopier","gem-fil","kvittering"],"demasker":[],"sager":[],"ordbog":[]},"1200 stor en":{"masker":["foer-efter","kopier","gem-fil","kvittering"],"demasker":[],"sager":[],"ordbog":[]}};
+const visKnapper = d => [...d.querySelectorAll('#baand > [data-visning]:not([hidden]) .vk')];
+const aktuelle = d => [...d.querySelectorAll('#baand .vk[aria-current="page"]')].map(a => a.dataset.visning);
 const tastPaa = (w, el, key, x = {}) => { const e = new w.KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...x }); if (el) el.dispatchEvent(e); return e; };
+// Hændelsen grimnir-visning for id (app.js sender den, når visningen er skiftet). false, hvis den ikke kommer.
+const visningSkift = (w, id, maks = 4000) => new Promise(r => {
+  const t = w.setTimeout(() => { w.document.removeEventListener('grimnir-visning', f); r(false); }, maks);
+  const f = e => { if (e.detail === id) { w.clearTimeout(t); w.document.removeEventListener('grimnir-visning', f); r(true); } };
+  w.document.addEventListener('grimnir-visning', f);
+});
+// En tilstand i DOM'en: sand straks, eller ved den første ændring, der gør den sand. false, hvis den ikke indtræffer.
+const ventTil = (w, betingelse, maks = 4000) => new Promise(r => {
+  if (betingelse()) { r(true); return; }
+  const mo = new w.MutationObserver(() => { if (betingelse()) { mo.disconnect(); w.clearTimeout(t); r(true); } });
+  const t = w.setTimeout(() => { mo.disconnect(); r(betingelse()); }, maks);
+  mo.observe(w.document, { subtree: true, attributes: true, childList: true, characterData: true });
+});
+const klikVis = async (w, a, id) => { const p = visningSkift(w, id); a.click(); return p; };
 {
   const s = side();
   const { d, w } = s;
-  await vent(5);
-  const faner = d.getElementById('faner');
-  const f = fanerAf(d);
-  tjek('V-FANER.1: rækken med faner står under titellinjen (og låsebanneret) og over båndet', faner && faner.previousElementSibling.id === 'laas-banner' && faner.nextElementSibling.id === 'baand' && d.querySelector('header.titel').nextElementSibling.id === 'laas-banner');
-  tjek('V-FANER.1: rækken er kittets fanerække (role="tablist", .vfaner) med navnet "Visninger"', faner.getAttribute('role') === 'tablist' && faner.classList.contains('vfaner') && faner.getAttribute('aria-label') === 'Visninger');
-  tjek('V-FANER.1: fire faner med role="tab", ikon og navn i fast rækkefølge; navnene er visningernes (samme tekst som før)', f.length === 4 && f.every(a => a.getAttribute('role') === 'tab' && a.querySelector(':scope > svg')) && f.map(a => a.querySelector('.vf-navn')?.textContent).join() === 'Maskér,Demaskér,Sager,Ordbog' && ['vMasker', 'vDemasker', 'vSager', 'vOrdbog'].map(k => w.Sprog.TEKST.da[k]).join() === 'Maskér,Demaskér,Sager,Ordbog' && ['vMasker', 'vDemasker', 'vSager', 'vOrdbog'].map(k => w.Sprog.TEKST.en[k]).join() === 'Mask,Unmask,Cases,Dictionary');
-  tjek('V-FANER.1: ikonerne er visningernes (maske, øje, mappe, bog)', f.map(a => a.querySelector('svg path')?.getAttribute('d')).join('|') === ['maske', 'oeje', 'mappe', 'bog'].map(i => w.Kit.IKONER[i][0][1].d).join('|'));
-  tjek('V-FANER.1: hver fane styrer visningens arbejdsflade (aria-controls → <section role="tabpanel"> med visningens navn)', f.every(a => { const p = d.getElementById(a.getAttribute('aria-controls')); return p && p.tagName === 'SECTION' && p.getAttribute('role') === 'tabpanel' && p.dataset.visning === a.dataset.visning && p.getAttribute('aria-label') === a.querySelector('.vf-navn')?.textContent; }));
-  tjek('V-FANER.1: kun den valgte fane er i Tab-rækkefølgen (tabindex 0; de andre −1)', f.map(a => a.tabIndex).join() === '0,-1,-1,-1' && f[0]?.getAttribute('aria-selected') === 'true');
-  tjek('V-FANER.1: genvejene ⌘1–⌘4 er hjælpetekst (fanens værktøjstip) og aria-keyshortcuts Meta+1–4', f.map(a => forklaring(a)).join() === '⌘1,⌘2,⌘3,⌘4' && f.map(a => a.getAttribute('aria-keyshortcuts')).join() === 'Meta+1,Meta+2,Meta+3,Meta+4');
-  // Klik og piletaster
-  f[2]?.click();
-  await vent(5);
-  tjek('V-FANER.1: et klik på Sager viser Sager (adressen #sager), og fanen er valgt', synlige(d).join() === 'sager' && s.w.location.hash === '#sager' && f[2]?.getAttribute('aria-selected') === 'true' && f[2]?.tabIndex === 0 && f[0]?.tabIndex === -1);
-  const baand = () => [...d.querySelectorAll('#baand > [data-visning]')].filter(b => !b.hidden);
-  tjek('V-FANER.1: båndet følger fanen: kun Sagers bånd vises, uden egen fanerække (role="group", ingen tablist)', baand().length === 1 && baand()[0].dataset.visning === 'sager' && baand()[0].getAttribute('role') === 'group' && !baand()[0].querySelector('[role="tablist"], .tab') && baand()[0].querySelector('[data-kommando="ny-sag"]'));
-  f[2]?.focus();
-  const e1 = tastPaa(w, f[2], 'ArrowRight');
-  await vent(5);
-  tjek('V-FANER.1: pil højre går til Ordbog og viser den (fokus på fanen, båndet følger)', e1.defaultPrevented && d.activeElement === f[3] && synlige(d).join() === 'ordbog' && baand()[0].dataset.visning === 'ordbog');
-  tastPaa(w, f[3], 'ArrowRight');
-  await vent(5);
-  tjek('V-FANER.1: pil højre fra Ordbog går rundt til Maskér', d.activeElement === f[0] && synlige(d).join() === 'masker');
-  tastPaa(w, f[0], 'ArrowLeft');
-  await vent(5);
-  tjek('V-FANER.1: pil venstre fra Maskér går rundt til Ordbog', d.activeElement === f[3] && synlige(d).join() === 'ordbog');
-  tastPaa(w, f[3], 'Home');
-  await vent(5);
-  const home = synlige(d).join() === 'masker' && d.activeElement === f[0];
-  tastPaa(w, f[0], 'End');
-  await vent(5);
-  tjek('V-FANER.1: Home viser Maskér, End viser Ordbog', home && synlige(d).join() === 'ordbog' && d.activeElement === f[3]);
-  tastPaa(w, f[3], 'ArrowLeft', { metaKey: true });
-  await vent(5);
-  tjek('V-FANER.1: ⌘ + pil i fanerne gør intet', synlige(d).join() === 'ordbog');
-  // ⌘1–⌘4 virker som før og flytter valget
-  s.tast('2', { metaKey: true, code: 'Digit2' });
-  await vent(5);
-  tjek('V-FANER.1: ⌘2 viser Demaskér og vælger dens fane', synlige(d).join() === 'demasker' && f[1]?.getAttribute('aria-selected') === 'true' && f[1]?.tabIndex === 0);
-  // En dialog åben: fanerne og ⌘1–⌘4 gør intet
-  d.getElementById('aabn-indst').click();
-  f[2]?.click();
-  await vent(5);
-  const klikMedDialog = synlige(d).join();
-  s.tast('3', { metaKey: true, code: 'Digit3' });
-  await vent(5);
-  tjek('V-FANER.1: med en dialog åben gør et klik på en fane og ⌘3 intet (visningen bag dialogen skifter ikke)', aaben(d, 'dlg-indst') && klikMedDialog === 'demasker' && synlige(d).join() === 'demasker' && f[1]?.getAttribute('aria-selected') === 'true');
-  d.querySelector('#dlg-indst [data-svar="luk"]').click();
-  f[2]?.click();
-  await vent(5);
-  tjek('V-FANER.1: lukket igen virker fanerne', synlige(d).join() === 'sager');
-  // Fanen Vis er væk
-  tjek('V-FANER.1: ingen fane Vis: båndene har ingen fanerække, ingen data-fane="vis" og ingen knapper for tema eller sprog', !d.querySelector('#baand .tabs, #baand .tab, #baand [role="tablist"], [data-fane="vis"]') && !d.querySelector('[data-kommando^="tema-"], [data-kommando^="sprog-"]') && [...d.querySelectorAll('#baand > [data-visning]')].every(b => b.classList.contains('enkel') && b.querySelectorAll('.grupper').length === 1));
-  tjek('V-FANER.1: koden og teksterne, der kun hørte til fanen Vis og fanerækken, er væk (visFane, opdaterVis, faneVis, faneStart)', !/visFane|opdaterVis|faneVis|faneStart|tema-lys|sprog-da/.test(ui('assets/app.js')) && !['faneVis', 'faneStart'].some(k => k in w.Sprog.TEKST.da || k in w.Sprog.TEKST.en));
-  d.getElementById('aabn-indst').click();
-  tjek('V-FANER.1: alt, fanen Vis havde, findes under tandhjulet: tema (Lys, Mørk, System) og sprog (Dansk, English) i Indstillinger, og tekststørrelsen der og i menuen Vis', ['lys', 'moerk', 'system'].every(v => d.querySelector(`#dlg-indst input[name="indst-tema"][value="${v}"]`)) && ['da', 'en'].every(v => d.querySelector(`#dlg-indst input[name="indst-sprog"][value="${v}"]`)) && d.querySelectorAll('#dlg-indst input[name="indst-tekst"]').length === 3 && /TEKST_STOERRE[\s\S]*TEKST_MINDRE[\s\S]*TEKST_NORMAL/.test(fs.readFileSync(path.join(repo, 'src-tauri', 'src', 'programmenu.rs'), 'utf8')));
-  d.querySelector('#dlg-indst [data-svar="luk"]').click();
-  // Venstre side er kun træet
-  const nav = d.querySelector('nav.nav');
-  tjek('V-FANER.1: venstre side er kun træet med filtre (intet visningsskift, ingen #skift, ingen faner)', [...nav.children].map(e => e.id).join() === 'navdele' && !d.getElementById('skift') && !nav.querySelector('.skift, .vs, .vfaner, .vf') && d.querySelectorAll('nav.nav .navdel .trae').length === 4);
-  const nd = d.querySelector('.navdel[data-visning="sager"]');
-  tjek('V-FANER.1: venstre side fylder hele højden: den aktive visnings del og dens træ fylder ruden (flex 1, min-height 0), og navdele fylder nav', cssVaerdi(d.getElementById('navdele'), 'flex') === '1' && cssVaerdi(nd, 'flex') === '1 1 auto' && cssVaerdi(nd.querySelector('.trae'), 'flex') === '1 1 auto' && cssVaerdi(nd.querySelector('.trae'), 'min-height') === '0' && cssVaerdi(nd.querySelector('.trae'), 'overflow') === 'auto');
-  // Titellinjen er uændret
+  await ventTil(w, () => !laaseskaerm(d));
   const titel = d.querySelector('header.titel');
-  tjek('V-FANER.1: titellinjen er uændret (mærke, navn, slogan, sagen, sagens knap og tandhjulet)', [...titel.children].map(e => e.className || e.tagName).join() === 'mrk,B,slogan-plads,hoejre' && [...titel.querySelector('.hoejre').children].map(e => e.id).join() === 'sag,sag-knap,aabn-indst' && !titel.querySelector('.vf, [role="tab"]'));
-  // Tab-rækkefølgen: titellinjen, fanerne, båndet, venstre side, arbejdsfladen
-  s.w.location.hash = 'masker';
-  await vent(5);
+  tjek('V-FANER.2: ingen række over båndet: titellinjen, låsebanneret og båndet står lige efter hinanden (ingen #faner, ingen fanerække, ingen tablist nogen steder)', titel.nextElementSibling.id === 'laas-banner' && d.getElementById('laas-banner').nextElementSibling.id === 'baand' && !d.getElementById('faner') && !d.querySelector('.vfaner, .vf, [role="tablist"], [role="tab"], .tabs') && !/id="faner"/.test(ui('index.html')));
+  const baandene = [...d.querySelectorAll('#baand > [data-visning]')];
+  tjek('V-FANER.2: hvert af de fire bånd har gruppen Visninger forrest (gruppenavnet er nøglen visninger, fanerækkens navn før), så visningens egne grupper', baandene.length === 4 && baandene.every(b => { const g = b.querySelectorAll('.grupper > .grp'); return g[0].classList.contains('grp-visninger') && g[0].querySelector('.cap').getAttribute('data-t') === 'visninger' && g[0].querySelector('.cap').textContent === 'Visninger' && g[0].getAttribute('aria-labelledby') === g[0].querySelector('.cap').id && g[1].querySelector('.cap').textContent !== 'Visninger'; }));
+  const IK = ['maske', 'oeje', 'mappe', 'bog'].map(i => w.Kit.IKONER[i][0][1].d).join('|');
+  tjek('V-FANER.2: fire store knapper i fast rækkefølge i hvert bånd: links til #id (.cb.vk) med visningens ikon over navnet; navnene er de samme tekster som før', baandene.every(b => { const v = [...b.querySelectorAll('.vk')]; return v.length === 4 && v.every((a, i) => a.tagName === 'A' && a.classList.contains('cb') && a.getAttribute('href') === '#' + VIS[i] && a.dataset.visning === VIS[i] && a.firstElementChild.tagName.toLowerCase() === 'svg' && a.children[1].className === 'vk-navn') && v.map(a => a.querySelector('svg path').getAttribute('d')).join('|') === IK && v.map(a => a.querySelector('.vk-navn').textContent).join() === 'Maskér,Demaskér,Sager,Ordbog'; }) && ['vMasker', 'vDemasker', 'vSager', 'vOrdbog'].map(k => w.Sprog.TEKST.da[k]).join() === 'Maskér,Demaskér,Sager,Ordbog');
+  tjek('V-FANER.2: visningsknapperne er links (ingen rolle, ingen aria-selected, ingen aria-controls), båndet er role="group" med sit navn, og arbejdsfladen er ikke længere et fanepanel', d.querySelectorAll('#baand .vk').length === 16 && [...d.querySelectorAll('#baand .vk')].every(a => !a.hasAttribute('role') && !a.hasAttribute('aria-selected') && !a.hasAttribute('aria-controls')) && baandene.every(b => b.getAttribute('role') === 'group' && b.getAttribute('aria-label') === 'Handlingsbånd') && [...d.querySelectorAll('section.visning')].every(x => !x.hasAttribute('role') && x.getAttribute('aria-label')));
+  tjek('V-FANER.2: aria-current="page" står kun på Maskér, i alle fire bånd', aktuelle(d).join() === 'masker,masker,masker,masker');
+  tjek('V-FANER.2: genvejene ⌘1–⌘4 står i knappens værktøjstip og i aria-keyshortcuts (Meta+1–4)', visKnapper(d).map(a => forklaring(a)).join() === '⌘1,⌘2,⌘3,⌘4' && visKnapper(d).map(a => a.getAttribute('aria-keyshortcuts')).join() === 'Meta+1,Meta+2,Meta+3,Meta+4');
+  const kit = ui('assets/kit.css');
+  tjek('V-FANER.2 (CSS): den åbne visning har flade, fed skrift og en streg på 2 px i accent (ikke kun farve) og ikonet i accent; knapperne er båndets egne (.cb, 54 px)', /\n\.cb\[aria-current="page"\] \{ background: var\(--accent-soft\); border-color: var\(--accent-soft\); font-weight: 600; box-shadow: inset 0 -2px 0 var\(--accent\); \}/.test(kit) && /\n\.cb\[aria-current="page"\] svg \{ stroke: var\(--accent\); \}/.test(kit) && /min-width: 64px; height: 54px;/.test(kit));
+  const mereKn = [...d.querySelectorAll('#baand .cb-mere')];
+  tjek('V-FANER.2: Mere står sidst i hvert bånd (efter grupperne), lukket, med aria-haspopup="menu", navnet Mere og menuen skjult; uden målte bredder (jsdom) er alt plads, og Mere er skjult', mereKn.length === 4 && mereKn.every(m => m.parentElement.classList.contains('mere-plads') && m.parentElement.parentElement.lastElementChild === m.parentElement && m.parentElement.hidden && m.getAttribute('aria-haspopup') === 'menu' && m.getAttribute('aria-expanded') === 'false' && m.textContent === 'Mere' && d.getElementById(m.getAttribute('aria-controls'))?.hidden));
+  // Klik, mellemrum, piletaster, ⌘1–⌘4
+  const okSager = await klikVis(w, visKnapper(d)[2], 'sager');
+  tjek('V-FANER.2: et klik på Sager viser Sager (adressen #sager), og Sager er den åbne i alle fire bånd', okSager && synlige(d).join() === 'sager' && w.location.hash === '#sager' && aktuelle(d).join() === 'sager,sager,sager,sager');
+  const baand = () => [...d.querySelectorAll('#baand > [data-visning]')].filter(b => !b.hidden);
+  tjek('V-FANER.2: kun Sagers bånd vises, med visningerne forrest og Sagers kommandoer bagefter', baand().length === 1 && baand()[0].dataset.visning === 'sager' && baand()[0].querySelector('.grp-visninger + .grp [data-kommando="ny-sag"]'));
+  const ord = visKnapper(d)[3];
+  ord.focus();
+  const pOrd = visningSkift(w, 'ordbog');
+  const mel = tastPaa(w, ord, ' ');
+  tjek('V-FANER.2: mellemrum på Ordbog åbner Ordbog (som Enter på et link; kittet), og siden ruller ikke', mel.defaultPrevented && (await pOrd) && synlige(d).join() === 'ordbog' && aktuelle(d)[0] === 'ordbog');
+  const vk = visKnapper(d);
+  vk[3].focus();
+  const pil = tastPaa(w, vk[3], 'ArrowLeft'), pil2 = tastPaa(w, vk[3], 'ArrowRight');
+  tjek('V-FANER.2: piletaster gør intet på en visningsknap (båndets regel: Tab går fra knap til knap)', !pil.defaultPrevented && !pil2.defaultPrevented && w.location.hash === '#ordbog' && d.activeElement === vk[3]);
+  const p2 = visningSkift(w, 'demasker');
+  s.tast('2', { metaKey: true, code: 'Digit2' });
+  tjek('V-FANER.2: ⌘2 viser Demaskér og flytter aria-current', (await p2) && synlige(d).join() === 'demasker' && aktuelle(d).join() === 'demasker,demasker,demasker,demasker');
+  // En dialog åben: et klik og ⌘3 gør intet; lukket igen virker de.
+  d.getElementById('aabn-indst').click();
+  const kl = new w.MouseEvent('click', { bubbles: true, cancelable: true });
+  visKnapper(d)[2].dispatchEvent(kl);
+  s.tast('3', { metaKey: true, code: 'Digit3' });
+  tjek('V-FANER.2: med en dialog åben gør et klik på en visning og ⌘3 intet (klikket stoppes; adressen og aria-current står)', aaben(d, 'dlg-indst') && kl.defaultPrevented && w.location.hash === '#demasker' && aktuelle(d)[0] === 'demasker');
+  d.querySelector('#dlg-indst [data-svar="luk"]').click();
+  tjek('V-FANER.2: lukket igen virker knapperne', (await klikVis(w, visKnapper(d)[2], 'sager')) && synlige(d).join() === 'sager');
+  // Fanen Vis er væk; venstre side er kun træet; titellinjen er uændret.
+  tjek('V-FANER.2: ingen fane Vis: båndene har ingen fanerække, ingen data-fane="vis" og ingen knapper for tema eller sprog', !d.querySelector('#baand .tabs, #baand .tab, #baand [role="tablist"], [data-fane="vis"]') && !d.querySelector('[data-kommando^="tema-"], [data-kommando^="sprog-"]') && [...d.querySelectorAll('#baand > [data-visning]')].every(b => b.classList.contains('enkel') && b.querySelectorAll('.grupper').length === 1));
+  tjek('V-FANER.2: koden og teksterne, der kun hørte til fanen Vis og fanerækken, er væk (visFane, opdaterVis, faneVis, faneStart, faner: true, #faner)', !/visFane|opdaterVis|faneVis|faneStart|tema-lys|sprog-da|faner: true|\$\('faner'\)/.test(ui('assets/app.js')) && !/'faner'/.test(ui('assets/laas.js')) && !/#faner/.test(ui('assets/app.css')) && !['faneVis', 'faneStart'].some(k => k in w.Sprog.TEKST.da || k in w.Sprog.TEKST.en));
+  d.getElementById('aabn-indst').click();
+  tjek('V-FANER.2: alt, fanen Vis havde, findes under tandhjulet: tema (Lys, Mørk, System) og sprog (Dansk, English) i Indstillinger, og tekststørrelsen der og i menuen Vis', ['lys', 'moerk', 'system'].every(v => d.querySelector(`#dlg-indst input[name="indst-tema"][value="${v}"]`)) && ['da', 'en'].every(v => d.querySelector(`#dlg-indst input[name="indst-sprog"][value="${v}"]`)) && d.querySelectorAll('#dlg-indst input[name="indst-tekst"]').length === 3 && /TEKST_STOERRE[\s\S]*TEKST_MINDRE[\s\S]*TEKST_NORMAL/.test(fs.readFileSync(path.join(repo, 'src-tauri', 'src', 'programmenu.rs'), 'utf8')));
+  d.querySelector('#dlg-indst [data-svar="luk"]').click();
+  const nav = d.querySelector('nav.nav');
+  tjek('V-FANER.2: venstre side er kun træet med filtre (intet visningsskift, ingen #skift, ingen faner, ingen visningsknapper)', [...nav.children].map(e => e.id).join() === 'navdele' && !d.getElementById('skift') && !nav.querySelector('.skift, .vs, .vfaner, .vf, .vk') && d.querySelectorAll('nav.nav .navdel .trae').length === 4);
+  const nd = d.querySelector('.navdel[data-visning="sager"]');
+  tjek('V-FANER.2: venstre side fylder hele højden: den aktive visnings del og dens træ fylder ruden (flex 1, min-height 0), og navdele fylder nav', cssVaerdi(d.getElementById('navdele'), 'flex') === '1' && cssVaerdi(nd, 'flex') === '1 1 auto' && cssVaerdi(nd.querySelector('.trae'), 'flex') === '1 1 auto' && cssVaerdi(nd.querySelector('.trae'), 'min-height') === '0' && cssVaerdi(nd.querySelector('.trae'), 'overflow') === 'auto');
+  tjek('V-FANER.2: titellinjen er uændret (mærke, navn, slogan, sagen, sagens knap og tandhjulet)', [...titel.children].map(e => e.className || e.tagName).join() === 'mrk,B,slogan-plads,hoejre' && [...titel.querySelector('.hoejre').children].map(e => e.id).join() === 'sag,sag-knap,aabn-indst' && !titel.querySelector('.vk, .vf, [role="tab"]'));
+  // Tab-rækkefølgen
+  await klikVis(w, visKnapper(d)[0], 'masker');
   const fokuserbar = [...d.querySelectorAll('a[href], button, input, select, textarea, [tabindex]')].filter(e => e.tabIndex >= 0 && !e.disabled && !e.closest('[hidden], [inert], dialog, .tip'));
-  const omraade = e => (e.closest('header.titel') ? 'titellinje' : e.closest('#laas-banner') ? 'banner' : e.closest('#faner') ? 'faner' : e.closest('#baand') ? 'bånd' : e.closest('nav.nav') ? 'venstre' : e.closest('#arb') ? 'arbejdsflade' : e.closest('.fodl') ? 'fodlinje' : 'andet');
+  const omraade = e => (e.closest('header.titel') ? 'titellinje' : e.closest('#laas-banner') ? 'banner' : e.closest('#baand') ? 'bånd' : e.closest('nav.nav') ? 'venstre' : e.closest('#arb') ? 'arbejdsflade' : e.closest('.fodl') ? 'fodlinje' : 'andet');
   const raekke = fokuserbar.map(omraade).filter((x, i, a) => i === 0 || a[i - 1] !== x);
-  tjek('V-FANER.1: Tab-rækkefølgen er titellinjen, fanerne, båndet, venstre side, arbejdsfladen (og fanerne er ét stop: den valgte)', raekke.join(' → ') === 'titellinje → faner → bånd → venstre → arbejdsflade' && fokuserbar.filter(e => omraade(e) === 'faner').length === 1 && fokuserbar.find(e => omraade(e) === 'faner') === f[0], raekke.join(' → '));
+  tjek('V-FANER.2: Tab-rækkefølgen er titellinjen, båndet, venstre side, arbejdsfladen (ingen række over båndet)', raekke.join(' → ') === 'titellinje → bånd → venstre → arbejdsflade', raekke.join(' → '));
+  const iBaand = fokuserbar.filter(e => omraade(e) === 'bånd');
+  tjek('V-FANER.2: i båndet kommer først de fire visninger (hver sit Tab-stop, også den åbne), så Maskérs kommandoer i rækkefølge', iBaand.slice(0, 4).map(a => a.dataset.visning).join() === VIS.join() && iBaand.slice(4).map(b => b.dataset.kommando).join() === 'indsaet,aabn-fil,ryd,fortryd,gentag,masker-dette,analyser,gem-masker,foer-efter,kopier,gem-fil,kvittering', iBaand.map(e => e.dataset.visning || e.dataset.kommando).join());
 }
 {
-  // Låst: fanerne er nedtonede og kan ikke vælges, og ⌘1–⌘4 gør intet. Første forsøg annulleres, andet (Enter) lykkes.
+  // Låst: båndet med visningerne er nedtonet og kan ikke bruges, og ⌘1–⌘4 gør intet. Første forsøg annulleres, andet (Enter) lykkes.
   const rust = falskLaasRust({ svar: [{ svar: 'annulleret' }, { svar: 'ok' }] });
   const s = side({ rust });
-  const { d } = s;
-  await vent(20);
-  const f = fanerAf(d);
-  tjek('V-FANER.1 (låst): fanerne er inert og har forklaringen i title; CSS nedtoner dem og skjuler tippet', laaseskaerm(d) && d.getElementById('faner').hasAttribute('inert') && d.getElementById('faner').title === 'Grimnir er låst. Lås op for at bruge visningerne og kommandoerne.' && CSS_REGLER.some(r => r.sel === 'html[data-laast] #faner' && r.decl.opacity === '.45') && CSS_REGLER.some(r => r.sel === 'html[data-laast] #faner .tip' && r.decl.display === 'none'));
-  f[2]?.click();
-  await vent(5);
-  const efterKlik = s.w.location.hash;
+  const { d, w } = s;
+  // Første forsøg (annulleret) er færdigt: beskeden står, og Lås op kan bruges igen.
+  await ventTil(w, () => d.getElementById('laas-besked').textContent === 'Grimnir er stadig låst. Tryk Lås op for at prøve igen.' && !d.getElementById('laas-op').disabled);
+  tjek('V-FANER.2 (låst): båndet med visningerne er inert og forklarer i title; CSS nedtoner båndet og skjuler tippet; ingen regel for #faner længere', laaseskaerm(d) && [...d.getElementById('baand').children].every(e => e.hasAttribute('inert')) && d.querySelectorAll('#baand .vk').length === 16 && [...d.querySelectorAll('#baand .vk')].every(a => a.closest('[inert]')) && d.getElementById('baand').title === 'Grimnir er låst. Lås op for at bruge visningerne og kommandoerne.' && CSS_REGLER.some(r => r.sel === 'html[data-laast] #baand' && r.decl.opacity === '.45') && CSS_REGLER.some(r => r.sel === 'html[data-laast] .nav' && r.decl.opacity === '.45') && CSS_REGLER.some(r => r.sel === 'html[data-laast] #baand .tip' && r.decl.display === 'none') && !CSS_REGLER.some(r => /#faner/.test(r.sel)), JSON.stringify([laaseskaerm(d), [...d.getElementById('baand').children].map(e => e.hasAttribute('inert')).join(), d.getElementById('baand').title, CSS_REGLER.filter(r => /data-laast\] #baand/.test(r.sel)).map(r => r.sel + JSON.stringify(r.decl))]));
+  const kl = new w.MouseEvent('click', { bubbles: true, cancelable: true });
+  visKnapper(d)[2].dispatchEvent(kl);
   s.tast('3', { metaKey: true, code: 'Digit3' });
-  await vent(5);
-  tjek('V-FANER.1 (låst): et klik på en fane og ⌘3 gør intet (adressen og valget står)', efterKlik === '' && s.w.location.hash === '' && f[0]?.getAttribute('aria-selected') === 'true' && f[2]?.getAttribute('aria-selected') === 'false');
+  tjek('V-FANER.2 (låst): et klik på en visning og ⌘3 gør intet (klikket stoppes; adressen og aria-current står)', kl.defaultPrevented && w.location.hash === '' && aktuelle(d).join() === 'masker,masker,masker,masker');
   s.tast('Enter');
-  await vent(30);
-  tjek('V-FANER.1 (låst op): fanerne er ikke længere inert, title er væk, og et klik virker', !laaseskaerm(d) && !d.getElementById('faner').hasAttribute('inert') && !d.getElementById('faner').hasAttribute('title') && (f[2]?.click(), true) && (await vent(5), synlige(d).join() === 'sager'));
+  const op = await ventTil(w, () => !laaseskaerm(d));
+  tjek('V-FANER.2 (låst op): båndet er ikke længere inert, title er væk, og et klik på Sager viser Sager', op && ![...d.getElementById('baand').children].some(e => e.hasAttribute('inert')) && !d.getElementById('baand').hasAttribute('title') && (await klikVis(w, visKnapper(d)[2], 'sager')) && synlige(d).join() === 'sager', JSON.stringify([op, synlige(d), d.getElementById('baand').title]));
 }
 {
   // Begge sprog og Windows.
   const s = side({ lager: { 'grimnir-sprog': 'en' }, platform: 'windows' });
-  const { d } = s;
-  await vent(5);
-  const f = fanerAf(d);
-  tjek('V-FANER.1 (English, Windows): rækken hedder "Views", fanerne Mask, Unmask, Cases, Dictionary, og genvejene er Ctrl+1–4 (Control+1–4)', d.getElementById('faner').getAttribute('aria-label') === 'Views' && f.map(a => a.querySelector('.vf-navn')?.textContent).join() === 'Mask,Unmask,Cases,Dictionary' && f.map(a => forklaring(a)).join() === 'Ctrl+1,Ctrl+2,Ctrl+3,Ctrl+4' && f.map(a => a.getAttribute('aria-keyshortcuts')).join() === 'Control+1,Control+2,Control+3,Control+4');
-  s.w.Sprog.saet('da');
-  tjek('V-FANER.1: et sprogskift skifter fanernes navne og rækkens navn uden genindlæsning', d.getElementById('faner').getAttribute('aria-label') === 'Visninger' && f.map(a => a.querySelector('.vf-navn')?.textContent).join() === 'Maskér,Demaskér,Sager,Ordbog');
+  const { d, w } = s;
+  await ventTil(w, () => !laaseskaerm(d));
+  const f = visKnapper(d), cap = () => d.querySelector('#baand > [data-visning]:not([hidden]) .grp-visninger .cap').textContent;
+  tjek('V-FANER.2 (English, Windows): gruppen hedder Views, knapperne Mask, Unmask, Cases, Dictionary, genvejene er Ctrl+1–4 (Control+1–4), og Mere hedder More', cap() === 'Views' && f.map(a => a.querySelector('.vk-navn').textContent).join() === 'Mask,Unmask,Cases,Dictionary' && f.map(a => forklaring(a)).join() === 'Ctrl+1,Ctrl+2,Ctrl+3,Ctrl+4' && f.map(a => a.getAttribute('aria-keyshortcuts')).join() === 'Control+1,Control+2,Control+3,Control+4' && [...d.querySelectorAll('#baand .cb-mere')].every(m => m.textContent === 'More') && w.Sprog.TEKST.da.kMere === 'Mere' && w.Sprog.TEKST.en.kMere === 'More');
+  w.Sprog.saet('da');
+  tjek('V-FANER.2: et sprogskift skifter knappernes navne, gruppens navn og Mere uden genindlæsning', cap() === 'Visninger' && f.map(a => a.querySelector('.vk-navn').textContent).join() === 'Maskér,Demaskér,Sager,Ordbog' && d.querySelector('#baand .cb-mere').textContent === 'Mere');
+  const p4 = visningSkift(w, 'ordbog');
   s.tast('4', { ctrlKey: true, code: 'Digit4' });
-  await vent(5);
-  tjek('V-FANER.1 (Windows): Ctrl+4 viser Ordbog og vælger dens fane', synlige(d).join() === 'ordbog' && f[3]?.getAttribute('aria-selected') === 'true');
+  tjek('V-FANER.2 (Windows): Ctrl+4 viser Ordbog og flytter aria-current', (await p4) && synlige(d).join() === 'ordbog' && aktuelle(d).join() === 'ordbog,ordbog,ordbog,ordbog');
+}
+{
+  // ── Én række ved den nye mindste bredde, regnet i jsdom ud fra bredder målt i WKWebView (som kolonner.mjs) ──
+  // MAALT_BAAND: pr. trin, sprog og visning gruppernes og knappernes bredde i vinduets px (alle kommandoer i båndet,
+  // målt i et vindue på 1800 px, hvor intet er flyttet), og båndets bredde på én række. MAALT_FLYTTET: det, kittets
+  // Mere flyttede i WKWebView ved 1024 × 560 og 1200 × 800. Regnestykket: .grupper har 12 px luft i hver side og 12 px
+  // mellem grupperne (× trinnet); med Mere vist er luften til højre 0, den sidste gruppe får sit skille (1 px), og
+  // Mere-pladsen er 88 px (× trinnet); en flyttet knap tager sin bredde og 2 px mellemrum med sig. Kittets egen tilpas()
+  // kører på jsdom med de regnede placeringer (getBoundingClientRect for båndets række og grupperne). Rækken står på én
+  // linje, når den sidste synlige gruppes højre kant er inden for båndet (kittets regel).
+  const konf = JSON.parse(fs.readFileSync(path.join(repo, 'src-tauri', 'tauri.conf.json'), 'utf8')).app.windows[0];
+  const appMin = /:root \{ --vindue-min-bredde: (\d+)px; \}/.exec(ui('assets/app.css'));
+  tjek('V-FANER.2: mindste vindue er 1024 × 560 i tauri.conf.json og i app.css (--vindue-min-bredde, kittets 2.7.0-regel deler det med trinnet)', konf.minWidth === 1024 && konf.minHeight === 560 && appMin && Number(appMin[1]) === konf.minWidth && /\n\.vindue, :root\[data-tekst\] \.vindue \{ min-width: calc\(var\(--vindue-min-bredde, 900px\) \/ var\(--tekst-zoom\)\);/.test(ui('assets/kit.css')));
+  const Z = { lille: 0.9, normal: 1, stor: 1.125 };
+  const s = side();
+  const { d, w } = s;
+  await ventTil(w, () => !laaseskaerm(d));
+  const G = w.Grimnir;
+  function regn(id, maal, z, W) {
+    const bar = G.dele[id].bar, rod = bar.rod, panel = rod.querySelector('.grupper');
+    const grpEl = [...panel.querySelectorAll(':scope > .grp')], knapEl = [...panel.querySelectorAll('.cb')];
+    // Gruppernes placering på rækken (vinduets px fra båndets venstre kant) og båndets bredde på én række.
+    const lag = () => {
+      const vist = rod.classList.contains('mere-vist'), pos = new Map();
+      let x = 12 * z, n = 0;
+      grpEl.forEach((g, i) => {
+        if (g.hasAttribute('data-mere-tom')) return;
+        let b = maal.grp[i];
+        for (const k of g.querySelectorAll('.cb[data-i-mere]')) b -= maal.knap[knapEl.indexOf(k)] + 2 * z;
+        if (vist && i === grpEl.length - 1) b += z;
+        if (n++) x += 12 * z;
+        pos.set(g, [x, x + b]);
+        x += b;
+      });
+      return { pos, indhold: x + (vist ? 0 : 12 * z), sidste: [...pos.values()].at(-1)[1] };
+    };
+    const plads = () => W - (rod.classList.contains('mere-vist') ? 88 * z : 0);
+    const rect = (l, r) => ({ left: l, right: r, width: r - l, top: 0, bottom: 54, height: 54, x: l, y: 0 });
+    panel.getBoundingClientRect = () => rect(0, Math.min(lag().indhold, plads()));
+    for (const g of grpEl) g.getBoundingClientRect = () => { const p = lag().pos.get(g) || [0, 0]; return rect(p[0], p[1]); };
+    bar.tilpas();
+    const l = lag();
+    return { flyttet: bar.mere.flyttet, bredde: l.indhold, sidste: l.sidste, plads: plads(), visningerFlyttet: [...panel.querySelectorAll('.vk[data-i-mere]')].length, pri: panel.querySelector('.cb.pri').hasAttribute('data-i-mere'), andre: knapEl.filter(k => !k.classList.contains('vk') && !k.classList.contains('pri')).every(k => k.hasAttribute('data-i-mere')) };
+  }
+  // Kontrol: regnestykket uden Mere giver den målte bredde på én række (alle 24 kombinationer, højst 0,6 px fra).
+  let kontrol = [];
+  for (const [t, z] of Object.entries(Z)) for (const sp of ['da', 'en']) {
+    w.Sprog.saet(sp);
+    for (const id of VIS) { const r = regn(id, MAALT_BAAND[t][sp][id], z, 5000); kontrol.push(Math.abs(r.bredde - MAALT_BAAND[t][sp][id].bred)); }
+  }
+  tjek('V-FANER.2 (regnet): kontrol: regnestykket giver båndets målte bredde i alle 24 kombinationer (trin × sprog × visning) inden for 0,6 px', kontrol.length === 24 && Math.max(...kontrol) <= 0.6, Math.max(...kontrol).toFixed(2));
+  // Ved 1024 og 1200 px flytter kittets tilpas() det samme som i WKWebView, og rækken står på én linje.
+  for (const W of [1024, 1200]) for (const [t, z] of Object.entries(Z)) for (const sp of ['da', 'en']) {
+    w.Sprog.saet(sp);
+    const ud = VIS.map(id => ({ id, ...regn(id, MAALT_BAAND[t][sp][id], z, W) }));
+    const maalt = MAALT_FLYTTET[`${W} ${t} ${sp}`];
+    tjek(`V-FANER.2 (regnet, ${W} px, ${t}, ${sp}): én række i alle fire visninger, og Mere flytter det samme som målt i WKWebView`, ud.every(r => r.sidste <= r.plads + 1 && JSON.stringify(r.flyttet) === JSON.stringify(maalt[r.id])), JSON.stringify(ud.map(r => [r.id, r.flyttet, Math.round(r.sidste), Math.round(r.plads)])) + ' målt ' + JSON.stringify(maalt));
+  }
+  // Ved normal står Demaskér, Sager og Ordbog helt fra 1024 px på begge sprog; for hver bredde fra 1024 til 2000 px står
+  // båndet på én række, visningerne flyttes aldrig, og den primære kommando flyttes kun, når alle andre er flyttet.
+  for (const [t, z] of Object.entries(Z)) for (const sp of ['da', 'en']) {
+    w.Sprog.saet(sp);
+    const brud = [];
+    for (let W = 1024; W <= 2000; W++) for (const id of VIS) {
+      const r = regn(id, MAALT_BAAND[t][sp][id], z, W);
+      if (r.sidste > r.plads + 1 || r.visningerFlyttet || (r.pri && !r.andre) || (t === 'normal' && id !== 'masker' && r.flyttet.length)) brud.push(`${W} ${id}`);
+    }
+    tjek(`V-FANER.2 (regnet, ${t}, ${sp}): 1024–2000 px: én række i alle fire visninger, visningerne flyttes aldrig, den primære sidst${t === 'normal' ? ', og kun Maskér bruger Mere' : ''}`, brud.length === 0, brud.slice(0, 5).join(', '));
+  }
+  // Mere i Grimnir (1024 px, normal, dansk, Maskér): menuen, Tab-rækkefølgen og et punkt, der klikker den skjulte knap.
+  w.Sprog.saet('da');
+  const r = regn('masker', MAALT_BAAND.normal.da.masker, 1, 1024);
+  const bar = G.dele.masker.bar, mk = bar.mere.knap, menu = bar.mere.menu;
+  tjek('V-FANER.2 (Mere, 1024 px): Mere vises sidst i Maskérs bånd; Analysér, Før og efter, Kopiér, Gem maskeret fil og Kopiér kvittering står i den, Gem og maskér (primær) i båndet', !mk.parentElement.hidden && JSON.stringify(r.flyttet) === '["analyser","foer-efter","kopier","gem-fil","kvittering"]' && !bar.knap('gem-masker').hasAttribute('data-i-mere') && bar.rod.querySelector('.grp[data-mere-tom]')?.querySelector('.cap').textContent === 'Resultat');
+  const fok = [...bar.rod.querySelectorAll('a[href], button')].filter(e => e.tabIndex >= 0 && !e.closest('[hidden], .tip') && !e.hasAttribute('data-i-mere') && !e.closest('.grp[data-mere-tom]') && !e.closest('.mere-menu'));
+  tjek('V-FANER.2 (Mere): Tab i båndet: visningerne, de synlige kommandoer og Mere til sidst', fok.at(-1) === mk && fok.slice(0, 4).every(a => a.classList.contains('vk')) && fok.length === 4 + 7 + 1, fok.map(e => e.dataset.visning || e.dataset.kommando || 'mere').join());
+  mk.focus();
+  mk.click();
+  const punkter = [...menu.querySelectorAll('.mere-punkt')];
+  tjek('V-FANER.2 (Mere): med tastaturet åbner menuen med fokus på første punkt; punkterne har samme navne, ikoner og tilstand som knapperne (slået fra, med hvorfor under navnet; Før og efter, der kan trykkes ind, er et menuitemcheckbox med aria-checked)', !menu.hidden && punkter.find(p => p.dataset.kommando === 'foer-efter')?.getAttribute('aria-checked') === bar.knap('foer-efter').getAttribute('aria-pressed') && mk.getAttribute('aria-expanded') === 'true' && d.activeElement === punkter[0] && punkter.map(p => p.querySelector('.mere-navn').textContent).join() === 'Analysér,Før og efter,Kopiér,Gem maskeret fil,Kopiér kvittering' && punkter.every(p => p.getAttribute('role') === (p.dataset.kommando === 'foer-efter' ? 'menuitemcheckbox' : 'menuitem') && p.querySelector('svg') && p.getAttribute('aria-disabled') === 'true' && d.getElementById(p.getAttribute('aria-describedby'))?.textContent === forklaring(bar.knap(p.dataset.kommando))), JSON.stringify([menu.hidden, d.activeElement?.className, punkter.map(p => [p.textContent, p.getAttribute('role'), p.getAttribute('aria-disabled'), forklaring(bar.knap(p.dataset.kommando))])]));
+  tastPaa(w, punkter[0], 'Escape');
+  tjek('V-FANER.2 (Mere): Esc lukker menuen med fokus på Mere', menu.hidden && d.activeElement === mk && mk.getAttribute('aria-expanded') === 'false');
+  bar.saetDeaktiveret('kopier', false);
+  let klik = 0;
+  bar.knap('kopier').addEventListener('click', () => klik++);
+  mk.click();
+  const kp = [...menu.querySelectorAll('.mere-punkt')].find(p => p.dataset.kommando === 'kopier');
+  kp.click();
+  tjek('V-FANER.2 (Mere): et punkt, der er slået til, lukker menuen og klikker den skjulte knap (samme handling som i båndet)', klik === 1 && menu.hidden && !kp.hasAttribute('aria-disabled'));
 }
 
 // ══════════════════════════ V-MANUEL.2: sagens indhold, den tomme flade, Kendt fra sagen, mønstre, hvorforLaast ══════════════════════════

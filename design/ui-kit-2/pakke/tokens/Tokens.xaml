@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- GENERERET fra wi24rd-ui-kit-2.tokens.json (Wi24rd UI Kit 2, pakke 2.6.0). Ret ikke i hånden.
+<!-- GENERERET fra wi24rd-ui-kit-2.tokens.json (Wi24rd UI Kit 2, pakke 2.7.0). Ret ikke i hånden.
      To ordbøger med de samme nøgler: Wi24rdLys og Wi24rdMoerk. Flet præcis én ind i programmets ressourcer og brug
      DynamicResource, så temaet kan skiftes (se pakkens README.md). Tal er WPF-enheder (1 = 1 px ved 96 dpi);
      …Tracking er i em, og WPF har ingen egenskab til det på TextBlock. -->

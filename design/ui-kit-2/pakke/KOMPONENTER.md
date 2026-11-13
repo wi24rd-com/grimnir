@@ -120,7 +120,7 @@ Fra 2.4.0 (ønskerne K18–K21 fra Huginn and Muninn):
 
 **Tastatur:** Tab går gennem titellinjens knapper, båndet, navigationsruden og arbejdsfladen i den rækkefølge. Står visningerne som faner øverst (fra 2.6.0), kommer fanerne efter titellinjen og før båndet.
 
-**Kræver af programmet:** Mindste vindue 900 × 560 px. Titellinjens indhold (mærke, navn, det til højre). Har vinduet styresystemets knapper oven på titellinjen, giver programmet selv plads i sin egen CSS (fx `padding-left` på `.titel`). Skal titellinjen kunne trækkes, sætter programmet det selv (i Tauri: `data-tauri-drag-region`).
+**Kræver af programmet:** Mindste vindue 900 × 560 px (fra 2.7.0 kan programmet sætte sit eget, se nedenfor). Titellinjens indhold (mærke, navn, det til højre). Har vinduet styresystemets knapper oven på titellinjen, giver programmet selv plads i sin egen CSS (fx `padding-left` på `.titel`). Skal titellinjen kunne trækkes, sætter programmet det selv (i Tauri: `data-tauri-drag-region`).
 
 ### Mærke med programmets eget billede (fra 2.5.0, K22)
 
@@ -151,6 +151,26 @@ Et program kan stille sine visninger som faner i en række lige under titellinje
 
 Titellinjen er uændret: fanerne står i deres egen række og kan aldrig skubbe titellinjens indhold ud. Rækken er 29 px høj (fane 28 px og kant 1 px). Båndet uden faner har 4 px mere luft forneden end båndet med faner (`.cmd.enkel`, fra 2.2.0), så fanerne øverst og båndet under fylder tilsammen præcis det samme som båndet med sin fanerække på 33 px før (målt i WebKit i alle tre tekststørrelser).
 
+**Fra 2.7.0 er reglen ét bånd (se næste afsnit).** Fanerækken virker som før og fjernes ikke, men den må kun bruges, hvor båndet ikke kan bære visningerne: et program uden bånd (fx en dialog eller et lille værktøjsvindue med flere visninger) eller et program, hvis visninger ikke er de ting, brugeren arbejder med, men sider af én ting. Et program med et bånd stiller visningerne i båndet.
+
+### Ét bånd; ingen række over det (regel fra 2.7.0, D26)
+
+Under titellinjen står kun båndet, med de store knapper. Der står ingen række med små knapper eller faner over det (Jans beslutning D26: Grimnir og Huginn and Muninn prøvede fanerækken fra 2.6.0, og den var én række for meget). Visningerne er store knapper forrest i båndet (`Kit.commandBar` med `visninger`, se CommandBar), og resten af båndet er den valgte visnings kommandoer. Båndet står altid på én række:
+
+1. **Mindstemålet** sættes, så de visninger, man bruger mest, står helt ved normal tekst. Programmet sætter det selv (nedenfor) og samme tal i Tauri (`minWidth`).
+2. **Mere** (`mere`, se CommandBar) samler de kommandoer, der ikke er plads til (smalt vindue, stor tekst, et langt sprog), bagfra i en menu. Visningerne, elementer (vælgere, segmentknapper) og den primære kommando bliver i båndet; den primære flyttes kun, når alle andre er flyttet.
+3. Uden `mere` ombrydes båndet som før (`flex-wrap`); det er kun for programmer, der har målt, at alt altid står på én række ved deres mindstemål i alle tre tekststørrelser.
+
+### Programmets eget mindstemål (fra 2.7.0)
+
+`.vindue` er 900 × 560 px, hvis programmet intet siger. Et program, der skal bruge mere (fx fordi visningerne står i båndet), sætter to variabler på `:root` i sin egen CSS. Ingen inline-stil og ingen regel for hvert trin: kittet deler målet med tekststørrelsen (`--tekst-zoom`), så vinduet også ved lille og stor er præcis det mål på skærmen.
+
+```css
+:root { --vindue-min-bredde: 1100px; }      /* og evt. --vindue-min-hoejde: 600px; standard 900px og 560px */
+```
+
+Samme tal står i `tauri.conf.json` (`minWidth`, `minHeight`), så vinduet ikke kan gøres smallere end skallen. Gemmer programmet vinduets størrelse (fx med et plugin), skal det prøves, hvad et gemt mål under et hævet mindstemål giver ved næste start; kittet kan ikke se det.
+
 ### Titellinjeknap, der er slået fra eller aktiv (fra 2.5.0, K23)
 
 - **Slået fra** (`disabled` eller `aria-disabled="true"`): nedtonet (60 %), ingen hover, markøren er ikke en hånd. Tilbage og frem uden historik er `disabled` (de kan ikke nås med Tab, og det er rigtigt: der er intet at gøre); skal knappen kunne forklare sig, bruges `aria-disabled` og et værktøjstip.
@@ -160,7 +180,7 @@ Titellinjen er uændret: fanerne står i deres egen række og kan aldrig skubbe 
 
 ## CommandBar
 
-**Klasser:** `.cmd`, `.tabs`, `.tab`, `.on`, `.grupper`, `.grp`, `.kn`, `.cap`, `.cb`, `.pri`, `.enkel`, `.baand-el`
+**Klasser:** `.cmd`, `.tabs`, `.tab`, `.on`, `.grupper`, `.grp`, `.kn`, `.cap`, `.cb`, `.pri`, `.enkel`, `.baand-el`, `.vk`, `.vk-navn`, `.vk-tip-navn`, `.ant`, `.ant-kraever`, `.med-mere`, `.mere-vist`, `.mere-plads`, `.mere-menu`, `.mere-punkt`, `.mere-tekst`, `.mere-navn`, `.mere-hvorfor`
 
 **Funktioner:** `Kit.commandBar`
 
@@ -215,6 +235,44 @@ Et program, man ser i og ikke arbejder i (fx et overblik med opdatér, periode, 
 - **En gruppe kan rumme en vælger eller en segmentknap**: en post `{ id, element }` i `knapper` sætter elementet ind i gruppen (`.baand-el`, 54 px høj, centreret). `baand.knap(id)` giver elementet.
 - Båndet har rollen `group` med navnet fra `ariaT`; der er ingen faner og ingen `tabpanel`.
 - Højst én primær kommando, og helst under seks poster i alt.
+
+### Visningerne som store knapper forrest i båndet (fra 2.7.0, D26, K41, K42)
+
+Et bånd uden faner (`udenFaner`) kan have programmets visninger som første gruppe: én stor knap pr. visning, med samme størrelse og form som båndets andre knapper (ikon over navn, `.cb`), adskilt fra kommandoerne med båndets gruppeskille og et gruppenavn fra programmet. Data er de samme som visningsskiftets (højst otte), og grebet er det samme: `markér` og `saetPunkt`.
+
+```js
+const baand = Kit.commandBar(document.getElementById('baand'), {
+  ariaT: 'cmdAria', udenFaner: true, hvorforTip: true,
+  visninger: { t: 'visninger', punkter: [
+    { id: 'oversigt', t: 'vOversigt', ikon: 'mappe', genvej: '⌘1', genvejAria: 'Meta+1' },
+    { id: 'siden', t: 'vSiden', ikon: 'kalender', genvej: '⌘2', genvejAria: 'Meta+2', antal: 3, kraever: true, antalAriaT: 'kraeverHandling' },
+    { id: 'login', t: 'vLogin', ikon: 'laas', genvej: '⌘3', genvejAria: 'Meta+3', deaktiveret: true, hvorfor: 'hvorforToken' },
+  ] },
+  mere: { t: 'kMere' },
+  faner: [{ id: 'start', grupper: [ … visningens kommandoer … , { t: 'gProgram', knapper: [{ id: 'indst', t: 'kIndst', ikon: 'tandhjul', ved: () => aabn('indstillinger') }] }] }],
+});
+baand.visninger.markér('siden');                       // aria-current="page" på den åbne
+baand.visninger.saetPunkt('siden', { antal: 0, kraever: false });
+baand.visninger.saetPunkt('login', { deaktiveret: false });
+baand.saetAktuel('indst', true);                       // K41: en kommando, der peger på det viste (fx Indstillinger, mens den er åben)
+```
+
+- **Rollerne:** hver visning er et link til `#id` (`<a class="cb vk">`) med `aria-current="page"` på den åbne, som visningsskiftet og som Huginn and Muninn gør: en visning er et sted, man går hen, ikke en fane, der viser et panel. Programmet skifter via adressen eller sin egen klik-lytter, som før. **En skærmlæser hører** (ud fra rollerne; VoiceOver og NVDA er ikke prøvet): "Visninger, gruppe", "Oversigt, link, aktuel side", derefter beskrivelsen (genvejen fra tippet); "Siden sidst, link, 3 kræver handling"; en visning slået fra: "Login, link, nedtonet" og hvorfor.
+- **Valgt med mere end farve:** `aria-current="page"` giver samme flade og fede skrift som en trykket knap (`aria-pressed`) og en streg på 2 px forneden i accent, og ikonet i accent. Det gælder alle `.cb` med `aria-current="page"`, også en kommando med `saetAktuel`.
+- **Tal på knappen** (`antal`, `kraever`, `antalAriaT`/`antalAria`, K42): øverst til højre på knappen; et tal, der kræver handling, er en pille med kant og fed skrift. Teksten til skærmlæseren står i en skjult tekst, som i visningsskiftet.
+- **Genvejen og hvorfor** står i knappens værktøjstip (`Kit.vaerktoejstip`, mus og tastatur) og genvejen også i `aria-keyshortcuts`. En visning slået fra (`deaktiveret`) har `aria-disabled`, kan stadig nås med Tab, et klik gør intet, og tippet siger `hvorfor` i stedet for genvejen.
+- **Et langt navn** afkortes med … (højst 152 px); det fulde navn står så øverst i tippet. Kittet ser efter, lige før tippet vises, så det passer, også når programmet selv skifter navnet (fx et land).
+- **Tastatur:** som båndets knapper: hver visning er et Tab-stop (også den åbne), i rækkefølge før kommandoerne; Enter og mellemrum åbner (mellemrum gør kittet til et klik, da et link ikke selv gør det); piletaster bruges ikke.
+- `visninger` og `mere` kræver `udenFaner` (et bånd med faner giver en fejl). Uden dem er båndet præcis som i 2.6.0.
+
+### Mere: båndet står altid på én række (fra 2.7.0, G21)
+
+Med `mere: { t: 'kMere' }` får båndet en Mere-knap sidst, efter gruppeskillet. Når båndets grupper ikke kan stå på én række, flyttes kommandoerne bagfra én ad gangen ind i Mere-menuen, til rækken passer; en gruppe, der bliver tom, skjules med sit navn. Visningerne og elementer (`{ id, element }`) flyttes aldrig, og den primære kommando (`pri`) flyttes sidst. Er der plads til alt, er Mere skjult.
+
+- **Menuen** (`role="menu"`) har de samme navne og ikoner som knapperne og deres tilstand: en kommando slået fra er nedtonet (`aria-disabled`) med `hvorfor` under navnet (`aria-describedby`); en primær er fed; en, der kan trykkes ind (`trykket`), er et `menuitemcheckbox` med `aria-checked`. Et punkt klikker den skjulte knap, så `ved()` og programmets egne lyttere kører som i båndet; `saetDeaktiveret` virker som før (en åben menu bygges om).
+- **Tastatur:** Enter, mellemrum eller pil ned på Mere åbner med fokus på første punkt (pil op: sidste); pil op og ned (rundt), Home og End flytter; Enter og mellemrum vælger; Esc lukker med fokus på Mere; Tab lukker og går videre. **Mus:** menuen åbner uden at flytte fokus eller en markering i teksten (G23), og et klik uden for lukker den.
+- **Hvornår rækken passer:** når den sidste synlige gruppes højre kant (med dens egen luft) er inden for båndet. Det er målt med `getBoundingClientRect`, så WebKit og Chromium giver samme svar (`scrollWidth` tæller luften til højre med i Chromium, men kun delvis i WebKit). Kittet regner om, når båndet eller en gruppe skifter størrelse (`ResizeObserver`: vindue, tekststørrelse, sprog), og `baand.tilpas()` regner om på kald. `baand.mere` har `knap`, `menu` og `flyttet` (id'erne i menuen).
+- **Kræver af programmet:** et navn til Mere (en nøgle). Visningerne og et element står altid i båndet, så mindstemålet skal give plads til dem, Mere og den primære kommando i alle tre tekststørrelser.
 
 ```js
 const periode = Kit.segment({ ariaT: 'periodeAria', valgt: '7', valg: [{ id: '7', t: 'p7' }, { id: '30', t: 'p30' }, { id: 'aar', t: 'pAar' }], vedValg: id => hent(id) });
@@ -1012,7 +1070,7 @@ f.faerdig();  f.rod.remove();                                                   
 
 ## Værktøjstip
 
-**Klasser:** `.tip-plads`, `.tip`, `.under`, `.venstre-kant`, `.hoejre-kant`
+**Klasser:** `.tip-plads`, `.tip`, `.under`, `.venstre-kant`, `.hoejre-kant`, `.tip-tom`
 
 **Funktioner:** `Kit.vaerktoejstip`
 
@@ -1036,7 +1094,7 @@ tip.saetTekst({ t: 'hvorforLaast' });   tip.fjern();   // fra 2.5.0: ny tekst; t
 </span>
 ```
 
-**Tilstande:** Skjult (`hidden`) og vist. Vises 300 ms efter, at musen kommer ind over elementet, og straks ved tastaturfokus (`:focus-visible`; et museklik viser det ikke). Skjules 150 ms efter, at musen er gået (tid til at flytte musen op på tippet), når fokus går, og ved Esc. Placering: midt over elementet; `.under`, hvis der ikke er plads over; `.venstre-kant` eller `.hoejre-kant`, hvis det ellers går ud over vinduet. Mørk flade (`--rail`, `--rail-strong`) i begge temaer, højst 280 px bred.
+**Tilstande:** Skjult (`hidden`) og vist; fra 2.7.0 vises et tip med klassen `.tip-tom` aldrig (båndets visningsknapper bruger den, når der hverken er genvej, hvorfor eller et afkortet navn). Vises 300 ms efter, at musen kommer ind over elementet, og straks ved tastaturfokus (`:focus-visible`; et museklik viser det ikke). Skjules 150 ms efter, at musen er gået (tid til at flytte musen op på tippet), når fokus går, og ved Esc. Placering: midt over elementet; `.under`, hvis der ikke er plads over; `.venstre-kant` eller `.hoejre-kant`, hvis det ellers går ud over vinduet. Mørk flade (`--rail`, `--rail-strong`) i begge temaer, højst 280 px bred.
 
 **Tastatur:** Tab til elementet viser tippet; Tab væk skjuler det. Esc skjuler det uden at flytte fokus; kittet kalder `preventDefault()` og stopper tastetrykket, så andre lyttere (fx et sidepanel, der ligger over) ikke får det. Om en åben `<dialog>` så heller ikke lukker, er browserens opførsel og ikke prøvet i WebKit. Elementet har `aria-describedby` til tippet (`role="tooltip"`), så skærmlæsere læser forklaringen efter navnet.
 

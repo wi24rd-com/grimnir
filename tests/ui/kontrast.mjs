@@ -378,6 +378,23 @@ export const PAR = [
   ['danger', 'danger-soft', TEKST, '2.6.0 fanerne øverst: tallet, der kræver handling'],
   ['danger', 'surface', KANT, '2.6.0 fanerne øverst: kanten om tallet, der kræver handling'],
   ['text', 'accent-soft', TEKST, '2.6.0 en valgt tabelrække under musen (valget vinder over hover)'],
+  // 2.7.0: visningerne som store knapper i båndet (.cb på surface-raised; den åbne på accent-soft med streg og ikon i accent),
+  // tal på knappen, en visning slået fra (opacity .5), og Mere-menuen (.mere-menu på surface; hover surface-raised; trykket
+  // accent-soft; et punkt slået fra har ikon og navn ved .5, hvorfor i sekundær tekst).
+  ['text', 'accent-soft', TEKST, '2.7.0 den åbne visning (og en kommando med aria-current) i båndet: navnet på fladen'],
+  ['accent', 'accent-soft', KANT, '2.7.0 stregen under den åbne visning og dens ikon'],
+  ['info', 'accent-soft', KANT, '2.7.0 fokusringen på den åbne visning'],
+  ['text-muted', 'surface-raised', TEKST, '2.7.0 et tal på en visningsknap (kræver ikke handling)'],
+  ['text-muted', 'accent-soft', TEKST, '2.7.0 et tal på den åbne visningsknap'],
+  ['danger', 'danger-soft', TEKST, '2.7.0 tallet, der kræver handling, på en visningsknap'],
+  ['danger', 'surface-raised', KANT, '2.7.0 kanten om tallet, der kræver handling, på båndets flade'],
+  ['mix(text 50%, surface-raised)', 'surface-raised', KANT, '2.7.0 en visning slået fra i båndet (opacity .5)'],
+  ['text', 'surface', TEKST, '2.7.0 Mere-menuen: punktets navn'],
+  ['text-muted', 'surface', TEKST, '2.7.0 Mere-menuen: hvorfor under navnet'],
+  ['text', 'surface-raised', TEKST, '2.7.0 Mere-menuen: punktet under musen'],
+  ['text', 'accent-soft', TEKST, '2.7.0 Mere-menuen: et trykket punkt (menuitemcheckbox)'],
+  ['mix(text 50%, surface)', 'surface', KANT, '2.7.0 Mere-menuen: ikon og navn på et punkt slået fra (opacity .5)'],
+  ['info', 'surface', KANT, '2.7.0 Mere-menuen: fokusringen'],
 ];
 
 /* En farve fra et tokennavn eller fra mix(A N%, B): A og B blandet i srgb, N % af A. */
