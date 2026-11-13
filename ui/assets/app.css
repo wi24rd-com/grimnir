@@ -36,6 +36,10 @@ html[data-laast] .sagdel { visibility: hidden; }
 /* V-OPBYG.1 N7: Vejledning og Lås i titellinjen er kittets titellinjeknapper med ord; Vejledning har en pil, der siger, at
    den åbner noget uden for Grimnir (browseren). */
 #vejledning::after { content: " ↗"; }
+/* V-OPBYG.3 N2 (D28): mærket i titellinjen er masken: kittets .mrk-maske (en flade i --accent-on-rail, 20 px) med Grimnirs
+   eget billede som maske, som Huginn and Muninn gør (.hm-mrk). Under 24 px den lille tegning (bredere sprækker). Masken
+   følger temaets farve; billedet hentes fra ui/assets (img-src 'self'). */
+.gr-mrk { -webkit-mask-image: url(grimnir-maerke-lille.svg); mask-image: url(grimnir-maerke-lille.svg); }
 
 /* V-OPBYG.1 N3 (D27): tre trin øverst i Maskér og Demaskér. Det aktuelle har flade, fed skrift og et fyldt tal; et færdigt
    et flueben i et fyldt tal; de næste et tal i en ring (form og vægt, ikke kun farve). Trinene er vejledning, ikke knapper. */
@@ -64,6 +68,36 @@ html[data-laast] .sagdel { visibility: hidden; }
 
 /* Om (kittets dialog). */
 .om-p { margin: 0 0 var(--space-4); }
+/* V-OPBYG.3 N3 (D28): masken (den fulde tegning, 40 px, i accent på dialogens flade) ved navn, slogan og beskrivelse;
+   "Det kan du forvente" med et ikon (accent) ved hvert punkt; licensen; tredjepartslicenserne i en rullende boks; Åbn
+   vejledningen. Dialogen ruller selv, når den er højere end vinduet (kittets .modal: max-height og overflow). */
+.om-hoved { display: flex; align-items: center; gap: var(--space-3); margin: 0 0 var(--space-4); }
+.om-hoved .identitet { margin: 0; }
+.om-mrk {
+  width: 40px; height: 40px; background: var(--accent);
+  -webkit-mask-image: url(grimnir-maerke.svg); mask-image: url(grimnir-maerke.svg);
+  -webkit-mask-position: center; mask-position: center;
+}
+.om-h3 { margin: 0 0 var(--space-2); font-size: var(--body-size); line-height: var(--body-line); font-weight: 600; color: var(--text); }
+.om-forvent { margin: 0 0 var(--space-4); }
+.om-punkter { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.om-punkter li { display: flex; align-items: flex-start; gap: var(--space-2); }
+.om-ikon { flex: none; width: 18px; height: 18px; margin-top: 2px; fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.om-punkt p { margin: 0; }
+.om-punkt-h { font-weight: 600; }
+.om-punkt-p { color: var(--text-muted); }
+.om-licens { margin: 0 0 var(--space-4); }
+.om-linje { margin: 0 0 var(--space-1); }
+.om-licens .btn { margin-top: var(--space-2); }
+.om-licensfejl { margin: var(--space-2) 0 0; color: var(--danger); }
+.licenstekst {
+  margin: var(--space-2) 0 0; max-height: 240px; overflow: auto; padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-raised); color: var(--text);
+  font-family: var(--font-mono); font-size: var(--small-size); line-height: var(--small-line); white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.licenstekst[hidden] { display: none; }
+.licenstekst:focus-visible { outline: 2px solid var(--info); outline-offset: 2px; }
+.om-handlinger { display: flex; gap: var(--space-2); }
 .om-tal { list-style: none; margin: 0 0 var(--space-4); padding: 0; color: var(--text-muted); }
 .om-tal li { padding: 2px 0; }
 /* Hjælpetekst uden for et felt i en dialog (Første start i Indstillinger, sagens valg, guiden): som kittets .felt .hj.
@@ -428,18 +462,19 @@ html[lang="en"] .fundtabel .typevalg .vliste svg { display: none; }
 /* ── Låseskærmen (V-LAAS.2, L4) ──
    <html data-laast> står fra start (index.html), så siden er låst, før et script har kørt. Mens den står, dækker
    låseskærmen arbejdsfladen, og visningerne vises ikke; båndet (med visningerne, V-FANER.2) og NavPane er nedtonede (laas.js
-   gør dem inert og sætter forklaringen i title). Titellinjen er urørt. Mærket er titellinjens G i kittets accentpar: titellinjens eget par
-   (accent-on-rail/rail) har ikke 3:1 mod arbejdsfladen i begge temaer (målt i tests/ui/kontrast.mjs). */
+   gør dem inert og sætter forklaringen i title). Titellinjen er urørt. Mærket er masken i kittets accent: titellinjens eget par (accent-on-rail/rail) har
+   ikke 3:1 mod arbejdsfladen i begge temaer (målt i tests/ui/kontrast.mjs). */
 .laasskaerm { display: none; }
 html[data-laast] .arb > .visning { display: none; }
 html[data-laast] .laasskaerm {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2);
   flex: 1; padding: var(--space-8) var(--space-6); text-align: center;
 }
+/* V-OPBYG.3 N2: masken (den fulde tegning) i accent på arbejdsfladen (3:1 i begge temaer; tests/ui/kontrast.mjs). */
 .laas-mrk {
-  display: grid; place-items: center; width: 48px; height: 48px; flex: none;
-  border-radius: var(--radius-md); background: var(--accent); color: var(--on-accent);
-  font-weight: 700; font-size: 24px;
+  width: 48px; height: 48px; background: var(--accent);
+  -webkit-mask-image: url(grimnir-maerke.svg); mask-image: url(grimnir-maerke.svg);
+  -webkit-mask-position: center; mask-position: center;
 }
 .laasskaerm h2 { margin: var(--space-3) 0 0; font-size: var(--h2-size); line-height: var(--h2-line); font-weight: var(--h2-weight); }
 .laasskaerm > p { margin: 0; max-width: 440px; color: var(--text-muted); }

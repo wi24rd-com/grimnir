@@ -3345,6 +3345,22 @@ pub struct FilAnalyse {
     pub fravalgt: Vec<usize>,
     /// V-MANUEL.2 N3: forslag til navnemønstre.
     pub moenstre: Vec<MoensterUd>,
+    /// V-OPBYG.3 N4: hver forekomst i det viste uddrag som (start, slut, rækkens `id`) i UTF-16-enheder, sorteret (som
+    /// [`AnalyseMed::steder`]; kun steder, der begynder inden for de første [`MAKS_VIST_UTF16`] enheder, og uddraget er de
+    /// første 200.000 tegn, så de ligger i det).
+    pub steder: Vec<(usize, usize, usize)>,
+    /// V-OPBYG.3 N4: for hver række, der har et sted i `steder`: (`id`, status `tjek`, `laast`). Webvisningen har kun én
+    /// side rækker; med dette kan den markere alle stederne (maskeres, usikkert fund) uden alle rækkerne. Ingen værdier.
+    pub sted_raekker: Vec<(usize, bool, bool)>,
+}
+
+/// V-OPBYG.3 N4: rækkerne bag stederne (id, status `tjek`, låst), i id-orden, hver én gang.
+fn sted_raekker(raekker: &[Raekke], steder: &[(usize, usize, usize)]) -> Vec<(usize, bool, bool)> {
+    let ider: std::collections::BTreeSet<usize> = steder.iter().map(|s| s.2).collect();
+    let af: HashMap<usize, &Raekke> = raekker.iter().map(|r| (r.id, r)).collect();
+    ider.into_iter()
+        .filter_map(|id| af.get(&id).map(|r| (id, r.status == "tjek", r.laast)))
+        .collect()
 }
 
 /// `analyser` for den åbne fil i Maskér. `rort` (vinder over `fravalgt`): kernens standard undtagen rækker, brugeren
@@ -3366,7 +3382,7 @@ pub fn fil_analyser(
         (None, Some(f)) => Udvalg::Fravalgt(f),
         (None, None) => Udvalg::Standard,
     };
-    let a = analyser_i(t, &h.fil.tekst, udvalg, rettelser, &[])?.analyse;
+    let AnalyseMed { analyse: a, steder, .. } = analyser_i(t, &h.fil.tekst, udvalg, rettelser, &[])?;
     let mut gamle = std::mem::replace(&mut h.raekker, a.raekker);
     nulstil_raekker(&mut gamle);
     h.fejl = a.fejl.clone();
@@ -3378,6 +3394,8 @@ pub fn fil_analyser(
         bytes: h.fil.bytes,
         linjer: a.linjer,
         moenstre: a.moenstre,
+        sted_raekker: sted_raekker(&h.raekker, &steder),
+        steder,
     })
 }
 
@@ -3406,6 +3424,9 @@ pub struct FilMaskering {
     pub bytes: usize,
     /// Kopiér kan bruges (højst 5 MiB).
     pub kopierbar: bool,
+    /// V-OPBYG.3 N4: hver kode i det viste uddrag af den maskerede tekst som (start, slut, rækkens `id`) i UTF-16-enheder,
+    /// sorteret (som [`Maskering::steder`]).
+    pub steder: Vec<(usize, usize, usize)>,
 }
 
 /// `gem_og_masker` for den åbne fil i Maskér: sagen gemmes (i en navngiven sag krypteret på disken), og den maskerede
@@ -3433,6 +3454,7 @@ pub fn fil_gem_og_masker(t: &Tilstand, fravalgt: &[usize], rettelser: &[Rettelse
         poster: m.poster,
         bytes,
         kopierbar: bytes <= fil::MAKS_KOPI,
+        steder: m.steder,
     })
 }
 

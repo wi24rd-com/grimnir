@@ -196,7 +196,7 @@ const plads = b => (b.parentElement.classList.contains('tip-plads') ? b.parentEl
   tjek('fodlinjen: Kun på denne maskine', d.getElementById('fod-lokalt').textContent.trim() === 'Kun på denne maskine');
   tjek('fodlinjen: programversion fra app.getVersion', d.getElementById('fod-version').textContent === 'Version 9.8.7');
   tjek('fodlinjen: kernens version fra kerne_version', d.getElementById('fod-kerne').textContent === 'Kerne 0.1.0' && s.kald.some(k => k[0] === 'kerne_version'));
-  tjek('titellinjen kan trækkes (deep), mærket er G', d.querySelector('.titel').getAttribute('data-tauri-drag-region') === 'deep' && d.querySelector('.titel .mrk').textContent === 'G');
+  tjek('V-OPBYG.3 N2: titellinjen kan trækkes (deep), mærket er masken (kittets .mrk-maske, aria-hidden, intet bogstav)', d.querySelector('.titel').getAttribute('data-tauri-drag-region') === 'deep' && !d.querySelector('.titel .mrk') && d.querySelector('.titel > .mrk-maske.gr-mrk[aria-hidden="true"]') && d.querySelector('.titel .gr-mrk').textContent === '' && !d.querySelector('.titel .gr-mrk').children.length);
   // Menuen
   s.emit('menu', 'indstillinger');
   tjek('menuen "indstillinger" åbner Indstillinger', d.getElementById('dlg-indst').hasAttribute('open'));
@@ -1706,7 +1706,8 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   await vent(10);
   tjek('slip én fil: fil_aabn_sluppet i Maskér, og filen er åben', !flade.hasAttribute('data-traek') && !tomFlade.classList.contains('tomt-slip') && s.kald.some(k => k[0] === 'fil_aabn_sluppet' && k[1].visning === 'masker') && G.M.st.fil && G.M.st.fil.navn === 'sluppet.log');
   s.emit('fil-sluppet', { navn: null, fejl: 'flere' });
-  await vent(5);
+  // V-OPBYG.3: venter på beskeden i stedet for 5 ms (fejlede én gang af tre under belastning); påstanden er uændret.
+  await ventTil(w, () => d.querySelector('section[data-visning="masker"]').textContent.includes('Træk én fil ad gangen ind'));
   tjek('slip flere filer: afvist med besked', d.querySelector('section[data-visning="masker"]').textContent.includes('Træk én fil ad gangen ind'));
   s.w.location.hash = 'demasker';
   await vent(5);
@@ -2119,7 +2120,7 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
   await vent(20);
   tjek('Lås: laas_op kaldes én gang ved start, på UI\'ets sprog', JSON.stringify(rust.st.opKald) === '["da"]', JSON.stringify(rust.st.opKald));
   tjek('Lås: annulleret → Grimnir er stadig låst (låseskærmen)', laaseskaerm(d));
-  tjek('Lås: låseskærmen har mærke, overskrift, én sætning og to knapper', d.querySelector('#laas .laas-mrk').textContent === 'G' && d.getElementById('laas-h').textContent === 'Grimnir er låst' && d.getElementById('laas-p').textContent === 'Lås op med Touch ID eller din adgangskode for at åbne dine sager og din ordbog.' && d.getElementById('laas-op').textContent === 'Lås op' && d.getElementById('laas-afslut').textContent === 'Afslut');
+  tjek('V-OPBYG.3 N2: Lås: låseskærmen har mærket (masken), overskrift, én sætning og to knapper', d.querySelector('#laas .mrk-maske.laas-mrk[aria-hidden="true"]') && d.querySelector('#laas .laas-mrk').textContent === '' && d.getElementById('laas-h').textContent === 'Grimnir er låst' && d.getElementById('laas-p').textContent === 'Lås op med Touch ID eller din adgangskode for at åbne dine sager og din ordbog.' && d.getElementById('laas-op').textContent === 'Lås op' && d.getElementById('laas-afslut').textContent === 'Afslut');
   tjek('Lås: Lås op er primær, Afslut sekundær; begge med aria-label', d.getElementById('laas-op').classList.contains('primary') && !d.getElementById('laas-afslut').classList.contains('primary') && /Touch ID/.test(d.getElementById('laas-op').getAttribute('aria-label')) && d.getElementById('laas-afslut').getAttribute('aria-label') === 'Afslut Grimnir');
   tjek('Lås: låseskærmen ligger på arbejdsfladen (#arb)', d.getElementById('laas').parentElement.id === 'arb');
   tjek('Lås: beskeden efter annullering', d.getElementById('laas-besked').textContent === 'Grimnir er stadig låst. Tryk Lås op for at prøve igen.', d.getElementById('laas-besked').textContent);
@@ -4336,7 +4337,7 @@ const klikVis = async (w, a, id) => { const p = visningSkift(w, id); a.click(); 
   tjek('V-OPBYG.1: venstre side er træet med filtre og under det den aktuelle sag og "Alt behandles på denne maskine" (intet visningsskift, ingen #skift, ingen faner, ingen visningsknapper)', [...nav.children].map(e => e.id || e.className).join() === 'navdele,sagdel,sagdel-lokalt' && !d.getElementById('skift') && !nav.querySelector('.skift, .vs, .vfaner, .vf, .vk') && d.querySelectorAll('nav.nav .navdel .trae').length === 5);
   const nd = d.querySelector('.navdel[data-visning="sager"]');
   tjek('V-FANER.2: venstre side fylder hele højden: den aktive visnings del og dens træ fylder ruden (flex 1, min-height 0), og navdele fylder nav', cssVaerdi(d.getElementById('navdele'), 'flex') === '1' && cssVaerdi(nd, 'flex') === '1 1 auto' && cssVaerdi(nd.querySelector('.trae'), 'flex') === '1 1 auto' && cssVaerdi(nd.querySelector('.trae'), 'min-height') === '0' && cssVaerdi(nd.querySelector('.trae'), 'overflow') === 'auto');
-  tjek('V-OPBYG.1: titellinjen: mærke, navn, slogan, sagen, sagens knap, Vejledning, Lås og tandhjulet (N7 lægger Vejledning og Lås til)', [...titel.children].map(e => e.className || e.tagName).join() === 'mrk,B,slogan-plads,hoejre' && [...titel.querySelector('.hoejre').children].map(e => e.id).join() === 'sag,sag-knap,vejledning,laas-nu,aabn-indst' && !titel.querySelector('.vk, .vf, [role="tab"]'));
+  tjek('V-OPBYG.3 N3: titellinjen: mærke (masken), navn, slogan, sagen, sagens knap, Vejledning, Lås, ⓘ og tandhjulet', [...titel.children].map(e => e.className || e.tagName).join() === 'mrk-maske gr-mrk,B,slogan-plads,hoejre' && [...titel.querySelector('.hoejre').children].map(e => e.id).join() === 'sag,sag-knap,vejledning,laas-nu,aabn-om,aabn-indst' && !titel.querySelector('.vk, .vf, [role="tab"]'));
   // Tab-rækkefølgen
   await klikVis(w, visKnapper(d)[0], 'masker');
   const fokuserbar = [...d.querySelectorAll('a[href], button, input, select, textarea, [tabindex]')].filter(e => e.tabIndex >= 0 && !e.disabled && !e.closest('[hidden], [inert], dialog, .tip'));
@@ -5178,6 +5179,180 @@ const hl = (w, navn) => { const h = w.CSS.highlights.get(navn); return h ? [...h
   const njKode = nj.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
   tjek('V-OPBYG.2: noter.js skriver intet til konsollen eller localStorage og sætter ingen stil (koden uden kommentarer)', !/console\.|localStorage|sessionStorage|\.style\./.test(njKode) && njKode.length > 5000);
   tjek('V-OPBYG.2: index.html indlæser noter.js efter sager.js', /assets\/sager\.js" defer><\/script>\n<script src="assets\/noter\.js" defer>/.test(ui('index.html')));
+}
+
+// ════════════════════════════════════════════════════════════════════ V-OPBYG.3
+// ── N2: mærket er masken (titellinjen, låseskærmen, Om) ──
+{
+  const app = ui('assets/app.css');
+  const regel = sel => { const m = new RegExp('(?:^|\\n)' + sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ' \\{([^}]*)\\}').exec(app); return m ? m[1] : ''; };
+  tjek('V-OPBYG.3 N2: titellinjens mærke bruger den lille tegning som maske (under 24 px)', /mask-image: url\(grimnir-maerke-lille\.svg\)/.test(regel('.gr-mrk')) && /-webkit-mask-image: url\(grimnir-maerke-lille\.svg\)/.test(regel('.gr-mrk')) && !/background/.test(regel('.gr-mrk')));
+  tjek('V-OPBYG.3 N2: låseskærmens mærke (48 px) og Om-dialogens (40 px) bruger den fulde tegning i accent', /width: 48px; height: 48px; background: var\(--accent\);/.test(regel('.laas-mrk')) && /mask-image: url\(grimnir-maerke\.svg\)/.test(regel('.laas-mrk')) && /width: 40px; height: 40px; background: var\(--accent\);/.test(regel('.om-mrk')) && /mask-image: url\(grimnir-maerke\.svg\)/.test(regel('.om-mrk')));
+  tjek('V-OPBYG.3 N2: billederne ligger i ui/assets (img-src \'self\') og er byte for byte kilderne i src-tauri/icons/kilde', ['grimnir-maerke.svg', 'grimnir-maerke-lille.svg'].every(n => fs.readFileSync(path.join(repo, 'ui', 'assets', n)).equals(fs.readFileSync(path.join(repo, 'src-tauri', 'icons', 'kilde', n)))));
+  const tok = ui('assets/tokens.css');
+  const vaerdi = (blok, navn) => (new RegExp('--' + navn + ': ([^;]+);').exec(blok) || [])[1];
+  const lys = tok.slice(0, tok.indexOf(':root[data-tema="moerk"]')), moerk = tok.slice(tok.indexOf(':root[data-tema="moerk"]'));
+  tjek('V-OPBYG.3 N2: mærket følger temaet (farven er et token, der findes i lyst og mørkt tema; ingen fast farve i reglerne)', ['accent', 'accent-on-rail'].every(n => vaerdi(lys, n) && vaerdi(moerk, n)) && !/#[0-9a-f]{3,8}/i.test(regel('.gr-mrk') + regel('.laas-mrk') + regel('.om-mrk')));
+  tjek('V-OPBYG.3 N2: intet bogstav G som mærke i index.html', !/aria-hidden="true">G</.test(ui('index.html')) && (ui('index.html').match(/class="mrk-maske /g) || []).length === 2);
+}
+{
+  const s = side();
+  const { d, w } = s;
+  await ventTil(w, () => d.getElementById('aabn-om').querySelector('svg'));
+  const om = d.getElementById('aabn-om');
+  tjek('V-OPBYG.3 N3: ⓘ står ved tandhjulet i titellinjen: en knap med kun et ikon (info), navnet "Om Grimnir" i aria-label og værktøjstip', om.tagName === 'BUTTON' && om.type === 'button' && om.classList.contains('rk') && om.nextElementSibling === d.getElementById('aabn-indst') && om.getAttribute('aria-label') === 'Om Grimnir' && om.title === 'Om Grimnir' && om.textContent.trim() === '' && om.querySelector('svg[aria-hidden="true"] circle') && om.tabIndex === 0);
+  om.focus();
+  om.click();
+  await ventTil(w, () => aaben(d, 'dlg-om'));
+  const dlg = d.getElementById('dlg-om');
+  tjek('V-OPBYG.3 N3: ⓘ åbner Om Grimnir, og fokus står på Luk', aaben(d, 'dlg-om') && d.activeElement === dlg.querySelector('[data-svar="luk"]'));
+  const omMrk = dlg.querySelector('.om-hoved > .mrk-maske.om-mrk[aria-hidden="true"]');
+  tjek('V-OPBYG.3 N2/N3: øverst masken ved navn, slogan og beskrivelse', omMrk && omMrk.textContent === '' && omMrk.nextElementSibling.classList.contains('identitet') && [...dlg.querySelectorAll('.identitet p')].map(p => p.textContent).join('|') === 'Wi24rd Grimnir|Mask. Share. Restore.|Sensitive data masking tool for logs and scripts');
+  const punkter = [...dlg.querySelectorAll('.om-punkter > li')];
+  tjek('V-OPBYG.3 N3: "Det kan du forvente" med fem punkter, hvert med et ikon (aria-hidden), en overskrift og en sætning', dlg.querySelector('#om-forvent-h').textContent === 'Det kan du forvente' && dlg.querySelector('.om-forvent').getAttribute('aria-labelledby') === 'om-forvent-h' && punkter.length === 5 && punkter.every(li => li.firstElementChild.tagName.toLowerCase() === 'svg' && li.firstElementChild.getAttribute('aria-hidden') === 'true' && li.querySelector('.om-punkt-h').textContent && li.querySelector('.om-punkt-p').textContent));
+  tjek('V-OPBYG.3 N3: punkterne i rækkefølge (dansk, macOS)', punkter.map(li => li.querySelector('.om-punkt-h').textContent).join('|') === 'Maskér, før du deler|Demaskér svaret|Sager gemmes krypteret på denne maskine|Låst, når du går fra den|Intet netværk og ingen telemetri' && punkter[0].querySelector('.om-punkt-p').textContent === 'Værdierne bliver til koder, og samme værdi får samme kode.' && punkter[1].querySelector('.om-punkt-p').textContent === 'Koderne bliver til dine værdier igen.' && /Touch ID eller Mac’ens adgangskode/.test(punkter[3].textContent) && /ingen netværkskode/.test(punkter[4].textContent));
+  tjek('V-OPBYG.3 N3: versionerne står som før', d.getElementById('om-version').textContent === 'Version 9.8.7' && d.getElementById('om-kerne').textContent === 'Kerne 0.1.0');
+  const lic = dlg.querySelector('.om-licens');
+  tjek('V-OPBYG.3 N3: licensen: Apache-2.0 · Copyright (c) 2026 Jan Tingsvad og skrifterne (SIL Open Font License 1.1)', lic.querySelector('h3').textContent === 'Licens' && [...lic.querySelectorAll('.om-linje')].map(p => p.textContent).join('|') === 'Apache-2.0 · Copyright (c) 2026 Jan Tingsvad|Skrifter: Inter og JetBrains Mono (SIL Open Font License 1.1)');
+  const orden = [dlg.querySelector('.om-hoved'), dlg.querySelector('.om-p'), dlg.querySelector('.om-forvent'), dlg.querySelector('.om-tal'), lic, dlg.querySelector('.om-handlinger')];
+  tjek('V-OPBYG.3 N3: rækkefølgen: masken og navnet, sætningen, Det kan du forvente, versionerne, licensen, Åbn vejledningen', orden.every(Boolean) && orden.every((e, i) => i === 0 || orden[i - 1].compareDocumentPosition(e) === 4));
+  const lk = d.getElementById('om-licenser'), lt = d.getElementById('om-licenstekst');
+  tjek('V-OPBYG.3 N3: "Vis tredjepartslicenser" er en knap, der styrer en skjult tekst (aria-expanded false)', lk.tagName === 'BUTTON' && lk.type === 'button' && lk.textContent === 'Vis tredjepartslicenser' && lk.getAttribute('aria-expanded') === 'false' && lk.getAttribute('aria-controls') === 'om-licenstekst' && lt.hidden && lt.textContent === '');
+  // Uden en efterlignet kommando fejler den: fejlen står i dialogen, og teksten er stadig skjult.
+  lk.click();
+  await ventTil(w, () => !d.getElementById('om-licensfejl').hidden);
+  tjek('V-OPBYG.3 N3: kan licenserne ikke hentes, siger dialogen det', !d.getElementById('om-licensfejl').hidden && d.getElementById('om-licensfejl').textContent === 'Tredjepartslicenserne kunne ikke vises.' && lt.hidden && lk.getAttribute('aria-expanded') === 'false');
+  d.querySelector('#dlg-om [data-svar="luk"]').click();
+  tjek('V-OPBYG.3 N3: Luk lukker dialogen', !aaben(d, 'dlg-om'));
+  // Menuens "Om Grimnir" (macOS) åbner den samme dialog.
+  s.emit('menu', 'om');
+  tjek('V-OPBYG.3 N3: programmenuens Om Grimnir åbner den samme dialog', aaben(d, 'dlg-om') && d.querySelectorAll('#dlg-om').length === 1);
+  // Esc på en modal <dialog> er browserens: 'cancel' og så lukket (jsdom har det ikke; det gøres her som WebKit gør det).
+  const dlgE = d.getElementById('dlg-om');
+  const esc = new w.Event('cancel', { cancelable: true });
+  dlgE.dispatchEvent(esc);
+  if (!esc.defaultPrevented) dlgE.close();
+  tjek('V-OPBYG.3 N3: Esc lukker dialogen (en modal <dialog>; kittet forhindrer ikke Esc)', dlgE.tagName === 'DIALOG' && !esc.defaultPrevented && !aaben(d, 'dlg-om'));
+}
+{
+  // Licenserne og Åbn vejledningen med en efterlignet Rust; teksten er THIRD_PARTY_LICENSES.md (pakket med programmet).
+  const LIC = fs.readFileSync(path.join(repo, 'THIRD_PARTY_LICENSES.md'), 'utf8');
+  const s = side({ rust: { tredjepartslicenser: () => LIC, vejledning_aabn: () => null } });
+  const { d, w } = s;
+  await ventTil(w, () => d.getElementById('aabn-om').querySelector('svg'));
+  d.getElementById('aabn-om').click();
+  const lk = d.getElementById('om-licenser'), lt = d.getElementById('om-licenstekst');
+  lk.click();
+  await ventTil(w, () => !lt.hidden);
+  tjek('V-OPBYG.3 N3: Vis tredjepartslicenser viser filens tekst i dialogen (pre, kan nås med Tab), og knappen hedder nu Skjul', !lt.hidden && lt.tagName === 'PRE' && lt.textContent === LIC && lt.tabIndex === 0 && lt.getAttribute('aria-label') === 'Tredjepartslicenser' && lk.getAttribute('aria-expanded') === 'true' && lk.textContent === 'Skjul tredjepartslicenser' && s.kald.filter(k => k[0] === 'tredjepartslicenser').length === 1);
+  lk.click();
+  tjek('V-OPBYG.3 N3: Skjul skjuler teksten igen', lt.hidden && lk.getAttribute('aria-expanded') === 'false' && lk.textContent === 'Vis tredjepartslicenser');
+  lk.click();
+  tjek('V-OPBYG.3 N3: vist igen uden et nyt kald (teksten er hentet)', !lt.hidden && s.kald.filter(k => k[0] === 'tredjepartslicenser').length === 1);
+  const vk = d.getElementById('om-vejledning');
+  vk.click();
+  await ventTil(w, () => s.kald.some(k => k[0] === 'vejledning_aabn'));
+  tjek('V-OPBYG.3 N3: Åbn vejledningen er samme kommando som titellinjens (kun sproget)', vk.tagName === 'BUTTON' && vk.textContent === 'Åbn vejledningen' && vk.getAttribute('aria-label') === d.getElementById('vejledning').getAttribute('aria-label') && JSON.stringify(s.kald.find(k => k[0] === 'vejledning_aabn')[1]) === '{"sprog":"da"}');
+  const kildeKode = ui('assets/app.js');
+  tjek('V-OPBYG.3 N3: der er stadig kun ét kald til vejledning_aabn i webvisningen (én funktion for begge knapper)', (kildeKode.match(/invoke\('vejledning_aabn'/g) || []).length === 1 && /\$\('vejledning'\)\.addEventListener\('click', aabnVejledning\)/.test(kildeKode) && /vejlKnap\.addEventListener\('click', aabnVejledning\)/.test(kildeKode));
+}
+for (const lang of ['da', 'en']) {
+  // Windows og engelsk: knappen og låsens punkt efter platformen.
+  const s = side({ platform: 'windows', lager: { 'grimnir-sprog': lang } });
+  const { d, w } = s;
+  await ventTil(w, () => d.getElementById('aabn-om').querySelector('svg'));
+  const om = d.getElementById('aabn-om');
+  const navn = lang === 'da' ? 'Om Grimnir' : 'About Grimnir';
+  tjek(`V-OPBYG.3 N3 (Windows, ${lang}): ⓘ står også på Windows med navnet i aria-label og værktøjstip`, om.getAttribute('aria-label') === navn && om.title === navn && om.nextElementSibling.id === 'aabn-indst');
+  om.click();
+  const dlg = d.getElementById('dlg-om');
+  const laas = dlg.querySelectorAll('.om-punkter > li')[3].textContent;
+  tjek(`V-OPBYG.3 N3 (Windows, ${lang}): låsens punkt lover ikke Touch ID, men siger, hvad der gælder på Windows`, !/Touch ID|Mac/.test(laas) && (lang === 'da' ? /Windows Hello kommer med Windows-udgaven/.test(laas) : /Windows Hello comes with the Windows version/.test(laas)));
+  if (lang === 'en') tjek('V-OPBYG.3 N3 (en): overskrifterne og knappen på engelsk', dlg.querySelector('#om-forvent-h').textContent === 'What you can expect' && dlg.querySelector('#om-licens-h').textContent === 'Licence' && d.getElementById('om-licenser').textContent === 'Show third-party licences' && d.getElementById('om-vejledning').textContent === 'Open the guide' && dlg.querySelector('h2').textContent === 'About Grimnir');
+}
+{
+  // Låst: Om kan åbnes fra ⓘ (som fra menuen i dag), og licenserne kan vises; intet fra sagerne i DOM'en.
+  const rust = falskLaasRust({ laast: true });
+  rust.tredjepartslicenser = () => 'Tredjepartslicenser — prøve';
+  const s = side({ rust, hash: '#masker' });
+  const { d, w } = s;
+  await ventTil(w, () => laaseskaerm(d) && d.getElementById('aabn-om').querySelector('svg'));
+  d.getElementById('aabn-om').click();
+  tjek('V-OPBYG.3 N3: låst kan Om åbnes fra ⓘ (titellinjen er ikke inert)', laaseskaerm(d) && aaben(d, 'dlg-om') && !d.querySelector('.titel').closest('[inert]'));
+  d.getElementById('om-licenser').click();
+  await ventTil(w, () => !d.getElementById('om-licenstekst').hidden);
+  tjek('V-OPBYG.3 N3: låst kan tredjepartslicenserne vises (de rører hverken sager, ordbog, filer eller nøgler)', d.getElementById('om-licenstekst').textContent === 'Tredjepartslicenser — prøve' && !d.getElementById('om-licenstekst').hidden);
+}
+{
+  // Teksterne lover ikke netværk, programmet ikke har.
+  const sprogKode = ui('assets/sprog.js');
+  const omNoegler = ['omForventH', 'omMaskerH', 'omMaskerP', 'omDemaskerH', 'omDemaskerP', 'omSagerH', 'omSagerP', 'omLaastH', 'omLaastPMac', 'omLaastPWin', 'omNetH', 'omNetP', 'omLicensH', 'omSkrifter', 'kVisLicenser', 'kSkjulLicenser', 'licenserFejl', 'kAabnVejledning', 'omP', 'licens'];
+  const tekster = [];
+  for (const n of omNoegler) for (const m of sprogKode.matchAll(new RegExp('\\b' + n + ": '([^']*)'", 'g'))) tekster.push(m[1]);
+  tjek('V-OPBYG.3 N3: alle Om-teksterne findes på dansk og engelsk', tekster.length === omNoegler.length * 2, String(tekster.length));
+  const LOEFTE = /opdater|update|sky\b|cloud|server|synkron|sync|upload|konto\b|account|log ind|sign in|backup|online|internet|download|hent(?:er|es)? (?:nye|fra)/i;
+  tjek('V-OPBYG.3 N3: ingen Om-tekst nævner netværk, programmet ikke har (opdatering, sky, server, synkronisering, konto …)', !tekster.some(t => LOEFTE.test(t)), tekster.filter(t => LOEFTE.test(t)).join(' | '));
+  tjek('V-OPBYG.3 N3: kontrol: mønsteret fanger "opdateres automatisk", "synced to the cloud" og "log ind"', ['opdateres automatisk', 'synced to the cloud', 'log ind på kontoen'].every(t => LOEFTE.test(t)));
+}
+
+// ── N4: markering for en åben fil (stederne for uddraget og rækkerne bag dem kommer fra Rust) ──
+function falskFilMarkRust() {
+  const r = falskFilRust({ antal: 3 });
+  const UDDRAG = 'Password=Sommer2026!;\r\nsrcip=10.20.0.2 msg=ok\r\nhost srv-fil01 og 10.20.0.2\r\n';
+  const R = [
+    { id: 9, vaerdi: 'Sommer2026!', kode: 'GRIMNIR_SECRET_0001', art: 'hemmelighed', status: 'sikker', standard: true, hemmelig: true },
+    { id: 31, vaerdi: '10.20.0.2', kode: '198.18.0.2', art: 'ipv4_egen', status: 'sikker', standard: true, hemmelig: false },
+    { id: 59, vaerdi: 'srv-fil01', kode: 'h0001', art: 'vaert', status: 'tjek', standard: false, hemmelig: false },
+  ];
+  const steder = (t, par) => { const ud = []; for (const [id, x] of par) { let i = -1; while ((i = t.indexOf(x, i + 1)) !== -1) ud.push([i, i + x.length, id]); } return ud.sort((a, b) => a[0] - b[0]); };
+  let fra = R.filter(x => !x.standard).map(x => x.id);
+  const kald = [];
+  return {
+    ...r, kald,
+    fil_aabn: async ({ visning }) => ({ navn: 'app.log', bytes: 4800000, tegnsaet: 'utf8', linjeskift: 'crlf', linjer: 3, uddrag: UDDRAG, ikke_vist: 4700000 }),
+    fil_analyser: async a => {
+      kald.push(['fil_analyser', a]);
+      if (a.fravalgt) fra = a.fravalgt.slice();
+      if (a.rort) fra = R.filter(x => (new Map(a.rort).has(x.id) ? !new Map(a.rort).get(x.id) : !x.standard)).map(x => x.id);
+      // Kun den første række er på siden (som når en fil har flere rækker, end siden viser); stederne gælder alle.
+      const raekker = R.slice(0, 1).map(x => ({ id: x.id, art: x.art, status: x.status, standard: x.standard, valgt: !fra.includes(x.id), laast: false, hemmelig: x.hemmelig, vaerdier: [x.vaerdi], koder: [x.kode], antal: 1, linje: 1, rettet: false, kendt: false, tilfoejet: null }));
+      return { side: { raekker, i_alt: 3, valgte: 3 - fra.length, antal: { alle: 3, tjek: 1, hemmelig: 1, seneste: 0, status_tjek: 1 } }, fejl: [], advarsler: [], bytes: 4800000, linjer: 3, fravalgt: fra.slice(), moenstre: [], steder: steder(UDDRAG, R.map(x => [x.id, x.vaerdi])), sted_raekker: R.map(x => [x.id, x.status === 'tjek', false]) };
+    },
+    fil_gem_og_masker: async ({ fravalgt }) => {
+      let m = UDDRAG;
+      const v = R.filter(x => !fravalgt.includes(x.id));
+      for (const x of v) m = m.split(x.vaerdi).join(x.kode);
+      return { uddrag: m, ikke_vist: 4700000, rester: [], advarsler: [], poster: v.length, bytes: m.length, kopierbar: true, steder: steder(m, v.map(x => [x.id, x.kode])) };
+    },
+  };
+}
+{
+  const rust = falskFilMarkRust();
+  const s = side({ rust, foer: hlFoer });
+  const { d, w } = s;
+  await ventTil(w, () => !laaseskaerm(d));
+  knapI(d, 'masker', 'aabn-fil').click();
+  await ventTil(w, () => w.CSS.highlights.has('grimnir-masker'));
+  const sek = d.querySelector('section[data-visning="masker"]');
+  const pre = sek.querySelector('pre.tekst');
+  tjek('V-OPBYG.3 N4: en åben fil: værdierne, der maskeres, er markeret i uddraget (grimnir-masker), også for en række, der ikke er på den viste side', JSON.stringify(hl(w, 'grimnir-masker')) === JSON.stringify(['Sommer2026!', '10.20.0.2', '10.20.0.2']) && fundRaekker(d).length === 1, JSON.stringify(hl(w, 'grimnir-masker')));
+  tjek('V-OPBYG.3 N4: et usikkert fund i filen er stiplet (grimnir-usikker), og teksten er stadig én tekstnode', JSON.stringify(hl(w, 'grimnir-usikker')) === JSON.stringify(['srv-fil01']) && pre.childNodes.length === 1 && pre.firstChild.nodeType === 3);
+  tjek('V-OPBYG.3 N4: linjen "Filens værdier markeres ikke i teksten endnu." er væk (også fra sprogene)', sek.querySelector('.markinfo').hidden && !/markeringFil|markeres ikke i teksten endnu|not marked in the text yet/.test(ui('assets/sprog.js') + ui('assets/maskering.js')));
+  klik(w, sek.querySelector('.fundtabel tr[data-id="9"]'));
+  tjek('V-OPBYG.3 N4: den valgte række i en fil markeres alle steder (grimnir-valgt)', JSON.stringify(hl(w, 'grimnir-valgt')) === JSON.stringify(['Sommer2026!']));
+  const cb = sek.querySelector('.fundtabel tr[data-id="9"] input[type="checkbox"]');
+  cb.checked = false;
+  cb.dispatchEvent(new w.Event('change', { bubbles: true }));
+  await ventTil(w, () => !hl(w, 'grimnir-masker').includes('Sommer2026!'));
+  tjek('V-OPBYG.3 N4: en række, der slås fra, er ikke længere markeret som maskeret', JSON.stringify(hl(w, 'grimnir-masker')) === JSON.stringify(['10.20.0.2', '10.20.0.2']), JSON.stringify(hl(w, 'grimnir-masker')));
+  cb.checked = true;
+  cb.dispatchEvent(new w.Event('change', { bubbles: true }));
+  await ventTil(w, () => hl(w, 'grimnir-masker').includes('Sommer2026!'));
+  klik(w, knapI(d, 'masker', 'gem-masker'));
+  await ventTil(w, () => w.CSS.highlights.has('grimnir-kode'));
+  tjek('V-OPBYG.3 N4: efter maskeringen af filen er koderne markeret i det maskerede uddrag (grimnir-kode)', JSON.stringify(hl(w, 'grimnir-kode')) === JSON.stringify(['GRIMNIR_SECRET_0001', '198.18.0.2', '198.18.0.2']) && !w.CSS.highlights.has('grimnir-masker'), JSON.stringify(hl(w, 'grimnir-kode')));
+  const mj = ui('assets/maskering.js');
+  tjek('V-OPBYG.3 N4: webvisningen markerer fra Rusts steder og sted_raekker (ingen egen søgning i uddraget)', /st\.analyse\.sted_raekker/.test(mj) && !/if \(st\.fil\) return null;/.test(mj));
 }
 
 console.log(`\n${ok + fejl} tjek: ${ok} ok, ${fejl} fejl`);

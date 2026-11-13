@@ -810,7 +810,7 @@
     }
 
     /* Svaret fra fil_gem_og_masker i samme form som gem_og_masker: maskeret er uddraget. */
-    const fraFilMaskering = m => ({ maskeret: m.uddrag, ikkeVist: m.ikke_vist, rester: m.rester, advarsler: m.advarsler, poster: m.poster, bytes: m.bytes, kopierbar: m.kopierbar, fil: true });
+    const fraFilMaskering = m => ({ maskeret: m.uddrag, ikkeVist: m.ikke_vist, rester: m.rester, advarsler: m.advarsler, poster: m.poster, bytes: m.bytes, kopierbar: m.kopierbar, steder: m.steder, fil: true });
 
     let fejlBanner = null;
     function fejl(e) {
@@ -951,8 +951,10 @@
        ::highlight): værdier, der maskeres (understreget), usikre fund, der ikke maskeres ("Tjek selv", stiplet), den valgte
        række (flade og streg over og under, alle steder; første sted rulles frem) og efter maskeringen koderne (flade og
        understreget). Aldrig kun farve. Stederne kommer fra Rust (analysen og maskeringen: start, slut, række i UTF-16) og
-       kun for de første 200.000 tegn, som feltet viser; en fil har dem ikke endnu (V-OPBYG.3). Uden API'et (en ældre
-       webvisning) markeres intet, og linjen under teksten siger det. */
+       kun for de første 200.000 tegn, som feltet viser. V-OPBYG.3 N4: en åben fil markeres på samme måde: Rust giver
+       stederne i uddraget og for hver række bag dem, om den er "Tjek selv", og om den er låst (sted_raekker), da
+       webvisningen kun har én side rækker. Uden API'et (en ældre webvisning) markeres intet, og linjen under teksten siger
+       det. */
     const HL = typeof CSS !== 'undefined' && CSS && CSS.highlights && typeof Highlight === 'function';
     /* StaticRange, ikke Range: en levende Range skal WebKit flytte ved hver ændring af DOM'en, og med tusinder af dem blev
        hele visningen langsom (målt i V-OPBYG.2: 4.940 ms mod 107 ms for 2.000 linjer med 6.680 steder; tabellens rækker
@@ -965,8 +967,14 @@
     let markRanges = { masker: [], usikker: [], kode: [], valgt: [] };
     function steder() {
       const efter = st.foerEfter && st.resultat;
-      if (st.fil) return null;
       return efter ? st.resultat.steder || null : st.analyse && st.analyse.steder || null;
+    }
+    /* Rækkerne bag stederne: for indsat tekst alle rækkerne; for en fil (V-OPBYG.3 N4) Rusts sted_raekker (id, Tjek selv,
+       låst), så stederne for rækker uden for den viste side også markeres. valgt() bruger kun id og laast. */
+    function stedRaekker() {
+      if (!st.analyse) return new Map();
+      if (st.fil) return new Map((st.analyse.sted_raekker || []).map(([id, tjek, laast]) => [id, { id, status: tjek ? 'tjek' : '', laast }]));
+      return new Map(st.analyse.raekker.map(r => [r.id, r]));
     }
     function markInfoTekst(noegle) {
       if (!markInfo) return;
@@ -1009,14 +1017,14 @@
       return lo;
     }
     function marker() {
-      markInfoTekst(st.fil && st.analyse ? 'markeringFil' : !HL && st.analyse ? 'markeringMangler' : null);
+      markInfoTekst(!HL && st.analyse ? 'markeringMangler' : null);
       if (!HL) return;
       const efter = Boolean(st.foerEfter && st.resultat);
       const liste = steder(), node = tv.pre.firstChild;
       markRanges = { masker: [], usikker: [], kode: [], valgt: [] };
       vindue = null;
       if (liste && node && node.nodeType === 3) {
-        const raekke = new Map(st.analyse ? st.analyse.raekker.map(r => [r.id, r]) : []);
+        const raekke = stedRaekker();
         const n = node.length;
         const syn = synligt(node);
         vindue = syn ? udvid(node.data, syn) : null;

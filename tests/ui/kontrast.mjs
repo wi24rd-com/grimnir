@@ -436,6 +436,18 @@ export const PAR = [
   ['text', 'accent-soft', TEKST, 'V-OPBYG.2 Noter: teksten i den valgte note'],
   ['accent', 'accent-soft', KANT, 'V-OPBYG.2 Noter: kanten om den valgte note'],
   ['danger', 'surface', TEKST, 'V-OPBYG.2 Noter: fejlen under feltet'],
+  // V-OPBYG.3 (Grimnir, app.css): mærket er masken (D28) i titellinjen (kittets .mrk-maske i accent-on-rail på rail), på
+  // låseskærmen og i Om-dialogen (accent på arbejdsfladen og dialogens flade, begge surface); Om-dialogens ikoner (accent),
+  // punkternes sætning (sekundær tekst), tredjepartslicenserne (tekst på surface-raised med en kant) og fejlen (danger).
+  ['accent-on-rail', 'rail', KANT, 'V-OPBYG.3 mærket (masken) i titellinjen'],
+  ['accent', 'surface', KANT, 'V-OPBYG.3 mærket (masken) på låseskærmen'],
+  ['accent', 'surface', KANT, 'V-OPBYG.3 mærket (masken) i Om Grimnir'],
+  ['accent', 'surface', KANT, 'V-OPBYG.3 Om Grimnir: ikonet ved hvert punkt'],
+  ['text-muted', 'surface', TEKST, 'V-OPBYG.3 Om Grimnir: punkternes sætning'],
+  ['text', 'surface-raised', TEKST, 'V-OPBYG.3 Om Grimnir: tredjepartslicenserne'],
+  ['danger', 'surface', TEKST, 'V-OPBYG.3 Om Grimnir: licenserne kunne ikke vises'],
+  ['rail-text', 'rail', KANT, 'V-OPBYG.3 ⓘ i titellinjen (ikonet)'],
+  ['rail-strong', 'rail-active', KANT, 'V-OPBYG.3 ⓘ i titellinjen ved hover'],
 ];
 
 /* En farve fra et tokennavn eller fra mix(A N%, B): A og B blandet i srgb, N % af A. */

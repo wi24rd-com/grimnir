@@ -22,7 +22,8 @@
 <body>
 <div class="vindue" id="vindue">
   <header class="titel" data-tauri-drag-region="deep">
-    <span class="mrk" aria-hidden="true">G</span>
+    <!-- V-OPBYG.3 N2 (D28): mærket er masken (kittets .mrk-maske med Grimnirs eget billede; app.css). -->
+    <span class="mrk-maske gr-mrk" aria-hidden="true"></span>
     <b data-t="appNavn">Wi24rd Grimnir</b>
     <span class="slogan-plads"><span class="slogan" data-t="slogan">Mask. Share. Restore.</span></span>
     <span class="hoejre">
@@ -31,6 +32,8 @@
       <!-- V-OPBYG.1 N7: Vejledning (beder styresystemet åbne vejledningen i browseren; virker også låst) og Lås (låser nu). -->
       <button type="button" class="rk rk-ord" id="vejledning" data-t="kVejledning" data-t-aria="ariaVejledning" data-t-title="titelVejledning"></button>
       <button type="button" class="rk rk-ord" id="laas-nu" data-t="kLaasNu" data-t-aria="ariaLaasNu"></button>
+      <!-- V-OPBYG.3 N3: ⓘ åbner Om Grimnir (kun ikonet; navnet i aria-label og værktøjstip). -->
+      <button type="button" class="rk" id="aabn-om" data-t-aria="omH" data-t-title="omH"></button>
       <button type="button" class="rk" id="aabn-indst" data-t-aria="aabnIndst" data-t-title="aabnIndstTitel"></button>
     </span>
   </header>
@@ -58,7 +61,7 @@
     </nav>
     <main class="arb" id="arb">
       <section class="laasskaerm" id="laas" aria-labelledby="laas-h" aria-describedby="laas-p">
-        <span class="laas-mrk" aria-hidden="true">G</span>
+        <span class="mrk-maske laas-mrk" aria-hidden="true"></span>
         <h2 id="laas-h" data-t="laasH">Grimnir er låst</h2>
         <p id="laas-p" data-t="laasP"></p>
         <div class="laas-knapper">

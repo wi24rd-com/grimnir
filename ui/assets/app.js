@@ -32,6 +32,8 @@
     gentag: [['path', { d: 'M15 14l5-5-5-5' }], ['path', { d: 'M20 9H9.5a5.5 5.5 0 0 0 0 11H13' }]],
     ryd: [['path', { d: 'M8 20h12' }], ['path', { d: 'M4.6 14.6l9.2-9.2a2 2 0 0 1 2.8 0l2 2a2 2 0 0 1 0 2.8L11 18.8H8.8z' }], ['path', { d: 'M9.5 9.7l4.8 4.8' }]],
     markering: [['path', { d: 'M4 8V5h3M17 5h3v3M20 16v3h-3M7 19H4v-3' }], ['path', { d: 'M12 8.5v7M8.5 12h7' }]],
+    // V-OPBYG.3 N3: ⓘ for Om Grimnir i titellinjen (kittet har intet info-ikon; ønske G36).
+    info: [['circle', { cx: 12, cy: 12, r: 9 }], ['path', { d: 'M12 11v6' }], ['path', { d: 'M12 7.5v.5' }]],
   });
 
   const senere = (id, t, ikon, pri) => ({ id, t, ikon, pri: Boolean(pri), deaktiveret: true, hvorfor: 'hvorforSenere' });
@@ -280,7 +282,8 @@
   /* V-OPBYG.1 N7: Vejledning beder styresystemet åbne Grimnirs vejledning i browseren (Rust: vejledning_aabn med kun
      sproget; to faste adresser). Virker også, mens Grimnir er låst. Går det ikke, står det i et banner under titellinjen. */
   const invoke = (c, a) => tauri.core.invoke(c, a);
-  $('vejledning').addEventListener('click', () => {
+  /* V-OPBYG.3 N3: samme kommando fra titellinjen og fra Om Grimnir (Åbn vejledningen). */
+  function aabnVejledning() {
     if (!tauri || !tauri.core || !tauri.core.invoke) return;
     invoke('vejledning_aabn', { sprog: S.lang }).catch(() => {
       const rod = $('laas-banner');
@@ -290,12 +293,16 @@
       rod.appendChild(b);
       S.anvend(b);
     });
-  });
+  }
+  $('vejledning').addEventListener('click', aabnVejledning);
 
   // Titellinjen: indstillinger
   const indstKnap = $('aabn-indst');
   indstKnap.appendChild(K.ikon('tandhjul', 'ik'));
   indstKnap.setAttribute('data-v', mod + ',');
+  // V-OPBYG.3 N3: ⓘ ved tandhjulet åbner Om Grimnir (kun ikonet; navnet i aria-label og værktøjstip), også låst.
+  const omKnap = $('aabn-om');
+  omKnap.appendChild(K.ikon('info', 'ik'));
 
   /* Dialoger. Alle Grimnirs dialoger er kittets (V-KITBRUG.2 N1: også Indstillinger, sagens dialog, Tilføj post, Prøv
      på tekst og guiden). kitDialog bygger med Kit.dialog: id og knappernes id'er giver kittet (G3: id, knapId), fejlfeltet
@@ -341,21 +348,93 @@
   }
   function bekraeft(o) { lukAndre(null); return K.bekraeft(o); }
 
-  // Om: navn, slogan, beskrivelse, versionerne og licensen, med kittets fletbånd øverst (ADR D16: ét sted; G5: foer).
+  /* Om: med kittets fletbånd øverst (ADR D16: ét sted; G5: foer). V-OPBYG.3 N3 (D28): masken ved navn, slogan og
+     beskrivelse; den forklarende sætning; "Det kan du forvente" (fem punkter med ikon, sande for programmet, som det er:
+     låsen er forskellig på macOS og Windows); versionerne; licensen og skrifterne; "Vis tredjepartslicenser" viser
+     THIRD_PARTY_LICENSES.md (pakket med programmet; Rust: tredjepartslicenser) i dialogen; "Åbn vejledningen" er samme
+     kommando som titellinjens. Dialogen ruller, når den er højere end vinduet (kittets .modal). Fokus står på Luk. */
   const elT = (tag, kl, t, id) => { const e = document.createElement(tag); if (kl) e.className = kl; if (t) e.setAttribute('data-t', t); if (id) e.id = id; return e; };
   const omIndhold = document.createElement('div');
+  const omHoved = elT('div', 'om-hoved');
+  const omMrk = elT('span', 'mrk-maske om-mrk');
+  omMrk.setAttribute('aria-hidden', 'true');
   const identitet = elT('div', 'identitet');
   identitet.append(elT('p', 'id-navn', 'appNavn'), elT('p', 'id-slogan', 'slogan'), elT('p', 'id-beskrivelse', 'beskrivelse'));
+  omHoved.append(omMrk, identitet);
+  const OM_PUNKTER = [
+    ['maske', 'omMaskerH', 'omMaskerP'],
+    ['oeje', 'omDemaskerH', 'omDemaskerP'],
+    ['mappe', 'omSagerH', 'omSagerP'],
+    ['laas', 'omLaastH', mac ? 'omLaastPMac' : 'omLaastPWin'],
+    ['skjold', 'omNetH', 'omNetP'],
+  ];
+  const omForvent = elT('section', 'om-forvent');
+  omForvent.setAttribute('aria-labelledby', 'om-forvent-h');
+  const omPunkter = elT('ul', 'om-punkter');
+  for (const [ikon, h, p] of OM_PUNKTER) {
+    const li = document.createElement('li');
+    const tekst = elT('div', 'om-punkt');
+    tekst.append(elT('p', 'om-punkt-h', h), elT('p', 'om-punkt-p', p));
+    li.append(K.ikon(ikon, 'om-ikon'), tekst);
+    omPunkter.appendChild(li);
+  }
+  omForvent.append(elT('h3', 'om-h3', 'omForventH', 'om-forvent-h'), omPunkter);
   const omTal = elT('ul', 'om-tal');
   const omVersion = elT('li', 'mono', 'version', 'om-version'), omKerne = elT('li', 'mono', 'kerne', 'om-kerne');
   omVersion.setAttribute('data-v', '…');
   omKerne.setAttribute('data-v', '…');
-  omTal.append(omVersion, omKerne, elT('li', null, 'licens'));
-  omIndhold.append(identitet, elT('p', 'om-p', 'omP'), omTal);
+  omTal.append(omVersion, omKerne);
+  const omLicens = elT('section', 'om-licens');
+  omLicens.setAttribute('aria-labelledby', 'om-licens-h');
+  const licensKnap = elT('button', 'btn', 'kVisLicenser', 'om-licenser');
+  licensKnap.type = 'button';
+  licensKnap.setAttribute('aria-expanded', 'false');
+  licensKnap.setAttribute('aria-controls', 'om-licenstekst');
+  const licensTekst = elT('pre', 'licenstekst', null, 'om-licenstekst');
+  licensTekst.hidden = true;
+  licensTekst.tabIndex = 0;
+  licensTekst.setAttribute('data-t-aria', 'ariaLicenstekst');
+  const licensFejl = elT('p', 'om-licensfejl', null, 'om-licensfejl');
+  licensFejl.hidden = true;
+  omLicens.append(elT('h3', 'om-h3', 'omLicensH', 'om-licens-h'), elT('p', 'om-linje', 'licens'), elT('p', 'om-linje', 'omSkrifter'), licensKnap, licensFejl, licensTekst);
+  const vejlKnap = elT('button', 'btn', 'kAabnVejledning', 'om-vejledning');
+  vejlKnap.type = 'button';
+  vejlKnap.setAttribute('data-t-aria', 'ariaVejledning');
+  vejlKnap.setAttribute('data-t-title', 'titelVejledning');
+  vejlKnap.addEventListener('click', aabnVejledning);
+  const omHandlinger = elT('div', 'om-handlinger');
+  omHandlinger.appendChild(vejlKnap);
+  omIndhold.append(omHoved, elT('p', 'om-p', 'omP'), omForvent, omTal, omLicens, omHandlinger);
+  /* Licensteksten hentes første gang, den vises (den er pakket med programmet; intet net), og står så i dialogen. Skjul
+     skjuler den igen; den bliver i DOM'en (den er offentlig tekst). */
+  let licenserHentet = false;
+  licensKnap.addEventListener('click', () => {
+    const vis = licensTekst.hidden;
+    const saet = aaben => {
+      licensTekst.hidden = !aaben;
+      licensKnap.setAttribute('aria-expanded', String(aaben));
+      licensKnap.setAttribute('data-t', aaben ? 'kSkjulLicenser' : 'kVisLicenser');
+      S.anvend(licensKnap);
+    };
+    if (!vis) { saet(false); return; }
+    if (licenserHentet) { saet(true); return; }
+    if (!tauri || !tauri.core || !tauri.core.invoke) return;
+    licensFejl.hidden = true;
+    invoke('tredjepartslicenser').then(t => {
+      licensTekst.textContent = String(t);
+      licenserHentet = true;
+      saet(true);
+    }).catch(() => {
+      licensFejl.setAttribute('data-t', 'licenserFejl');
+      licensFejl.hidden = false;
+      S.anvend(licensFejl);
+    });
+  });
   const omFlet = elT('div', 'om-flet', null, 'om-flet');
   omFlet.appendChild(K.fletbaand());
   kitDialog({ id: 'dlg-om', t: 'omH', foer: omFlet, indhold: omIndhold, knapper: [{ id: 'luk', t: 'luk' }] });
   indstKnap.addEventListener('click', () => aabnDialog('dlg-indst'));
+  omKnap.addEventListener('click', () => aabnDialog('dlg-om'));
   const MENU = { indstillinger: 'dlg-indst', om: 'dlg-om' };
 
   /* V-KITBRUG.2 N4: tekststørrelsen med ⌘+ (⌘= tæller med), ⌘− og ⌘0 (Ctrl på Windows) og fra menuen Vis (hændelsen

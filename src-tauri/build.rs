@@ -48,6 +48,8 @@ const KOMMANDOER: &[&str] = &[
     "note_tilfoej",
     "note_ret",
     "note_slet",
+    // V-OPBYG.3 N3: tredjepartslicenserne i Om Grimnir (teksten er pakket med programmet).
+    "tredjepartslicenser",
 ];
 
 fn main() {

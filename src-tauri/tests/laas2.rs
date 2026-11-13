@@ -185,8 +185,9 @@ fn kommandoer_i_lib() -> Vec<String> {
 
 /// Kommandoer, der må virke, mens Grimnir er låst: de rører hverken sager, ordbog, filer eller nøgler.
 /// V-OPBYG.1 N7: `vejledning_aabn` (beder styresystemet åbne en fast adresse; kun sproget) og `laas_nu` (låser; er Grimnir
-/// allerede låst, sker intet) rører heller ingen af dem.
-const AABNE_I_LAAST: [&str; 10] = [
+/// allerede låst, sker intet) rører heller ingen af dem. V-OPBYG.3 N3: `tredjepartslicenser` (en tekst pakket med programmet;
+/// Om-dialogen kan åbnes låst).
+const AABNE_I_LAAST: [&str; 11] = [
     "kerne_version",
     "menu_sprog",
     "program_afslut",
@@ -197,6 +198,7 @@ const AABNE_I_LAAST: [&str; 10] = [
     "aktivitet",
     "vejledning_aabn",
     "laas_nu",
+    "tredjepartslicenser",
 ];
 
 #[test]

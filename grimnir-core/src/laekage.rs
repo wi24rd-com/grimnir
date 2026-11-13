@@ -27,16 +27,25 @@ pub fn laekagetjek(maskeret: &str, sag: &Sag, ordbog: &Ordbog) -> Vec<Rest> {
         koder.get(i).is_some_and(|k| k.0 <= s && e <= k.1)
     };
 
-    // 1. Sagens originaler, uafhængigt af store/små bogstaver
+    // 1. Sagens originaler, uafhængigt af store/små bogstaver.
+    //
+    // V-OPBYG.3 N1: en original på ét tegn søges ikke som ord alene. Et enkelt bogstav eller ciffer står alene overalt i
+    // en tekst og kan ikke skelnes fra den; analysen søger heller ikke efter det andre steder (afledte former først fra tre
+    // tegn), så det blev meldt som rest i samme tekst, det blev maskeret i (`p` fra `A0\p` gav resten "P" i `P A0\p`;
+    // V-OPBYG.2, sideeffekt-fund 1). To tegn og mere meldes som før (V-KERNE.2: "sa" og "2024" er rester, så brugeren selv
+    // kan afgøre det). Står originalen i sin sammenhæng (`KONTOR\p`), finder genkenderne den igen (trin 2).
     let poster = sag.poster();
-    if !poster.is_empty() {
+    let soeges: Vec<usize> = (0..poster.len())
+        .filter(|&i| poster[i].original.som_tekst().chars().nth(1).is_some())
+        .collect();
+    if !soeges.is_empty() {
         let ac = AhoCorasick::builder()
             .ascii_case_insensitive(true)
             .match_kind(MatchKind::LeftmostLongest)
-            .build(poster.iter().map(|p| p.original.som_tekst().as_bytes()));
+            .build(soeges.iter().map(|&i| poster[i].original.som_tekst().as_bytes()));
         if let Ok(ac) = ac {
             for m in ac.find_iter(t) {
-                let p = m.pattern().as_usize();
+                let p = soeges[m.pattern().as_usize()];
                 let tekst = &maskeret[m.start()..m.end()];
                 if poster[p].original.is_empty()
                     || sag.opslag(tekst).is_some()

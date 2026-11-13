@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-tredjepartslicenser"
+description = "Enables the tredjepartslicenser command without any pre-configured scope."
+commands.allow = ["tredjepartslicenser"]
+
+[[permission]]
+identifier = "deny-tredjepartslicenser"
+description = "Denies the tredjepartslicenser command without any pre-configured scope."
+commands.deny = ["tredjepartslicenser"]

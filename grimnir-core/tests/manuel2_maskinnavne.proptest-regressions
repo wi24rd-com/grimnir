@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 7e2e6243086ea87bb277d8e03e2652967cce993eeb89f6720cb78e8b779bd271 # shrinks to dele = [(Stoej("P"), 0), (Stoej("A0\\p"), 0)]

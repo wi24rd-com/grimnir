@@ -335,6 +335,17 @@ fn vejledning_aabn(sprog: String) -> Result<(), String> {
     vejledning::aabn(&sprog)
 }
 
+/// V-OPBYG.3 N3: `THIRD_PARTY_LICENSES.md` fra repoets rod, pakket med programmet ved bygningen (`include_str!`).
+const TREDJEPARTSLICENSER: &str = include_str!("../../THIRD_PARTY_LICENSES.md");
+
+/// V-OPBYG.3 N3: tredjepartslicenserne til Om Grimnir ("Vis tredjepartslicenser"). Teksten er pakket med programmet; intet
+/// læses fra disken, og intet hentes. Virker også, mens Grimnir er låst (rører hverken sager, ordbog, filer eller nøgler;
+/// Om-dialogen kan åbnes låst).
+#[tauri::command]
+fn tredjepartslicenser() -> &'static str {
+    TREDJEPARTSLICENSER
+}
+
 /// V-OPBYG.1 N7: Lås i titellinjen låser nu ad samme vej som lås ved stilstand og notifikationerne ([`laas_igen_og_meld`]:
 /// D21's regler for den midlertidige sag, udklipsholderen ryddes, filerne og ordbogen glemmes, og webvisningen får `laast`).
 /// Er Grimnir allerede låst, sker intet.
@@ -648,6 +659,7 @@ pub fn run() {
         kvittering,
         sag_indhold,
         vejledning_aabn,
+        tredjepartslicenser,
         laas_nu,
         noter_hent,
         note_tilfoej,
@@ -747,6 +759,14 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// V-OPBYG.3 N3: Om Grimnirs tredjepartslicenser er filen i repoets rod, byte for byte, pakket med programmet.
+    #[test]
+    fn tredjepartslicenserne_er_filen_i_roden() {
+        let fil = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../THIRD_PARTY_LICENSES.md")).unwrap();
+        assert_eq!(tredjepartslicenser(), fil);
+        assert!(tredjepartslicenser().starts_with("# Tredjepartslicenser — Wi24rd Grimnir"));
+    }
 
     #[test]
     fn kerne_version_er_kernens_version() {

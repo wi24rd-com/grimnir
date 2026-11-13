@@ -76,7 +76,19 @@
       indstH: 'Indstillinger',
       omH: 'Om Grimnir',
       omP: 'Wi24rd Grimnir maskerer følsomme værdier i logs og scripts, før du deler dem, og sætter dem tilbage bagefter. Alt sker på denne maskine.',
-      licens: 'Licens: Apache-2.0', luk: 'Luk',
+      licens: 'Apache-2.0 · Copyright (c) 2026 Jan Tingsvad', luk: 'Luk',
+      // V-OPBYG.3 N3: Om Grimnir. Punkterne er sande for programmet, som det er (låsen: macOS og Windows hver for sig).
+      omForventH: 'Det kan du forvente',
+      omMaskerH: 'Maskér, før du deler', omMaskerP: 'Værdierne bliver til koder, og samme værdi får samme kode.',
+      omDemaskerH: 'Demaskér svaret', omDemaskerP: 'Koderne bliver til dine værdier igen.',
+      omSagerH: 'Sager gemmes krypteret på denne maskine', omSagerP: 'Hver sag har sin egen nøgle i nøgleringen.',
+      omLaastH: 'Låst, når du går fra den',
+      omLaastPMac: 'Grimnir låser ved dvale, skærmlås og brugerskift, efter stilstand og når du trykker Lås. Lås op med Touch ID eller Mac’ens adgangskode.',
+      omLaastPWin: 'Grimnir låser efter stilstand og når du trykker Lås. Windows kan endnu ikke bekræfte, at det er dig (Windows Hello kommer med Windows-udgaven); indtil da siger et banner det.',
+      omNetH: 'Intet netværk og ingen telemetri', omNetP: 'Programmet har ingen netværkskode og sender intet. Vejledning beder kun styresystemet åbne siden i din browser.',
+      omLicensH: 'Licens', omSkrifter: 'Skrifter: Inter og JetBrains Mono (SIL Open Font License 1.1)',
+      kVisLicenser: 'Vis tredjepartslicenser', kSkjulLicenser: 'Skjul tredjepartslicenser', ariaLicenstekst: 'Tredjepartslicenser',
+      licenserFejl: 'Tredjepartslicenserne kunne ikke vises.', kAabnVejledning: 'Åbn vejledningen',
       // V-SKAL.2: Maskér og Demaskér
       midlertidigSag: 'Midlertidig sag · ikke gemt under et navn', ariaSagKnap: 'Midlertidig sag, {v} {v:værdi|værdier}: gem som sag eller nulstil',
       sagH: 'Midlertidig sag',
@@ -371,7 +383,7 @@
       fodVaerdier: '{v} {v:værdi|værdier}', fodMaskeres: '{v} maskeres', fodBevares: '{v} bevares', fodMaskeret: '{v} maskeret', fodBevaret: '{v} bevaret',
       fodErstatninger: '{v} {v:gemt erstatning|gemte erstatninger}',
       // V-OPBYG.2 N3: linjenumre og markering i teksten.
-      ariaLinjenumre: 'Linjenumre', markeringFil: 'Filens værdier markeres ikke i teksten endnu.',
+      ariaLinjenumre: 'Linjenumre',
       markeringMangler: 'Denne webvisning kan ikke markere værdierne i teksten.',
     },
     en: {
@@ -430,7 +442,18 @@
       indstH: 'Settings',
       omH: 'About Grimnir',
       omP: 'Wi24rd Grimnir masks sensitive values in logs and scripts before you share them, and puts them back afterwards. Everything happens on this machine.',
-      licens: 'Licence: Apache-2.0', luk: 'Close',
+      licens: 'Apache-2.0 · Copyright (c) 2026 Jan Tingsvad', luk: 'Close',
+      omForventH: 'What you can expect',
+      omMaskerH: 'Mask before you share', omMaskerP: 'The values become codes, and the same value gets the same code.',
+      omDemaskerH: 'Unmask the reply', omDemaskerP: 'The codes become your values again.',
+      omSagerH: 'Cases are saved encrypted on this machine', omSagerP: 'Each case has its own key in the keychain.',
+      omLaastH: 'Locked when you step away',
+      omLaastPMac: 'Grimnir locks on sleep, screen lock and user switch, after inactivity and when you press Lock. Unlock with Touch ID or your Mac’s password.',
+      omLaastPWin: 'Grimnir locks after inactivity and when you press Lock. Windows cannot yet confirm that it is you (Windows Hello comes with the Windows version); until then a banner says so.',
+      omNetH: 'No network and no telemetry', omNetP: 'The program has no network code and sends nothing. Guide only asks the operating system to open the page in your browser.',
+      omLicensH: 'Licence', omSkrifter: 'Fonts: Inter and JetBrains Mono (SIL Open Font License 1.1)',
+      kVisLicenser: 'Show third-party licences', kSkjulLicenser: 'Hide third-party licences', ariaLicenstekst: 'Third-party licences',
+      licenserFejl: 'The third-party licences could not be shown.', kAabnVejledning: 'Open the guide',
       // V-SKAL.2: Mask and Unmask
       midlertidigSag: 'Temporary case · not saved under a name', ariaSagKnap: 'Temporary case, {v} {v:value|values}: save as case or reset',
       sagH: 'Temporary case',
@@ -723,7 +746,7 @@
       fodVaerdier: '{v} {v:value|values}', fodMaskeres: '{v} to mask', fodBevares: '{v} to keep', fodMaskeret: '{v} masked', fodBevaret: '{v} kept',
       fodErstatninger: '{v} saved {v:replacement|replacements}',
       // V-OPBYG.2 N3.
-      ariaLinjenumre: 'Line numbers', markeringFil: 'The file’s values are not marked in the text yet.',
+      ariaLinjenumre: 'Line numbers',
       markeringMangler: 'This web view cannot mark the values in the text.',
     },
   };
