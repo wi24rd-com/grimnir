@@ -54,6 +54,7 @@ npm run test:kolonner                     # table column widths at 1024 px and u
 npm run test:kit                          # the Wi24rd UI Kit 2 package
 npm run tjek                              # the kit's copies in ui/assets match the package
 npm run test:signer                       # the signing script with stubs (signs nothing)
+sh tools/signer.sh proeve                 # macOS: a debug build signed with your own Developer ID, no notarisation
 ```
 Requires Rust (rustup) and Node.js.
 

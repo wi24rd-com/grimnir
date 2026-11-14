@@ -20,6 +20,8 @@ const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const SCRIPT = process.env.SIGNER_SCRIPT ?? path.join(REPO, "tools/signer.sh");
 const IDENTITET = "Developer ID Application: Prøve Person (TEST000000)";
 const PROFIL = "proeve-profil";
+// Versionen læses fra programmets egen tauri.conf.json (testrepoet får en kopi), så testen følger et versionsskift.
+const VER = JSON.parse(fs.readFileSync(path.join(REPO, "src-tauri/tauri.conf.json"), "utf8")).version;
 
 let ok = 0;
 const fejl = [];
@@ -269,6 +271,11 @@ try {
     tjek("afplanlaeg --toer", a.status === 0 && indeks(a.linjer, "+ launchctl bootout") >= 0 && indeks(a.linjer, "+ rm -f ") >= 0);
     const s = koer(r, ["status"], { lokal: lokalProfil });
     tjek("status", s.status === 0 && s.ud.includes("ikke planlagt") && s.ud.includes(`profil:    ${PROFIL}`));
+    // Som i Huginn and Muninn: uden signer.lokal gælder programmets egen standardprofil, og scriptet læser aldrig Nøglering selv.
+    const s0 = koer(r, ["status"], {});
+    tjek("standardprofilen er programmets egen, og udgivelsesmappen ligger i hjemmemappen", s0.ud.includes("profil:    grimnir-notary") && s0.ud.includes(`ud:        ${r.hjem}/Grimnir-udgivelser`), s0.ud);
+    const kilde = fs.readFileSync(SCRIPT, "utf8");
+    tjek("scriptet kalder aldrig security og læser dermed ikke Nøglering selv", !/(^|[\s;|&(])security\s/m.test(kilde.replace(/^\s*#.*$/gm, "")));
   }
 
   // ---- 8. udgiv med stubbe: filtider, zip, rækkefølge ----
@@ -289,9 +296,9 @@ try {
     tjek("filtider: dagens dato", dag === null || tider.every((t) => t.startsWith(dag)), tider[0]);
     tjek("filtider: også signaturen og billetten, der kom til efter første touch", fs.existsSync(path.join(app, "Contents/_CodeSignature/CodeResources")) && fs.existsSync(path.join(app, "Contents/CodeResources")));
     const ud = path.join(r.hjem, "Grimnir-udgivelser");
-    const zip = path.join(ud, "Grimnir-0.1.0.zip");
+    const zip = path.join(ud, `Grimnir-${VER}.zip`);
     tjek("zip: den endelige zip ligger uden for repoet", fs.existsSync(zip));
-    tjek("zip: zip-filen til notarisering er fjernet", !fs.existsSync(path.join(ud, "Grimnir-0.1.0-til-notarisering.zip")));
+    tjek("zip: zip-filen til notarisering er fjernet", !fs.existsSync(path.join(ud, `Grimnir-${VER}-til-notarisering.zip`)));
     tjek("zip: zip-filens egen filtid", lokalt("stat", ["-f", "%Sm", "-t", "%H:%M:%S", zip]).trim() === IND);
     const poster = lokalt("unzip", ["-Z", "-T", zip]).split("\n").filter((l) => l.includes("Grimnir.app"));
     const hhmmss = IND.replaceAll(":", "");
@@ -300,12 +307,12 @@ try {
     tjek("notarisering: loggen hentet til en fil uden for repoet", fs.existsSync(path.join(ud, "notarisering-00000000-0000-0000-0000-000000000001.json")));
     // V-PUDS.2 N2: version og commit i den sidste linje og i en tekstfil ved zip-filen, uden klokkeslæt.
     const h = git(r, "rev-parse", "--short", "HEAD").trim();
-    const txt = path.join(ud, "Grimnir-0.1.0.txt");
+    const txt = path.join(ud, `Grimnir-${VER}.txt`);
     const indhold = fs.existsSync(txt) ? fs.readFileSync(txt, "utf8") : "";
-    tjek("N2: tekstfilen ved zip-filen: version og commit", indhold === `Grimnir 0.1.0\ncommit ${h}\n`, JSON.stringify(indhold));
+    tjek("N2: tekstfilen ved zip-filen: version og commit", indhold === `Grimnir ${VER}\ncommit ${h}\n`, JSON.stringify(indhold));
     tjek("N2: tekstfilen har intet klokkeslæt, og dens filtid er den faste", !/\d\d:\d\d/.test(indhold) && lokalt("stat", ["-f", "%Sm", "-t", "%H:%M:%S", txt]).trim() === IND);
     const sidste = k.ud.trim().split("\n").pop();
-    tjek("N2: den sidste linje har version og commit", sidste.startsWith("== færdig: ") && sidste.includes(`Grimnir 0.1.0, commit ${h}`), sidste);
+    tjek("N2: den sidste linje har version og commit", sidste.startsWith("== færdig: ") && sidste.includes(`Grimnir ${VER}, commit ${h}`), sidste);
     tjek("N2: rent og pushet står i loggen", k.ud.includes(`kode: arbejdstræet er rent, og HEAD ${h} findes på origin/main`));
     tjek("N2: intet midlertidigt zip-navn tilbage", !fs.readdirSync(ud).some((f) => f.endsWith(".ufaerdig")), fs.readdirSync(ud).join(", "));
   }
@@ -318,7 +325,7 @@ try {
     tjek("afvist: loggen hentet uden for repoet", fs.existsSync(path.join(r.hjem, "Grimnir-udgivelser/notarisering-00000000-0000-0000-0000-000000000001.json")));
     tjek("afvist: notarytool log med profilen", k.stub.some((l) => l.startsWith("xcrun notarytool log 00000000-0000-0000-0000-000000000001 --keychain-profile " + PROFIL)));
     tjek("afvist: intet hæftet", !k.stub.some((l) => l.startsWith("xcrun stapler")));
-    tjek("afvist: ingen endelig zip", !fs.existsSync(path.join(r.hjem, "Grimnir-udgivelser/Grimnir-0.1.0.zip")));
+    tjek("afvist: ingen endelig zip", !fs.existsSync(path.join(r.hjem, `Grimnir-udgivelser/Grimnir-${VER}.zip`)));
     tjek("afvist: siger hvorfor", k.fejl.includes("ikke godkendt") && k.fejl.includes("Invalid"));
   }
 
@@ -363,10 +370,10 @@ try {
     k = koer(r, ["udgiv", "--toer", "--urent"], { lokal: lokalProfil });
     tjek("N2 --urent: tilsidesætter (bygger og signerer)", k.status === 0 && k.linjer.some((l) => l.startsWith("+ codesign --force --sign")), k.fejl);
     tjek("N2 --urent: advarer", k.fejl.includes("ADVARSEL") && k.fejl.includes("--urent") && k.fejl.includes("ikke rent"), k.fejl);
-    tjek("N2 --urent --toer: tekstfilen nævnt med urent", k.linjer.some((l) => l.includes("Grimnir-0.1.0.txt: Grimnir 0.1.0, commit ") && l.endsWith(", urent arbejdstræ")));
+    tjek("N2 --urent --toer: tekstfilen nævnt med urent", k.linjer.some((l) => l.includes(`Grimnir-${VER}.txt: Grimnir ${VER}, commit `) && l.endsWith(", urent arbejdstræ")));
     fs.rmSync(path.join(r.hjem, "Grimnir-udgivelser"), { recursive: true, force: true });
     k = koer(r, ["udgiv", "--urent"], { lokal: lokalProfil });
-    const txt = path.join(r.hjem, "Grimnir-udgivelser/Grimnir-0.1.0.txt");
+    const txt = path.join(r.hjem, `Grimnir-udgivelser/Grimnir-${VER}.txt`);
     const indhold = fs.existsSync(txt) ? fs.readFileSync(txt, "utf8") : "";
     tjek("N2 --urent (stubbe): tekstfilen siger urent", k.status === 0 && indhold.includes("arbejdstræ: urent (--urent)"), k.fejl + indhold);
     tjek("N2 --urent (stubbe): den sidste linje siger urent", k.ud.trim().split("\n").pop().endsWith(", urent)"));
@@ -414,7 +421,7 @@ try {
     if (process.env.SIGNER_VIS) console.log(`--- koer med hængende notarytool (${sek} s), stdout:\n${k.ud}--- stderr:\n${k.fejl}---`);
     tjek("N3 hænger: afbrudt (exit ≠ 0) inden for få sekunder", k.status !== 0 && sek < 20, `${sek} s, exit ${k.status}`);
     tjek("N3 hænger: notarytool var i gang", fs.existsSync(pidfil) && k.stub.some((l) => l.startsWith("xcrun notarytool submit")));
-    tjek("N3 hænger: loglinjen siger hvad der skete", k.ud.includes("tidsgrænse: udgiv afbrudt efter 2 s") && k.ud.includes("Fjernet: Grimnir-0.1.0-til-notarisering.zip"), k.ud);
+    tjek("N3 hænger: loglinjen siger hvad der skete", k.ud.includes("tidsgrænse: udgiv afbrudt efter 2 s") && k.ud.includes(`Fjernet: Grimnir-${VER}-til-notarisering.zip`), k.ud);
     tjek("N3 hænger: loglinjen om den indsendte notarisering", k.ud.includes("næste aften bygges, signeres og indsendes en ny"));
     tjek("N3 hænger: jobbet bliver stående (ingen bootout) og prøver igen", !k.stub.some((l) => l.startsWith("launchctl")) && k.ud.includes("jobbet prøver igen kl."), k.stub.join(" | "));
     const tilbage = fs.existsSync(ud) ? fs.readdirSync(ud) : [];

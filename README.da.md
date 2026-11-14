@@ -54,6 +54,7 @@ npm run test:kolonner                     # tabellernes kolonnebredder fra 1024 
 npm run test:kit                          # pakken Wi24rd UI Kit 2
 npm run tjek                              # kittets kopier i ui/assets svarer til pakken
 npm run test:signer                       # signeringsscriptet med stubbe (signerer intet)
+sh tools/signer.sh proeve                 # macOS: debug-bygning signeret med din egen Developer ID, uden notarisering
 ```
 Kræver Rust (rustup) og Node.js.
 

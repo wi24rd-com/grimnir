@@ -1,8 +1,12 @@
 # Changelog
 
-Wi24rd Grimnir er ikke udgivet endnu. Posten nedenfor beskriver det, programmet kan nu, i udviklingsbygningerne til macOS.
+Posterne står efter udgave, nyeste først.
 
 ## [Ikke udgivet]
+
+## [1.0.0] — 2026-11-14
+
+Første offentlige udgave til macOS: signeret med Developer ID og notariseret af Apple.
 
 ### Maskér
 - Indsat tekst (op til 5 MB) og åbne filer (op til 100 MB; UTF-8 med eller uden BOM og UTF-16 med BOM) analyseres med det samme, og fundene står som rækker med type, værdi, kode og status (Sikker, Fra ordbog, Sandsynlig, Tjek selv, Version).

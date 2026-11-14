@@ -1,6 +1,6 @@
 [package]
 name = "grimnir"
-version = "0.1.0"
+version = "1.0.0"
 description = "Wi24rd Grimnir: maskerer følsomme værdier i logs og scripts og sætter dem tilbage bagefter"
 license = "Apache-2.0"
 edition = "2021"
