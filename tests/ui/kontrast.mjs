@@ -419,6 +419,14 @@ export const PAR = [
   ['border-strong', 'bg', KANT, 'V-OPBYG.1 trin: ringen om et kommende trin'],
   ['accent', 'accent-soft', KANT, 'V-OPBYG.1 næste skridt i båndet: kanten'],
   ['text', 'accent-soft', TEKST, 'V-OPBYG.1 næste skridt i båndet: navnet'],
+  // V-OPBYG.6 N2 (Grimnir, app.css): næste skridt i Mere: Mere-knappen har knappens markering (kant i accent på
+  // accent-soft, fed tekst), og punktet i menuen får en kant i accent inden i punktet på accent-soft, med ikonet i accent;
+  // kanten står også mod menuens flade (surface).
+  ['accent', 'accent-soft', KANT, 'V-OPBYG.6 N2 Mere-knappen som næste skridt: kanten'],
+  ['text', 'accent-soft', TEKST, 'V-OPBYG.6 N2 Mere-knappen som næste skridt: navnet'],
+  ['accent', 'accent-soft', KANT, 'V-OPBYG.6 N2 næste skridt i Mere-menuen: kanten og ikonet i punktet'],
+  ['accent', 'surface', KANT, 'V-OPBYG.6 N2 næste skridt i Mere-menuen: kanten mod menuens flade'],
+  ['text', 'accent-soft', TEKST, 'V-OPBYG.6 N2 næste skridt i Mere-menuen: navnet'],
   ['text-muted', 'surface', TEKST, 'V-OPBYG.1 sikkerheden ved typen og "bevares som den er"'],
   ['text-muted', 'surface', TEKST, 'V-OPBYG.1 Aktuel sag: overskrift, status og "Alt behandles på denne maskine"'],
   ['accent', 'surface', TEKST, 'V-OPBYG.1 Aktuel sag: fluebenet ved Gemmes automatisk'],

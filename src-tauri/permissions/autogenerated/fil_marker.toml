@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-fil-marker"
+description = "Enables the fil_marker command without any pre-configured scope."
+commands.allow = ["fil_marker"]
+
+[[permission]]
+identifier = "deny-fil-marker"
+description = "Denies the fil_marker command without any pre-configured scope."
+commands.deny = ["fil_marker"]

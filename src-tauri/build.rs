@@ -58,6 +58,8 @@ const KOMMANDOER: &[&str] = &[
     "sag_post_slet",
     "sag_post_kopier",
     "udklip_vaerdi_kopieret",
+    // V-OPBYG.6 N1: Maskér markering i en åben fil (stedet i uddraget, aldrig teksten).
+    "fil_marker",
 ];
 
 fn main() {

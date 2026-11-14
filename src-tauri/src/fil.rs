@@ -203,6 +203,43 @@ pub fn uddrag(t: &str) -> (String, usize) {
     }
 }
 
+/// V-OPBYG.6 N1: en markering i det viste uddrag som (start, længde) i UTF-16-enheder (som webvisningens strenge og
+/// `Range`-offsets i tekstfeltets ene tekstnode) → byte-spændet i `tekst`. Uddraget er de første [`UDDRAG_TEGN`] tegn
+/// af teksten ([`uddrag`]), og tekstfeltet viser det uændret (også `\r`), så stedet i feltet er stedet i teksten.
+/// Afvisninger (ingen indhold i fejlen): `tom` (længde 0), `midt_i_tegn` (start eller slut mellem de to halvdele af et
+/// tegn uden for BMP, fx et emoji) og `uden_for` (slut efter uddragets sidste enhed). Teksten kopieres ikke.
+pub fn sted_i_uddrag(tekst: &str, start: usize, laengde: usize) -> Result<(usize, usize), &'static str> {
+    if laengde == 0 {
+        return Err("tom");
+    }
+    let slut = start.checked_add(laengde).ok_or("uden_for")?;
+    let (mut u, mut a, mut b, mut ende) = (0usize, None, None, tekst.len());
+    for (n, (i, c)) in tekst.char_indices().enumerate() {
+        if n == UDDRAG_TEGN {
+            ende = i;
+            break;
+        }
+        if u == start {
+            a = Some(i);
+        }
+        if u >= slut {
+            b = (u == slut).then_some(i);
+            break;
+        }
+        u += c.len_utf16();
+    }
+    if b.is_none() && u == slut {
+        b = Some(ende);
+    }
+    match (a, b) {
+        (Some(a), Some(b)) => Ok((a, b)),
+        _ => {
+            let i_alt: usize = tekst.chars().take(UDDRAG_TEGN).map(char::len_utf16).sum();
+            Err(if slut > i_alt { "uden_for" } else { "midt_i_tegn" })
+        }
+    }
+}
+
 /// Læser en fil. Afviser mapper, tomme filer, filer over [`MAKS_FIL`] og ukendte tegnsæt. Filen åbnes kun til læsning.
 pub fn laes(sti: &Path) -> Result<Fil, FilFejl> {
     let meta = fs::metadata(sti)?;
@@ -507,6 +544,27 @@ mod tests {
         let (u, rest) = uddrag(&t);
         assert_eq!((u.chars().count(), rest), (UDDRAG_TEGN, 5));
         assert_eq!(uddrag("kort"), ("kort".to_string(), 0));
+    }
+
+    /// V-OPBYG.6 N1: stedet i UTF-16 bliver til bytes; æøå er ét UTF-16-tegn (to bytes), et emoji to (fire bytes).
+    #[test]
+    fn sted_i_uddrag_regner_utf16_om_til_bytes() {
+        let t = "æø 😀x\r\nå";
+        assert_eq!(sted_i_uddrag(t, 0, 2), Ok((0, 4)));
+        assert_eq!(&t[0..4], "æø");
+        assert_eq!(sted_i_uddrag(t, 3, 2), Ok((5, 9)));
+        assert_eq!(sted_i_uddrag(t, 3, 3), Ok((5, 10)));
+        assert_eq!(sted_i_uddrag(t, 4, 1), Err("midt_i_tegn"));
+        assert_eq!(sted_i_uddrag(t, 3, 1), Err("midt_i_tegn"));
+        assert_eq!(sted_i_uddrag(t, 8, 1), Ok((12, 14)));
+        assert_eq!(sted_i_uddrag(t, 8, 2), Err("uden_for"));
+        assert_eq!(sted_i_uddrag(t, 0, 0), Err("tom"));
+        assert_eq!(sted_i_uddrag(t, usize::MAX, 2), Err("uden_for"));
+        // Uddraget slutter efter UDDRAG_TEGN tegn: et sted efter det er uden for, også når teksten fortsætter.
+        let lang = format!("{}abc", "a".repeat(UDDRAG_TEGN));
+        assert_eq!(sted_i_uddrag(&lang, UDDRAG_TEGN - 1, 1), Ok((UDDRAG_TEGN - 1, UDDRAG_TEGN)));
+        assert_eq!(sted_i_uddrag(&lang, UDDRAG_TEGN - 1, 2), Err("uden_for"));
+        assert_eq!(sted_i_uddrag(&lang, UDDRAG_TEGN, 1), Err("uden_for"));
     }
 
     #[test]

@@ -9,7 +9,7 @@
 //! (V-KVIT.1): `kvittering`; noterne (V-OPBYG.2): `noter_hent`, `note_tilfoej`, `note_ret` og `note_slet`; en
 //! hemmeligheds værdi ved Vis (V-OPBYG.4): `raekke_vaerdi`; Ryd glemmer den indsatte teksts hemmeligheder (V-OPBYG.5):
 //! `tekst_glem`; en post i sagens indhold slettes og kopieres (V-OPBYG.5): `sag_post_slet`, `sag_post_kopier` og
-//! `udklip_vaerdi_kopieret`.
+//! `udklip_vaerdi_kopieret`; Maskér markering i en åben fil (V-OPBYG.6): `fil_marker`.
 //!
 //! **Låsen (V-LAAS.2).** Grimnir starter altid låst ([`Tilstand::ved_start`]; V-LAAS.3 N1, ADR D20). UI'et kalder
 //! `laas_op` én gang ved start; døren ([`laas::platformens`]: Touch ID med adgangskoden som reserve på macOS) svarer i
@@ -69,7 +69,7 @@ mod programmenu;
 use indstillinger::Indstillinger;
 use laas::Udloeser;
 use maskering::{
-    AnalyseMed, Demaskering, FilAnalyse, FilDemaskering, FilInfo, FilMaskering, IndholdValg, LaasStatus, LaasSvar, Maskering, NoterUd,
+    AnalyseMed, Demaskering, FilAnalyse, FilDemaskering, FilInfo, FilMarkering, FilMaskering, FilTilfoejet, IndholdValg, LaasStatus, LaasSvar, Maskering, NoterUd,
     OrdbogUd, Proeve, RaekkeSide, RaekkeVaerdi, Rettelse, SagIndhold, SagListePost, SagStatus, SideValg, StartForfra, Tilfoejet, Tilstand, UiFejl,
     Visning,
 };
@@ -467,7 +467,8 @@ fn fil_luk(tilstand: State<'_, Tilstand>, visning: Visning) -> Result<(), UiFejl
     maskering::fil_luk(&tilstand, visning)
 }
 
-/// `analyser` for den åbne fil i Maskér med første side rækker.
+/// `analyser` for den åbne fil i Maskér med første side rækker. V-OPBYG.6 N1: `tilfoejede` er de markerede værdiers
+/// pladser og typer ([`maskering::fil_marker`]), aldrig værdierne.
 #[tauri::command(async)]
 fn fil_analyser(
     tilstand: State<'_, Tilstand>,
@@ -475,15 +476,24 @@ fn fil_analyser(
     rort: Option<Vec<(usize, bool)>>,
     rettelser: Option<Vec<Rettelse>>,
     side: SideValg,
+    tilfoejede: Option<Vec<FilTilfoejet>>,
 ) -> Result<FilAnalyse, UiFejl> {
     let _travl = tilstand.travl();
-    maskering::fil_analyser(
+    maskering::fil_analyser_med(
         &tilstand,
         fravalgt.as_deref(),
         rort.as_deref(),
         rettelser.as_deref().unwrap_or_default(),
         &side,
+        tilfoejede.as_deref().unwrap_or_default(),
     )
+}
+
+/// V-OPBYG.6 N1: Maskér markering i den åbne fil: stedet i det viste uddrag (UTF-16) og typen, aldrig teksten. Svaret er
+/// værdiens plads i filen eller hvorfor den afvises; aldrig værdien. Låst: `laast`; porten tjekkes igen før svaret.
+#[tauri::command(async)]
+fn fil_marker(tilstand: State<'_, Tilstand>, start: usize, laengde: usize, art: String) -> Result<FilMarkering, UiFejl> {
+    maskering::fil_marker(&tilstand, start, laengde, &art)
 }
 
 /// En side rækker fra seneste analyse af filen (filter, søgning, Vis flere).
@@ -493,11 +503,17 @@ fn fil_raekker(tilstand: State<'_, Tilstand>, side: SideValg) -> Result<RaekkeSi
     maskering::fil_raekker(&tilstand, &side)
 }
 
-/// `gem_og_masker` for den åbne fil i Maskér; den maskerede tekst bliver i Rust.
+/// `gem_og_masker` for den åbne fil i Maskér; den maskerede tekst bliver i Rust. V-OPBYG.6 N1: med de markerede værdiers
+/// pladser og typer.
 #[tauri::command(async)]
-fn fil_gem_og_masker(tilstand: State<'_, Tilstand>, fravalgt: Vec<usize>, rettelser: Vec<Rettelse>) -> Result<FilMaskering, UiFejl> {
+fn fil_gem_og_masker(
+    tilstand: State<'_, Tilstand>,
+    fravalgt: Vec<usize>,
+    rettelser: Vec<Rettelse>,
+    tilfoejede: Option<Vec<FilTilfoejet>>,
+) -> Result<FilMaskering, UiFejl> {
     let _travl = tilstand.travl();
-    maskering::fil_gem_og_masker(&tilstand, &fravalgt, &rettelser)
+    maskering::fil_gem_og_masker_med(&tilstand, &fravalgt, &rettelser, tilfoejede.as_deref().unwrap_or_default())
 }
 
 /// `demasker` for den åbne fil i Demaskér; teksten med de rigtige værdier bliver i Rust.
@@ -705,6 +721,7 @@ pub fn run() {
         sag_post_slet,
         sag_post_kopier,
         udklip_vaerdi_kopieret,
+        fil_marker,
         raekke_vaerdi
     ]);
     tauri::Builder::default()

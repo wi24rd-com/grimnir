@@ -31,6 +31,8 @@ use grimnir_lib::maskering::raekke_vaerdi;
 use grimnir_lib::maskering::tekst_glem;
 // V-OPBYG.5 N2: en post slettes og kopieres i sagens indhold.
 use grimnir_lib::maskering::{sag_post_kopier, sag_post_slet, udklip_vaerdi_kopieret};
+// V-OPBYG.6 N1: Maskér markering i en åben fil.
+use grimnir_lib::maskering::fil_marker;
 // V-OPBYG.2: noterne (`noter_hent`, `note_tilfoej`, `note_ret`, `note_slet`) og Kopiér noterne (`udklip_kopieret` med
 // `noter`) står også i listen (`alle_kommandoer`).
 use grimnir_lib::maskering::{note_ret, note_slet, note_tilfoej, noter_hent, udklip_noter_kopieret};
@@ -174,6 +176,7 @@ fn alle_kommandoer(t: &Tilstand, fil: &std::path::Path, id: &str) -> Vec<(&'stat
         ("sag_post_slet", j(sag_post_slet(t, 0, "h0001").map(|x| v(&x)))),
         ("sag_post_kopier", j(sag_post_kopier(t, 0, "GRIMNIR_SECRET_0001").map(|x| v(&x)))),
         ("udklip_vaerdi_kopieret", j(udklip_vaerdi_kopieret(t, 0, "h0001").map(|x| v(&x)))),
+        ("fil_marker", j(fil_marker(t, 0, 4, "ord").map(|x| v(&x)))),
     ]
 }
 

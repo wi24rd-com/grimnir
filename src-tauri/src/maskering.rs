@@ -2608,7 +2608,7 @@ fn nulstil_slettet(post: grimnir_core::Post, enhed: Option<grimnir_core::Enhed>)
 }
 
 /// V-OPBYG.5 N2: Kopiér værdi for en hemmelighed i den åbne sags indhold. Værdien går ikke forbi webvisningen: Rust
-/// lægger den selv i udklipsholderen ([`Udklip::skriv_tekst`]) og husker tælleren som efter en demaskeret kopi (D21), så
+/// lægger den selv i udklipsholderen (V-OPBYG.6 N3: [`Udklip::skriv_fortrolig`], med fortroligt-mærket) og husker tælleren som efter en demaskeret kopi (D21), så
 /// låsen og afslutningen rydder den, hvis den stadig står der. Svaret er `true`, når værdien ligger der; `false` uden
 /// udklipsholder (tests, Windows indtil B4) eller hvis skrivningen mislykkes. Kun en post med klassen Hemmelighed
 /// ([`UiFejl::UkendtPost`] ellers; en almindelig værdi kopierer webvisningen og melder den med
@@ -2629,7 +2629,8 @@ pub fn sag_post_kopier(t: &Tilstand, nr: usize, kode: &str) -> Result<bool, UiFe
     let mut h = t.udklip_husk();
     t.aaben()?;
     h.taeller = None;
-    if !u.skriv_tekst(&vaerdi) {
+    // V-OPBYG.6 N3: med fortroligt-mærket, så programmer, der husker udklipsholderens historik, kan springe den over.
+    if !u.skriv_fortrolig(&vaerdi) {
         return Ok(false);
     }
     h.taeller = u.taeller();
@@ -3325,6 +3326,8 @@ pub struct Levende {
     pub udklip: usize,
     /// V-OPBYG.4 N1: hemmeligheder fra seneste analyse af en indsat tekst.
     pub hemmelige: usize,
+    /// V-OPBYG.6 N1: værdier, brugeren har markeret i en åben fil ([`fil_marker`]).
+    pub fil_tilfoejede: usize,
 }
 
 /// Testkrog (V-LAAS.3 N5): tæller [`Levende`].
@@ -3335,6 +3338,7 @@ pub fn levende(t: &Tilstand) -> Levende {
         if let Some(h) = t.fil(v).as_ref() {
             l.filer += 1;
             l.resultater += usize::from(h.resultat.is_some());
+            l.fil_tilfoejede += h.tilfoejede.len();
         }
     }
     {
@@ -3422,6 +3426,11 @@ pub struct HoldtFil {
     raekker: Vec<Raekke>,
     fejl: Vec<RaekkeFejl>,
     resultat: Option<Resultat>,
+    /// V-OPBYG.6 N1: værdierne, brugeren har markeret i filens uddrag ([`fil_marker`]); pladsen er værdiens `tid`. Samme
+    /// værdi (uden hensyn til store/små bogstaver) har én plads. Webvisningen sender pladserne og typen med hver analyse og
+    /// maskering ([`FilTilfoejet`]) og får aldrig værdien fra Rust. Nulstilles, når filen slippes (`fil_luk`, en ny fil,
+    /// en indsat tekst, lås).
+    tilfoejede: Vec<String>,
 }
 
 /// Nulstiller rækkernes originaler.
@@ -3437,6 +3446,9 @@ fn nulstil_raekker(raekker: &mut Vec<Raekke>) {
 impl Drop for HoldtFil {
     fn drop(&mut self) {
         nulstil_raekker(&mut self.raekker);
+        for v in self.tilfoejede.iter_mut() {
+            zeroize::Zeroize::zeroize(v);
+        }
     }
 }
 
@@ -3493,6 +3505,7 @@ pub fn fil_aabn(t: &Tilstand, v: Visning, sti: &std::path::Path) -> Result<FilIn
         raekker: Vec::new(),
         fejl: Vec::new(),
         resultat: None,
+        tilfoejede: Vec::new(),
     };
     let mut g = t.fil(v);
     // V-LAAS.3: låst, mens filen blev læst: den læste tekst slippes (og nulstilles) i stedet for at blive holdt.
@@ -3629,6 +3642,9 @@ pub struct FilAnalyse {
     /// V-OPBYG.3 N4: for hver række, der har et sted i `steder`: (`id`, status `tjek`, `laast`). Webvisningen har kun én
     /// side rækker; med dette kan den markere alle stederne (maskeres, usikkert fund) uden alle rækkerne. Ingen værdier.
     pub sted_raekker: Vec<(usize, bool, bool)>,
+    /// V-OPBYG.6 N1: hvad der blev af hver markeret værdi (samme plads som i listen, webvisningen sendte; som
+    /// [`AnalyseMed::tilfoejede`]). Kun pladser og tal.
+    pub tilfoejede: Vec<TilfoejetUd>,
 }
 
 /// V-OPBYG.3 N4: rækkerne bag stederne (id, status `tjek`, låst), i id-orden, hver én gang.
@@ -3649,6 +3665,20 @@ pub fn fil_analyser(
     rettelser: &[Rettelse],
     side: &SideValg,
 ) -> Result<FilAnalyse, UiFejl> {
+    fil_analyser_med(t, fravalgt, rort, rettelser, side, &[])
+}
+
+/// V-OPBYG.6 N1: [`fil_analyser`] med de værdier, brugeren har markeret i filen ([`fil_marker`]). Som
+/// [`analyser_med`] for indsat tekst: de findes alle steder i hele filen (også efter uddraget), hvor de står som et helt
+/// ord, og [`FilAnalyse::tilfoejede`] siger, hvad der blev af hver (samme afvisninger som for indsat tekst).
+pub fn fil_analyser_med(
+    t: &Tilstand,
+    fravalgt: Option<&[usize]>,
+    rort: Option<&[(usize, bool)]>,
+    rettelser: &[Rettelse],
+    side: &SideValg,
+    tilfoejede: &[FilTilfoejet],
+) -> Result<FilAnalyse, UiFejl> {
     t.aaben()?;
     let mut g = t.fil(Visning::Masker);
     let h = g.as_mut().ok_or(UiFejl::IngenFil)?;
@@ -3659,7 +3689,13 @@ pub fn fil_analyser(
         (None, Some(f)) => Udvalg::Fravalgt(f),
         (None, None) => Udvalg::Standard,
     };
-    let AnalyseMed { analyse: a, steder, .. } = analyser_i(t, &h.fil.tekst, udvalg, rettelser, &[])?;
+    let tf = fil_tilfoejede(h, tilfoejede)?;
+    let AnalyseMed {
+        analyse: a,
+        steder,
+        tilfoejede: tilfoejet_ud,
+    } = analyser_i(t, &h.fil.tekst, udvalg, rettelser, &tf)?;
+    drop(tf);
     let mut gamle = std::mem::replace(&mut h.raekker, a.raekker);
     nulstil_raekker(&mut gamle);
     h.fejl = a.fejl.clone();
@@ -3673,7 +3709,133 @@ pub fn fil_analyser(
         moenstre: a.moenstre,
         sted_raekker: sted_raekker(&h.raekker, &steder),
         steder,
+        tilfoejede: tilfoejet_ud,
     })
+}
+
+/// V-OPBYG.6 N1: en markeret værdi i en åben fil, som webvisningen sender den med en analyse eller maskering: pladsen i
+/// filens liste ([`FilMarkering::tid`]) og typen (som [`Tilfoejet::art`]). Aldrig værdien.
+#[derive(Clone, Debug, Deserialize)]
+pub struct FilTilfoejet {
+    /// Pladsen fra [`fil_marker`].
+    pub tid: usize,
+    /// Typen (`ord`, `bruger` … `hemmelighed`).
+    pub art: String,
+}
+
+/// V-OPBYG.6 N1: filens markerede værdier som [`Tilfoejet`] (kopier, der nulstilles, når de slippes). En plads, filen
+/// ikke har (en anden fil, eller filen er sluppet imens), giver [`UiFejl::UkendtRaekke`].
+fn fil_tilfoejede(h: &HoldtFil, liste: &[FilTilfoejet]) -> Result<Vec<Tilfoejet>, UiFejl> {
+    liste
+        .iter()
+        .map(|x| {
+            h.tilfoejede.get(x.tid).map(|v| Tilfoejet {
+                vaerdi: v.clone(),
+                art: x.art.clone(),
+            })
+        })
+        .collect::<Option<Vec<_>>>()
+        .ok_or(UiFejl::UkendtRaekke)
+}
+
+/// V-OPBYG.6 N1: svaret fra [`fil_marker`]. Kun pladser, tal og en grund; aldrig værdien (heller ikke en almindelig: den
+/// står i uddraget, webvisningen allerede har).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct FilMarkering {
+    /// Værdiens plads i filens liste (samme værdi, også med andre store/små bogstaver, har samme plads); `None`, når den er
+    /// afvist.
+    pub tid: Option<usize>,
+    /// Hvorfor den ikke kan tilføjes: `tom` (tom eller kun mellemrum), `linjeskift`, `midt_i_tegn` (markeringen begynder
+    /// eller slutter midt i et tegn, fx et emoji), `uden_for` (ud over det viste uddrag), `type` (ukendt type), `kode` (en
+    /// af sagens koder), `findes` (allerede et fund; `raekke` er rækken, som webvisningen vælger og slår til),
+    /// `hemmelighed` (allerede fundet som en hemmelighed, og typen er en anden; `raekke` er rækken). `None`: taget med.
+    pub afvist: Option<&'static str>,
+    /// Rækken ved `findes`, `kode` og `hemmelighed`.
+    pub raekke: Option<usize>,
+    /// Rækkens linje (til meldingen om en hemmelighed, der nævnes ved linjen, ikke ved værdien).
+    pub linje: Option<usize>,
+    /// Rækken er en hemmelighed.
+    pub hemmelig: bool,
+}
+
+impl FilMarkering {
+    fn afvist(hvorfor: &'static str, r: Option<&Raekke>) -> Self {
+        FilMarkering {
+            tid: None,
+            afvist: Some(hvorfor),
+            raekke: r.map(|r| r.id),
+            linje: r.map(|r| r.linje),
+            hemmelig: r.is_some_and(|r| r.hemmelig),
+        }
+    }
+}
+
+/// Ens uden hensyn til store/små bogstaver (som webvisningens `toLowerCase`), uden en kopi af værdierne.
+fn ens_uden_store(a: &str, b: &str) -> bool {
+    a.chars().flat_map(char::to_lowercase).eq(b.chars().flat_map(char::to_lowercase))
+}
+
+/// V-OPBYG.6 N1: Maskér markering i en åben fil. Webvisningen sender stedet i det viste uddrag (`start` og `laengde` i
+/// UTF-16-enheder, som tekstfeltets markering) og typen, aldrig teksten; Rust slår værdien op i filens tekst
+/// ([`fil::sted_i_uddrag`]) og husker den i filen ([`HoldtFil`]). Mellemrum i enderne skæres af. Svaret er pladsen, som
+/// webvisningen sender med hver analyse og maskering ([`fil_analyser_med`], [`fil_gem_og_masker_med`]); rækken gælder
+/// hele filen. Afvisninger: se [`FilMarkering::afvist`]; "Maskér aldrig" afvises af analysen som for indsat tekst
+/// (`aldrig`). Låst: [`UiFejl::Laast`] før noget læses, og porten tjekkes igen, før svaret gives (er der låst imens,
+/// slipper låsen filen og værdien). Intet skrives til disk eller log.
+pub fn fil_marker(t: &Tilstand, start: usize, laengde: usize, art: &str) -> Result<FilMarkering, UiFejl> {
+    t.aaben()?;
+    let mut g = t.fil(Visning::Masker);
+    let h = g.as_mut().ok_or(UiFejl::IngenFil)?;
+    let svar = (|| {
+        let (a, b) = match fil::sted_i_uddrag(&h.fil.tekst, start, laengde) {
+            Ok(x) => x,
+            Err(hvorfor) => return FilMarkering::afvist(hvorfor, None),
+        };
+        let v = h.fil.tekst[a..b].trim();
+        if v.is_empty() {
+            return FilMarkering::afvist("tom", None);
+        }
+        if v.contains(['\r', '\n']) {
+            return FilMarkering::afvist("linjeskift", None);
+        }
+        let Some(art) = tilfoej_art(art) else {
+            return FilMarkering::afvist("type", None);
+        };
+        // Allerede et fund (ikke en af brugerens egne værdier): samme regler som for indsat tekst.
+        let fund = h
+            .raekker
+            .iter()
+            .find(|r| r.tilfoejet.is_none() && r.vaerdier.iter().any(|x| ens_uden_store(x, v)));
+        if let Some(r) = fund {
+            let hvorfor = if r.laast {
+                "kode"
+            } else if r.hemmelig && art != Art::Hemmelighed {
+                "hemmelighed"
+            } else {
+                "findes"
+            };
+            return FilMarkering::afvist(hvorfor, Some(r));
+        }
+        if er_kode(&t.sag().sag, v) {
+            return FilMarkering::afvist("kode", None);
+        }
+        let tid = match h.tilfoejede.iter().position(|x| ens_uden_store(x, v)) {
+            Some(i) => i,
+            None => {
+                h.tilfoejede.push(v.to_string());
+                h.tilfoejede.len() - 1
+            }
+        };
+        FilMarkering {
+            tid: Some(tid),
+            afvist: None,
+            raekke: None,
+            linje: None,
+            hemmelig: false,
+        }
+    })();
+    t.aaben()?;
+    Ok(svar)
 }
 
 /// En ny side rækker fra seneste analyse (filter, søgning, "Vis flere").
@@ -3709,11 +3871,25 @@ pub struct FilMaskering {
 /// `gem_og_masker` for den åbne fil i Maskér: sagen gemmes (i en navngiven sag krypteret på disken), og den maskerede
 /// tekst bliver i Rust til "Gem maskeret fil". Fejler gemningen, er der intet resultat, og ingen fil kan gemmes.
 pub fn fil_gem_og_masker(t: &Tilstand, fravalgt: &[usize], rettelser: &[Rettelse]) -> Result<FilMaskering, UiFejl> {
+    fil_gem_og_masker_med(t, fravalgt, rettelser, &[])
+}
+
+/// V-OPBYG.6 N1: [`fil_gem_og_masker`] med de markerede værdier ([`fil_marker`]); de lægges i sagen som ethvert andet
+/// fund, og kvitteringen tæller dem (som [`gem_og_masker_med`]).
+pub fn fil_gem_og_masker_med(
+    t: &Tilstand,
+    fravalgt: &[usize],
+    rettelser: &[Rettelse],
+    tilfoejede: &[FilTilfoejet],
+) -> Result<FilMaskering, UiFejl> {
     t.aaben()?;
     let mut g = t.fil(Visning::Masker);
     let h = g.as_mut().ok_or(UiFejl::IngenFil)?;
     h.resultat = None;
-    let (m, nr, tal) = gem_og_masker_i(t, &h.fil.tekst, fravalgt, rettelser, &[])?;
+    let tf = fil_tilfoejede(h, tilfoejede)?;
+    let svar = gem_og_masker_i(t, &h.fil.tekst, fravalgt, rettelser, &tf);
+    drop(tf);
+    let (m, nr, tal) = svar?;
     let (uddrag, ikke_vist) = fil::uddrag(&m.maskeret);
     let bytes = m.maskeret.len();
     let rester = m.rester.iter().map(|r| r.antal).sum();

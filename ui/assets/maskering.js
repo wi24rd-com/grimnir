@@ -243,6 +243,24 @@
     for (const b of bar.rod.querySelectorAll('.cb[data-naeste]')) b.removeAttribute('data-naeste');
     const b = id ? bar.knap(id) : null;
     if (b && b.getAttribute('aria-disabled') !== 'true') b.setAttribute('data-naeste', '');
+    naesteIMere(bar);
+  }
+  /* V-OPBYG.6 N2: står næste skridt i kittets Mere (knappen har data-i-mere, når båndet er for smalt), får Mere-knappen
+     samme markering som knappen ville have haft (data-naeste: kant, flade og fed skrift; app.css), og punktet i menuen
+     (punkternes data-kommando) får kant og fed skrift. Kittet ændres ikke: Grimnir følger med i, hvad kittet flytter
+     (data-i-mere i båndet), og i menuen, som kittet bygger, når den åbnes (bar.mere.menu), og sætter markeringen igen. */
+  const mereFulgt = new WeakSet();
+  function naesteIMere(bar) {
+    const m = bar.mere;
+    if (!m) return;
+    const b = bar.rod.querySelector('.cb[data-naeste]:not(.cb-mere)');
+    const iMere = Boolean(b && b.hasAttribute('data-i-mere'));
+    m.knap.toggleAttribute('data-naeste', iMere);
+    for (const p of m.menu.querySelectorAll('.mere-punkt')) p.toggleAttribute('data-naeste', iMere && p.dataset.kommando === b.dataset.kommando);
+    if (mereFulgt.has(bar) || typeof MutationObserver !== 'function') return;
+    mereFulgt.add(bar);
+    new MutationObserver(() => naesteIMere(bar)).observe(bar.rod, { subtree: true, attributes: true, attributeFilter: ['data-i-mere'] });
+    new MutationObserver(() => naesteIMere(bar)).observe(m.menu, { childList: true });
   }
 
   /* Fælles opbygning af en arbejdsflade: tom tilstand (eksisterer) + bannere + delt flade. Den tomme tilstand er kittets
@@ -762,6 +780,8 @@
     /* V-MANUEL.1: de tilføjede værdier, som de sendes til Rust (analyser og gem_og_masker). Svaret siger om hver (samme
        plads): rækken, antallet og hvorfor den evt. er afvist; rækkerne har tilfoejet = pladsen. */
     const tilfoejede = () => st.tilfoejede.map(x => ({ vaerdi: x.vaerdi, art: x.art }));
+    /* V-OPBYG.6 N1: for en åben fil sendes kun pladsen (tid fra fil_marker) og typen; værdien har Rust i filen. */
+    const filTilfoejede = () => st.tilfoejede.map(x => ({ tid: x.tid, art: x.art }));
 
     /* rens (V-MANUEL.1): efter Fortryd, Gentag, Maskér dette, Fjern og et typeskift kan en række have fået et nyt id (en ny
        værdi kan tage en andens første forekomst); rettelser til rækker, der ikke findes længere, droppes, som i analyserIgen. */
@@ -773,9 +793,9 @@
       st.travl = true;
       tegnKommandoer();
       tegnChip();
-      const sendt = st.fil ? [] : st.tilfoejede.map(x => ({ ...x }));
+      const sendt = st.tilfoejede.map(x => ({ ...x }));
       const kald = st.fil
-        ? invoke('fil_analyser', { fravalgt: foerste ? null : [...st.fravalgt], rort: null, rettelser: foerste ? null : rettelser(), side: sideValg() }).then(fraFil)
+        ? invoke('fil_analyser', { fravalgt: foerste ? null : [...st.fravalgt], rort: null, rettelser: foerste ? null : rettelser(), side: sideValg(), tilfoejede: filTilfoejede() }).then(fraFil)
         : invoke('analyser', { tekst: st.tekst, fravalgt: foerste ? null : [...st.fravalgt], rettelser: foerste ? null : rettelser(), tilfoejede: tilfoejede() });
       return kald
         .then(a => {
@@ -812,7 +832,7 @@
       if (st.meld) {
         const x = svar.find((y, i) => a.sendt[i] && a.sendt[i].vaerdi === st.meld.v);
         if (x && x.afvist) ud = ['bAfvist_' + x.afvist, navn(st.meld, x)];
-        else if (x) ud = [x.antal ? 'bTilfoejet' : 'bTilfoejetNul', navn(st.meld, x), x.antal];
+        else if (x) ud = [x.antal ? (st.fil ? 'bTilfoejetFil' : 'bTilfoejet') : 'bTilfoejetNul', navn(st.meld, x), x.antal];
         st.meld = null;
       }
       const afviste = svar.filter(x => x.afvist && a.sendt[x.nr]);
@@ -843,9 +863,11 @@
       const ret = rettelser();
       // En fil: Rust gør begge trin i ét kald (rort = rækkerne, brugeren selv har slået til eller fra).
       if (st.fil) {
-        return invoke('fil_analyser', { fravalgt: null, rort: [...st.rort], rettelser: ret, side: sideValg() }).then(fraFil)
+        const sendtFil = st.tilfoejede.map(x => ({ ...x }));
+        return invoke('fil_analyser', { fravalgt: null, rort: [...st.rort], rettelser: ret, side: sideValg(), tilfoejede: filTilfoejede() }).then(fraFil)
           .then(a => {
             if (nr !== st.nr) return;
+            a.sendt = sendtFil;
             const ukendte = new Set(a.fejl.filter(x => x.fejl === 'ukendt_raekke').map(x => x.id));
             for (const id of ukendte) st.rettelser.delete(id);
             a.fejl = a.fejl.filter(x => !ukendte.has(x.id));
@@ -903,7 +925,7 @@
       tegnKommandoer();
       try {
         const m = st.fil
-          ? fraFilMaskering(await invoke('fil_gem_og_masker', { fravalgt: [...st.fravalgt], rettelser: rettelser() }))
+          ? fraFilMaskering(await invoke('fil_gem_og_masker', { fravalgt: [...st.fravalgt], rettelser: rettelser(), tilfoejede: filTilfoejede() }))
           : await invoke('gem_og_masker', { tekst: st.tekst, fravalgt: [...st.fravalgt], rettelser: rettelser(), tilfoejede: tilfoejede() });
         if (nr !== st.nr) return;
         st.resultat = m; st.foerEfter = true; st.visRester = false; st.spoergRester = false; st.aendretEfter = false; st.travl = false; st.kopieret = false;
@@ -1419,7 +1441,7 @@
     /* Tilføjede værdier, der ikke står som et helt ord nogen steder i teksten: rækker uden forekomster (0), med advarsel. */
     function nulRaekker() {
       const a = st.analyse;
-      if (!a || st.fil || st.filter !== 'alle' || !a.tilfoejede || !a.sendt) return [];
+      if (!a || st.filter !== 'alle' || !a.tilfoejede || !a.sendt) return [];
       const q = st.soeg.trim().toLowerCase();
       const ud = [];
       for (const x of a.tilfoejede) {
@@ -1478,9 +1500,9 @@
     /* Hvorfor Maskér dette ikke kan bruges (nøglen til forklaringen), eller null. */
     function kanMarkere() {
       if (!st.tekst) return 'hvorforIndsaetFoerst';
-      if (st.fil) return 'hvorforKunIndsat';
       if (st.foerEfter && st.resultat) return 'hvorforVisTeksten';
-      if (markering() === '') return 'hvorforMarker';
+      // V-OPBYG.6 N1: en åben fil kan også markeres, men kun i det viste uddrag; rækken gælder hele filen.
+      if (markering() === '') return st.fil ? 'hvorforMarkerFil' : 'hvorforMarker';
       return null;
     }
     function meld(t, v, w) {
@@ -1497,6 +1519,7 @@
       lukMenu(false);
       if (hvorfor) return meld(hvorfor);
       gendanMarkering();
+      if (st.fil) return maskerDetteFil(art);
       const v = markering().trim();
       if (!v) return meld('bMarkeringTom');
       if (/[\r\n]/.test(v)) return meld('bMarkeringLinjer');
@@ -1515,6 +1538,49 @@
       st.meld = { v, s: erHemmelig(art) };
       st.visNy = v;
       aendretNu();
+    }
+    /* ═════ V-OPBYG.6 N1: Maskér markering i en åben fil ═════
+       Webvisningen har kun uddraget (de første 200.000 tegn) og én side rækker. Den sender stedet for markeringen i
+       tekstfeltets ene tekstnode (start og længde i UTF-16, som Range-offsets) og typen til Rust (fil_marker), aldrig
+       teksten; Rust slår værdien op i filens tekst, afviser som for indsat tekst (og et sted midt i et tegn eller uden for
+       uddraget) og svarer med en plads (tid). Pladsen og typen sendes med hver analyse og maskering (filTilfoejede), så
+       rækken gælder hele filen. Den markerede tekst bruges kun her til meldingerne og som nøgle i listen (som for indsat
+       tekst), og en hemmelighed nævnes ved "en hemmelighed". Fortryd, Gentag, Fjern og typeskift virker på listen som
+       for indsat tekst. */
+    function markeretSted() {
+      const n = tv.pre.firstChild;
+      if (!n || n.nodeType !== 3) return null;
+      const sel = document.getSelection ? document.getSelection() : null;
+      const r = sel && sel.rangeCount && !sel.isCollapsed && iTeksten(sel.getRangeAt(0)) ? sel.getRangeAt(0) : husket && iTeksten(husket) ? husket : null;
+      if (!r) return null;
+      const pos = (c, o) => (c === n ? o : c === tv.pre ? (o === 0 ? 0 : n.data.length) : null);
+      const a = pos(r.startContainer, r.startOffset), b = pos(r.endContainer, r.endOffset);
+      return a == null || b == null ? null : { start: a, laengde: Math.max(0, b - a) };
+    }
+    const FIL_AFVIST = { tom: 'bMarkeringTom', linjeskift: 'bMarkeringLinjer', midt_i_tegn: 'bMarkeringMidtITegn', uden_for: 'bMarkeringUdenFor', type: 'bAfvist_type', kode: 'bErKode' };
+    function maskerDetteFil(art) {
+      const sted = markeretSted();
+      if (!sted) return meld('hvorforMarkerFil');
+      const v = markering().trim(), fil = st.fil;
+      return invoke('fil_marker', { start: sted.start, laengde: sted.laengde, art }).then(m => {
+        if (fil !== st.fil) return;
+        const navn = erHemmelig(art) ? S.t('navnHemmelig') : v;
+        if (m.afvist === 'findes') {
+          const id = m.raekke;
+          if (st.fravalgt.has(id)) { husk('valg', m.hemmelig ? { v: m.linje, h: true } : { v }); st.fravalgt.delete(id); st.rort.set(id, true); st.visNy = id; aendretNu(); }
+          visRaekke(id);
+          return meld('bFindesAllerede', m.hemmelig ? S.t('linjeNr', m.linje) : v);
+        }
+        if (m.afvist === 'hemmelighed') { visRaekke(m.raekke); return meld('bAfvist_hemmelighed', S.t('navnHemmelig')); }
+        if (m.afvist) return meld(FIL_AFVIST[m.afvist] || 'bFejl', navn);
+        const i = st.tilfoejede.findIndex(x => x.tid === m.tid);
+        if (i >= 0) { visRaekke(st.tilfoejede[i].vaerdi); return meld('bAlleredeTilfoejet', erHemmelig(st.tilfoejede[i].art) ? S.t('navnHemmelig') : navn); }
+        husk('tilfoej', navnTf(v, art), v);
+        st.tilfoejede.push({ vaerdi: v, art, tid: m.tid });
+        st.meld = { v, s: erHemmelig(art) };
+        st.visNy = v;
+        aendretNu();
+      }).catch(e => { if (fil !== st.fil) return; fejl(e); tegnBannere(); });
     }
     /* Rækkens id for en tilføjet værdi (et tal fra Rust, eller 't<plads>' for en række uden forekomster). */
     function raekkeIdFor(vaerdi) {

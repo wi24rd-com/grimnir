@@ -24,6 +24,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { JSDOM, VirtualConsole } from 'jsdom';
+// V-OPBYG.6 N4: hvert afsnit (en blok eller en løkke øverst i filen) kører i sin egen async-funktion: await (async () => {
+// … })();. Modulet er én lang async-funktion (top-level await), og V8 holder dens registre, også for en bloks const s, d
+// og w efter blokken; så blev hvert jsdom-vindue (med sin kontekst og alle scripts, ca. 10 MB) i hukommelsen testen ud
+// (fundet med et heap-snapshot: vinduerne holdtes fra "Stack roots"). Når funktionen returnerer, kan vinduet samles op.
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const ui = p => fs.readFileSync(path.join(repo, 'ui', p), 'utf8');
@@ -102,7 +106,7 @@ const forklaring = b => { const t = b && b.ownerDocument.getElementById(b.getAtt
 const plads = b => (b.parentElement.classList.contains('tip-plads') ? b.parentElement : b);
 
 // ── Statisk: filerne ──
-{
+await (async () => {
   const html = ui('index.html');
   tjek('index.html: ingen inline-script', !/<script(?![^>]*\bsrc=)[^>]*>/i.test(html));
   tjek('index.html: ingen <style> og ingen style=', !/<style\b/i.test(html) && !/\sstyle\s*=/i.test(html));
@@ -128,10 +132,10 @@ const plads = b => (b.parentElement.classList.contains('tip-plads') ? b.parentEl
   const css = ui('assets/kit.css');
   const fonte = [...css.matchAll(/url\(([^)]+)\)/g)].map(m => m[1]);
   tjek('skrifterne hentes kun fra ui/assets/fonts', fonte.length === 4 && fonte.every(u => /^fonts\/[a-z0-9-]+\.woff2$/.test(u) && fs.existsSync(path.join(repo, 'ui', 'assets', u))), fonte.join(', '));
-}
+})();
 
 // ── Start, visningsskift og genveje ──
-{
+await (async () => {
   const s = side();
   const { d } = s;
   await vent();
@@ -211,10 +215,10 @@ const plads = b => (b.parentElement.classList.contains('tip-plads') ? b.parentEl
   d.getElementById('aabn-indst').click();
   tjek('tandhjulet i titellinjen åbner Indstillinger', d.getElementById('dlg-indst').hasAttribute('open'));
   tjek('tandhjulet har aria-label og genvej i title', d.getElementById('aabn-indst').getAttribute('aria-label') === 'Åbn indstillinger' && d.getElementById('aabn-indst').title === 'Indstillinger (⌘,)');
-}
+})();
 
 // ── Windows: Ctrl-genveje ──
-{
+await (async () => {
   const s = side({ platform: 'windows' });
   await vent();
   tjek('V-OPBYG.2: Windows: genvejene står som Ctrl+1–5 (i visningsknappernes værktøjstip)', [...s.d.querySelectorAll('#baand > [data-visning]:not([hidden]) .vk')].map(a => forklaring(a)).join() === 'Ctrl+1,Ctrl+2,Ctrl+3,Ctrl+4,Ctrl+5');
@@ -227,20 +231,20 @@ const plads = b => (b.parentElement.classList.contains('tip-plads') ? b.parentEl
   s.tast(',', { ctrlKey: true, code: 'Comma' });
   tjek('Windows: Ctrl+, åbner Indstillinger', s.d.getElementById('dlg-indst').hasAttribute('open'));
   tjek('Windows: ingen plads til trafiklys (data-platform)', s.d.documentElement.getAttribute('data-platform') === 'windows');
-}
+})();
 
 // ── Adressen bestemmer visningen ved start ──
-{
+await (async () => {
   const s = side({ hash: '#sager' });
   await vent();
   tjek('#sager ved start viser Sager', synlige(s.d).join() === 'sager');
   const u = side({ hash: '#findes-ikke' });
   await vent();
   tjek('ukendt adresse viser Maskér', synlige(u.d).join() === 'masker');
-}
+})();
 
 // ── Tema ──
-{
+await (async () => {
   const s = side();
   const { d } = s;
   await vent();
@@ -263,10 +267,10 @@ const plads = b => (b.parentElement.classList.contains('tip-plads') ? b.parentEl
   tjek('ukendt gemt tema giver system', skidt.d.documentElement.getAttribute('data-tema') === 'system');
   const tokens = ui('assets/tokens.css');
   tjek('tokens.css: lyst på :root, mørkt på [data-tema="moerk"] og ved system', /:root \{\n  color-scheme: light;/.test(tokens) && /:root\[data-tema="moerk"\] \{\n  color-scheme: dark;/.test(tokens) && /@media \(prefers-color-scheme: dark\) \{\n  :root\[data-tema="system"\]/.test(tokens));
-}
+})();
 
 // ── Sprog ──
-{
+await (async () => {
   const s = side();
   const { d } = s;
   await vent();
@@ -287,10 +291,10 @@ const plads = b => (b.parentElement.classList.contains('tip-plads') ? b.parentEl
   tjek('gemt sprog bruges ved start', igen.d.documentElement.lang === 'en' && igen.d.querySelector('.vk .vk-navn')?.textContent === 'Mask');
   vaelgSprog('da');
   tjek('tilbage til dansk', d.documentElement.lang === 'da' && bar.querySelector('[data-kommando="gem-masker"]').textContent.trim() === 'Maskér');
-}
+})();
 
 // ── Oversættelser og StatusChips i begge sprog ──
-for (const sprog of ['da', 'en']) {
+await (async () => { for (const sprog of ['da', 'en']) {
   const s = side({ lager: { 'grimnir-sprog': sprog } });
   const { d, w } = s;
   await vent(5);
@@ -312,10 +316,10 @@ for (const sprog of ['da', 'en']) {
   tjek(`${sprog}: ingen tomme tekster`, tomme.length === 0, tomme.map(e => e.getAttribute('data-t')).join(', '));
   const unavngivne = [...d.querySelectorAll('button, a[href], input, [role="tab"], [role="treeitem"]')].filter(el => !(el.getAttribute('aria-label') || el.textContent.trim()));
   tjek(`${sprog}: alt, der kan aktiveres, har et navn`, unavngivne.length === 0, unavngivne.map(e => e.outerHTML.slice(0, 80)).join(' | '));
-}
+} })();
 
 // ── Kittet: komponenterne ──
-{
+await (async () => {
   const { w, d } = side();
   await vent();
   const K = w.Kit;
@@ -358,7 +362,7 @@ for (const sprog of ['da', 'en']) {
   tjek('Kit: højre folder ud', pkt[0].getAttribute('aria-expanded') === 'true' && !pkt[0].parentElement.querySelector('ul').hidden);
   tjek('Kit: et klik i træet skifter ikke visning', synlige(d).join() === 'masker');
   // V-FANER.2: visningerne er knapper i båndet; piletaster bruges ikke (båndets regel), mellemrum åbner (prøvet i V-FANER.2-blokken).
-}
+})();
 
 // ══════════════════════════ V-SKAL.2: Maskér og Demaskér ══════════════════════════
 
@@ -424,7 +428,7 @@ const fundRaekker = d => [...d.querySelectorAll('section[data-visning="masker"] 
 const raekkeMed = (d, id) => d.querySelector(`section[data-visning="masker"] .fundtabel tr[data-id="${id}"]`);
 
 // ── Statisk: konsol, lagring og nøgler til Rusts navne ──
-{
+await (async () => {
   const js = fs.readdirSync(path.join(repo, 'ui', 'assets')).filter(f => f.endsWith('.js'));
   const medKonsol = js.filter(f => /\bconsole\s*\./.test(ui('assets/' + f)));
   tjek('ingen console.* i ui/assets/*.js', medKonsol.length === 0, medKonsol.join(', '));
@@ -446,10 +450,10 @@ const raekkeMed = (d, id) => d.querySelector(`section[data-visning="masker"] .fu
   const fejlNavne = [...rs.matchAll(/fejl: "([a-z_]+)"|=> "(kollision|ugyldig|ukendt_raekke)"/g)].map(x => x[1] || x[2]);
   const fm = [...new Set(fejlNavne)].filter(x => !('fejl_' + x in T.da && 'fejl_' + x in T.en));
   tjek('sprog: hver rækkefejl fra maskering.rs har en tekst', fejlNavne.length >= 3 && fm.length === 0, fm.join(', '));
-}
+})();
 
 // ── Maskér: hele forløbet ──
-{
+await (async () => {
   const skrevet = [];
   let logget = 0;
   const s = side({
@@ -664,10 +668,10 @@ const raekkeMed = (d, id) => d.querySelector(`section[data-visning="masker"] .fu
   tjek('English: menu_sprog med en', s.kald.some(k => k[0] === 'menu_sprog' && k[1].sprog === 'en'));
   tjek('English: typer og status i tabellen', raekkeMed(d, 24).textContent.includes('User') && raekkeMed(d, 6).textContent.includes('Certain'));
   tjek('English: localStorage har kun tema og sprog', Object.keys(w.localStorage).every(k => ['grimnir-tema', 'grimnir-sprog'].includes(k)) && w.localStorage.getItem('grimnir-sprog') === 'en');
-}
+})();
 
 // ── Maskér: rester, afvist rettelse og Windows-genveje ──
-{
+await (async () => {
   const skrevet = [];
   const s = side({ platform: 'windows', rust: falskRust({ rester: [{ art: 'nyt_fund', type_: 'hemmelighed', tekst: 'Hemmelig42', antal: 2, linje: 2 }], afvis: 'kollision01' }), foer: w => Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async t => { skrevet.push(t); } } }) });
   const { d, w } = s;
@@ -704,10 +708,10 @@ const raekkeMed = (d, id) => d.querySelector(`section[data-visning="masker"] .fu
   s.tast('C', { metaKey: true, shiftKey: true, code: 'KeyC' });
   await vent(5);
   tjek('Windows: ⇧⌘C gør intet', skrevet.length === 1);
-}
+})();
 
 // ── Demaskér med tom sag ──
-{
+await (async () => {
   const s = side({ hash: '#demasker', rust: falskRust() });
   const { d, w } = s;
   await vent(5);
@@ -718,7 +722,7 @@ const raekkeMed = (d, id) => d.querySelector(`section[data-visning="masker"] .fu
   s.tast('Enter', { metaKey: true });
   await vent(5);
   tjek('tom sag: ⌘↵ kalder ikke demasker', !s.kald.some(k => k[0] === 'demasker'));
-}
+})();
 
 // ══════════════════════════ V-SAG.1: Sager ══════════════════════════
 
@@ -814,7 +818,7 @@ const skriv = (w, el, v) => { el.value = v; el.dispatchEvent(new w.Event('input'
 const aaben = (d, id) => { const e = d.getElementById(id); return Boolean(e && e.hasAttribute('open')); };
 
 // ── Statisk: hver sagsfejl fra Rust har en tekst ──
-{
+await (async () => {
   const rs = fs.readFileSync(path.join(repo, 'src-tauri', 'src', 'sager.rs'), 'utf8');
   const enumKrop = rs.slice(rs.indexOf('pub enum SagFejl')).split('\n}\n')[0];
   const varianter = [...enumKrop.matchAll(/^    ([A-Z][A-Za-z]+)\b/gm)].map(m => m[1].replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase());
@@ -824,10 +828,10 @@ const aaben = (d, id) => { const e = d.getElementById(id); return Boolean(e && e
   tjek(`sprog: hver SagFejl i sager.rs har en tekst (${varianter.length})`, varianter.length >= 10 && mangler.length === 0, mangler.join(', ') + ' | ' + varianter.join(','));
   tjek('app.css: fuldskærm fjerner trafiklysenes plads', /\[data-platform="macos"\]\[data-fuldskaerm\] \.titel \{ padding-left: var\(--space-3\); \}/.test(ui('assets/app.css')));
   tjek('Maskér: en række med flere stavemåder kan rettes (intet readOnly)', !/readOnly/.test(ui('assets/maskering.js')));
-}
+})();
 
 // ── Sager: ny sag fra en midlertidig sag med poster, titellinjen, luk sag ──
-{
+await (async () => {
   const rust = falskSagRust();
   const s = side({ hash: '#masker', rust });
   const { d, w } = s;
@@ -873,10 +877,10 @@ const aaben = (d, id) => { const e = d.getElementById(id); return Boolean(e && e
   klik(w, sagKnap);
   klik(w, d.getElementById('sag-luk')); await vent(10);
   tjek('V-OPBYG.1: Luk sag: titellinjen er tilbage på "Midlertidig sag · ikke gemt under et navn"', s.kald.some(k => k[0] === 'sag_luk') && d.getElementById('sag').hidden && sagKnap.textContent === 'Midlertidig sag · ikke gemt under et navn');
-}
+})();
 
 // ── Sager: liste, status, træ, søgning, åbn, omdøb, udløb, slet, kan ikke åbnes ──
-{
+await (async () => {
   const rust = falskSagRust({ sager: SAGER() });
   const s = side({ hash: '#sager', rust });
   const { d, w } = s;
@@ -948,10 +952,10 @@ const aaben = (d, id) => { const e = d.getElementById(id); return Boolean(e && e
   w.Sprog.saet('en'); w.Grimnir.vis('sager'); await vent(10);
   tjek('English: status og kolonner', chipTekst(hexId(1)) === '!Expiring soon' && sek.querySelector('.sagtabel thead th').textContent === 'Name' && d.getElementById('sag-knap').textContent === 'Case: “Firewall-log” · saved automatically');
   w.Sprog.saet('da');
-}
+})();
 
 // ── Luk programmet med en midlertidig sag, og åbn en sag oven på en midlertidig ──
-{
+await (async () => {
   const rust = falskSagRust({ sager: SAGER() });
   const s = side({ hash: '#masker', rust });
   const { d, w } = s;
@@ -992,10 +996,10 @@ const aaben = (d, id) => { const e = d.getElementById(id); return Boolean(e && e
   tjek('åbn oven på midlertidig sag: der spørges først', aaben(s3.d, 'dlg-kasser') && s3.d.querySelector('#dlg-kasser h2').textContent === 'Gem den midlertidige sag, før en anden sag åbnes?' && !s3.kald.some(k => k[0] === 'sag_aabn'));
   klik(s3.w, s3.d.getElementById('kasser-ok')); await vent(10);
   tjek('åbn oven på midlertidig sag: Kassér åbner sagen', s3.kald.some(k => k[0] === 'sag_aabn' && k[1].id === hexId(1)) && s3.d.getElementById('sag-knap').textContent === 'Sag: «Supportsag 0042» · gemmes automatisk');
-}
+})();
 
 // ── Demaskér peger på Sager; 8 MB; fuldskærm ──
-{
+await (async () => {
   const s = side({ hash: '#demasker', rust: falskSagRust({ sager: SAGER() }) });
   const { d, w } = s;
   await vent(10);
@@ -1019,7 +1023,7 @@ const aaben = (d, id) => { const e = d.getElementById(id); return Boolean(e && e
   await vent(5);
   const knap = [...tom.d.querySelectorAll('section[data-visning="demasker"] .tomt button')].find(b => b.textContent === 'Åbn Sager');
   tjek('Demaskér: uden gemte sager er knappen skjult og teksten som før', knap && knap.hidden && tom.d.querySelector('section[data-visning="demasker"] .tomt p').textContent.startsWith('Der er intet at demaskere endnu'));
-}
+})();
 
 // ══════════════════════════ V-ORDBOG.1: Ordbog, guiden og indstillingerne ══════════════════════════
 
@@ -1108,7 +1112,7 @@ const vaelgType = (w, sel, v) => { sel.value = v; sel.dispatchEvent(new w.Event(
 const enter = (w, el) => el.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
 
 // ── Statisk: tekster til Rusts navne, kittets Wizard og Fletbånd ──
-{
+await (async () => {
   const rs = fs.readFileSync(path.join(repo, 'src-tauri', 'src', 'ordbog.rs'), 'utf8');
   const { w, d } = side();
   await vent();
@@ -1148,10 +1152,10 @@ const enter = (w, el) => el.dispatchEvent(new w.KeyboardEvent('keydown', { key: 
   tjek('Kit: Fletbånd er aria-hidden, 10 px højt, med eget mønster-id', f1.getAttribute('aria-hidden') === 'true' && f1.getAttribute('height') === '10' && id1 !== f2.querySelector('pattern').id && f1.querySelector('rect').getAttribute('fill') === `url(#${id1})` && f1.querySelector('pattern').getAttribute('width') === '28');
   tjek('Fletbåndet står ét sted: i Om-dialogen (ADR D16)', d.querySelectorAll('svg.flet').length === 1 && d.querySelector('#dlg-om svg.flet'));
   tjek('kit.css har Wizard og Fletbånd', /\.wiz \.t\.now \{/.test(ui('assets/kit.css')) && /\.flet path \{ fill: none; stroke: var\(--accent\)/.test(ui('assets/kit.css')));
-}
+})();
 
 // ── Ordbog: liste, grupper, træ, søgning, tilføj, ret, fjern, Prøv på tekst ──
-{
+await (async () => {
   const rust = falskOrdbogRust({ poster: ORDBOG(), indst: { guide_vist: true } });
   const s = side({ hash: '#ordbog', rust });
   const { d, w } = s;
@@ -1257,10 +1261,10 @@ const enter = (w, el) => el.dispatchEvent(new w.KeyboardEvent('keydown', { key: 
   w.Sprog.saet('en'); await vent(5);
   tjek('English: grupper, kolonner og typer', sek.querySelector('.ordbogtabel tr.gruppe').textContent === 'Always mask caught in every case' && sek.querySelector('.ordbogtabel thead th:nth-child(2)').textContent === 'Value or pattern' && oRaekke(d, 'kontor.test').children[0].textContent === 'Domain');
   w.Sprog.saet('da');
-}
+})();
 
 // ── Ordbog, der ikke kan åbnes: tydelig besked, intet kan ændres ──
-{
+await (async () => {
   const rust = falskOrdbogRust({ indst: { guide_vist: false }, laast: { art: 'beskadiget' } });
   const s = side({ hash: '#ordbog', rust });
   const { d } = s;
@@ -1270,10 +1274,10 @@ const enter = (w, el) => el.dispatchEvent(new w.KeyboardEvent('keydown', { key: 
   tjek('kan ikke åbnes: chip "Kan ikke åbnes"', sek.querySelector('.vl .chip').textContent === '×Kan ikke åbnes');
   tjek('kan ikke åbnes: Tilføj post nedtonet med forklaring', !kommandoAktiv(d, 'ordbog', 'tilfoej-post') && forklaring(knapI(d, 'ordbog', 'tilfoej-post')) === 'Ordbogen kunne ikke åbnes, så den kan ikke ændres');
   tjek('kan ikke åbnes: guiden vises ikke', !aaben(d, 'dlg-guide'));
-}
+})();
 
 // ── Fra Maskér til ordbogen (O4) ──
-{
+await (async () => {
   const rust = falskOrdbogRust({ indst: { guide_vist: true } });
   const s = side({ hash: '#masker', rust });
   const { d, w } = s;
@@ -1318,10 +1322,10 @@ const enter = (w, el) => el.dispatchEvent(new w.KeyboardEvent('keydown', { key: 
   await w.GrimnirOrdbog.tilfoej('ord', 'Projekt7', null); await vent(20);
   tjek('ændret ordbog: Maskér analyserer igen', s.kald.filter(k => k[0] === 'analyser').length > a0);
   tjek('Ordbog-visningen har de nye poster', oRaekker(d).length === 4);
-}
+})();
 
 // ── Advarslen ved egen kode i en navngiven sag (O7) ──
-{
+await (async () => {
   const rust = falskOrdbogRust({ indst: { guide_vist: true } });
   const s = side({ hash: '#masker', rust });
   const { d, w } = s;
@@ -1349,10 +1353,10 @@ const enter = (w, el) => el.dispatchEvent(new w.KeyboardEvent('keydown', { key: 
   tjek('egen kode i en navngiven sag med gemte tekster: advarsel under feltet', adv && adv.textContent.startsWith('Sagen har gemt tidligere tekster: koden må ikke være et ord') && kode().getAttribute('aria-describedby') === adv.id);
   tjek('advarslen er ikke en fejl (intet aria-invalid, intet rødt banner)', !kode().hasAttribute('aria-invalid') && !sek.querySelector('.ban.danger'));
   tjek('rækker uden egen kode har ingen advarsel', !raekkeMed(d, 6).querySelector('.raekkeadv'));
-}
+})();
 
 // ── Guiden ved første start (O5) ──
-{
+await (async () => {
   const rust = falskOrdbogRust();
   const s = side({ hash: '#masker', rust });
   const { d, w } = s;
@@ -1423,10 +1427,10 @@ const enter = (w, el) => el.dispatchEvent(new w.KeyboardEvent('keydown', { key: 
   klik(s5.w, s5.d.getElementById('indst-guide')); await vent(5);
   tjek('guide: Vis guiden igen fra Indstillinger', aaben(s5.d, 'dlg-guide') && !aaben(s5.d, 'dlg-indst') && s5.d.querySelector('#dlg-guide .indhold h2').textContent === 'Sådan arbejder Grimnir');
   tjek('guide: listen i trin 2 viser ordbogens domæne', (() => { klik(s5.w, s5.d.querySelectorAll('#dlg-guide .fod button')[2]); return s5.d.querySelector('#dlg-guide .guide-liste').textContent.includes('kontor.test'); })());
-}
+})();
 
 // ── Indstillinger (O6) ──
-{
+await (async () => {
   const rust = falskOrdbogRust({ indst: { guide_vist: true } });
   const s = side({ hash: '#masker', rust });
   const { d, w } = s;
@@ -1488,7 +1492,7 @@ const enter = (w, el) => el.dispatchEvent(new w.KeyboardEvent('keydown', { key: 
   fr2.checked = true;
   fr2.dispatchEvent(new s2.w.Event('change', { bubbles: true })); await vent(10);
   tjek('Indstillinger: en fejl står i dialogen, og valget springer tilbage', s2.d.getElementById('dlg-indst-fejl').textContent === 'Indstillingen blev ikke gemt: disken kunne ikke bruges (PermissionDenied).' && !fr2.checked);
-}
+})();
 
 // ══════════════════════════ V-FIL.1: Åbn fil og Gem som fil ══════════════════════════
 
@@ -1550,7 +1554,7 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
 }
 
 // ── Statisk: ingen fil-rettigheder, ingen lytter på Tauris træk-og-slip med stier, tekster til Rusts filfejl ──
-{
+await (async () => {
   const cap = JSON.parse(fs.readFileSync(path.join(repo, 'src-tauri', 'capabilities', 'default.json'), 'utf8'));
   tjek('capabilities: ingen fs- eller dialog-rettigheder (webvisningen har ingen fil-rettigheder)', !cap.permissions.some(p => /^(fs|dialog)[:-]/.test(p) || /plugin/.test(p)), cap.permissions.join(', '));
   const build = fs.readFileSync(path.join(repo, 'src-tauri', 'build.rs'), 'utf8');
@@ -1572,10 +1576,10 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   tjek('fil.rs: hvert "ligner" i dokumentationen bruges i koden', ligner.every(l => filrs.includes(`"${l}"`)));
   const GMw = w.GrimnirMaskering;
   tjek('filfejl som tekst: Latin-1 med byteposition og stor fil med MB', GMw.filFejlTekst({ art: 'tegnsaet', ligner: 'enkeltbyte', byte: 1234 }).includes('position 1.234') && GMw.filFejlTekst({ art: 'for_stor', bytes: 110100480, maks: 104857600 }) === 'filen er 105,0 MB, og grænsen er 100,0 MB');
-}
+})();
 
 // ── Maskér med en fil: åbn, uddrag, rækker fra Rust, søgning over alle, gem, kopiér ──
-{
+await (async () => {
   const skrevet = [];
   const rust = falskFilRust();
   const s = side({ rust, foer: w => Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async t => { skrevet.push(t); } }, configurable: true }) });
@@ -1594,8 +1598,11 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   tjek('værktøjslinjen: filnavn, størrelse, tegnsæt og linjeskift', fi && !fi.hidden && fi.textContent === 'app.log11,8 MBUTF-16 LECRLF', fi && fi.textContent);
   tjek('uddraget vises, og en linje siger, hvor meget der ikke vises', sek.querySelector('pre.tekst').textContent.startsWith('Password=') && sek.querySelector('.afkortet').textContent === 'Viser de første 200.000 tegn. 1.234.567 tegn mere er med i maskeringen, men vises ikke.' && !sek.querySelector('.afkortet').hidden);
   tjek('tekstpanelet viser filens linjer og størrelse', sek.querySelector('.panel .panel-hoved .muted').textContent.includes('1.202 linjer'));
+  // V-OPBYG.6 N4: venter på, at filens analyse og derefter maskeringen er færdige (fodlinjen), i stedet for fast 10 ms:
+  // under hukommelsespres (Nodes grænse på en maskine med 4 GB) nåede de det ikke altid. Påstandene nedenfor er uændrede.
+  await ventTil(s.w, () => Boolean(G.M.st.analyse) && !G.M.st.travl);
   s.tast('Enter', { metaKey: true });
-  await vent(10);
+  await ventTil(s.w, () => /maskeret/.test(d.getElementById('fod-venstre').textContent));
   const fa = s.kald.filter(k => k[0] === 'fil_analyser');
   tjek('⌘↵: fil_analyser uden tekst, med kernens standard og første side', fa.length === 1 && !('tekst' in fa[0][1]) && fa[0][1].fravalgt === null && fa[0][1].side.antal === 500 && fa[0][1].side.filter === 'alle' && !s.kald.some(k => k[0] === 'analyser'));
   tjek('tabellen: 500 rækker ad gangen, "Viser 500 af 1200"', fundRaekker(d).length === 500 && sek.querySelector('.flere').textContent.includes('500') && sek.querySelector('.flere').textContent.includes('1200') && !sek.querySelector('.flere').hidden);
@@ -1652,10 +1659,10 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   indsaet(w, sek.querySelector('pre.tekst'), TEKST);
   await vent(5);
   tjek('indsæt efter en fil: fil_luk, og værktøjslinjen viser ingen fil', s.kald.some(k => k[0] === 'fil_luk' && k[1].visning === 'masker') && G.M.st.fil === null && fi.hidden && G.M.st.tekst === TEKST);
-}
+})();
 
 // ── Maskér: rester kræver Gem alligevel; Kopiér over 5 MB er nedtonet ──
-{
+await (async () => {
   const rust = falskFilRust({ antal: 3, rester: [{ art: 'original', type_: 'hemmelighed', tekst: 'SOMMER2026!', antal: 1, linje: 4 }], kopierbar: false });
   const s = side({ rust });
   const { d } = s;
@@ -1674,10 +1681,10 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   alligevel.click();
   await vent(10);
   tjek('Gem alligevel: fil_gem med ok', rust.fil.gemt.length === 1 && rust.fil.gemt[0].join() === 'masker,true');
-}
+})();
 
 // ── Arbejder-tilstand: over et sekund vises "Grimnir arbejder", og kommandoerne er nedtonede ──
-{
+await (async () => {
   const rust = falskFilRust({ antal: 3, forsinkelse: 1300 });
   const s = side({ rust });
   const { d } = s;
@@ -1695,10 +1702,10 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   // at også analysen er færdig.
   const faerdig = await ventTil(s.w, () => s.kald.some(k => k[0] === 'fil_analyser') && !arb() && kommandoAktiv(d, 'masker', 'aabn-fil'), 4000);
   tjek('arbejder: færdig (åbnet og analyseret): beskeden er væk, og Åbn fil er aktiv igen', faerdig && !arb() && kommandoAktiv(d, 'masker', 'aabn-fil') && !sek.querySelector('.flade').hasAttribute('aria-busy'));
-}
+})();
 
 // ── Træk og slip: én fil åbnes; flere filer og en mappe afvises ──
-{
+await (async () => {
   const rust = falskFilRust({ antal: 3 });
   const s = side({ rust });
   const { d, w } = s;
@@ -1732,10 +1739,10 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   s.emit('fil-sluppet', { navn: 'fra-sager.log', fejl: null });
   await vent(20);
   tjek('slip i Sager: Maskér overtager og åbner filen', JSON.stringify(synlige(d)) === '["masker"]' && G.M.st.fil && G.M.st.fil.navn === 'fra-sager.log');
-}
+})();
 
 // ── Demaskér med en fil: bekræftelse før Gem som fil ──
-{
+await (async () => {
   const skrevet = [];
   const rust = falskFilRust({ antal: 3 });
   const s = side({ hash: '#demasker', rust, foer: w => Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async t => { skrevet.push(t); } }, configurable: true }) });
@@ -1776,10 +1783,10 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   await vent(10);
   tjek('Kopiér resultat: fra Rust (fil_kopi)', skrevet.pop() === 'RIGTIGE-HELE-FILEN');
   tjek('V-LAAS.4: Kopiér af en demaskeret fil melder det til Rust (fil true)', JSON.stringify(s.kald.filter(k => k[0] === 'udklip_kopieret').map(k => k[1])) === '[{"fil":true}]');
-}
+})();
 
 // ── Windows: Ctrl+O og Ctrl+S ──
-{
+await (async () => {
   const rust = falskFilRust({ antal: 3 });
   const s = side({ platform: 'windows', rust });
   const { d, w } = s;
@@ -1798,10 +1805,10 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   s2.tast('o', { ctrlKey: true, code: 'KeyO' });
   await vent(10);
   tjek('macOS: Ctrl+O gør intet (menuen har ⌘O)', !s2.kald.some(k => k[0] === 'fil_aabn'));
-}
+})();
 
 // ── Ordbog (F5): Start forfra og advarslen om en adgangskode ──
-{
+await (async () => {
   const rust = falskOrdbogRust({ indst: { guide_vist: true }, laast: { art: 'beskadiget' } });
   rust.ordbog_start_forfra = ({ dato }) => { rust.ob.laast = null; return { ordbog: { poster: [], fejl: null }, flyttet_til: `ordbog.${dato}.ulaeselig` }; };
   const s = side({ hash: '#ordbog', rust });
@@ -1818,8 +1825,8 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   dlg.querySelector('[data-svar="ja"]').click();
   await vent(10);
   tjek('Start forfra: kaldt med dagens dato; ordbogen er tom og kan ændres', s.kald.some(k => k[0] === 'ordbog_start_forfra' && k[1].dato === idag) && !dlg.open && sek.textContent.includes(`Den gamle ordbog hedder nu ordbog.${idag}.ulaeselig`) && kommandoAktiv(d, 'ordbog', 'tilfoej-post'));
-}
-{
+})();
+await (async () => {
   const rust = falskOrdbogRust({ indst: { guide_vist: true } });
   const s = side({ hash: '#ordbog', rust });
   const { d, w } = s;
@@ -1847,10 +1854,10 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   d.getElementById('opost-ok').click();
   await vent(10);
   tjek('Tilføj post: advarslen blokerer ikke (posten tilføjes)', rust.ob.db.some(p => p.vaerdi === 'Vinter2027#') && !d.getElementById('dlg-opost').open);
-}
+})();
 
 // ── V-RET.1 R1: tabellerne — Altid/Aldrig som ikonknapper, lange værdier forkortes og står hele i title ──
-{
+await (async () => {
   const rust = falskOrdbogRust({ poster: ORDBOG(), sager: SAGER(), indst: { guide_vist: true } });
   const s = side({ rust });
   const { d, w } = s;
@@ -1896,8 +1903,8 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   tjek('R1: Ordbog: noten står i title', note && note.title === note.textContent);
   const css = ui('assets/app.css');
   tjek('R1: ingen tabel har faste bredder uden for variablerne (th:nth-child med width i px eller %)', !/th:nth-child\(\d\)[^{]*\{\s*width:\s*\d/.test(css));
-}
-{
+})();
+await (async () => {
   const s = side({ hash: '#masker', rust: falskRust() });
   const { d, w } = s;
   await vent(5);
@@ -1908,11 +1915,11 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   w.GrimnirMaskering.M.tegn();
   const rt = d.querySelector('.resttabel tbody td:nth-child(3) .mono');
   tjek('R1: rester: teksten forkortes (mono) og står i title', rt && rt.classList.contains('kort') && rt.title === 'Hemmelig42');
-}
+})();
 
 // ── V-PUDS.2 N1: en selvvalgt kode med andre store/små bogstaver giver rækken "Andre store/små bogstaver" i Demaskér-tabellen,
 // med koden, antal og linje fra Rust; "sat tilbage" for koden har alle stederne. Webvisningen tæller intet selv. ──
-{
+await (async () => {
   const s = side({ hash: '#demasker', rust: falskRust() });
   const { d, w } = s;
   await vent(5);
@@ -1935,10 +1942,10 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   const alle = celler();
   tjek('V-PUDS.2: Demaskér: "sat tilbage" for den selvvalgte kode tæller alle fire steder fra linje 2', alle.length === 3 && alle[0].slice(1).join('|') === 'fw-ydre|4|2', JSON.stringify(alle));
   tjek('V-PUDS.2: Demaskér: advarslen står i banneret med antal steder', dsek.querySelector('.ban.warn') && dsek.querySelector('.ban.warn').textContent.includes('3 steder'), dsek.querySelector('.ban.warn') && dsek.querySelector('.ban.warn').textContent);
-}
+})();
 
 // ── V-RET.1 R2: tekstpanelerne bryder ikke linjer; "Ombryd" skifter, og valget huskes ikke ──
-{
+await (async () => {
   const s = side({ rust: falskRust() });
   const { d, w } = s;
   await vent(5);
@@ -1964,10 +1971,10 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   tjek('R2: Demaskér: knappen ombryder kun sit eget panel', dp[0].classList.contains('ombryd') && !dp[1].classList.contains('ombryd'));
   const css = ui('assets/app.css');
   tjek('R2: CSS: white-space: pre som standard, pre-wrap ved ombryd, og rullebjælken er altid synlig (::-webkit-scrollbar)', /\.tekst \{[^}]*white-space: pre;/.test(css) && /\.tekst\.ombryd \{[^}]*white-space: pre-wrap/.test(css) && /\.tekst::-webkit-scrollbar \{[^}]*height: 12px/.test(css));
-}
+})();
 
 // ── V-RET.1 R3: Demaskér viser Rusts linjetal (samme regel som Maskér og filer) ──
-{
+await (async () => {
   const s = side({ rust: falskRust() });
   const { d, w } = s;
   await vent(5);
@@ -1985,10 +1992,10 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   tjek('R3: Demaskér efter demaskering: 4 linjer fra Rust (tekst med afsluttende CRLF)', info().startsWith('4 linjer'), info());
   const m = ui('assets/maskering.js');
   tjek('R3 (V-MANUEL.1 N5): webvisningen tæller linjerne uden split på linjeskift (efter Rusts regel, antalLinjer)', !/split\(['"]\\n['"]\)/.test(m) && !/split\(\/\\r\?\\n\//.test(m));
-}
+})();
 
 // ── V-RET.1 R4: ental og flertal i begge sprog ──
-{
+await (async () => {
   const { w } = side();
   const S = w.Sprog, T = S.TEKST;
   const FORM = /\{([vw]):((?:[^{}|]|\{[vw]\})*)\|((?:[^{}|]|\{[vw]\})*)\}/g;
@@ -2047,8 +2054,8 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   }
   tjek('R4: udvalgte tekster ved 0, 1 og 2 (bl.a. "1 sted" / "2 steder")', forskel.length === 0, forskel.join(' | '));
   S.saet('da');
-}
-{
+})();
+await (async () => {
   // Sager og Ordbog i vinduet: chip og fodlinje med 1.
   const rust = falskOrdbogRust({ poster: [{ type: 'ord', vaerdi: 'Uglebo' }], sager: [{ id: hexId(1), navn: 'Supportsag 0042', poster: 1 }], indst: { guide_vist: true } });
   const s = side({ hash: '#sager', rust });
@@ -2058,7 +2065,7 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   w.location.hash = 'ordbog';
   await vent(10);
   tjek('V-OPBYG.2 N4: R4: Ordbog: chippen siger "1 post"; fodlinjen sagens navn og gemte erstatninger', d.querySelector('section[data-visning="ordbog"] .vl .chip').textContent === 'i1 post' && /^Midlertidig sag · \d+ (gemt erstatning|gemte erstatninger)$/.test(d.getElementById('fod-venstre').textContent), d.getElementById('fod-venstre').textContent);
-}
+})();
 
 // ── V-LAAS.2: låseskærmen. Efterlignet Rust: låst ved start, laas_op svarer fra en kø, og hver kommando med sager,
 // ordbog eller filer svarer `laast`, mens der er låst. Kaldene, mens der er låst, logges, så testen ser, at UI'et slet ikke
@@ -2106,7 +2113,7 @@ function falskLaasRust({ svar = [], laast = true, igen = null, efter: efterLaas 
 const altIDom = d => d.documentElement.textContent + ' ' + [...d.querySelectorAll('*')].flatMap(e => [...e.attributes].map(a => a.value)).join(' ');
 const laaseskaerm = d => d.documentElement.hasAttribute('data-laast');
 const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c => !AABNE_I_LAAST.includes(c));
-{
+await (async () => {
   // Statisk: index.html starter låst; låseskærmen dækker arbejdsfladen; scriptet indlæses før Sager og Ordbog.
   const html = ui('index.html');
   tjek('Lås: <html data-laast> står fra start i index.html (låst før noget script)', /<html[^>]*\sdata-laast[\s>]/.test(html));
@@ -2119,8 +2126,8 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
   const tekster = Object.values(ui('assets/sprog.js').match(/laasH:[\s\S]*?bGemFejlVedLaas: '[^']*'/g) || []).join(' ').toLowerCase();
   tjek('Lås: teksterne lover ikke mere end døren (ingen "beskytter dine sager", "sikker", "krypteret")', tekster.length > 500 && !/beskytter dine|beskytter sagerne|sikker|krypter|secure|protects your|encrypt/.test(tekster), tekster.slice(0, 80));
   tjek('Lås: teksterne siger, hvad låsen ikke gør (andre programmer)', /andre programmer/.test(tekster) && /other apps/.test(tekster));
-}
-{
+})();
+await (async () => {
   // Start låst → laas_op én gang med det samme → annulleret: låseskærmen står, intet fra sagerne i DOM'en.
   const rust = falskLaasRust({ svar: [{ svar: 'annulleret' }] });
   const s = side({ rust });
@@ -2190,8 +2197,8 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
   s.tast('3', { metaKey: true, code: 'Digit3' });
   await vent(5);
   tjek('Lås: låst op virker ⌘3 igen', synlige(d).join() === 'noter');
-}
-{
+})();
+await (async () => {
   // Ok med det samme: låseskærmen forsvinder uden flere dialoger; guiden vises først nu (den bruger ordbogen).
   const rust = falskLaasRust({ svar: [{ svar: 'ok' }] });
   const { d, kald } = side({ rust });
@@ -2199,8 +2206,8 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
   tjek('Lås: ok ved start → låst op, én dialog', !laaseskaerm(d) && rust.st.opKald.length === 1);
   tjek('Lås: ok ved start → data hentes efter oplåsningen, ikke før', kald.findIndex(([c]) => c === 'laas_op') < kald.findIndex(([c]) => c === 'sag_status') && kald.findIndex(([c]) => c === 'laas_op') < kald.findIndex(([c]) => c === 'ordbog_hent') && rust.st.kaldLaast.length === 0);
   tjek('Lås: ordbogen har en post → ingen guide efter oplåsningen', !d.getElementById('dlg-guide').hasAttribute('open'));
-}
-{
+})();
+await (async () => {
   // Tom ordbog og guiden ikke vist: guiden åbner ikke over låseskærmen, men først efter oplåsningen.
   const rust = falskLaasRust({ svar: [{ svar: 'annulleret' }, { svar: 'ok' }], poster: [] });
   const { d } = side({ rust });
@@ -2209,8 +2216,8 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
   d.getElementById('laas-op').click();
   await vent(30);
   tjek('Lås: tom ordbog → guiden vises efter oplåsningen', !laaseskaerm(d) && d.getElementById('dlg-guide').hasAttribute('open'));
-}
-{
+})();
+await (async () => {
   // Ikke tilgængelig: låst op uden dialog, med et vedvarende, afdæmpet banner.
   const rust = falskLaasRust({ svar: [{ svar: 'ikke_tilgaengelig', hvorfor: 'ingen_adgangskode' }] });
   const s = side({ rust });
@@ -2226,16 +2233,16 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
   s.w.Sprog.saet('en');
   await vent(5);
   tjek('Lås: banneret på engelsk', d.querySelector('#laas-banner .ord').textContent === 'This machine cannot confirm who you are. Grimnir is not locked.');
-}
-{
+})();
+await (async () => {
   // Rust svarer, at der ikke er låst (V-LAAS.3: indstillingen er væk; det sker kun, hvis siden genindlæses efter
   // oplåsning): ingen dialog, intet banner.
   const rust = falskLaasRust({ laast: false });
   const { d } = side({ rust });
   await vent(20);
   tjek('Lås: ulåst ved start → ingen laas_op, ingen låseskærm', rust.st.opKald.length === 0 && !laaseskaerm(d) && d.getElementById('laas-banner').children.length === 0);
-}
-{
+})();
+await (async () => {
   // Engelsk: låseskærmen og laas_op på engelsk.
   const rust = falskLaasRust({ svar: [{ svar: 'annulleret' }] });
   const { d } = side({ rust, lager: { 'grimnir-sprog': 'en' } });
@@ -2244,8 +2251,8 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
   tjek('Lås (en): låseskærmen på engelsk', d.getElementById('laas-h').textContent === 'Grimnir is locked' && d.getElementById('laas-p').textContent === 'Unlock with Touch ID or your password to open your cases and your dictionary.' && d.getElementById('laas-op').textContent === 'Unlock' && d.getElementById('laas-afslut').textContent === 'Quit' && d.getElementById('laas-besked').textContent === 'Grimnir is still locked. Press Unlock to try again.');
   tjek('Lås (en): forklaringen på båndet på engelsk', d.getElementById('baand').title === 'Grimnir is locked. Unlock to use the views and commands.');
   tjek('Lås (en): intet fra sagerne i DOM\'en', !/Uglebo|Kragevig/.test(altIDom(d)));
-}
-{
+})();
+await (async () => {
   // To tryk på Lås op, mens dialogen står: én dialog.
   const rust = falskLaasRust({ svar: [{ svar: 'annulleret' }, { svar: 'ok' }] });
   const s = side({ rust });
@@ -2262,17 +2269,17 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
   slip();
   await vent(20);
   tjek('Lås: to tryk og Enter mens døren spørger → ét kald', rust.st.opKald.length === 2 && !laaseskaerm(d), JSON.stringify(rust.st.opKald));
-}
-{
+})();
+await (async () => {
   // Windows (ingen dør i denne cyklus): hjælpeteksten lover ikke en lås ved start, men nævner stilstand.
   const { d } = side({ platform: 'windows' });
   await vent(10);
   tjek('Lås (Windows): hjælpeteksten siger, at Grimnir ikke starter låst her', d.getElementById('indst-stilstand-hj').textContent.startsWith('Denne maskine kan endnu ikke bekræfte, hvem du er, så Grimnir starter ikke låst her.') && /stået stille/.test(d.getElementById('indst-stilstand-hj').textContent));
-}
+})();
 
 // ── V-LAAS.3: låsen kan ikke slås fra, og Grimnir låser igen. Efterlignet Rust som V-LAAS.2 (falskLaasRust) med
 // laasIgen (som Rusts laas_igen) og hændelsen `laast`. Kun opdigtede navne. ──
-{
+await (async () => {
   // N1: "Lås Grimnir ved start" er væk i begge sprog: ingen afkrydsningsboks, ingen tekster, ingen kommando.
   // Kode og tekster, uden kommentarer (kommentarerne må gerne sige, at indstillingen er fjernet).
   const udenKommentarer = t => t.replace(/<!--[\s\S]*?-->/g, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
@@ -2299,8 +2306,8 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
     const hj = d.getElementById('indst-stilstand-hj').textContent;
     tjek(`V-LAAS.3 (${lang}): hjælpeteksten siger, hvad låsen beskytter imod, og hvornår den låser igen`, t.ord.every(r => r.test(hj)), hj);
   }
-}
-{
+})();
+await (async () => {
   // "Lås efter stilstand" gemmes som de andre valg, uden laas_ved_start.
   const rust = falskLaasRust({ svar: [{ svar: 'ok' }] });
   const s = side({ rust });
@@ -2315,8 +2322,8 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
   const gemt = kald.filter(([c]) => c === 'indstillinger_gem').map(([, a]) => a.indstillinger);
   tjek('V-LAAS.3: 5 minutter gemmes (laas_efter_min: 5) uden laas_ved_start', gemt.length === 1 && gemt[0].laas_efter_min === 5 && !('laas_ved_start' in gemt[0]) && rust.ob.indst.laas_efter_min === 5, JSON.stringify(gemt));
   tjek('V-LAAS.3: valget står efter gemningen', sel.value === '5');
-}
-{
+})();
+await (async () => {
   // N3: låst op med sager og ordbog i DOM'en og en åben dialog; Rust låser igen → `laast` → siden genindlæses.
   const rust = falskLaasRust({ svar: [{ svar: 'ok' }] });
   const s = side({ rust, hash: '#sager' });
@@ -2353,8 +2360,8 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
   if (luk) luk.click();
   tjek('V-LAAS.3: Luk fjerner beskeden', !g.d.querySelector('#laas-banner .ban[data-efter]'));
   tjek('V-LAAS.3: efter oplåsningen hentes data igen', g.kald.some(([c]) => c === 'sag_liste') && /Uglebo-sagen/.test(altIDom(g.d)));
-}
-{
+})();
+await (async () => {
   // Låst igen ved stilstand, og den åbne sag kunne ikke gemmes: annulleret → stadig låst, ingen ny dialog af sig selv;
   // Enter → dialogen → ok → advarslen uden indhold (engelsk).
   const rust = falskLaasRust({ laast: true, igen: 'stilstand', efter: { midlertidig_gemt: null, midlertidig_fejl: null, gem_fejl: { art: 'konflikt' } } });
@@ -2375,15 +2382,15 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
   tjek('V-LAAS.3 (en): ok → advarslen om sagen, der ikke kunne gemmes', !laaseskaerm(d) && b && b.classList.contains('warn') && ord.startsWith('The open case could not be saved when Grimnir locked: ') && ord.length > 60, ord);
   tjek('V-LAAS.3 (en): advarslen har intet fra sagerne', b && !/Uglebo|Kragevig/.test(b.textContent));
   tjek('V-LAAS.3 (en): beskeden gives én gang (Rust rydder den)', rust.st.efterLaas === null && d.querySelectorAll('#laas-banner .ban[data-efter]').length === 1);
-}
-{
+})();
+await (async () => {
   // Ved programmets start kaldes laas_op stadig af sig selv (én gang), også efter V-LAAS.3.
   const rust = falskLaasRust({ svar: [{ svar: 'annulleret' }] });
   side({ rust });
   await vent(30);
   tjek('V-LAAS.3: ved start kaldes laas_op én gang af sig selv', rust.st.opKald.length === 1);
-}
-{
+})();
+await (async () => {
   // Aktivitet: tastatur og mus melder `aktivitet` højst hvert 20. sekund, og ikke mens der er låst.
   const rust = falskLaasRust({ svar: [{ svar: 'ok' }] });
   const s = side({ rust });
@@ -2414,8 +2421,8 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
   ls.d.dispatchEvent(new ls.w.MouseEvent('pointermove', { bubbles: true }));
   await vent(5);
   tjek('V-LAAS.3: mens der er låst, sendes ingen aktivitet', l.st.aktivitet === 0 && laaseskaerm(ls.d));
-}
-{
+})();
+await (async () => {
   // N4: tandhjulet i titellinjen er et tandhjul, ikke solen; solen er stadig ikonet for Lys i Vis-fanen.
   const { w, d } = side();
   await vent(5);
@@ -2427,21 +2434,21 @@ const fremmedeKald = (kald, fra = 0) => kald.slice(fra).map(([c]) => c).filter(c
   tjek('V-LAAS.3: titellinjens knap bruger tandhjul', knap.querySelector('svg path') && knap.querySelector('svg path').getAttribute('d') === I.tandhjul[0][1].d && knap.querySelectorAll('svg').length === 1);
   tjek('V-LAAS.3: knappens aria-label og title er uændrede', knap.getAttribute('aria-label') === 'Åbn indstillinger' && knap.title === 'Indstillinger (⌘,)');
   tjek('V-LAAS.3: ikonerne tegnes med 2 px streg (kit.css)', /stroke: currentColor; stroke-width: 2;/.test(ui('assets/kit.css')));
-}
+})();
 
 // ── V-LAAS.4: ved lås gemmes den midlertidige sag (beskeden med navnet), og udklipsholderen ryddes (meldingen efter
 // Kopiér i Demaskér; teksten i Indstillinger). Efterlignet Rust som V-LAAS.3. Kun opdigtede navne. ──
-{
+await (async () => {
   const udenKommentarer = t => t.replace(/<!--[\s\S]*?-->/g, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
   const kode = udenKommentarer(ui('index.html') + ['app.js', 'laas.js', 'maskering.js', 'sager.js', 'ordbog.js', 'indstillinger.js', 'kit.js', 'sprogmotor.js', 'sprog.js', 'tema.js'].map(f => ui('assets/' + f)).join('\n'));
   tjek('V-LAAS.4: webvisningen læser aldrig udklipsholderen (ingen readText/read())', kode.length > 50000 && !/readText|clipboard\.read\(/.test(kode));
   tjek('V-LAAS.4: udklip_kopieret kaldes ét sted (Kopiér i Demaskér)', (kode.match(/invoke\('udklip_kopieret'/g) || []).length === 1);
   tjek('V-KVIT.1: kvittering kaldes ét sted (Kopiér kvittering i Maskér), og dér meldes intet til udklip_kopieret', (kode.match(/invoke\('kvittering'/g) || []).length === 1 && !/udklip_kopieret/.test(kode.slice(kode.indexOf('async function kopierKvittering'), kode.indexOf("document.addEventListener('grimnir-ordbog'"))));
   tjek('V-LAAS.4: den gamle besked "blev lukket" er væk', !/bMidlertidigLukket|blev lukket, da Grimnir|was closed when Grimnir/.test(kode));
-}
+})();
 // V-LAAS.5 N2: navnet har sekunder (TT.MM.SS); beskeden er ellers uændret.
 const NAVN4 = { da: 'Midlertidig 2026-11-11 09.05.30', en: 'Temporary 2026-11-11 09.05.30' };
-for (const lang of ['da', 'en']) {
+await (async () => { for (const lang of ['da', 'en']) {
   // Låst igen; den midlertidige sag er gemt. Lås op → beskeden med navnet (info, Luk-knap).
   const rust = falskLaasRust({ laast: true, igen: 'dvale', efter: { midlertidig_gemt: NAVN4[lang], midlertidig_fejl: null, gem_fejl: null } });
   const s = side({ rust, lager: { 'grimnir-sprog': lang } });
@@ -2458,8 +2465,8 @@ for (const lang of ['da', 'en']) {
   tjek(`V-LAAS.4 (${lang}): beskeden er en oplysning med role=status og en Luk-knap`, b && b.classList.contains('info') && b.getAttribute('role') === 'status' && b.querySelector('button').getAttribute('aria-label') === (lang === 'da' ? 'Luk beskeden' : 'Close the message'));
   tjek(`V-LAAS.4 (${lang}): sagen åbnes ikke af sig selv (intet sag_aabn), og der er kun én besked`, !s.kald.some(([c]) => c === 'sag_aabn') && d.querySelectorAll('#laas-banner .ban[data-efter]').length === 1);
   tjek(`V-LAAS.4 (${lang}): navnet står som tekst, ikke som HTML`, b && b.querySelector('.ord').children.length === 0);
-}
-for (const lang of ['da', 'en']) {
+} })();
+await (async () => { for (const lang of ['da', 'en']) {
   // Den midlertidige sag kunne ikke gemmes: advarslen uden indhold.
   const rust = falskLaasRust({ laast: true, igen: 'stilstand', efter: { midlertidig_gemt: null, midlertidig_fejl: { art: 'noeglering', hvad: 'andet' }, gem_fejl: null } });
   const s = side({ rust, lager: { 'grimnir-sprog': lang } });
@@ -2473,8 +2480,8 @@ for (const lang of ['da', 'en']) {
   const start = lang === 'da' ? 'Den midlertidige sag kunne ikke gemmes, da Grimnir låste, og er lukket: ' : 'The temporary case could not be saved when Grimnir locked and has been closed: ';
   tjek(`V-LAAS.4 (${lang}): fejlbeskeden siger, at sagen ikke kunne gemmes og er lukket`, b && b.classList.contains('warn') && ord.startsWith(start) && ord.length > start.length + 10, ord);
   tjek(`V-LAAS.4 (${lang}): fejlbeskeden har intet fra sagerne og ingen gem-besked`, b && !/Uglebo|Kragevig|kontor\.test/.test(b.textContent) && !d.querySelector('#laas-banner .ban[data-efter="bMidlertidigGemt"]'));
-}
-for (const lang of ['da', 'en']) {
+} })();
+await (async () => { for (const lang of ['da', 'en']) {
   // Indstillinger: én sætning om udklipsholderen i teksten om låsen (macOS). Windows rydder intet og lover det ikke.
   const s = side({ lager: { 'grimnir-sprog': lang } });
   await vent(10);
@@ -2487,8 +2494,8 @@ for (const lang of ['da', 'en']) {
   const win = side({ platform: 'windows', lager: { 'grimnir-sprog': lang } });
   await vent(10);
   tjek(`V-LAAS.4 (${lang}, Windows): teksten lover ikke at rydde udklipsholderen`, !/udklipsholder|clipboard/i.test(win.d.getElementById('indst-stilstand-hj').textContent));
-}
-{
+} })();
+await (async () => {
   // En kopi, der ikke lykkedes, meldes ikke.
   const s = side({ hash: '#demasker', rust: falskRust(), foer: w => Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async () => { throw new Error('nægtet'); } }, configurable: true }) });
   const { d, w } = s;
@@ -2501,11 +2508,11 @@ for (const lang of ['da', 'en']) {
   await vent(5);
   tjek('V-LAAS.4: kontrol: demaskeret, og Kopiér er prøvet', s.kald.some(k => k[0] === 'demasker') && d.querySelector('section[data-visning="demasker"] .ban.danger'));
   tjek('V-LAAS.4: en kopi, der fejlede, meldes ikke til Rust', !s.kald.some(k => k[0] === 'udklip_kopieret'));
-}
+})();
 
 // ── V-LAAS.5: udklipsholderen ved Afslut (teksten i Indstillinger; se også V-LAAS.4-blokken), navnet med sekunder i
 // beskeden (V-LAAS.4-blokken), og navn, slogan og beskrivelse (N3, ADR D22). Kun opdigtede navne. ──
-{
+await (async () => {
   const NAVN = 'Wi24rd Grimnir', SLOGAN = 'Mask. Share. Restore.', BESKRIVELSE = 'Sensitive data masking tool for logs and scripts';
   const TITEL = `${NAVN} — ${SLOGAN}`;
   const { w } = side();
@@ -2524,8 +2531,8 @@ for (const lang of ['da', 'en']) {
   tjek('V-LAAS.5: <title> i index.html (før siden er indlæst)', html.includes(`<title>${TITEL}</title>`));
   const pm = fs.readFileSync(path.join(repo, 'src-tauri', 'src', 'programmenu.rs'), 'utf8');
   tjek('V-LAAS.5: programmenuen hedder fortsat Grimnir (begge sprog)', (pm.match(/app: "Grimnir",/g) || []).length === 2 && pm.includes('om: "Om Grimnir",') && pm.includes('om: "About Grimnir",'));
-}
-for (const lang of ['da', 'en']) {
+})();
+await (async () => { for (const lang of ['da', 'en']) {
   const s = side({ lager: { 'grimnir-sprog': lang } });
   const { d } = s;
   await vent(10);
@@ -2545,8 +2552,8 @@ for (const lang of ['da', 'en']) {
   tjek(`V-LAAS.5 (${lang}): Om-dialogen har navn, slogan og beskrivelse i den rækkefølge`, JSON.stringify(linjer) === JSON.stringify(['Wi24rd Grimnir', 'Mask. Share. Restore.', 'Sensitive data masking tool for logs and scripts']), JSON.stringify(linjer));
   tjek(`V-LAAS.5 (${lang}): den forklarende sætning står under dem på UI-sproget`, om.querySelector('.identitet').compareDocumentPosition(omP) === 4 && omP.textContent.startsWith(lang === 'da' ? 'Wi24rd Grimnir maskerer' : 'Wi24rd Grimnir masks'), omP.textContent);
   om.querySelector('[data-svar="luk"]').click();
-}
-for (const lang of ['da', 'en']) {
+} })();
+await (async () => { for (const lang of ['da', 'en']) {
   // Guiden ved første start: de tre linjer øverst på første skærm (over overskriften), ikke på de næste.
   const rust = falskOrdbogRust();
   const s = side({ hash: '#masker', rust, lager: { 'grimnir-sprog': lang } });
@@ -2564,8 +2571,8 @@ for (const lang of ['da', 'en']) {
   klik(w, [...dlg.querySelectorAll('.fod button')][1]);
   await vent(5);
   tjek(`V-LAAS.5 (${lang}): tilbage på første skærm står de igen`, id && !id.hidden);
-}
-{
+} })();
+await (async () => {
   // Titellinjen i et smalt vindue (CSS; jsdom tegner ikke): navnet krymper aldrig, sloganet ombrydes ud af syne, før
   // noget andet giver efter, og det afkortes ikke. Farven er rail-text (kontrast.mjs har parret).
   const css = ui('assets/app.css');
@@ -2579,12 +2586,12 @@ for (const lang of ['da', 'en']) {
   tjek('V-LAAS.5: sloganet afkortes og ombrydes ikke, og er nedtonet (rail-text)', /white-space: nowrap;/.test(sl) && /flex: none;/.test(sl) && /color: var\(--rail-text\);/.test(sl) && !/ellipsis/.test(sl), sl);
   const k = fs.readFileSync(path.join(repo, 'tests', 'ui', 'kontrast.mjs'), 'utf8');
   tjek('V-LAAS.5: kontrast.mjs har sloganets par (titellinjen, Om og guiden)', /\['rail-text', 'rail', TEKST, 'Titellinjen: sloganet/.test(k) && /\['text-muted', 'surface', TEKST, 'Om-dialogen og guiden: sloganet/.test(k));
-}
+})();
 // ── V-LAAS.6 N2: programmet blev afsluttet uden at spørge (Afslut fra Dock, log ud), og den midlertidige sag blev gemt.
 // Ved næste start (låst, ikke "låst igen") kalder UI'et laas_op af sig selv, og svaret har beskeden med navnet: samme
 // besked som efter en lås, én gang. Kun opdigtede navne. ──
 const NAVN6 = { da: 'Midlertidig 2026-11-11 17.42.08', en: 'Temporary 2026-11-11 17.42.08' };
-for (const lang of ['da', 'en']) {
+await (async () => { for (const lang of ['da', 'en']) {
   const rust = falskLaasRust({ laast: true, igen: null, svar: [{ svar: 'ok' }], efter: { midlertidig_gemt: NAVN6[lang], midlertidig_fejl: null, gem_fejl: null } });
   const s = side({ rust, lager: { 'grimnir-sprog': lang } });
   const { d } = s;
@@ -2604,12 +2611,12 @@ for (const lang of ['da', 'en']) {
   const s2 = side({ rust, lager: { 'grimnir-sprog': lang } });
   await vent(30);
   tjek(`V-LAAS.6 (${lang}): ved start efter det kommer beskeden ikke igen`, !laaseskaerm(s2.d) && rust.st.opKald.length === 2 && !s2.d.querySelector('#laas-banner .ban[data-efter]'));
-}
+} })();
 
 // ── V-PUDS.1: småting efter låsecyklerne og vinduesprøven. N2: teksten i sagspanelet (begge sprog, ental og flertal).
 // N3: Altid/Aldrig har ordet i knappen; app.css viser det fra 1200 px (jsdom anvender ikke @media, så reglerne læses som i
 // kolonner.mjs; bredderne regnes i kolonner.mjs). N4: Demaskér-tabellen viser Antal og Linje fra Rust. Kun opdigtede data. ──
-{
+await (async () => {
   const SAGP = {
     da: [[1, 'Sagen husker 1 værdi i hukommelsen. Gem som sag gemmer den krypteret på denne maskine. Låser eller afsluttes Grimnir, gemmes sagen automatisk under et dato-navn, medmindre du kasserer den. Nulstil glemmer den, og et svar med den kode kan derefter ikke demaskeres.'],
       [2, 'Sagen husker 2 værdier i hukommelsen. Gem som sag gemmer den krypteret på denne maskine. Låser eller afsluttes Grimnir, gemmes sagen automatisk under et dato-navn, medmindre du kasserer den. Nulstil glemmer dem, og et svar med de koder kan derefter ikke demaskeres.']],
@@ -2630,8 +2637,8 @@ for (const lang of ['da', 'en']) {
   }
   const T = side().w.Sprog.TEKST;
   tjek('V-PUDS.1 N2: ingen tekst siger længere "til Grimnir lukkes" / "until Grimnir closes"', !Object.values(T.da).some(x => /til Grimnir lukkes/.test(x)) && !Object.values(T.en).some(x => /until Grimnir closes/.test(x)));
-}
-{
+})();
+await (async () => {
   // N3: knapperne i begge sprog: ikon + ordet (det skjulte ord, som CSS'en viser ved brede tabeller); title og aria-label uændrede.
   for (const lang of ['da', 'en']) {
     const rust = falskOrdbogRust({ poster: ORDBOG(), sager: SAGER(), indst: { guide_vist: true } });
@@ -2661,8 +2668,8 @@ for (const lang of ['da', 'en']) {
   tjek('V-PUDS.1 N3: ved 900 px kun ikonet', !viser.some(b => passer(b.hvor, 900)));
   // V-OPBYG.5 N2: grænsen er flyttet fra 1200 til 1210 px ("…"-knappen står også i Ordbog-cellen).
   tjek('V-OPBYG.5 N2: ved 1210 px ikon og ord, med plads i Ordbog-kolonnen (--k7) i begge sprog', !viser.some(b => passer(b.hvor, 1209)) && viser.some(b => passer(b.hvor, 1210) && /(^|\s)(:root:not\(\[data-tekst="stor"\]\) )?\.fundtabel \{[^}]*--k7:/.test(b.indhold) && /(html|:root:not\(\[data-tekst="stor"\]\))\[lang="en"\] \.fundtabel \{[^}]*--k7:/.test(b.indhold)));
-}
-{
+})();
+await (async () => {
   // N4: indsat tekst: Antal og Linje for hver kode, der er sat tilbage, fra Rust (tilbage); CRLF og to gange på én linje.
   const s = side({ rust: falskRust() });
   const { d, w } = s;
@@ -2684,12 +2691,12 @@ for (const lang of ['da', 'en']) {
   const m = ui('assets/maskering.js');
   const raekkerFn = m.slice(m.indexOf('function raekker() {', m.indexOf('Demaskér ═')), m.indexOf('function tegnTabel()', m.indexOf('Demaskér ═')));
   tjek('V-PUDS.1 N4: webvisningen tæller ikke selv (rækkerne bygges af tilbage fra Rust)', /st\.resultat\.tilbage/.test(raekkerFn) && !/split\(|indexOf\(|match\(/.test(raekkerFn) && /tilbage: r\.tilbage/.test(m));
-}
+})();
 
 // ══════════════════════════ V-KVIT.1: Kopiér kvittering ══════════════════════════
 // Engelsk, uden ClipboardItem (teksten hentes og kopieres med writeText), nedtonet mens Grimnir arbejder, fejl fra Rust,
 // en kopi, der fejler, og Nulstil. Den efterlignede Rust svarer som src-tauri/src/maskering.rs (en tekst eller en fejl).
-{
+await (async () => {
   const skrevet = [];
   const s = side({ rust: falskRust(), lager: { 'grimnir-sprog': 'en' }, foer: w => Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async t => { skrevet.push(t); } }, configurable: true }) });
   const { d, w } = s;
@@ -2713,8 +2720,8 @@ for (const lang of ['da', 'en']) {
   tjek('V-KVIT.1: efter Nulstil er Copy receipt nedtonet', !kommandoAktiv(d, 'masker', 'kvittering') && forklaring(kv) === 'Mask the text first');
   kv.click(); await vent(5);
   tjek('V-KVIT.1: efter Nulstil hentes ingen kvittering', s.kald.filter(k => k[0] === 'kvittering').length === 1 && skrevet.length === 1);
-}
-{
+})();
+await (async () => {
   // Rust svarer med en fejl (intet resultat, eller låst imens): et banner, ingen bekræftelse og intet kopieret.
   const skrevet = [];
   const rust = { ...falskRust(), kvittering: () => { throw { art: 'intet_resultat' }; } };
@@ -2727,8 +2734,8 @@ for (const lang of ['da', 'en']) {
   s.tast('Enter', { metaKey: true }); await vent(5);
   knapI(d, 'masker', 'kvittering').click(); await vent(5);
   tjek('V-KVIT.1: fejl fra Rust: banner, ingen bekræftelse, intet kopieret', Boolean(sek.querySelector('.arbejde .bannere .ban.danger')) && sek.querySelector('.besked').textContent === '' && skrevet.length === 0, sek.querySelector('.besked').textContent);
-}
-{
+})();
+await (async () => {
   // Udklipsholderen afviser: fejlbanner med kvitteringens egen tekst, ingen bekræftelse.
   const s = side({ rust: falskRust(), foer: w => Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async () => { throw new Error('nægtet'); } }, configurable: true }) });
   const { d, w } = s;
@@ -2740,8 +2747,8 @@ for (const lang of ['da', 'en']) {
   knapI(d, 'masker', 'kvittering').click(); await vent(5);
   tjek('V-KVIT.1: en kopi, der fejler: "Grimnir kunne ikke kopiere kvitteringen."', [...sek.querySelectorAll('.arbejde .bannere .ban.danger')].some(b => b.textContent.includes('Grimnir kunne ikke kopiere kvitteringen.')) && sek.querySelector('.besked').textContent === '');
   tjek('V-KVIT.1: en kopi, der fejler, meldes heller ikke til Rust', !s.kald.some(k => k[0] === 'udklip_kopieret'));
-}
-{
+})();
+await (async () => {
   // Med ClipboardItem (WebKit): teksten gives som et løfte i selve klikket, som for Kopiér af et filresultat.
   const skrevet = [];
   const s = side({
@@ -2759,8 +2766,8 @@ for (const lang of ['da', 'en']) {
   s.tast('Enter', { metaKey: true }); await vent(5);
   knapI(d, 'masker', 'kvittering').click(); await vent(10);
   tjek('V-KVIT.1: med ClipboardItem: kvitteringen skrives i klikket (samme vej som Kopiér af en fil)', skrevet.join('|') === 'KVITTERING da tekst\n' && s.kald.filter(k => k[0] === 'kvittering').length === 1 && sek.querySelector('.besked').textContent.startsWith('Kvitteringen er kopieret.'), JSON.stringify(skrevet));
-}
-{
+})();
+await (async () => {
   // Statisk: kommandoen står i Rust tre steder (generate_handler!, build.rs, capabilities), og teksterne findes på begge sprog.
   const rd = f => fs.readFileSync(path.join(repo, 'src-tauri', f), 'utf8');
   const lib = rd('src/lib.rs');
@@ -2769,12 +2776,12 @@ for (const lang of ['da', 'en']) {
   const T = w.Sprog.TEKST;
   tjek('V-KVIT.1: teksterne findes på dansk og engelsk', ['kKvittering', 'bKvitteringKopieret', 'bKvitteringFejl'].every(k => T.da[k] && T.en[k] && T.da[k] !== T.en[k]));
   tjek('V-KVIT.1: ingen gem-som-fil for kvitteringen (kun kopiering)', !/kvittering[^\n]*fil_gem|gem-kvittering/.test(ui('assets/maskering.js') + ui('assets/app.js')));
-}
+})();
 
 // ── V-KITBRUG.1: kittets komponenter og tekststørrelsen (K17). Kun opdigtede data; ingen rigtig udklipsholder eller
 // Nøglering (falske Rust-svar som i resten af filen). jsdom tegner ikke: zoom og målene er målt i WKWebView (HANDOFF);
 // her prøves attributterne, valget, at det huskes, markup, navne, tilstande og tastaturet. ──
-{
+await (async () => {
   // N2: uden valg ingen attribut; Indstillinger har kittets radiogruppe med tre trin.
   const s = side();
   const { d, w } = s;
@@ -2809,8 +2816,8 @@ for (const lang of ['da', 'en']) {
   const s2 = side({ lager: { 'grimnir-tekst': 'stor' } });
   await vent(5);
   tjek('V-KITBRUG.1 N2: valget huskes ved næste start (sat af tema.js før første tegning)', s2.d.documentElement.getAttribute('data-tekst') === 'stor' && s2.d.querySelector('input[name="indst-tekst"][value="stor"]').checked);
-}
-{
+})();
+await (async () => {
   // N2: låseskærmen. Låst ved start: trinnet gælder, og Indstillinger (med tekststørrelsen) virker, mens der er låst.
   const rust = falskLaasRust({ svar: [{ svar: 'annulleret' }] });
   const s = side({ rust, lager: { 'grimnir-tekst': 'stor' } });
@@ -2823,8 +2830,8 @@ for (const lang of ['da', 'en']) {
   lille.checked = true;
   lille.dispatchEvent(new w.Event('change', { bubbles: true }));
   tjek('V-KITBRUG.1 N2: låst: tekststørrelsen kan skiftes i Indstillinger', html.getAttribute('data-tekst') === 'lille' && html.hasAttribute('data-laast'));
-}
-{
+})();
+await (async () => {
   // N2: CSS'en. Kittets zoom; Grimnirs mål, der følger vinduet, er delt med trinnet; trafiklysene har 80 px i alle trin.
   const kit = ui('assets/kit.css'), app = ui('assets/app.css').replace(/\/\*[\s\S]*?\*\//g, '');
   tjek('V-KITBRUG.1 N2: kit.css har zoom 0,9 og 1,125 på roden (kittets, uændret)', /:root\[data-tekst="lille"\] \{ zoom: \.9; \}/.test(kit) && /:root\[data-tekst="stor"\] \{ zoom: 1\.125; \}/.test(kit));
@@ -2835,8 +2842,8 @@ for (const lang of ['da', 'en']) {
   tjek('V-KITBRUG.1 N2: trafiklysenes plads er 80 px på skærmen i alle trin', /\[data-platform="macos"\] \.titel \{ padding-left: calc\(80px \/ var\(--tekst-zoom\)\); \}/.test(app));
   const medier = [...app.matchAll(/@media ([^{]+)\{/g)].map(m => m[1].trim()).filter(m => /width/.test(m));
   tjek('V-KITBRUG.1 N2: hver bredde-grænse findes også for stor (× 1,125)', [['min-width: 1200px', 'min-width: 1350px'], ['max-width: 1719px', 'max-width: 1934px'], ['min-width: 1210px', 'min-width: 1362px'], ['min-width: 1860px', 'min-width: 2093px'], ['max-width: 1099px', 'max-width: 1237px']].every(([a, b]) => medier.some(m => m.includes(a)) && medier.some(m => m.includes(b))), medier.join(' | '));
-}
-{
+})();
+await (async () => {
   // N3: afkrydsning, radiogruppe, valgliste og tom tilstand er kittets; id, navn og hjælpetekst er bevaret.
   const rust = falskOrdbogRust({ indst: { guide_vist: true } });
   const s = side({ rust });
@@ -2866,8 +2873,8 @@ for (const lang of ['da', 'en']) {
     const t = d.querySelector(`section[data-visning="${v}"] .tomt`);
     tjek(`V-KITBRUG.1 N3: ${v}: den tomme tilstand kan stadig få fokus og tage imod ⌘V (tabIndex 0, aria-label)`, t.tabIndex === 0 && (t.getAttribute('aria-label') || '').startsWith(aria) && t.previousElementSibling && t.previousElementSibling.classList.contains('tom-bannere'), t.getAttribute('aria-label'));
   }
-}
-{
+})();
+await (async () => {
   // N3: værktøjstip. Filterknappens forklaring (før title) er kittets værktøjstip: tastaturfokus viser det, Esc skjuler det.
   const s = side();
   const { d, w } = s;
@@ -2881,8 +2888,8 @@ for (const lang of ['da', 'en']) {
   tjek('V-KITBRUG.1 N3: Esc skjuler værktøjstippet uden at flytte fokus', tip.hidden && d.activeElement === fl);
   w.Sprog.saet('en');
   tjek('V-KITBRUG.1 N3: værktøjstippet skifter sprog', tip.textContent === 'Choose a filter in the tree on the left');
-}
-{
+})();
+await (async () => {
   // N3: fremdriften: ringen er skjult for skærmlæsere; teksten har role="status" (resten prøves under Arbejder-tilstand).
   const rust = falskFilRust({ antal: 3, forsinkelse: 1300 });
   const s = side({ rust });
@@ -2893,8 +2900,8 @@ for (const lang of ['da', 'en']) {
   const f = d.querySelector('section[data-visning="masker"] .flade > .frem.ubestemt');
   tjek('V-KITBRUG.1 N3: "Grimnir arbejder" er kittets fremdrift (ring aria-hidden, tekst med role="status") øverst på fladen', f && f.querySelector('.snurr').getAttribute('aria-hidden') === 'true' && f.querySelector('.frem-tekst').getAttribute('role') === 'status' && f.parentElement.firstElementChild === f);
   await vent(300);
-}
-{
+})();
+await (async () => {
   // N4: kittets dialoger. Overskrift, sætning, felter, fejlfelt og knapper i samme rækkefølge som før; navne fra overskrift
   // og sætning; den farlige og den primære knap; Esc; fokus tilbage; kun én dialog ad gangen; genvejene er slået fra.
   const rust = falskSagRust({ sager: SAGER() });
@@ -2964,8 +2971,8 @@ for (const lang of ['da', 'en']) {
   tjek('V-KITBRUG.2 N2: Slet sag: fokus står på Annullér, ikke på Slet sag', d.activeElement === d.querySelector('#dlg-slet [data-svar="nej"]') && d.activeElement.textContent === 'Annullér' && d.querySelector('dialog[open]') === d.getElementById('dlg-slet'));
   klik(w, d.querySelector('#dlg-slet [data-svar="nej"]'));
   tjek('V-KITBRUG.1 N4: Annullér lukker Slet sag, og intet er slettet', !aaben(d, 'dlg-slet') && !s.kald.some(k => k[0] === 'sag_slet'));
-}
-{
+})();
+await (async () => {
   // N4: genvejene er slået fra, mens en af kittets dialoger er åben (maskering.js spørger dialog[open]): ⌘↵ analyserer ikke.
   const s = side({ rust: falskRust() });
   const { d, w } = s;
@@ -2978,8 +2985,8 @@ for (const lang of ['da', 'en']) {
   d.querySelector('#dlg-om [data-svar="luk"]').click();
   s.tast('Enter', { metaKey: true }); await vent(5);
   tjek('V-KITBRUG.1 N4: kontrol: lukket analyserer ⌘↵', s.kald.some(k => k[0] === 'analyser'));
-}
-{
+})();
+await (async () => {
   // N4: guiden. En anden dialog oven på guiden (Om fra menuen) lukker den, men den er hverken afsluttet eller sprunget over.
   const rust = falskOrdbogRust();
   const s = side({ hash: '#masker', rust });
@@ -2988,8 +2995,8 @@ for (const lang of ['da', 'en']) {
   tjek('V-KITBRUG.1 N4: kontrol: guiden står ved første start', aaben(d, 'dlg-guide'));
   s.emit('menu', 'om'); await vent(5);
   tjek('V-KITBRUG.1 N4: Om (kittets dialog) lukker guiden, uden at den gemmes som vist', aaben(d, 'dlg-om') && !aaben(d, 'dlg-guide') && !s.kald.some(k => k[0] === 'indstillinger_gem' && k[1].indstillinger && k[1].indstillinger.guide_vist));
-}
-{
+})();
+await (async () => {
   // N4: Prøv på tekst (Grimnirs egen dialog) tømmer feltet ved lukning; Fjern post (kittets) åbner med fokus på Fjern post.
   const rust = falskOrdbogRust({ poster: ORDBOG(), indst: { guide_vist: true } });
   const s = side({ hash: '#ordbog', rust });
@@ -3004,8 +3011,8 @@ for (const lang of ['da', 'en']) {
   klik(w, knapI(d, 'ordbog', 'fjern-post')); await vent(5);
   // V-KITBRUG.2 N2 (Jan): fokus på Annullér; før på Fjern post.
   tjek('V-KITBRUG.2 N2: Fjern post åbner med fokus på Annullér, ikke på Fjern post', aaben(d, 'dlg-ofjern') && d.activeElement === d.querySelector('#dlg-ofjern [data-svar="nej"]') && d.activeElement.textContent === 'Annullér');
-}
-{
+})();
+await (async () => {
   // N4: låsen. Med en kittets dialog åben og tekst i den låser Rust igen: siden genindlæses, og den nye side har ingen åben
   // dialog og ingen af teksterne.
   const rust = falskLaasRust({ svar: [{ svar: 'ok' }] });
@@ -3021,20 +3028,20 @@ for (const lang of ['da', 'en']) {
   const g = side({ rust, hash: '#sager' });
   await vent(30);
   tjek('V-KITBRUG.1 N4: efter genindlæsningen er ingen dialog åben, og navnet står ingen steder', g.d.querySelectorAll('dialog[open]').length === 0 && !/Ravnsborg/.test(g.d.documentElement.outerHTML) && g.d.getElementById('ny-sag-navn').value === '');
-}
-{
+})();
+await (async () => {
   // N4: Kit.bekraeft (Gem som fil i Demaskér) laves ved åbning og fjernes ved lukning: ingen dialog bliver liggende.
   const html = ui('assets/maskering.js');
   tjek('V-KITBRUG.1 N4: Gem som fil bruger kittets bekræftelse (G.bekraeft → Kit.bekraeft) med den farlige handling', /G\.bekraeft\(\{[\s\S]{0,200}farlig: true/.test(html) && /function bekraeft\(o\) \{ lukAndre\(null\); return K\.bekraeft\(o\); \}/.test(ui('assets/app.js')));
   tjek('V-KITBRUG.2 N1: index.html har ingen dialoger tilbage (alle 14 er kittets)', !/<dialog\b/.test(ui('index.html')));
-}
+})();
 
 // ── V-KITBRUG.2: de sidste fem dialoger på kittets dialog (N1), fokus på Annullér (N2), kit 2.5.0 i brug (N3:
 // afkrydsningen, den tomme flade, --tekst-zoom og "hvorfor" i værktøjstip), tekststørrelsen med genveje og menu (N4) og
 // rulning og ⌘1–⌘4 (N5). Kun opdigtede data; ingen rigtig udklipsholder eller Nøglering (falske Rust-svar). jsdom tegner
 // ikke: målene (fladen ruller ikke, tippet klippes ikke, boksen er 16 px) er målt i WKWebView (HANDOFF). ──
 const esc = (w, dlg) => { const ev = new w.Event('cancel', { cancelable: true }); dlg.dispatchEvent(ev); if (!ev.defaultPrevented) dlg.close(); return ev; };
-{
+await (async () => {
   // N1: Indstillinger er kittets brede dialog: navn, fokus på det første valg, Luk, Esc, fejlen i kittets fejlfelt.
   const rust = falskOrdbogRust({ indst: { guide_vist: true }, gemFejl: true });
   const s = side({ hash: '#masker', rust });
@@ -3056,8 +3063,8 @@ const esc = (w, dlg) => { const ev = new w.Event('cancel', { cancelable: true })
   tjek('V-KITBRUG.2 N1: Esc lukker Indstillinger, og fokus går tilbage til tandhjulet', !aaben(d, 'dlg-indst') && d.activeElement === tandhjul);
   s.emit('menu', 'indstillinger'); await vent(5);
   tjek('V-KITBRUG.2 N1: Indstillinger åbner igen uden den gamle fejl', aaben(d, 'dlg-indst') && f.textContent === '');
-}
-{
+})();
+await (async () => {
   // N1: sagens dialog. Kittets regel for flere primære (G4): skjulte knapper tæller ikke; den synlige primære står yderst.
   const rust = falskOrdbogRust({ indst: { guide_vist: true } });
   const s = side({ hash: '#masker', rust });
@@ -3093,8 +3100,8 @@ const esc = (w, dlg) => { const ev = new w.Event('cancel', { cancelable: true })
   klik(w, sagKnap); await vent(5);
   tjek('V-KITBRUG.2 N1: sagens dialog (navngiven): Luk, Vis indhold (V-MANUEL.2), Skift sag og Luk sag (primær, yderst); én synlig primær', JSON.stringify(synligeKnapper()) === JSON.stringify(['Luk', 'Vis indhold', 'Skift sag', 'Luk sag*']) && d.getElementById('dlg-sag-h').textContent === 'Sag: Prøvesag 0011', JSON.stringify(synligeKnapper()));
   tjek('V-KITBRUG.2 N1: kittets regel: den synlige primære er den sidste synlige knap, og de skjulte er skjult (hidden)', [...dlg.querySelectorAll('.modal-fod button')].filter(b => b.hidden).map(b => b.id).sort().join() === 'sag-gem-som,sag-nulstil' && synligeKnapper().filter(k => k.endsWith('*')).length === 1 && synligeKnapper().pop().endsWith('*'));
-}
-{
+})();
+await (async () => {
   // N1: Tilføj post. Fokus (Værdi; Type fra Maskér), fejlen i kittets fejlfelt, Esc, og Maskérs ventende løfte.
   const rust = falskOrdbogRust({ poster: ORDBOG(), indst: { guide_vist: true } });
   const s = side({ hash: '#ordbog', rust });
@@ -3131,8 +3138,8 @@ const esc = (w, dlg) => { const ev = new w.Event('cancel', { cancelable: true })
   klik(w, d.getElementById('opost-ok')); await vent(10);
   const v3 = await p3;
   tjek('V-KITBRUG.2 N1: Tilføj post: lukningen løser Maskérs ventende løfte (Esc: false, en anden dialog: false, gemt: true)', v1 === false && v2 === false && v3 === true && rust.ob.db.some(p => p.vaerdi === 'srv-web01'), [v1, v2, v3].join());
-}
-{
+})();
+await (async () => {
   // N1: Prøv på tekst. Kittets brede dialog; fokus i feltet; svaret (også en fejl) står i svaret med role="status"; Esc tømmer.
   const rust = falskOrdbogRust({ poster: ORDBOG(), indst: { guide_vist: true } });
   const s = side({ hash: '#ordbog', rust });
@@ -3148,8 +3155,8 @@ const esc = (w, dlg) => { const ev = new w.Event('cancel', { cancelable: true })
   tjek('V-KITBRUG.2 N1: Prøv på tekst: en fejl står i svaret (role="status") som før', d.getElementById('proev-svar').getAttribute('role') === 'status' && d.querySelector('#proev-svar .dlg-fejl') && /6\.0/.test(d.getElementById('proev-svar').textContent));
   esc(w, dlg);
   tjek('V-KITBRUG.2 N1: Esc lukker Prøv på tekst og tømmer feltet og svaret', !aaben(d, 'dlg-proev') && pt.value === '' && d.getElementById('proev-svar').textContent === '');
-}
-{
+})();
+await (async () => {
   // N1: guiden er kittets brede dialog til en guide (G6): 820 px uden luft, navn fra guidens overskrift, fokus på den.
   const rust = falskOrdbogRust();
   const s = side({ hash: '#masker', rust });
@@ -3158,8 +3165,8 @@ const esc = (w, dlg) => { const ev = new w.Event('cancel', { cancelable: true })
   const dlg = d.getElementById('dlg-guide');
   tjek('V-KITBRUG.2 N1: guiden står i kittets dialog til en guide (dialog.modal.modal-guide) uden egen overskrift og knapper', dlg.classList.contains('modal') && dlg.classList.contains('modal-guide') && !dlg.querySelector('.modal-top, .modal-fod') && dlg.querySelector('.modal-indhold > #guide'));
   tjek('V-KITBRUG.2 N1: guiden har navn fra guidens overskrift og fokus på den ved åbning', dlg.getAttribute('aria-labelledby') === 'guide-h' && d.activeElement === d.getElementById('guide-h'));
-}
-{
+})();
+await (async () => {
   // N1: låsen lukker alt og efterlader intet, også med en af de fem nye dialoger åben og tekst i den.
   for (const [id, aabn, skrivI, tekst] of [
     ['dlg-indst', s => s.emit('menu', 'indstillinger'), null, null],
@@ -3178,8 +3185,8 @@ const esc = (w, dlg) => { const ev = new w.Event('cancel', { cancelable: true })
     await vent(30);
     tjek(`V-KITBRUG.2 N1: lås med ${id} åben: siden genindlæses, og bagefter er ingen dialog åben og intet af teksten tilbage`, foer && s.jsdomFejl.some(m => /navigation/.test(m)) && g.d.querySelectorAll('dialog[open]').length === 0 && !/Ravnsborg/.test(g.d.documentElement.outerHTML));
   }
-}
-{
+})();
+await (async () => {
   // N1: de ni fra V-KITBRUG.1 bruger kittets egne muligheder: id og knapId (G3), fejlfelt (G1), ventende knap, foer (G5)
   // og Kit.bekraeft, der kan fejle (G2).
   const app = ui('assets/app.js'), sager = ui('assets/sager.js'), ordbog = ui('assets/ordbog.js');
@@ -3219,16 +3226,16 @@ const esc = (w, dlg) => { const ev = new w.Event('cancel', { cancelable: true })
   rust.sag_slet = sl;
   klik(w, d.querySelector('#dlg-slet [data-svar="ja"]')); await vent(10);
   tjek('V-KITBRUG.2 N1: Slet sag kan trykkes igen og lykkes; bekræftelsen er fjernet fra siden', !d.getElementById('dlg-slet') && !sagRaekke(d, hexId(3)) && d.querySelectorAll('dialog.modal:not([id])').length === 0);
-}
-{
+})();
+await (async () => {
   // N1: app.css har ingen .dlg-regler (alle 14 dialoger er kittets); index.html har ingen dialog.
   const app = ui('assets/app.css').replace(/\/\*[\s\S]*?\*\//g, '');
   tjek('V-KITBRUG.2 N1: app.css har ingen .dlg-regler tilbage (.dlg, .dlg-bred, .dlg-guide, .dlg-knapper)', !/\.dlg(?![\w-])|\.dlg-bred|\.dlg-guide|\.dlg-knapper/.test(app));
   const s = side();
   await vent(5);
   tjek('V-KITBRUG.2 N1: ingen element bruger de gamle klasser (.dlg, .dlg-bred, .dlg-guide, .dlg-knapper, data-luk)', !s.d.querySelector('.dlg, .dlg-bred, .dlg-guide, .dlg-knapper, [data-luk]'));
-}
-{
+})();
+await (async () => {
   // N2: Slet sag og Fjern post: fokus på Annullér, og Enter (et klik på den knap, der har fokus) sletter ikke.
   const rust = falskSagRust({ sager: SAGER() });
   const s = side({ hash: '#sager', rust });
@@ -3246,8 +3253,8 @@ const esc = (w, dlg) => { const ev = new w.Event('cancel', { cancelable: true })
   const fokus = s2.d.activeElement.textContent;
   klik(s2.w, s2.d.activeElement); await vent(10);
   tjek('V-KITBRUG.2 N2: Fjern post: fokus på Annullér, og Enter uden Tab fjerner intet', fokus === 'Annullér' && !s2.kald.some(k => k[0] === 'ordbog_fjern') && oRaekke(s2.d, 'localhost'));
-}
-{
+})();
+await (async () => {
   // N3 (G11): "hvorfor" i kittets værktøjstip i båndet. Hver kommando, der er slået fra, har sin forklaring på begge sprog
   // (intet title); Tab viser tippet; Esc skjuler det; låst viser båndet intet tip.
   const s = side({ rust: falskSagRust({ sager: SAGER() }) });
@@ -3290,8 +3297,8 @@ const esc = (w, dlg) => { const ev = new w.Event('cancel', { cancelable: true })
   const sl = side({ rust: rl });
   await vent(30);
   tjek('V-KITBRUG.2 N3 (G11): låst: båndet er inert, og forklaringen står i title på båndet, ikke i tip', sl.d.documentElement.hasAttribute('data-laast') && [...sl.d.getElementById('baand').children].every(e => e.hasAttribute('inert')) && /låst/.test(sl.d.getElementById('baand').title));
-}
-{
+})();
+await (async () => {
   // N3 (G7): afkrydsningen i fundtabellen er kittets Kit.afkrydsning({ aria }): boksen alene, 16 px, navn i aria-label.
   const s = side({ rust: falskRust() });
   const { d, w } = s;
@@ -3305,8 +3312,8 @@ const esc = (w, dlg) => { const ev = new w.Event('cancel', { cancelable: true })
   const foer = s.kald.filter(k => k[0] === 'analyser').length;
   cb.click(); await vent(400);
   tjek('V-KITBRUG.2 N3 (G7): et klik slår rækken fra som før (rækken er "fra", og der analyseres igen)', fundRaekker(d)[0].classList.contains('fra') && s.kald.filter(k => k[0] === 'analyser').length === foer + 1);
-}
-{
+})();
+await (async () => {
   // N3 (G8): den tomme flade i Maskér og Demaskér er kittets modtager: fokus, region med navn, Åbn fil, og i Demaskér
   // "Åbn Sager" som den anden handling, kun når der skal en sag til; .tomt-slip mens en fil trækkes over.
   const rust = falskSagRust({ sager: SAGER() });
@@ -3347,8 +3354,8 @@ const esc = (w, dlg) => { const ev = new w.Event('cancel', { cancelable: true })
   s3.emit('fil-traek', true);
   tjek('V-KITBRUG.2 N3 (G8): træk: .tomt-slip på den tomme flade (sat af Grimnir), væk igen bagefter; med en tekst hele fladen', tom && vaek && f3.hasAttribute('data-traek') && !t3.classList.contains('tomt-slip'));
   tjek('V-KITBRUG.2 N3 (G8): kittet læser ingen filer: ingen fil-API i Grimnirs og kittets JavaScript', !/FileReader|dataTransfer\.files|type=["']file["']/.test(ui('assets/kit.js') + ui('assets/maskering.js') + ui('assets/app.js')));
-}
-{
+})();
+await (async () => {
   // N4: ⌘+ ⌘− ⌘0 (⌘= er ⌘+), stopper ved lille og stor, virker låst og med en dialog åben, følger Indstillinger begge veje.
   const s = side();
   const { d, w } = s;
@@ -3410,8 +3417,8 @@ const esc = (w, dlg) => { const ev = new w.Event('cancel', { cancelable: true })
   tjek('V-KITBRUG.2 N4: Windows: Ctrl+= gør teksten større; ⌘ (Windows-tasten) gør intet', sw.w.Tekst.valg === 'stor' && ew.defaultPrevented);
   sw.d.dispatchEvent(new sw.w.KeyboardEvent('keydown', { key: '0', ctrlKey: true, bubbles: true, cancelable: true }));
   tjek('V-KITBRUG.2 N4: Windows: Ctrl+0 giver normal', sw.w.Tekst.valg === 'normal');
-}
-{
+})();
+await (async () => {
   // N5: ⌘1–⌘4 med en dialog åben skifter ikke visningen bag den; lukket virker de igen.
   const s = side({ rust: falskSagRust({ sager: SAGER() }) });
   const { d } = s;
@@ -3427,8 +3434,8 @@ const esc = (w, dlg) => { const ev = new w.Event('cancel', { cancelable: true })
   sw.emit('menu', 'om'); await vent(5);
   sw.tast('3', { ctrlKey: true, code: 'Digit3' }); await vent(5);
   tjek('V-KITBRUG.2 N5: Windows: med en dialog åben gør Ctrl+3 intet', synlige(sw.d).join() === 'masker');
-}
-{
+})();
+await (async () => {
   // N5: fladerne, der deler højden (Maskér, Demaskér, Ordbog), har ingen faste vh; fordelingen er fleksibel.
   const app = ui('assets/app.css').replace(/\/\*[\s\S]*?\*\//g, '');
   const regler = [...app.matchAll(/(^|\n)\s*([^{}@]+)\{([^}]*)\}/g)].map(m => [m[2].trim(), m[3]]);
@@ -3440,7 +3447,7 @@ const esc = (w, dlg) => { const ev = new w.Event('cancel', { cancelable: true })
   await vent(20);
   tjek('V-KITBRUG.2 N5: Maskér, Demaskér og Ordbog har .fyld på fladen; Sager har ikke', ['masker', 'demasker', 'ordbog'].every(v => s.d.querySelector(`section[data-visning="${v}"] > .flade`).classList.contains('fyld')) && !s.d.querySelector('section[data-visning="sager"] > .flade').classList.contains('fyld'));
   tjek('V-KITBRUG.2 N5: Ordbog: Prøv på tekst står i hjælpelinjen efter tabellen i den flade, der fylder (synlig uden at rulle; målt)', (() => { const a = s.d.querySelector('section[data-visning="ordbog"] .ordbogflade'); return a && a.lastElementChild.classList.contains('hjaelpelinje') && a.lastElementChild.querySelector('button').textContent === 'Prøv på tekst'; })() && /\.flade\.fyld \.ordbogflade > \.hjaelpelinje \{ flex: none; \}/.test(app));
-}
+})();
 
 // ══════════════════ V-PUDS.3: rettelser efter vinduesprøven 2026-11-12 (N1–N7) ══════════════════
 // En lille kaskade over kit.css og app.css uden @media (grundtilstanden), fordi jsdom ikke selv lægger CSS på: den regel,
@@ -3489,7 +3496,7 @@ function cssVaerdi(e, prop) {
   return bedst ? bedst.v : null;
 }
 const elNavn = e => e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') + (e.className && typeof e.className === 'string' && e.className.trim() ? '.' + e.className.trim().split(/\s+/).join('.') : '');
-{
+await (async () => {
   // Kontrol af kaskaden: kendte værdier fra kit.css og app.css.
   const { d } = side();
   await vent(5);
@@ -3502,10 +3509,10 @@ const elNavn = e => e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') + (e.clas
   tjek('V-PUDS.3: kontrol: testens kaskade læser kit.css og app.css (.skjult-tekst er absolute, .tabelvaert har overflow: auto, et <p> uden regel har ingen position)', cssVaerdi(sp, 'position') === 'absolute' && cssVaerdi(tv, 'overflow') === 'auto' && cssVaerdi(d.createElement('p'), 'position') === null && CSS_REGLER.length > 300, String(CSS_REGLER.length));
   sp.remove();
   tv.remove();
-}
+})();
 
 // ── N1: hjælpeteksterne i Indstillinger har dialogens bredde; de andre dialoger gennemgået ──
-{
+await (async () => {
   const s = side({ rust: falskOrdbogRust({ indst: { guide_vist: true } }) });
   const { d } = s;
   await vent(20);
@@ -3527,13 +3534,13 @@ const elNavn = e => e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') + (e.clas
   const smalle = tekster.filter(t => smal(t).length).map(t => `${t.closest('dialog').id} ${elNavn(t)}: ${smal(t).join(', ')}`);
   tjek(`V-PUDS.3 N1: gennemgang: ingen hjælpe- eller fejltekst i de ${dialoger.length} dialoger er smallere end dialogen (${tekster.length} tekster)`, dialoger.length >= 10 && tekster.length >= 15 && smalle.length === 0, smalle.join(' | '));
   tjek('V-PUDS.3 N1: app.css: ingen regel giver .valg .felt en max-width (kun .vliste i den)', !CSS_REGLER.some(r => r.sel === '.valg .felt' && 'max-width' in r.decl) && CSS_REGLER.some(r => r.sel === '.valg .felt > .vliste' && r.decl['max-width'] === '260px'));
-}
+})();
 
 // ── V-PUDS.3 N2 → V-MANUEL.1 N4: "Næste advarsel" er bygget (de to tjek om pladsholderen er erstattet af afsnittet
 //    "V-MANUEL.1 N4" længere nede) ──
 
 // ── N4: fejlen i en dialog ryddes, når feltet, den handler om, ændres ──
-{
+await (async () => {
   const rust = falskSagRust({ sager: SAGER() });
   const s = side({ hash: '#sager', rust });
   const { d, w } = s;
@@ -3597,8 +3604,8 @@ const elNavn = e => e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') + (e.clas
   udato.dispatchEvent(new w.Event('input', { bubbles: true }));
   tjek('V-PUDS.3 N4: Udløb: … og når en dato vælges', ufe.textContent === '' && aaben(d, 'dlg-udloeb'));
   klik(w, d.querySelector('#dlg-udloeb [data-svar="annuller"]'));
-}
-{
+})();
+await (async () => {
   // Tilføj post (fejl under feltet og i fejlfeltet), Indstillinger (fejl fra Rust) og guiden (fejl under feltet).
   const rust = falskOrdbogRust({ indst: { guide_vist: true }, gemFejl: true });
   const s = side({ hash: '#ordbog', rust });
@@ -3638,10 +3645,10 @@ const elNavn = e => e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') + (e.clas
   skriv(w, gf, 'e');
   tjek('V-PUDS.3 N4: guiden: fejlen forsvinder, så snart der skrives i feltet', gfe.textContent === '' && !gf.hasAttribute('aria-invalid'));
   tjek('V-PUDS.3 N4: lytteren står i opsamlingsfasen på dialogen (input og change), så et felts egen fejl ved samme ændring bliver stående', /addEventListener\('input', ryd, true\)/.test(ui('assets/app.js')) && /addEventListener\('change', ryd, true\)/.test(ui('assets/app.js')));
-}
+})();
 
 // ── N5: linjetal straks og størrelse i en enhed, der passer ──
-{
+await (async () => {
   const { w } = side();
   await vent(5);
   const GM = w.GrimnirMaskering;
@@ -3672,8 +3679,8 @@ const elNavn = e => e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') + (e.clas
   const en = [0, 1, 1023, 1024, 104857, 104858, 5 * 1048576].map(str);
   tjek('V-PUDS.3 N5: … og på engelsk med punktum og komma som tusindtalsskille', en.join(' | ') === '0 bytes | 1 byte | 1,023 bytes | 1 kB | 102 kB | 0.1 MB | 5.0 MB', en.join(' | '));
   S.saet('da');
-}
-{
+})();
+await (async () => {
   const s = side({ rust: falskRust() });
   const { d, w } = s;
   await vent(5);
@@ -3698,10 +3705,10 @@ const elNavn = e => e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') + (e.clas
   indsaet(w, dsek.querySelector('.tomt'), 'Prøv h0099\n');
   tjek('V-PUDS.3 N5: Demaskér før demaskering: "1 linje · 12 bytes" (det samme i Demaskér)', dsek.querySelector('.panel .panel-hoved .muted').textContent === '1 linje · 12 bytes', dsek.querySelector('.panel .panel-hoved .muted').textContent);
   tjek('V-PUDS.3 N5: sprog.js: tekstInfo har størrelsen som en færdig tekst ({w}) og enhederne bytes, kB og MB i begge sprog', ['da', 'en'].every(sp => /· \{w\}'?$/.test(w.Sprog.TEKST[sp].tekstInfo) && w.Sprog.TEKST[sp].strB === '{v} {v:byte|bytes}' && w.Sprog.TEKST[sp].strKB === '{v} kB' && w.Sprog.TEKST[sp].strMB === '{v} MB'));
-}
+})();
 
 // ── N6: Indsæt i båndet ──
-{
+await (async () => {
   const s = side({ rust: falskRust() });
   const { d, w } = s;
   await vent(5);
@@ -3737,10 +3744,10 @@ const elNavn = e => e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') + (e.clas
   sw.d.execCommand = () => false;
   klik(sw.w, knapI(sw.d, 'masker', 'indsaet'));
   tjek('V-PUDS.3 N6: Windows: "Tryk Ctrl+V for at indsætte."', ord(sw.d.querySelector('section[data-visning="masker"] .tom-bannere')) === 'Tryk Ctrl+V for at indsætte.', sw.d.querySelector('section[data-visning="masker"] .tom-bannere').textContent);
-}
+})();
 
 // ── N7: skjult tekst i en tabel trækker ikke siden med ──
-{
+await (async () => {
   const rust = falskOrdbogRust({ poster: [{ type: 'ord', vaerdi: 'Uglebo' }], indst: { guide_vist: true } });
   const s = side({ rust: { ...falskRust(), ...rust } });
   const { d, w } = s;
@@ -3758,7 +3765,7 @@ const elNavn = e => e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') + (e.clas
   const alle = [...d.querySelectorAll('.skjult-tekst')].filter(e => cssVaerdi(e, 'position') === 'absolute');
   const udenNogen = alle.filter(e => { for (let a = e.parentElement; a; a = a.parentElement) { const p = cssVaerdi(a, 'position'); if (p && p !== 'static') return false; } return true; });
   tjek(`V-PUDS.3 N7: gennemgang: hver af de ${alle.length} skjulte tekster i Grimnir har en forfader med position`, alle.length >= 10 && udenNogen.length === 0, udenNogen.map(e => elNavn(e.parentElement)).join(', '));
-}
+})();
 
 // ═════════════════════════════ V-MANUEL.1 ═════════════════════════════
 // Maskér dette (N1), Fortryd og Gentag (N2), Ryd (N3), Næste advarsel (N4) og størrelser og linjetal (N5) med en
@@ -3844,7 +3851,7 @@ async function manuelSide(o = {}) {
 }
 
 // ── V-MANUEL.1 N1: Maskér dette fra båndet ──
-{
+await (async () => {
   const s = await manuelSide();
   const { d, w, GM, rust } = s;
   const b = knapI(d, 'masker', 'masker-dette');
@@ -3897,10 +3904,10 @@ async function manuelSide(o = {}) {
   await vent(10);
   tjek('V-MANUEL.1 N1: Fjern fjerner rækken (ikke kun fravalg): Rust får den ikke længere, rettelsen er væk, fokus i teksten', !tilfRaekke(d, 'jdoe') && GM.M.st.tilfoejede.length === 0 && JSON.stringify(rust.log.analyser[rust.log.analyser.length - 1].tilfoejede) === '[]' && GM.M.st.rettelser.size === 0 && d.activeElement === preM(d));
   tjek('V-MANUEL.1 N1: … og siger det', beskedM(d).textContent === 'Fjernet: jdoe.', beskedM(d).textContent);
-}
+})();
 
 // ── V-MANUEL.1 N1: genvejsmenu, genvej og tastatur ──
-{
+await (async () => {
   const s = await manuelSide();
   const { d, w, GM, rust } = s;
   const pre = preM(d), menu = d.querySelector('section[data-visning="masker"] .tekstpanel .genvejsmenu');
@@ -3969,10 +3976,10 @@ async function manuelSide(o = {}) {
     const kilde = ui('assets/maskering.js') + ui('assets/app.js') + fs.readFileSync(path.join(repo, 'src-tauri', 'src', 'programmenu.rs'), 'utf8');
     return !/CmdOrCtrl\+Shift\+M|CmdOrCtrl\+M"|CmdOrCtrl\+G"/.test(kilde) && (kilde.match(/'KeyM'/g) || []).length === 1 && (kilde.match(/'KeyG'/g) || []).length === 1;
   })());
-}
+})();
 
 // ── V-MANUEL.1 N1: reglerne ──
-{
+await (async () => {
   const s = await manuelSide();
   const { d, w, GM, rust } = s;
   const pre = preM(d);
@@ -4025,7 +4032,8 @@ async function manuelSide(o = {}) {
   tjek('V-MANUEL.1 N1: med det maskerede resultat vist er Maskér dette slået fra (vis den indsatte tekst)', GM.M.kanMarkere() === 'hvorforVisTeksten');
   GM.M.st.foerEfter = false; GM.M.st.resultat = null;
   GM.M.st.fil = { navn: 'x' };
-  tjek('V-MANUEL.1 N1: i en åben fil er Maskér dette slået fra med en forklaring (kun indsat tekst)', GM.M.kanMarkere() === 'hvorforKunIndsat');
+  w.getSelection().collapse(pre.firstChild, 0);
+  tjek('V-OPBYG.6 N1: i en åben fil er Maskér markering ikke længere kun for indsat tekst; uden markering forklarer den det viste uddrag og hele filen', GM.M.kanMarkere() === 'hvorforMarkerFil');
   GM.M.st.fil = null;
   // Gem og maskér sender de tilføjede, og en ny tekst fjerner dem
   s.tast('Enter', { metaKey: true }); await vent(10);
@@ -4033,10 +4041,10 @@ async function manuelSide(o = {}) {
   indsaet(w, pre, 'ny tekst om jdoe\n');
   await vent(5);
   tjek('V-MANUEL.1 N1: en ny indsat tekst fjerner de tilføjede værdier (og historikken)', GM.M.st.tilfoejede.length === 0 && GM.M.hist.bag.length === 0);
-}
+})();
 
 // ── V-MANUEL.1 N2: Fortryd og Gentag ──
-{
+await (async () => {
   const s = await manuelSide();
   const { d, w, GM, rust } = s;
   const pre = preM(d);
@@ -4122,8 +4130,8 @@ async function manuelSide(o = {}) {
   const m = ui('assets/maskering.js');
   const tilOrdbog = m.slice(m.indexOf('function tilOrdbog('), m.indexOf('/* ═════ V-MANUEL.1 N1: Maskér dette'));
   tjek('V-MANUEL.1 N2: Altid og Aldrig er ikke trin i historikken (de skriver i ordbogen på disk)', tilOrdbog.length > 100 && !/husk\(/.test(tilOrdbog));
-}
-{
+})();
+await (async () => {
   // Windows: Ctrl+Z og Ctrl+Y (og Ctrl+Shift+Z)
   const s = await manuelSide({ platform: 'windows' });
   const { d, w, GM } = s;
@@ -4137,10 +4145,10 @@ async function manuelSide(o = {}) {
   s.tast('z', { ctrlKey: true, code: 'KeyZ' }); await vent(10);
   s.tast('Z', { ctrlKey: true, shiftKey: true, code: 'KeyZ' }); await vent(10);
   tjek('V-MANUEL.1 N2: Windows: Ctrl+Z fortryder, Ctrl+Y og Ctrl+Shift+Z gentager; titlerne siger Ctrl+Z og Ctrl+Y', a && b && raekkeMed(d, ip).querySelector('[data-felt="valg"]').checked && knapI(d, 'masker', 'fortryd').getAttribute('title') === 'Genvej: Ctrl+Z' && (() => { GM.M.fortryd(); GM.M.tegn(); return knapI(d, 'masker', 'gentag').getAttribute('title') === 'Genvej: Ctrl+Y'; })());
-}
+})();
 
 // ── V-MANUEL.1 N3: Ryd ──
-{
+await (async () => {
   const s = await manuelSide();
   const { d, w, GM, kald } = s;
   const sek = d.querySelector('section[data-visning="masker"]');
@@ -4188,10 +4196,10 @@ async function manuelSide(o = {}) {
   indsaet(w, dsek.querySelector('.tomt'), 'svar uden resultat');
   drb.click(); await vent(10);
   tjek('V-MANUEL.1 N3: Demaskér uden resultat: Ryd rydder straks', !d.querySelector('dialog[open]') && GM.D.st.tekst === null);
-}
+})();
 
 // ── V-MANUEL.1 N4: Næste advarsel ──
-{
+await (async () => {
   const s = await manuelSide();
   const { d, w, GM } = s;
   s.tast('Enter', { metaKey: true }); await vent(10);
@@ -4229,10 +4237,10 @@ async function manuelSide(o = {}) {
     tjek('V-MANUEL.1 N4: engelsk: "No warnings in this reply"', forklaring(nb) === 'No warnings in this reply', forklaring(nb));
     w.Sprog.saet('da'); await vent(5);
   }
-}
+})();
 
 // ── V-MANUEL.1 N5: størrelser og linjetal med sprogets talformat ──
-{
+await (async () => {
   const s = side({ rust: falskRust() });
   const { d, w } = s;
   await vent(5);
@@ -4251,8 +4259,8 @@ async function manuelSide(o = {}) {
   tjek('V-MANUEL.1 N5: Linje i Rester- og Demaskér-tabellen har også sprogets tusindtalsskille (tal(…), ikke String(…))', /String\(r\.antal\), tal\(r\.linje\)\]/.test(m5) && /a\.linje \? tal\(a\.linje\) : ''/.test(m5) && !/String\(r\.linje\)\]|String\(a\.linje\)/.test(m5));
   tjek('V-MANUEL.1 N5: maskering.js har ikke længere sin egen MB-funktion med toFixed (alle størrelser går gennem stoerrelse)', !/toFixed/.test(ui('assets/maskering.js')) && !/\bmb\(/.test(ui('assets/maskering.js')));
   tjek('V-MANUEL.1 N5: sprog.js: filStr, bForStor, bForStorDemasker og ffejl_for_stor har størrelsen som en færdig tekst (ingen "{v} MB")', ['da', 'en'].every(sp => !/\{[vw]\} MB/.test([w.Sprog.TEKST[sp].filStr, w.Sprog.TEKST[sp].bForStor, w.Sprog.TEKST[sp].bForStorDemasker, w.Sprog.TEKST[sp].ffejl_for_stor].join(' '))));
-}
-{
+})();
+await (async () => {
   // Filinfoen følger sproget ved et sprogskift
   const s = side({ rust: { ...falskRust(), fil_aabn: () => ({ navn: 'app.log', bytes: 12345678, tegnsaet: 'utf8', linjeskift: 'lf', linjer: 1202, uddrag: 'x', ikke_vist: 0 }) } });
   const { d, w } = s;
@@ -4263,10 +4271,10 @@ async function manuelSide(o = {}) {
   w.Sprog.saet('en'); await vent(5);
   tjek('V-MANUEL.1 N5: filinfoens størrelse følger sproget ("11,8 MB" → "11.8 MB")', da.includes('11,8 MB') && fi().includes('11.8 MB'), da + ' / ' + fi());
   w.Sprog.saet('da'); await vent(5);
-}
+})();
 
 // ── V-MANUEL.1: tekster, CSS og regler ──
-{
+await (async () => {
   const { w } = side();
   const T = w.Sprog.TEKST;
   const nye = ['gRediger', 'kMaskerDette', 'kFortryd', 'kGentag', 'kRyd', 'hvorforMarker', 'hvorforKunIndsat', 'hvorforVisTeksten', 'hvorforIntetFortryd', 'hvorforIntetGentag', 'hvorforIngenAdvarsler', 'stTilfoejet', 'ariaTypeFor', 'kFjern', 'kFjernTitel', 'ariaFjern', 'advKort', 'advNulSteder', 'bTilfoejet', 'bTilfoejetNul', 'bMarkeringTom', 'bMarkeringLinjer', 'bFindesAllerede', 'bAlleredeTilfoejet', 'bErKode', 'bAfvist_kode', 'bAfvist_aldrig', 'bAfvist_tom', 'bAfvist_linjeskift', 'bAfvist_type', 'bFjernet', 'rydH', 'rydPValg', 'rydPResultat', 'rydPBegge', 'rydDemP', 'kRydOk', 'bNaesteAdv', 'bNaesteAdvUdenSted', 'ariaGenvejsmenu', 'kKopierMarkering', 'titelType', 'linjeNr', ...['valg', 'kode', 'type', 'tilfoej', 'fjern'].flatMap(a => ['fortrudt_' + a, 'gentaget_' + a])];
@@ -4283,7 +4291,7 @@ async function manuelSide(o = {}) {
   tjek('V-MANUEL.1: genvejsmenuen står i tekstpanelet uden inline-stil (CSS-reglen giver den position)', CSS_REGLER.some(r => r.sel === '.tekstpanel' && r.decl.position === 'relative') && CSS_REGLER.some(r => r.sel === '.genvejsmenu' && r.decl.position === 'absolute') && !/genvejsmenu[^\n]*\.style/.test(m));
   tjek('V-MANUEL.1: intet nyt skriver til konsollen eller localStorage, og teksten vises stadig i <pre>', !/\bconsole\s*\./.test(m) && !/localStorage\s*\.\s*setItem|sessionStorage|indexedDB/.test(m) && /el\('pre'/.test(m));
   tjek('V-MANUEL.1: de tilføjede værdier sendes kun til Rust (invoke) og står kun i hukommelsen (st.tilfoejede)', (m.match(/tilfoejede: tilfoejede\(\)/g) || []).length === 4);
-}
+})();
 
 // ══════════════════════════ V-FANER.2 (D26): ét bånd, visningerne som store knapper forrest ══════════════════════════
 // Erstatter V-FANER.1's fanerække over båndet. Maskér, Demaskér, Sager og Ordbog står som store knapper (kittets visninger
@@ -4306,7 +4314,7 @@ const visKnapper = d => [...d.querySelectorAll('#baand > [data-visning]:not([hid
 const aktuelle = d => [...d.querySelectorAll('#baand .vk[aria-current="page"]')].map(a => a.dataset.visning);
 const tastPaa = (w, el, key, x = {}) => { const e = new w.KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...x }); if (el) el.dispatchEvent(e); return e; };
 const klikVis = async (w, a, id) => { const p = visningSkift(w, id); a.click(); return p; };
-{
+await (async () => {
   const s = side();
   const { d, w } = s;
   await ventTil(w, () => !laaseskaerm(d));
@@ -4366,8 +4374,8 @@ const klikVis = async (w, a, id) => { const p = visningSkift(w, id); a.click(); 
   tjek('V-FANER.2: Tab-rækkefølgen er titellinjen, båndet, venstre side, arbejdsfladen (ingen række over båndet)', raekke.join(' → ') === 'titellinje → bånd → venstre → arbejdsflade', raekke.join(' → '));
   const iBaand = fokuserbar.filter(e => omraade(e) === 'bånd');
   tjek('V-OPBYG.2: i båndet kommer først de fem visninger (hver sit Tab-stop, også den åbne), så Maskérs kommandoer i rækkefølge', iBaand.slice(0, 5).map(a => a.dataset.visning).join() === VIS.join() && iBaand.slice(5).map(b => b.dataset.kommando).join() === 'indsaet,aabn-fil,ryd,fortryd,gentag,masker-dette,analyser,gem-masker,foer-efter,kopier,gem-fil,kvittering,masker-hemmelig', iBaand.map(e => e.dataset.visning || e.dataset.kommando).join());
-}
-{
+})();
+await (async () => {
   // Låst: båndet med visningerne er nedtonet og kan ikke bruges, og ⌘1–⌘4 gør intet. Første forsøg annulleres, andet (Enter) lykkes.
   const rust = falskLaasRust({ svar: [{ svar: 'annulleret' }, { svar: 'ok' }] });
   const s = side({ rust });
@@ -4382,8 +4390,8 @@ const klikVis = async (w, a, id) => { const p = visningSkift(w, id); a.click(); 
   s.tast('Enter');
   const op = await ventTil(w, () => !laaseskaerm(d));
   tjek('V-FANER.2 (låst op): båndet er ikke længere inert, title er væk, og et klik på Sager viser Sager', op && ![...d.getElementById('baand').children].some(e => e.hasAttribute('inert')) && !d.getElementById('baand').hasAttribute('title') && (await klikVis(w, visKnapper(d)[3], 'sager')) && synlige(d).join() === 'sager', JSON.stringify([op, synlige(d), d.getElementById('baand').title]));
-}
-{
+})();
+await (async () => {
   // Begge sprog og Windows.
   const s = side({ lager: { 'grimnir-sprog': 'en' }, platform: 'windows' });
   const { d, w } = s;
@@ -4396,8 +4404,8 @@ const klikVis = async (w, a, id) => { const p = visningSkift(w, id); a.click(); 
   const p4 = visningSkift(w, 'ordbog');
   s.tast('5', { ctrlKey: true, code: 'Digit5' });
   tjek('V-OPBYG.2 (Windows): Ctrl+5 viser Ordbog og flytter aria-current', (await p4) && synlige(d).join() === 'ordbog' && aktuelle(d).join() === 'ordbog,ordbog,ordbog,ordbog,ordbog');
-}
-{
+})();
+await (async () => {
   // ── Én række ved den nye mindste bredde, regnet i jsdom ud fra bredder målt i WKWebView (som kolonner.mjs) ──
   // MAALT_BAAND: pr. trin, sprog og visning gruppernes og knappernes bredde i vinduets px (alle kommandoer i båndet,
   // målt i et vindue på 1800 px, hvor intet er flyttet), og båndets bredde på én række. MAALT_FLYTTET: det, kittets
@@ -4494,7 +4502,110 @@ const klikVis = async (w, a, id) => { const p = visningSkift(w, id); a.click(); 
   const kp = [...menu.querySelectorAll('.mere-punkt')].find(p => p.dataset.kommando === 'kvittering');
   kp.click();
   tjek('V-FANER.2 (Mere): et punkt, der er slået til, lukker menuen og klikker den skjulte knap (samme handling som i båndet)', klik === 1 && menu.hidden && !kp.hasAttribute('aria-disabled'));
-}
+})();
+
+// ══════════════════════════ V-OPBYG.6 N2: næste skridt i Mere ══════════════════════════
+// Kittets tilpas() kører på jsdom med de regnede placeringer (som "Én række ved den nye mindste bredde" ovenfor, MAALT_BAAND).
+// Det, der flyttes ved 1024 px, er målt i WebKit (MAALT_FLYTTET; HANDOFF-V-OPBYG.6, Målt mod regnet).
+await (async () => {
+  const Z = { lille: 0.9, normal: 1, stor: 1.125 };
+  function regnN2(G, id, maal, z, W) {
+    const bar = G.dele[id].bar, rod = bar.rod, panel = rod.querySelector('.grupper');
+    const grpEl = [...panel.querySelectorAll(':scope > .grp')], knapEl = [...panel.querySelectorAll('.cb')];
+    const lag = () => {
+      const vist = rod.classList.contains('mere-vist'), pos = new Map();
+      let x = 12 * z, n = 0;
+      grpEl.forEach((g, i) => {
+        if (g.hasAttribute('data-mere-tom')) return;
+        let b = maal.grp[i];
+        for (const k of g.querySelectorAll('.cb[data-i-mere]')) b -= maal.knap[knapEl.indexOf(k)] + 2 * z;
+        if (vist && i === grpEl.length - 1) b += z;
+        if (n++) x += 12 * z;
+        pos.set(g, [x, x + b]);
+        x += b;
+      });
+      return { pos, indhold: x + (vist ? 0 : 12 * z) };
+    };
+    const plads = () => W - (rod.classList.contains('mere-vist') ? 88 * z : 0);
+    const rect = (l, r) => ({ left: l, right: r, width: r - l, top: 0, bottom: 54, height: 54, x: l, y: 0 });
+    panel.getBoundingClientRect = () => rect(0, Math.min(lag().indhold, plads()));
+    for (const g of grpEl) g.getBoundingClientRect = () => { const p = lag().pos.get(g) || [0, 0]; return rect(p[0], p[1]); };
+    bar.tilpas();
+    return bar.mere.flyttet;
+  }
+  // MAALT_N2: målt i WKWebView ved 1024 × 560 med den rigtige vej (indsæt → Maskér; Demaskér), pr. tekststørrelse og sprog:
+  // hvad Mere flytter med Indsæt som næste skridt (t1), med Kopiér maskeret tekst som næste skridt (t3; markeringen gør
+  // knappen fed og dermed bredere, så den ved normal dansk også flyttes) og med Kopiér resultat (d3), om Mere-knappen da er
+  // markeret, og hvilket punkt i menuen der er markeret.
+  const MAALT_N2 = {"lille da":{"t1":["gem-fil","kvittering","masker-hemmelig"],"t3":["gem-fil","kvittering","masker-hemmelig"],"d3":[],"mere":false,"punkt":[]},"lille en":{"t1":["kvittering","masker-hemmelig"],"t3":["gem-fil","kvittering","masker-hemmelig"],"d3":[],"mere":false,"punkt":[]},"normal da":{"t1":["gem-fil","kvittering","masker-hemmelig"],"t3":["kopier","gem-fil","kvittering","masker-hemmelig"],"d3":[],"mere":true,"punkt":["kopier"]},"normal en":{"t1":["gem-fil","kvittering","masker-hemmelig"],"t3":["gem-fil","kvittering","masker-hemmelig"],"d3":[],"mere":false,"punkt":[]},"stor da":{"t1":["kopier","gem-fil","kvittering","masker-hemmelig"],"t3":["kopier","gem-fil","kvittering","masker-hemmelig"],"d3":[],"mere":true,"punkt":["kopier"]},"stor en":{"t1":["kopier","gem-fil","kvittering","masker-hemmelig"],"t3":["kopier","gem-fil","kvittering","masker-hemmelig"],"d3":[],"mere":true,"punkt":["kopier"]}};
+  tjek('V-OPBYG.6 N2 (målt i WebKit, 1024 px, 3 størrelser × 2 sprog): Indsæt og Kopiér resultat står aldrig i Mere; Kopiér maskeret tekst står i Mere ved normal dansk og stor tekst, og præcis dér er Mere-knappen og punktet Kopiér markeret', Object.entries(MAALT_N2).length === 6 && Object.entries(MAALT_N2).every(([k, m]) => !m.t1.includes('indsaet') && m.d3.length === 0 && m.t3.includes('kopier') === ['normal da', 'stor da', 'stor en'].includes(k) && m.mere === m.t3.includes('kopier') && JSON.stringify(m.punkt) === (m.mere ? '["kopier"]' : '[]')), JSON.stringify(MAALT_N2));
+  const css = ui('assets/app.css');
+  tjek('V-OPBYG.6 N2: punktet i Mere-menuen får kant, flade og fed skrift (ikke kun farve); Mere-knappen bruger knappens regel (.cb[data-naeste])', /\.mere-punkt\[data-naeste\] \{ box-shadow: inset 0 0 0 1px var\(--accent\); background: var\(--accent-soft\); font-weight: 600; \}/.test(css) && /\.cb\[data-naeste\] \{ border-color: var\(--accent\); background: var\(--accent-soft\); font-weight: 600; \}/.test(css));
+  for (const sp of ['da', 'en']) {
+    const rust = falskRust();
+    const skrevet = [];
+    const s = side({ hash: '#masker', rust, lager: { 'grimnir-sprog': sp }, foer: w => Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async t => { skrevet.push(t); } }, configurable: true }) });
+    const { d, w } = s;
+    await ventTil(w, () => !laaseskaerm(d));
+    const G = w.Grimnir;
+    const naeste = v => [...d.querySelectorAll(`#baand > [data-visning="${v}"] .cb[data-naeste]:not(.cb-mere)`)].map(b => b.dataset.kommando).join();
+    const mk = v => G.dele[v].bar.mere.knap, menu = v => G.dele[v].bar.mere.menu;
+    const punkt = (v, id) => menu(v).querySelector(`.mere-punkt[data-kommando="${id}"]`);
+    const markeret = v => [...menu(v).querySelectorAll('.mere-punkt[data-naeste]')].map(p => p.dataset.kommando).join();
+    // Trin 1: Indsæt er næste skridt. Ved 1024 px stor står den i båndet; først i et bånd på 200 px (under vinduets mindste
+    // bredde, så kun for at vise, at markeringen følger med) flyttes den til Mere.
+    regnN2(G, 'masker', MAALT_BAAND.stor[sp].masker, Z.stor, 1024);
+    await vent(0);
+    tjek(`V-OPBYG.6 N2 (${sp}, 1024 px stor): Indsæt er næste skridt og står i båndet; Mere er ikke markeret`, naeste('masker') === 'indsaet' && !G.dele.masker.bar.knap('indsaet').hasAttribute('data-i-mere') && !mk('masker').hasAttribute('data-naeste'));
+    const smal = regnN2(G, 'masker', MAALT_BAAND.stor[sp].masker, Z.stor, 200);
+    await ventTil(w, () => mk('masker').hasAttribute('data-naeste'));
+    mk('masker').click();
+    await ventTil(w, () => markeret('masker') !== '');
+    tjek(`V-OPBYG.6 N2 (${sp}, smalt bånd): Indsæt i Mere: Mere-knappen og punktet Indsæt er markeret, intet andet punkt`, smal.includes('indsaet') && mk('masker').hasAttribute('data-naeste') && markeret('masker') === 'indsaet' && punkt('masker', 'indsaet') && !punkt('masker', 'indsaet').hasAttribute('aria-disabled'), JSON.stringify([smal, markeret('masker')]));
+    G.dele.masker.bar.mere.luk();
+    // Trin 3: Kopiér maskeret tekst er næste skridt.
+    regnN2(G, 'masker', MAALT_BAAND.stor[sp].masker, Z.stor, 1024);
+    const sek = d.querySelector('section[data-visning="masker"]');
+    indsaet(w, sek.querySelector('.tomt'), TEKST);
+    await ventTil(w, () => naeste('masker') === 'gem-masker');
+    klik(w, knapI(d, 'masker', 'gem-masker'));
+    await ventTil(w, () => naeste('masker') === 'kopier');
+    const f1024 = regnN2(G, 'masker', MAALT_BAAND.stor[sp].masker, Z.stor, 1024);
+    await ventTil(w, () => mk('masker').hasAttribute('data-naeste'));
+    tjek(`V-OPBYG.6 N2 (${sp}, 1024 px stor): Kopiér maskeret tekst er næste skridt og står i Mere: Mere-knappen er markeret (data-naeste, samme regel som knappen)`, JSON.stringify(f1024) === JSON.stringify(MAALT_FLYTTET[`1024 stor ${sp}`].masker) && G.dele.masker.bar.knap('kopier').hasAttribute('data-i-mere') && mk('masker').hasAttribute('data-naeste') && mk('masker').classList.contains('cb'), JSON.stringify(f1024));
+    mk('masker').focus();
+    mk('masker').click();
+    await ventTil(w, () => markeret('masker') !== '');
+    tjek(`V-OPBYG.6 N2 (${sp}): i den åbne menu er punktet Kopiér maskeret tekst markeret, og kun det`, !menu('masker').hidden && markeret('masker') === 'kopier', markeret('masker'));
+    G.dele.masker.bar.mere.luk();
+    // Bredere (normal tekst): Kopiér står i båndet igen, og Mere er ikke længere markeret; smallere igen: markeret igen.
+    regnN2(G, 'masker', MAALT_BAAND.normal[sp].masker, Z.normal, 1024);
+    await ventTil(w, () => !mk('masker').hasAttribute('data-naeste'));
+    tjek(`V-OPBYG.6 N2 (${sp}, 1024 px normal): Kopiér står i båndet med markeringen, og Mere er ikke markeret`, !G.dele.masker.bar.knap('kopier').hasAttribute('data-i-mere') && naeste('masker') === 'kopier' && !mk('masker').hasAttribute('data-naeste'));
+    regnN2(G, 'masker', MAALT_BAAND.stor[sp].masker, Z.stor, 1024);
+    await ventTil(w, () => mk('masker').hasAttribute('data-naeste'));
+    tjek(`V-OPBYG.6 N2 (${sp}): flyttes Kopiér i Mere igen (stor tekst), er Mere markeret igen`, mk('masker').hasAttribute('data-naeste'));
+    // Kopiér fra menuen: ingen næste skridt, og markeringen er væk.
+    mk('masker').click();
+    punkt('masker', 'kopier').click();
+    await ventTil(w, () => naeste('masker') === '' && !mk('masker').hasAttribute('data-naeste'));
+    tjek(`V-OPBYG.6 N2 (${sp}): efter Kopiér fra Mere (punktet klikker knappen) er der intet næste skridt, og Mere er ikke markeret`, skrevet.length === 1 && naeste('masker') === '' && !mk('masker').hasAttribute('data-naeste'));
+    // Demaskér: Kopiér resultat er næste skridt. Ved 1024 px stor står den i båndet; i et smalt bånd (420 px) i Mere.
+    w.Grimnir.vis('demasker');
+    await ventTil(w, () => synlige(d).join() === 'demasker');
+    indsaet(w, d.querySelector('section[data-visning="demasker"] .tomt'), 'Prøv user0001\n');
+    klik(w, knapI(d, 'demasker', 'demasker'));
+    await ventTil(w, () => naeste('demasker') === 'kopier-resultat');
+    regnN2(G, 'demasker', MAALT_BAAND.stor[sp].demasker, Z.stor, 1024);
+    await vent(0);
+    tjek(`V-OPBYG.6 N2 (${sp}, 1024 px stor): Kopiér resultat står i Demaskérs bånd; Demaskérs Mere er ikke markeret`, !G.dele.demasker.bar.knap('kopier-resultat').hasAttribute('data-i-mere') && !mk('demasker').hasAttribute('data-naeste'));
+    const dsmal = regnN2(G, 'demasker', MAALT_BAAND.stor[sp].demasker, Z.stor, 420);
+    await ventTil(w, () => mk('demasker').hasAttribute('data-naeste'));
+    mk('demasker').click();
+    await ventTil(w, () => markeret('demasker') !== '');
+    tjek(`V-OPBYG.6 N2 (${sp}, smalt bånd): Kopiér resultat i Demaskérs Mere: knappen og punktet er markeret; Maskérs Mere er det ikke`, dsmal.includes('kopier-resultat') && markeret('demasker') === 'kopier-resultat' && !mk('masker').hasAttribute('data-naeste'), JSON.stringify([dsmal, markeret('demasker')]));
+  }
+})();
 
 // ══════════════════════════ V-MANUEL.2: sagens indhold, den tomme flade, Kendt fra sagen, mønstre, hvorforLaast ══════════════════════════
 // Efterlignet Rust: falskSagRust med sag_indhold (indholdPoster), falskOrdbogRust for mønstrene og falskLaasRust for låsen.
@@ -4502,7 +4613,7 @@ const klikVis = async (w, a, id) => { const p = visningSkift(w, id); a.click(); 
 const indholdRaekker = d => [...d.querySelectorAll('section[data-visning="sager"] .indholdtabel tbody tr')];
 const indholdVises = d => { const a = d.querySelector('section[data-visning="sager"] .sagindhold'); return Boolean(a && !a.hidden); };
 const traePunkter = d => [...d.querySelectorAll('.navdel[data-visning="sager"] .tr')].map(b => b.textContent);
-{
+await (async () => {
   // N4: sprog.js har ingen nøgle to gange i en sprogblok. Skanneren springer strenge og kommentarer over og ser kun nøgler
   // på blokkens øverste niveau.
   function noegler(kilde) {
@@ -4539,8 +4650,8 @@ const traePunkter = d => [...d.querySelectorAll('.navdel[data-visning="sager"] .
   tjek('V-MANUEL.2: "Seneste i sagen" er væk; filteret hedder "Kendt fra sagen" / "Known from the case"', !('tSenesteISagen' in T.da) && T.da.tKendtFraSagen === 'Kendt fra sagen' && T.en.tKendtFraSagen === 'Known from the case');
   const rd = f => fs.readFileSync(path.join(repo, 'src-tauri', f), 'utf8');
   tjek('V-MANUEL.2: sag_indhold står i generate_handler!, build.rs og capabilities', /generate_handler!\[[^\]]*\bsag_indhold\b/.test(rd('src/lib.rs')) && /"sag_indhold",/.test(rd('build.rs')) && JSON.parse(rd('capabilities/default.json')).permissions.includes('allow-sag-indhold'));
-}
-{
+})();
+await (async () => {
   // N4: en låst række i Maskér viser rækkens forklaring, ikke låseteksten.
   const rust = falskRust();
   const analyser = rust.analyser;
@@ -4558,8 +4669,8 @@ const traePunkter = d => [...d.querySelectorAll('.navdel[data-visning="sager"] .
   w.Sprog.saet('en');
   tjek('V-MANUEL.2 N1 (English): "Known from the case"', punkt.textContent === 'Known from the case0');
   w.Sprog.saet('da');
-}
-{
+})();
+await (async () => {
   // N1: Sager → Vis indhold (båndet), tabellen, type i venstre side, søgning, Vis flere, hemmelighed, Tilbage.
   const rust = falskSagRust({ sager: [...SAGER(), { id: hexId(6), navn: 'Stor opdigtet sag', poster: 1200 }] });
   const s = side({ hash: '#sager', rust });
@@ -4628,8 +4739,8 @@ const traePunkter = d => [...d.querySelectorAll('.navdel[data-visning="sager"] .
   w.Sprog.saet('en');
   tjek('V-OPBYG.5 N2 (English): heading, columns (Actions as hidden text) and back button', sek.querySelector('.indholdpanel h3').textContent === 'Contents of “SQL-job fejler”' && [...sek.querySelectorAll('.indholdtabel thead th')].map(t => t.textContent).join() === 'Type,Code,Real value,Earlier codes,Actions' && d.getElementById('indhold-tilbage').textContent === 'Back to the cases');
   w.Sprog.saet('da');
-}
-{
+})();
+await (async () => {
   // N1: sagens dialog i titellinjen og den tomme flade i Maskér og Demaskér viser den åbne sags indhold.
   const rust = falskSagRust({ sager: SAGER() });
   rust.sag_aabn({ id: hexId(5) });
@@ -4664,8 +4775,8 @@ const traePunkter = d => [...d.querySelectorAll('.navdel[data-visning="sager"] .
   if (ok) { klik(s2.w, [...s2.d.querySelectorAll('dialog[open] button')].find(b => b.textContent === 'Ryd') || ok); await vent(5); }
   const p2 = s2.d.querySelector('section[data-visning="masker"] .tomt .tomt-sag').textContent;
   tjek('V-OPBYG.1 N4: den midlertidige sag: "Du arbejder i en midlertidig sag med 3 gemte erstatninger …"', p2 === 'Du arbejder i en midlertidig sag med 3 gemte erstatninger. Giv den et navn, når du vil gemme den.', p2);
-}
-{
+})();
+await (async () => {
   // N1: panelet hedder "Fil · <navn>" for en åben fil.
   const rust = falskFilRust({ antal: 3 });
   const s = side({ rust });
@@ -4679,8 +4790,8 @@ const traePunkter = d => [...d.querySelectorAll('.navdel[data-visning="sager"] .
   w.Sprog.saet('da');
   indsaet(w, d.querySelector('section[data-visning="masker"] pre.tekst'), TEKST); await vent(5);
   tjek('V-MANUEL.2 N1: indsat tekst hedder stadig "Indsat tekst"', h.textContent === 'Indsat tekst');
-}
-{
+})();
+await (async () => {
   // N3: forslaget til et navnemønster: banner med Læg i ordbogen og Ikke nu; afvist kommer ikke igen for samme tekst.
   const rust = falskOrdbogRust({ indst: { guide_vist: true } });
   const analyser = rust.analyser;
@@ -4709,8 +4820,8 @@ const traePunkter = d => [...d.querySelectorAll('.navdel[data-visning="sager"] .
   w.Sprog.saet('en');
   tjek('V-MANUEL.2 N3 (English): texts', w.Sprog.t('bMoenster', 2, 'pc-*') === '2 machine names in the text have the form pc-*. Add the pattern to the dictionary, and Grimnir finds names of that form from now on.' && w.Sprog.t('kIkkeNu') === 'Not now');
   w.Sprog.saet('da');
-}
-{
+})();
+await (async () => {
   // N1: lås med tabellen åben: siden genindlæses, og ingen værdier står i DOM'en bagefter.
   const rust = falskLaasRust({ svar: [{ svar: 'ok' }] });
   const s = side({ rust, hash: '#sager' });
@@ -4728,7 +4839,7 @@ const traePunkter = d => [...d.querySelectorAll('.navdel[data-visning="sager"] .
   rust.st.kue.push({ svar: 'ok' });
   g.d.getElementById('laas-op').click(); await vent(30);
   tjek('V-MANUEL.2 N1 (lås): efter oplåsningen står listen, ikke indholdet (værdierne hentes først, når visningen åbnes)', !laaseskaerm(g.d) && !indholdVises(g.d) && !g.kald.some(k => k[0] === 'sag_indhold'));
-}
+})();
 
 // ══════════════════════════ V-OPBYG.1 (D27): trin, næste skridt, status som resultat og den aktuelle sag ══════════════════════════
 // Skitsen claude_cowork/shared/design/Grimnir-skitse-2026-11-13.dc.html. Ingen fast ventetid: testene venter på en tilstand i
@@ -4736,7 +4847,7 @@ const traePunkter = d => [...d.querySelectorAll('.navdel[data-visning="sager"] .
 const trinAf = (d, v) => [...d.querySelectorAll(`section[data-visning="${v}"] .trinvej li`)];
 const trinTilstand = (d, v) => trinAf(d, v).map(l => (l.getAttribute('aria-current') === 'step' ? '*' : '') + l.querySelector('.trin-nr').textContent).join(' ');
 const naesteI = (d, v) => [...d.querySelectorAll(`#baand > [data-visning="${v}"] .cb[data-naeste]`)].map(b => b.dataset.kommando).join();
-{
+await (async () => {
   // N3: tre trin i Maskér og Demaskér, det næste skridt fremhævet i båndet; N2: én besked efter Kopiér; N4: Gem som sag… tre steder.
   const skrevet = [];
   const rust = falskSagRust();
@@ -4814,8 +4925,8 @@ const naesteI = (d, v) => [...d.querySelectorAll(`#baand > [data-visning="${v}"]
   w.Sprog.saet('en');
   tjek('V-OPBYG.1 (English): steps, the current case and the empty state follow the language', trinAf(d, 'demasker').map(l => l.querySelector('.trin-navn').textContent).join('|') === 'Paste the reply|Unmask|Copy the result' && trinAf(d, 'masker').map(l => l.querySelector('.trin-navn').textContent).join('|') === 'Paste the text|Review the findings|Mask and copy' && sd('sagdel-h').textContent === 'Current case' && sd('sagdel-status').textContent === 'Saved automatically' && d.querySelector('.sagdel-lokalt').textContent === 'Everything is processed on this machine' && d.getElementById('sag-knap').textContent === 'Case: “Firewallanalyse” · saved automatically' && knapI(d, 'sager', 'gem-som-sag').textContent.trim() === 'Save as case…');
   w.Sprog.saet('da');
-}
-{
+})();
+await (async () => {
   // N2 på engelsk: statusord, filtre og beskeden; N3: ⌘↵ efter indsæt maskerer (analysen er sket).
   const s = side({ rust: falskRust(), lager: { 'grimnir-sprog': 'en' } });
   const { d, w } = s;
@@ -4830,16 +4941,16 @@ const naesteI = (d, v) => [...d.querySelectorAll(`#baand > [data-visning="${v}"]
   s.tast('Enter', { metaKey: true });
   await ventTil(w, () => Boolean(w.GrimnirMaskering.M.st.resultat));
   tjek('V-OPBYG.1 N3: ⌘↵ efter indsæt maskerer (analysen er sket ved indsætningen; én analyse, én maskering)', s.kald.filter(k => k[0] === 'analyser').length === 1 && s.kald.filter(k => k[0] === 'gem_og_masker').length === 1 && sek.querySelector('.opsummering .ops-hoved').textContent === '3 values masked · 2 kept');
-}
-{
+})();
+await (async () => {
   // N4 låst: intet om sagen står synligt, og den aktuelle sag er inert, mens der er låst.
   const s = side({ rust: falskLaasRust({ svar: [{ svar: 'annulleret' }] }) });
   const { d, w } = s;
   await ventTil(w, () => d.getElementById('laas-besked').textContent.length > 0 && !d.getElementById('laas-op').disabled);
   tjek('V-OPBYG.1 N4 (låst): den aktuelle sag er inert og skjult (CSS), og titellinjen siger "Ingen sag åben"', laaseskaerm(d) && d.getElementById('sagdel').hasAttribute('inert') && CSS_REGLER.some(r => r.sel === 'html[data-laast] .sagdel' && r.decl.visibility === 'hidden') && !d.getElementById('sag').hidden && d.getElementById('sag-knap').hidden);
-}
+})();
 
-{
+await (async () => {
   // N5: Sager og Ordbog efter skitsen (kun tekster; ingen funktion ændret).
   const s = side({ rust: falskSagRust({ sager: SAGER() }) });
   const { d, w } = s;
@@ -4856,9 +4967,9 @@ const naesteI = (d, v) => [...d.querySelectorAll(`#baand > [data-visning="${v}"]
   w.Sprog.saet('en');
   tjek('V-OPBYG.1 N5 (English): Replacements, and both explanations follow the language', [...ssek.querySelectorAll('.sagtabel thead th')].map(t => t.textContent)[1] === 'Replacements' && fk.textContent.startsWith('A case remembers which code') && of.textContent.startsWith('The dictionary is what Grimnir must always find'));
   w.Sprog.saet('da');
-}
+})();
 
-{
+await (async () => {
   // N7: Vejledning og Lås i titellinjen.
   const rust = falskLaasRust({ svar: [{ svar: 'annulleret' }, { svar: 'ok' }] });
   rust.vejledning_aabn = () => null;
@@ -4888,8 +4999,8 @@ const naesteI = (d, v) => [...d.querySelectorAll(`#baand > [data-visning="${v}"]
   await ventTil(w, () => s.kald.filter(k => k[0] === 'vejledning_aabn').length === 2);
   tjek('V-OPBYG.1 N7 (English): Guide and Lock, and the guide is asked for in English (sprog: "en")', vj.textContent === 'Guide' && ln.textContent === 'Lock' && JSON.stringify(s.kald.filter(k => k[0] === 'vejledning_aabn')[1][1]) === '{"sprog":"en"}');
   w.Sprog.saet('da');
-}
-{
+})();
+await (async () => {
   // N7: kan vejledningen ikke åbnes, står det i et banner under titellinjen (det kan lukkes).
   const s = side({ rust: { vejledning_aabn: () => { throw 'kunne_ikke_aabne'; } } });
   const { d, w } = s;
@@ -4899,7 +5010,7 @@ const naesteI = (d, v) => [...d.querySelectorAll(`#baand > [data-visning="${v}"]
   tjek('V-OPBYG.1 N7: Vejledning, der ikke kan åbnes: et banner under titellinjen siger det og kan lukkes', ban && d.querySelector('#laas-banner .ban[data-vejledning]').textContent.includes('Vejledningen kunne ikke åbnes i browseren.'));
   klik(w, d.querySelector('#laas-banner .ban[data-vejledning] button'));
   tjek('V-OPBYG.1 N7: … og Luk fjerner banneret', !d.querySelector('#laas-banner .ban[data-vejledning]'));
-}
+})();
 
 // ══════════════════════════ V-OPBYG.2: Noter, linjenumre og markering, fodlinje og startvindue ══════════════════════════
 // Efterlignet Rust for noterne (felterne som NoterUd og NoteUd i src-tauri/src/maskering.rs; fejlene som UiFejl::Note) oven på
@@ -4935,7 +5046,7 @@ const tidDa = ms => new Date(ms).toLocaleString('da-DK', { dateStyle: 'long', ti
 const tast2 = (w, el, key, x = {}) => { const e = new w.KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...x }); el.dispatchEvent(e); return e; };
 
 // ── N2: fanen Noter: forklaring, liste, valg med mus og tastatur, båndet, ny, ret, slet, ⌘↵, fejl ──
-{
+await (async () => {
   const rust = falskNoterRust({ noter: TO_NOTER() });
   const skrevet = [];
   const s = side({ hash: '#noter', rust, foer: w => Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async t => { skrevet.push(t); } }, configurable: true }) });
@@ -5029,8 +5140,8 @@ const tast2 = (w, el, key, x = {}) => { const e = new w.KeyboardEvent('keydown',
   s.tast('1', { metaKey: true, code: 'Digit1' });
   tjek('V-OPBYG.2 N2: med en dialog åben skifter ⌘1 ikke fanen', synlige(d).join() === 'noter' && aaben(d, 'dlg-indst'));
   d.querySelector('#dlg-indst [data-svar="luk"]').click();
-}
-{
+})();
+await (async () => {
   // Tom tilstand og en navngiven sag.
   const rust = falskNoterRust({ sager: [{ id: hexId(1), navn: 'Supportsag 0042', poster: 3 }] });
   rust.sag_aabn({ id: hexId(1) });
@@ -5044,8 +5155,8 @@ const tast2 = (w, el, key, x = {}) => { const e = new w.KeyboardEvent('keydown',
   const ban = d.querySelector('section[data-visning="noter"] .bannere .ban.info .ord');
   tjek('V-OPBYG.2 N2: forklaringen for en navngiven sag nævner sagen', ban && ban.textContent === 'Noterne hører til sagen «Supportsag 0042». De gemmes krypteret sammen med sagen og kommer aldrig med i den maskerede tekst eller kvitteringen.', ban && ban.textContent);
   tjek('V-OPBYG.2 N4: fodlinjen siger sagens navn og antallet af gemte erstatninger', d.getElementById('fod-venstre').textContent === 'Supportsag 0042 · 3 gemte erstatninger', d.getElementById('fod-venstre').textContent);
-}
-{
+})();
+await (async () => {
   // Låst: intet hentes; fanen er inert; efter oplåsningen hentes noterne.
   // Første svar (annulleret) bruges af UI'ets eget laas_op ved start; Enter giver ok.
   const rust = { ...falskNoterRust({ noter: TO_NOTER() }), ...falskLaasRust({ svar: [{ svar: 'annulleret' }, { svar: 'ok' }] }) };
@@ -5058,10 +5169,10 @@ const tast2 = (w, el, key, x = {}) => { const e = new w.KeyboardEvent('keydown',
   s.tast('Enter');
   await ventTil(w, () => noteLi(d).length === 2);
   tjek('V-OPBYG.2 N2 (låst op): står fanen Noter åben, hentes noterne lige efter oplåsningen', !laaseskaerm(d) && nr.st.noteKald.filter(k => k[0] === 'noter_hent').length === 1, JSON.stringify([laaseskaerm(d), nr.st.noteKald, noteLi(d).length]));
-}
+})();
 
 // ── N1/N2: venstre side, Sagers kolonne Noter, sagens indhold og spørgsmålet ved en midlertidig sag med noter ──
-{
+await (async () => {
   const sager = [{ id: hexId(1), navn: 'Supportsag 0042', poster: 214, noter: 3 }, { id: hexId(2), navn: 'Backup-script', poster: 17, noter: 0 }];
   const rust = falskNoterRust({ noter: [TO_NOTER()[0]], sager });
   const indhold = rust.sag_indhold;
@@ -5086,7 +5197,7 @@ const tast2 = (w, el, key, x = {}) => { const e = new w.KeyboardEvent('keydown',
   klik(w, knapI(d, 'sager', 'aabn-i-masker'));
   await ventTil(w, () => aaben(d, 'dlg-kasser'));
   tjek('V-OPBYG.2 N1 (D21): en midlertidig sag med noter (og ingen værdier) spørges der om, før en anden sag åbnes, og teksten nævner noterne', aaben(d, 'dlg-kasser') && d.querySelector('#dlg-kasser .modal-tekst').textContent === 'Den midlertidige sag har 0 værdier og 1 note, som kun ligger i hukommelsen. Kasserer du den, går noterne tabt, og svar med dens koder kan ikke demaskeres.', d.querySelector('#dlg-kasser .modal-tekst').textContent);
-}
+})();
 
 // ── N3: linjenumre og markering (CSS.highlights efterlignet: et Map og en Highlight-klasse, som i WebKit) ──
 const NTEKST = 'login fra pc-0042 til srv-web01\r\nbackup kørt af backup-bruger på srv-web01\rx\nsrv-web01 genstartet 🙂\n';
@@ -5114,7 +5225,7 @@ function falskMarkRust() {
 }
 const hlFoer = w => { w.CSS = { highlights: new Map() }; w.Highlight = class Highlight extends Set { constructor(...r) { super(r); this.priority = 0; } }; };
 const hl = (w, navn) => { const h = w.CSS.highlights.get(navn); return h ? [...h].map(r => r.startContainer.data.slice(r.startOffset, r.endOffset)) : []; };
-{
+await (async () => {
   const rust = falskMarkRust();
   const s = side({ rust, foer: hlFoer });
   const { d, w } = s;
@@ -5161,8 +5272,8 @@ const hl = (w, navn) => { const h = w.CSS.highlights.get(navn); return h ? [...h
   klik(w, knapI(d, 'masker', 'foer-efter'));
   tjek('V-OPBYG.2 N3: Før og efter viser den indsatte tekst med værdierne markeret igen', pre.firstChild.data === NTEKST && hl(w, 'grimnir-masker').length === 6 && !w.CSS.highlights.has('grimnir-kode'));
   tjek('V-OPBYG.2 N3: ingen linje siger, at markeringen mangler (API\'et findes)', sek.querySelector('.markinfo').hidden);
-}
-{
+})();
+await (async () => {
   // Demaskér: linjenumre i begge paneler; ingen markering. Uden CSS.highlights: linjen siger det, og alt andet virker.
   const s = side({ hash: '#demasker', rust: falskRust() });
   const { d, w } = s;
@@ -5175,8 +5286,8 @@ const hl = (w, navn) => { const h = w.CSS.highlights.get(navn); return h ? [...h
   await ventTil(m.w, () => fundRaekker(m.d).length > 0);
   const info = m.d.querySelector('section[data-visning="masker"] .markinfo');
   tjek('V-OPBYG.2 N3: en webvisning uden CSS.highlights: linjen under teksten siger, at værdierne ikke kan markeres; teksten er én tekstnode', !info.hidden && info.textContent === 'Denne webvisning kan ikke markere værdierne i teksten.' && m.d.querySelector('section[data-visning="masker"] pre.tekst').childNodes.length === 1);
-}
-{
+})();
+await (async () => {
   // ⌘↵ mens analysen kører, starter ikke en analyse til (sideeffekt-fund 1 i V-OPBYG.1).
   const rust = falskMarkRust();
   let slip = null;
@@ -5195,8 +5306,8 @@ const hl = (w, navn) => { const h = w.CSS.highlights.get(navn); return h ? [...h
   s.tast('Enter', { metaKey: true });
   await ventTil(w, () => s.kald.some(k => k[0] === 'gem_og_masker'));
   tjek('V-OPBYG.2 N4: når analysen er der, er ⌘↵ Maskér som før', s.kald.some(k => k[0] === 'gem_og_masker') && rust.kald.filter(k => k[0] === 'analyser').length === 1);
-}
-{
+})();
+await (async () => {
   // N4: startvinduet og kilderne.
   const konf = JSON.parse(fs.readFileSync(path.join(repo, 'src-tauri', 'tauri.conf.json'), 'utf8')).app.windows[0];
   tjek('V-OPBYG.2 N4: startvinduet er 1400 × 900; mindste mål er uændret 1024 × 560', konf.width === 1400 && konf.height === 900 && konf.minWidth === 1024 && konf.minHeight === 560);
@@ -5204,11 +5315,11 @@ const hl = (w, navn) => { const h = w.CSS.highlights.get(navn); return h ? [...h
   const njKode = nj.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
   tjek('V-OPBYG.2: noter.js skriver intet til konsollen eller localStorage og sætter ingen stil (koden uden kommentarer)', !/console\.|localStorage|sessionStorage|\.style\./.test(njKode) && njKode.length > 5000);
   tjek('V-OPBYG.2: index.html indlæser noter.js efter sager.js', /assets\/sager\.js" defer><\/script>\n<script src="assets\/noter\.js" defer>/.test(ui('index.html')));
-}
+})();
 
 // ════════════════════════════════════════════════════════════════════ V-OPBYG.3
 // ── N2: mærket er masken (titellinjen, låseskærmen, Om) ──
-{
+await (async () => {
   const app = ui('assets/app.css');
   const regel = sel => { const m = new RegExp('(?:^|\\n)' + sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ' \\{([^}]*)\\}').exec(app); return m ? m[1] : ''; };
   tjek('V-OPBYG.3 N2: titellinjens mærke bruger den lille tegning som maske (under 24 px)', /mask-image: url\(grimnir-maerke-lille\.svg\)/.test(regel('.gr-mrk')) && /-webkit-mask-image: url\(grimnir-maerke-lille\.svg\)/.test(regel('.gr-mrk')) && !/background/.test(regel('.gr-mrk')));
@@ -5219,8 +5330,8 @@ const hl = (w, navn) => { const h = w.CSS.highlights.get(navn); return h ? [...h
   const lys = tok.slice(0, tok.indexOf(':root[data-tema="moerk"]')), moerk = tok.slice(tok.indexOf(':root[data-tema="moerk"]'));
   tjek('V-OPBYG.3 N2: mærket følger temaet (farven er et token, der findes i lyst og mørkt tema; ingen fast farve i reglerne)', ['accent', 'accent-on-rail'].every(n => vaerdi(lys, n) && vaerdi(moerk, n)) && !/#[0-9a-f]{3,8}/i.test(regel('.gr-mrk') + regel('.laas-mrk') + regel('.om-mrk')));
   tjek('V-OPBYG.3 N2: intet bogstav G som mærke i index.html', !/aria-hidden="true">G</.test(ui('index.html')) && (ui('index.html').match(/class="mrk-maske /g) || []).length === 2);
-}
-{
+})();
+await (async () => {
   const s = side();
   const { d, w } = s;
   await ventTil(w, () => d.getElementById('aabn-om').querySelector('svg'));
@@ -5258,8 +5369,8 @@ const hl = (w, navn) => { const h = w.CSS.highlights.get(navn); return h ? [...h
   dlgE.dispatchEvent(esc);
   if (!esc.defaultPrevented) dlgE.close();
   tjek('V-OPBYG.3 N3: Esc lukker dialogen (en modal <dialog>; kittet forhindrer ikke Esc)', dlgE.tagName === 'DIALOG' && !esc.defaultPrevented && !aaben(d, 'dlg-om'));
-}
-{
+})();
+await (async () => {
   // Licenserne og Åbn vejledningen med en efterlignet Rust; teksten er THIRD_PARTY_LICENSES.md (pakket med programmet).
   const LIC = fs.readFileSync(path.join(repo, 'THIRD_PARTY_LICENSES.md'), 'utf8');
   const s = side({ rust: { tredjepartslicenser: () => LIC, vejledning_aabn: () => null } });
@@ -5280,8 +5391,8 @@ const hl = (w, navn) => { const h = w.CSS.highlights.get(navn); return h ? [...h
   tjek('V-OPBYG.3 N3: Åbn vejledningen er samme kommando som titellinjens (kun sproget)', vk.tagName === 'BUTTON' && vk.textContent === 'Åbn vejledningen' && vk.getAttribute('aria-label') === d.getElementById('vejledning').getAttribute('aria-label') && JSON.stringify(s.kald.find(k => k[0] === 'vejledning_aabn')[1]) === '{"sprog":"da"}');
   const kildeKode = ui('assets/app.js');
   tjek('V-OPBYG.3 N3: der er stadig kun ét kald til vejledning_aabn i webvisningen (én funktion for begge knapper)', (kildeKode.match(/invoke\('vejledning_aabn'/g) || []).length === 1 && /\$\('vejledning'\)\.addEventListener\('click', aabnVejledning\)/.test(kildeKode) && /vejlKnap\.addEventListener\('click', aabnVejledning\)/.test(kildeKode));
-}
-for (const lang of ['da', 'en']) {
+})();
+await (async () => { for (const lang of ['da', 'en']) {
   // Windows og engelsk: knappen og låsens punkt efter platformen.
   const s = side({ platform: 'windows', lager: { 'grimnir-sprog': lang } });
   const { d, w } = s;
@@ -5294,8 +5405,8 @@ for (const lang of ['da', 'en']) {
   const laas = dlg.querySelectorAll('.om-punkter > li')[3].textContent;
   tjek(`V-OPBYG.3 N3 (Windows, ${lang}): låsens punkt lover ikke Touch ID, men siger, hvad der gælder på Windows`, !/Touch ID|Mac/.test(laas) && (lang === 'da' ? /Windows Hello kommer med Windows-udgaven/.test(laas) : /Windows Hello comes with the Windows version/.test(laas)));
   if (lang === 'en') tjek('V-OPBYG.3 N3 (en): overskrifterne og knappen på engelsk', dlg.querySelector('#om-forvent-h').textContent === 'What you can expect' && dlg.querySelector('#om-licens-h').textContent === 'Licence' && d.getElementById('om-licenser').textContent === 'Show third-party licences' && d.getElementById('om-vejledning').textContent === 'Open the guide' && dlg.querySelector('h2').textContent === 'About Grimnir');
-}
-{
+} })();
+await (async () => {
   // Låst: Om kan åbnes fra ⓘ (som fra menuen i dag), og licenserne kan vises; intet fra sagerne i DOM'en.
   const rust = falskLaasRust({ laast: true });
   rust.tredjepartslicenser = () => 'Tredjepartslicenser — prøve';
@@ -5307,8 +5418,8 @@ for (const lang of ['da', 'en']) {
   d.getElementById('om-licenser').click();
   await ventTil(w, () => !d.getElementById('om-licenstekst').hidden);
   tjek('V-OPBYG.3 N3: låst kan tredjepartslicenserne vises (de rører hverken sager, ordbog, filer eller nøgler)', d.getElementById('om-licenstekst').textContent === 'Tredjepartslicenser — prøve' && !d.getElementById('om-licenstekst').hidden);
-}
-{
+})();
+await (async () => {
   // Teksterne lover ikke netværk, programmet ikke har.
   const sprogKode = ui('assets/sprog.js');
   const omNoegler = ['omForventH', 'omMaskerH', 'omMaskerP', 'omDemaskerH', 'omDemaskerP', 'omSagerH', 'omSagerP', 'omLaastH', 'omLaastPMac', 'omLaastPWin', 'omNetH', 'omNetP', 'omLicensH', 'omSkrifter', 'kVisLicenser', 'kSkjulLicenser', 'licenserFejl', 'kAabnVejledning', 'omP', 'licens'];
@@ -5318,7 +5429,7 @@ for (const lang of ['da', 'en']) {
   const LOEFTE = /opdater|update|sky\b|cloud|server|synkron|sync|upload|konto\b|account|log ind|sign in|backup|online|internet|download|hent(?:er|es)? (?:nye|fra)/i;
   tjek('V-OPBYG.3 N3: ingen Om-tekst nævner netværk, programmet ikke har (opdatering, sky, server, synkronisering, konto …)', !tekster.some(t => LOEFTE.test(t)), tekster.filter(t => LOEFTE.test(t)).join(' | '));
   tjek('V-OPBYG.3 N3: kontrol: mønsteret fanger "opdateres automatisk", "synced to the cloud" og "log ind"', ['opdateres automatisk', 'synced to the cloud', 'log ind på kontoen'].every(t => LOEFTE.test(t)));
-}
+})();
 
 // ── N4: markering for en åben fil (stederne for uddraget og rækkerne bag dem kommer fra Rust) ──
 function falskFilMarkRust() {
@@ -5351,7 +5462,7 @@ function falskFilMarkRust() {
     },
   };
 }
-{
+await (async () => {
   const rust = falskFilMarkRust();
   const s = side({ rust, foer: hlFoer });
   const { d, w } = s;
@@ -5378,10 +5489,166 @@ function falskFilMarkRust() {
   tjek('V-OPBYG.3 N4: efter maskeringen af filen er koderne markeret i det maskerede uddrag (grimnir-kode)', JSON.stringify(hl(w, 'grimnir-kode')) === JSON.stringify(['GRIMNIR_SECRET_0001', '198.18.0.2', '198.18.0.2']) && !w.CSS.highlights.has('grimnir-masker'), JSON.stringify(hl(w, 'grimnir-kode')));
   const mj = ui('assets/maskering.js');
   tjek('V-OPBYG.3 N4: webvisningen markerer fra Rusts steder og sted_raekker (ingen egen søgning i uddraget)', /st\.analyse\.sted_raekker/.test(mj) && !/if \(st\.fil\) return null;/.test(mj));
+})();
+
+// ══════════════════════════ V-OPBYG.6 N1: Maskér markering i en åben fil ══════════════════════════
+// En efterlignet Rust med fil_marker: den får stedet (UTF-16) og typen, slår værdien op i sit eget uddrag, afviser som
+// Rust (midt i et tegn, uden for, tom, linjeskift, allerede et fund/en hemmelighed) og svarer med en plads. Analysen og
+// maskeringen får pladserne; rækken for en tilføjet værdi har 3 steder (også efter uddraget).
+function falskFilMarkerRust() {
+  const r = falskFilRust({ antal: 3 });
+  const UDDRAG = 'kunde 😀 æøå Blåbær-Øst-7 srcip=10.20.0.2\r\nPassword=Sommer2026!; ref Kunde-Hemmelig-9\r\nslut\r\n';
+  const R = [
+    { id: 60, vaerdi: 'Sommer2026!', kode: 'GRIMNIR_SECRET_0001', art: 'hemmelighed', hemmelig: true, linje: 2 },
+    { id: 33, vaerdi: '10.20.0.2', kode: '198.18.0.2', art: 'ipv4_egen', hemmelig: false, linje: 1 },
+  ];
+  const liste = [];
+  const log = { marker: [], analyser: [], gem: [] };
+  let fra = [];
+  const hoej = c => c >= 0xD800 && c <= 0xDBFF;
+  const raekker = tf => {
+    const ud = R.map(x => ({ id: x.id, art: x.art, status: 'sikker', standard: true, valgt: !fra.includes(x.id), laast: false, hemmelig: x.hemmelig, vaerdier: x.hemmelig ? [] : [x.vaerdi], koder: [x.kode], antal: 1, linje: x.linje, rettet: false, kendt: false, tilfoejet: null }));
+    tf.forEach((t, nr) => {
+      const v = liste[t.tid], hem = t.art === 'hemmelighed';
+      ud.push({ id: 1000 + t.tid, art: t.art, status: 'sikker', standard: true, valgt: !fra.includes(1000 + t.tid), laast: false, hemmelig: hem, vaerdier: hem ? [] : [v], koder: [hem ? 'GRIMNIR_SECRET_0002' : 'ord0001'], antal: 3, linje: 1, rettet: false, kendt: false, tilfoejet: nr });
+    });
+    return ud;
+  };
+  const steder = tf => { const ud = []; for (const [id, x] of R.map(y => [y.id, y.vaerdi]).concat(tf.map(t => [1000 + t.tid, liste[t.tid]]))) { let i = -1; while ((i = UDDRAG.indexOf(x, i + 1)) !== -1) ud.push([i, i + x.length, id]); } return ud.sort((a, b) => a[0] - b[0]); };
+  return {
+    ...r, log, liste,
+    fil_aabn: async () => ({ navn: 'app.log', bytes: 4800000, tegnsaet: 'utf8', linjeskift: 'crlf', linjer: 3, uddrag: UDDRAG, ikke_vist: 4700000 }),
+    fil_marker: ({ start, laengde, art }) => {
+      log.marker.push({ start, laengde, art });
+      const a = start, b = start + laengde;
+      if (!laengde) return { tid: null, afvist: 'tom', raekke: null, linje: null, hemmelig: false };
+      if (b > UDDRAG.length) return { tid: null, afvist: 'uden_for', raekke: null, linje: null, hemmelig: false };
+      if ((a > 0 && hoej(UDDRAG.charCodeAt(a - 1))) || hoej(UDDRAG.charCodeAt(b - 1))) return { tid: null, afvist: 'midt_i_tegn', raekke: null, linje: null, hemmelig: false };
+      const v = UDDRAG.slice(a, b).trim();
+      if (!v) return { tid: null, afvist: 'tom', raekke: null, linje: null, hemmelig: false };
+      if (/[\r\n]/.test(v)) return { tid: null, afvist: 'linjeskift', raekke: null, linje: null, hemmelig: false };
+      const f = R.find(x => x.vaerdi.toLowerCase() === v.toLowerCase());
+      if (f) return { tid: null, afvist: f.hemmelig && art !== 'hemmelighed' ? 'hemmelighed' : 'findes', raekke: f.id, linje: f.linje, hemmelig: f.hemmelig };
+      let i = liste.findIndex(x => x.toLowerCase() === v.toLowerCase());
+      if (i < 0) { liste.push(v); i = liste.length - 1; }
+      return { tid: i, afvist: null, raekke: null, linje: null, hemmelig: false };
+    },
+    fil_analyser: async a => {
+      log.analyser.push(a);
+      const tf = a.tilfoejede || [];
+      if (a.fravalgt) fra = a.fravalgt.slice();
+      if (a.rort) { const m = new Map(a.rort); fra = raekker(tf).filter(x => (m.has(x.id) ? !m.get(x.id) : false)).map(x => x.id); }
+      const rk = raekker(tf);
+      return { side: { raekker: rk, i_alt: rk.length, valgte: rk.filter(x => x.valgt).length, antal: { alle: rk.length, tjek: 0, hemmelig: rk.filter(x => x.hemmelig).length, seneste: 0, status_tjek: 0 } }, fejl: [], advarsler: [], bytes: 4800000, linjer: 3, fravalgt: fra.slice(), moenstre: [], steder: steder(tf), sted_raekker: rk.map(x => [x.id, false, false]), tilfoejede: tf.map((t, nr) => ({ nr, raekke: 1000 + t.tid, antal: 3, afvist: null })) };
+    },
+    fil_raekker: () => { throw new Error('ikke brugt'); },
+    raekke_vaerdi: ({ fil, id }) => { if (!fil || id < 1000) throw { art: 'ukendt_raekke' }; return { id, vaerdier: [liste[id - 1000]] }; },
+    fil_gem_og_masker: async a => { log.gem.push(a); return { uddrag: UDDRAG, ikke_vist: 4700000, rester: [], advarsler: [], poster: 3, bytes: 100, kopierbar: true, steder: [] }; },
+  };
 }
+await (async () => { for (const sprog of ['da', 'en']) {
+  const da = sprog === 'da';
+  // Rækkens "…" (som rmKnap/rmPunkt længere nede, der endnu ikke er defineret her).
+  const rk = tr => tr && tr.querySelector('[data-felt="handlinger"].mere-knap');
+  const rp = (tr, id) => tr && tr.querySelector(`.raekke-menu [data-punkt="${id}"]`);
+  const rust = falskFilMarkerRust();
+  const s = side({ rust, foer: hlFoer, lager: { 'grimnir-sprog': sprog } });
+  const { d, w } = s;
+  const TK = w => w.Sprog.TEKST[sprog];
+  await ventTil(w, () => !laaseskaerm(d));
+  knapI(d, 'masker', 'aabn-fil').click();
+  await ventTil(w, () => fundRaekker(d).length === 2);
+  const sek = d.querySelector('section[data-visning="masker"]');
+  const pre = sek.querySelector('pre.tekst');
+  const besked = () => sek.querySelector('.arbejde .besked').textContent;
+  const vaelg = (fra, til) => { w.getSelection().setBaseAndExtent(pre.firstChild, fra, pre.firstChild, til); d.dispatchEvent(new w.Event('selectionchange')); };
+  const vaelgOrd = o => { const i = pre.firstChild.data.indexOf(o); vaelg(i, i + o.length); };
+  const tryk = async id => { const n = rust.log.analyser.length; knapI(d, 'masker', id).click(); await ventTil(w, () => rust.log.analyser.length > n || /./.test(besked()) && rust.log.marker.length > 0, 2000); await vent(5); };
+  // Uden markering: forklaringen siger, at kun det viste kan markeres, og at rækken gælder hele filen.
+  w.getSelection().collapse(pre.firstChild, 0);
+  d.dispatchEvent(new w.Event('selectionchange'));
+  tjek(`V-OPBYG.6 N1 (${sprog}): i en åben fil er Maskér markering slået fra uden markering; forklaringen siger "den viste tekst (200.000 tegn)" og "hele filen"`, !kommandoAktiv(d, 'masker', 'masker-dette') && forklaring(knapI(d, 'masker', 'masker-dette')) === TK(w).hvorforMarkerFil && (da ? /200\.000 tegn.*hele filen/ : /200,000 characters.*whole file/).test(TK(w).hvorforMarkerFil), forklaring(knapI(d, 'masker', 'masker-dette')));
+  // Markér en værdi efter et emoji og æøå.
+  vaelgOrd('Blåbær-Øst-7');
+  tjek(`V-OPBYG.6 N1 (${sprog}): med en markering i filen er Maskér markering og Maskér som hemmelighed slået til`, kommandoAktiv(d, 'masker', 'masker-dette') && kommandoAktiv(d, 'masker', 'masker-hemmelig'));
+  await tryk('masker-dette');
+  await ventTil(w, () => fundRaekker(d).length === 3);
+  const mk = s.kald.filter(k => k[0] === 'fil_marker');
+  tjek(`V-OPBYG.6 N1 (${sprog}): fil_marker får stedet i UTF-16 (efter emojiet, der er to enheder) og typen, aldrig teksten`, mk.length === 1 && mk[0][1].start === 13 && mk[0][1].laengde === 12 && mk[0][1].art === 'ord' && JSON.stringify(Object.keys(mk[0][1]).sort()) === '["art","laengde","start"]' && !JSON.stringify(mk[0][1]).includes('Blåbær'), JSON.stringify(mk[0] && mk[0][1]));
+  const fa = rust.log.analyser[rust.log.analyser.length - 1];
+  tjek(`V-OPBYG.6 N1 (${sprog}): analysen af filen får pladsen og typen (tilfoejede: [{ tid, art }]), aldrig værdien`, JSON.stringify(fa.tilfoejede) === '[{"tid":0,"art":"ord"}]' && !JSON.stringify(fa).includes('Blåbær'), JSON.stringify(fa.tilfoejede));
+  const tr = raekkeMed(d, 1000);
+  tjek(`V-OPBYG.6 N1 (${sprog}): rækken står i tabellen som tilføjet med 3 steder (hele filen), og meldingen siger "i hele filen"`, tr && tr.classList.contains('tilfoejet') && tr.querySelectorAll('td')[4].textContent === '3' && besked() === TK(w).bTilfoejetFil.replace('{v}', 'Blåbær-Øst-7').replace('{w}', '3').replace(da ? '{w:sted|steder}' : '{w:place|places}', da ? 'steder' : 'places'), besked());
+  tjek(`V-OPBYG.6 N1 (${sprog}): markeringen i teksten viser den tilføjede værdi med det samme (grimnir-masker)`, hl(w, 'grimnir-masker').includes('Blåbær-Øst-7') && pre.childNodes.length === 1, JSON.stringify(hl(w, 'grimnir-masker')));
+  // Samme værdi igen: allerede tilføjet (samme plads fra Rust).
+  vaelgOrd('Blåbær-Øst-7');
+  await tryk('masker-dette');
+  tjek(`V-OPBYG.6 N1 (${sprog}): samme værdi igen: "allerede tilføjet", og listen har den én gang`, besked() === TK(w).bAlleredeTilfoejet.replace('{v}', 'Blåbær-Øst-7') && rust.liste.length === 1, besked());
+  // Fortryd og Gentag.
+  knapI(d, 'masker', 'fortryd').click();
+  await ventTil(w, () => !raekkeMed(d, 1000));
+  tjek(`V-OPBYG.6 N1 (${sprog}): Fortryd sender listen uden pladsen, og rækken er væk`, JSON.stringify(rust.log.analyser[rust.log.analyser.length - 1].tilfoejede) === '[]' && !raekkeMed(d, 1000));
+  knapI(d, 'masker', 'gentag').click();
+  await ventTil(w, () => raekkeMed(d, 1000));
+  tjek(`V-OPBYG.6 N1 (${sprog}): Gentag sender pladsen igen, og rækken er tilbage`, JSON.stringify(rust.log.analyser[rust.log.analyser.length - 1].tilfoejede) === '[{"tid":0,"art":"ord"}]' && Boolean(raekkeMed(d, 1000)));
+  // Fjern i rækkens "…".
+  rk(raekkeMed(d, 1000)).click();
+  const fj = rp(raekkeMed(d, 1000), 'fjern');
+  tjek(`V-OPBYG.6 N1 (${sprog}): rækkens "…" har Fjern for en tilføjet værdi i en fil`, fj && fj.getAttribute('aria-disabled') !== 'true');
+  fj.click();
+  await ventTil(w, () => !raekkeMed(d, 1000));
+  tjek(`V-OPBYG.6 N1 (${sprog}): Fjern i "…" fjerner rækken, og Fortryd lægger den tilbage`, !raekkeMed(d, 1000) && JSON.stringify(rust.log.analyser[rust.log.analyser.length - 1].tilfoejede) === '[]');
+  knapI(d, 'masker', 'fortryd').click();
+  await ventTil(w, () => raekkeMed(d, 1000));
+  // Maskér som hemmelighed: ingen værdi i tabellen; meldingen siger "en hemmelighed"; Vis henter den fra filen.
+  vaelgOrd('Kunde-Hemmelig-9');
+  await tryk('masker-hemmelig');
+  await ventTil(w, () => raekkeMed(d, 1001));
+  const th = raekkeMed(d, 1001);
+  tjek(`V-OPBYG.6 N1 (${sprog}): Maskér som hemmelighed i en fil: fil_marker med typen hemmelighed; rækken har prikker og ingen værdi i tabellen`, s.kald.filter(k => k[0] === 'fil_marker').pop()[1].art === 'hemmelighed' && th.querySelector('.prikker') && !sek.querySelector('.fundtabel').innerHTML.includes('Kunde-Hemmelig-9'));
+  tjek(`V-OPBYG.6 N1 (${sprog}): meldingen nævner ikke værdien ("en hemmelighed")`, !besked().includes('Kunde-Hemmelig-9') && besked().includes(TK(w).navnHemmelig), besked());
+  th.querySelector('[data-felt="vis"]').click();
+  await ventTil(w, () => raekkeMed(d, 1001).textContent.includes('Kunde-Hemmelig-9'));
+  const rv = s.kald.filter(k => k[0] === 'raekke_vaerdi').pop();
+  tjek(`V-OPBYG.6 N1 (${sprog}): Vis henter den med raekke_vaerdi fra filen`, rv && rv[1].fil === true && rv[1].id === 1001);
+  // Afvisningerne.
+  const e = pre.firstChild.data.indexOf('😀');
+  vaelg(e + 1, e + 4);
+  await tryk('masker-dette');
+  tjek(`V-OPBYG.6 N1 (${sprog}): en markering, der begynder midt i et emoji, afvises med en klar grund`, besked() === TK(w).bMarkeringMidtITegn, besked());
+  // Allerede et fund (slået fra først): rækken slås til og vælges, og intet er tilføjet.
+  const cb33 = raekkeMed(d, 33).querySelector('input[type="checkbox"]');
+  cb33.checked = false;
+  cb33.dispatchEvent(new w.Event('change', { bubbles: true }));
+  await ventTil(w, () => rust.log.analyser.at(-1).fravalgt?.includes(33) && !w.GrimnirMaskering.M.st.travl);
+  vaelgOrd('10.20.0.2');
+  await tryk('masker-dette');
+  await ventTil(w, () => !rust.log.analyser.at(-1).fravalgt?.includes(33) && raekkeMed(d, 33)?.getAttribute('aria-selected') === 'true');
+  tjek(`V-OPBYG.6 N1 (${sprog}): allerede et fund: "allerede et fund"; rækken slås til (sendes ikke som fravalgt) og vælges, og intet er tilføjet`, besked() === TK(w).bFindesAllerede.replace('{v}', '10.20.0.2') && rust.liste.length === 2 && !rust.log.analyser.at(-1).fravalgt.includes(33) && raekkeMed(d, 33).querySelector('input[type="checkbox"]').checked && raekkeMed(d, 33).getAttribute('aria-selected') === 'true', besked() + ' ' + JSON.stringify(rust.log.analyser.at(-1).fravalgt));
+  // Rækken er allerede slået til, og en anden række er valgt: Maskér markering vælger fundets række.
+  klik(w, raekkeMed(d, 60));
+  vaelgOrd('10.20.0.2');
+  await tryk('masker-dette');
+  tjek(`V-OPBYG.6 N1 (${sprog}): allerede et fund, der allerede maskeres: rækken vælges (den anden række er ikke længere valgt)`, raekkeMed(d, 33).getAttribute('aria-selected') === 'true' && raekkeMed(d, 60).getAttribute('aria-selected') !== 'true' && besked() === TK(w).bFindesAllerede.replace('{v}', '10.20.0.2'));
+  vaelgOrd('Sommer2026!');
+  await tryk('masker-dette');
+  tjek(`V-OPBYG.6 N1 (${sprog}): allerede en hemmelighed: afvist uden at nævne værdien, og rækken er valgt`, besked() === TK(w).bAfvist_hemmelighed && raekkeMed(d, 60).getAttribute('aria-selected') === 'true', besked());
+  // Ordbogen ændret (analysér igen med de rørte rækker): pladserne sendes også dér.
+  const nA = rust.log.analyser.length;
+  d.dispatchEvent(new w.Event('grimnir-ordbog'));
+  await ventTil(w, () => rust.log.analyser.length > nA);
+  const ig = rust.log.analyser[rust.log.analyser.length - 1];
+  tjek(`V-OPBYG.6 N1 (${sprog}): en ny analyse efter en ændret ordbog (rort) sender også pladserne og typerne`, Array.isArray(ig.rort) && JSON.stringify(ig.tilfoejede) === '[{"tid":0,"art":"ord"},{"tid":1,"art":"hemmelighed"}]', JSON.stringify(ig));
+  await ventTil(w, () => raekkeMed(d, 1001) && !w.GrimnirMaskering.M.st.travl);
+  // Gem og maskér sender pladserne.
+  klik(w, knapI(d, 'masker', 'gem-masker'));
+  await ventTil(w, () => rust.log.gem.length === 1);
+  tjek(`V-OPBYG.6 N1 (${sprog}): Gem og maskér sender pladserne og typerne til fil_gem_og_masker, aldrig værdierne`, JSON.stringify(rust.log.gem[0]?.tilfoejede) === '[{"tid":0,"art":"ord"},{"tid":1,"art":"hemmelighed"}]' && !JSON.stringify(rust.log.gem[0]).includes('Kunde-Hemmelig-9'), JSON.stringify(rust.log.gem[0] && rust.log.gem[0].tilfoejede));
+  tjek(`V-OPBYG.6 N1 (${sprog}): ingen fil-kommando har fået en tekst eller en værdi`, s.kald.filter(k => /^fil_/.test(k[0])).every(k => !('tekst' in k[1]) && !JSON.stringify(k[1]).includes('Kunde-Hemmelig-9') && !JSON.stringify(k[1]).includes('Blåbær')));
+} })();
 
 // ══════════════════════════ V-OPBYG.4 N1: hemmeligheder først ved Vis ══════════════════════════
-{
+await (async () => {
   for (const sprog of ['da', 'en']) {
     const rust = falskRust();
     const s = side({ hash: '#masker', rust, lager: { 'grimnir-sprog': sprog } });
@@ -5469,10 +5736,10 @@ function falskFilMarkRust() {
   tjek('V-OPBYG.4 N1: en fil: Vis henter værdien med raekke_vaerdi (fil = true)', k.length === 1 && k[0][1].fil === true && k[0][1].id === 10);
   const mj = ui('assets/maskering.js');
   tjek('V-OPBYG.4 N1: webvisningen viser en hemmelighed kun fra raekke_vaerdi (st.hv), aldrig fra rækkens vaerdier', /invoke\('raekke_vaerdi'/.test(mj) && /r\.hemmelig \? st\.hv\.get\(r\.id\) \|\| \[\] : r\.vaerdier/.test(mj));
-}
+})();
 
 // ══════════════════════════ V-OPBYG.4 N2: Hemmelighed som type i Maskér markering ══════════════════════════
-for (const sprog of ['da', 'en']) {
+await (async () => { for (const sprog of ['da', 'en']) {
   const s = await manuelSide({ lager: { 'grimnir-sprog': sprog } });
   const { d, w, GM, rust } = s;
   const sek = d.querySelector('section[data-visning="masker"]');
@@ -5520,12 +5787,12 @@ for (const sprog of ['da', 'en']) {
   await ventTil(w, () => GM.M.st.tilfoejede.length === 0 && !GM.M.st.travl);
   tjek(`V-OPBYG.4 N2 (${sprog}): en værdi, der allerede er en hemmelighed, afvises med en melding uden værdien, og den tilføjes ikke`, !beskedM(d).outerHTML.includes('Fjeld-Ravn-77') && GM.M.st.tilfoejede.length === 0 && !tabel().outerHTML.includes('Fjeld-Ravn-77'), beskedM(d).textContent);
   tjek(`V-OPBYG.4 N2 (${sprog}): hemmelighedens række er valgt`, sek.querySelector(`.fundtabel tr[data-id="${i}"]`) && sek.querySelector(`.fundtabel tr[data-id="${i}"]`).getAttribute('aria-selected') === 'true');
-}
+} })();
 
 // ══════════════════════════ V-OPBYG.5 N1: Ryd glemmer i Rust, Maskér som hemmelighed i båndet ══════════════════════════
 // Efterlignet Rust: falskManuelRust (indsat tekst) med tekst_glem og falskFilRust (en fil). Kun opdigtede data. Ingen fast
 // ventetid: testene venter på en tilstand (ventTil).
-for (const sprog of ['da', 'en']) {
+await (async () => { for (const sprog of ['da', 'en']) {
   const s = await manuelSide({ lager: { 'grimnir-sprog': sprog } });
   const { d, w, GM, rust } = s;
   rust.tekst_glem = () => null;
@@ -5563,9 +5830,9 @@ for (const sprog of ['da', 'en']) {
   ja.click();
   await ventTil(w, () => !GM.M.st.tekst);
   tjek(`V-OPBYG.5 N1 (${sprog}): Ryd beder Rust glemme den indsatte teksts hemmeligheder (tekst_glem, én gang, uden data)`, s.kald.filter(k => k[0] === 'tekst_glem').length === 1 && JSON.stringify(s.kald.find(k => k[0] === 'tekst_glem')[1]) === '{}' && !s.kald.some(k => k[0] === 'fil_luk'));
-}
+} })();
 // Ryd, når Rust svarer laast: siden ryddes alligevel, og intet fejlbanner.
-{
+await (async () => {
   const s = await manuelSide();
   const { d, w, GM, rust } = s;
   rust.tekst_glem = () => { throw { art: 'laast' }; };
@@ -5574,9 +5841,9 @@ for (const sprog of ['da', 'en']) {
   await ventTil(w, () => !GM.M.st.tekst);
   await ventTil(w, () => s.kald.some(k => k[0] === 'tekst_glem'));
   tjek('V-OPBYG.5 N1: svarer Rust laast på tekst_glem, ryddes siden alligevel uden fejlbanner', !GM.M.st.tekst && !d.querySelector('section[data-visning="masker"] .ban.danger') && d.querySelector('section[data-visning="masker"] .tomt') && !d.querySelector('section[data-visning="masker"] .tomt').hidden);
-}
+})();
 // En åben fil: Ryd slipper filen (fil_luk) og kalder ikke tekst_glem.
-{
+await (async () => {
   const rust = falskFilRust({ antal: 3 });
   rust.tekst_glem = () => null;
   const s = side({ hash: '#masker', rust });
@@ -5591,12 +5858,12 @@ for (const sprog of ['da', 'en']) {
   if (M.st.tekst) [...d.getElementById('dlg-ryd').querySelectorAll('button')].find(x => x.textContent === 'Ryd').click();
   await ventTil(w, () => !M.st.tekst);
   tjek('V-OPBYG.5 N1: en åben fil: Ryd slipper filen (fil_luk) og kalder ikke tekst_glem', s.kald.some(k => k[0] === 'fil_luk') && !s.kald.some(k => k[0] === 'tekst_glem'));
-}
+})();
 // Kilden: Maskér som hemmelighed bruger samme handling og forklaring som Maskér markering.
-{
+await (async () => {
   const mj = ui('assets/maskering.js'), aj = ui('assets/app.js');
   tjek('V-OPBYG.5 N1: båndets Maskér som hemmelighed er maskerDette(\'hemmelighed\') med kanMarkere() som forklaring', /G\.haandter\('masker', 'masker-hemmelig', \(\) => maskerDette\('hemmelighed'\)\)/.test(mj) && /kommando\('masker', 'masker-hemmelig', !h, h\)/.test(mj) && /\{ t: 'gHemmelig', knapper: \[aktiv\('masker', 'masker-hemmelig', 'kMaskerSomHemmelighed', 'markeringHemmelig'\)\] \}/.test(aj));
-}
+})();
 
 // ══════════════════════════ V-OPBYG.5 N2: rækkens "…"-menu, Kopiér værdi og Slet en post ══════════════════════════
 // Efterlignet Rust: falskRust (fundtabellen), manuelSide (en tilføjet værdi) og falskSagRust med sagens indhold (fire
@@ -5612,7 +5879,7 @@ const rmKnap = tr => tr && tr.querySelector('[data-felt="handlinger"].mere-knap'
 const rmMenu = tr => tr && tr.querySelector('.raekke-menu');
 const rmPunkter = tr => [...rmMenu(tr).querySelectorAll('[role="menuitem"]')];
 const rmPunkt = (tr, id) => rmMenu(tr).querySelector(`[data-punkt="${id}"]`);
-for (const sprog of ['da', 'en']) {
+await (async () => { for (const sprog of ['da', 'en']) {
   const da = sprog === 'da';
   const rust = falskRust();
   const s = side({ hash: '#masker', rust, lager: { 'grimnir-sprog': sprog } });
@@ -5699,9 +5966,9 @@ for (const sprog of ['da', 'en']) {
   rmPunkt(h(), 'vis').click();
   await ventTil(w, () => h() && !h().textContent.includes(HEMMELIG));
   tjek(`V-OPBYG.5 N2 (${sprog}): Skjul i menuen skjuler værdien igen`, !sek.querySelector('.fundtabel').outerHTML.includes(HEMMELIG) && M.st.hv.size === 0);
-}
+} })();
 // En tilføjet værdi: Fjern i menuen (som rækkens knap).
-{
+await (async () => {
   const s = await manuelSide();
   const { d, w, GM } = s;
   markerOrd(w, d, 'pc-17');
@@ -5713,9 +5980,9 @@ for (const sprog of ['da', 'en']) {
   rmPunkt(tr, 'fjern').click();
   await ventTil(w, () => !tilfRaekke(d, 'pc-17') && !GM.M.st.travl);
   tjek('V-OPBYG.5 N2: Fjern i menuen fjerner den tilføjede værdi (som rækkens knap)', !tilfRaekke(d, 'pc-17') && GM.M.st.tilfoejede.length === 0);
-}
+})();
 // Sagens indhold: Kopiér værdi, Vis/Skjul og Slet.
-for (const sprog of ['da', 'en']) {
+await (async () => { for (const sprog of ['da', 'en']) {
   const da = sprog === 'da';
   const rust = falskSagRust({ sager: SAGER() });
   const poster = indholdPoster(4); // h0001, user0001, GRIMNIR_SECRET_0001, 198.18.0.4 (sorteret efter type)
@@ -5807,7 +6074,7 @@ for (const sprog of ['da', 'en']) {
   rmKnap(raekke('user0001')).click();
   const kp = rmPunkt(raekke('user0001'), 'kopier'), sp = rmPunkt(raekke('user0001'), 'slet');
   tjek(`V-OPBYG.5 N2 (${sprog}): i en sag, der kun læses, er Kopiér værdi og Slet slået fra med forklaring`, [kp, sp].every(x => x.getAttribute('aria-disabled') === 'true' && d.getElementById(x.getAttribute('aria-describedby')).textContent === w.Sprog.TEKST[sprog].hvorforKunAabenSag));
-}
+} })();
 
 console.log(`\n${ok + fejl} tjek: ${ok} ok, ${fejl} fejl`);
 process.exit(fejl ? 1 : 0);

@@ -51,6 +51,10 @@ html[data-laast] .sagdel { visibility: hidden; }
 /* Den kommando i båndet, der er næste skridt: kant og flade i accent og fed skrift. */
 .cb[data-naeste] { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
 .cb[data-naeste] svg { stroke: var(--accent); }
+/* V-OPBYG.6 N2: næste skridt i Mere-menuen: punktet får kant (inden i punktet, så intet flytter sig), flade og fed skrift
+   som knappen; Mere-knappen selv har data-naeste og får reglen ovenfor. */
+.mere-punkt[data-naeste] { box-shadow: inset 0 0 0 1px var(--accent); background: var(--accent-soft); font-weight: 600; }
+.mere-punkt[data-naeste] svg { stroke: var(--accent); }
 
 /* V-OPBYG.1 N3: den tomme flade efter skitsen: sagen under sætningen, linjen om ⌘V og at slippe en fil under knapperne. */
 .tomt-sag { margin: 0; color: var(--text-muted); }
