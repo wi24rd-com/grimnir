@@ -2,6 +2,8 @@
 
 *Mask. Share. Restore.*
 
+![Wi24rd Grimnir](docs/banner.jpg)
+
 ### [⬇ Download Grimnir 1.0.0 for macOS](https://github.com/wi24rd-com/grimnir/releases/latest)
 Signed and notarised by Apple · Apple silicon · macOS 11 or newer · open the zip and drag the app to Applications
 

@@ -2,6 +2,8 @@
 
 *Mask. Share. Restore.*
 
+![Wi24rd Grimnir](docs/banner.jpg)
+
 ### [⬇ Hent Grimnir 1.0.0 til macOS](https://github.com/wi24rd-com/grimnir/releases/latest)
 Signeret og notariseret af Apple · Apple silicon · macOS 11 eller nyere · åbn zip-filen, og træk programmet til Programmer
 

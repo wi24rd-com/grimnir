@@ -11,6 +11,9 @@
 *.secret
 tauri-signing*.key
 
+# Fotobogen og andre testbilleder (tests/ui/fotobog.mjs); vejledningens billeder ligger i docs/manual/img/
+/tests/ui/out/
+
 # Build
 node_modules/
 dist/
@@ -25,6 +28,7 @@ src-tauri/gen/schemas/
 # Arbejdsfiler: beslutninger, idéer og research
 /docs/*
 !/docs/manual/
+!/docs/banner.jpg
 /AGENTS.md
 /CLAUDE.md
 
