@@ -60,6 +60,9 @@ const KOMMANDOER: &[&str] = &[
     "udklip_vaerdi_kopieret",
     // V-OPBYG.6 N1: Maskér markering i en åben fil (stedet i uddraget, aldrig teksten).
     "fil_marker",
+    // V-OPBYG.7 N1: Rust skriver Kopiér resultat (Demaskér) og Kopiér noterne med fortroligt-mærket.
+    "resultat_kopier",
+    "noter_kopier",
 ];
 
 fn main() {

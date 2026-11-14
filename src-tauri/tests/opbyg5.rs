@@ -239,12 +239,16 @@ fn n2_kopier_vaerdi_for_en_hemmelighed_skriver_rust_og_laasen_rydder_den() {
     assert_eq!(u.nu().as_deref(), Some("et andet programs tekst"));
 }
 
+/// V-OPBYG.7 N1 (omskrevet): før afviste `sag_post_kopier` en almindelig værdi (`UkendtPost`: webvisningen kopierede
+/// den); nu skriver Rust også den, med mærket. En plads og kode, der ikke passer, er stadig `UkendtPost`.
 #[test]
-fn n2_kopier_vaerdi_kun_for_en_hemmelighed_og_uden_udklipsholder_eller_ved_fejl_falsk() {
+fn n2_kopier_vaerdi_uden_udklipsholder_eller_ved_fejl_falsk() {
     let (_m, t, u) = med_udklip(false);
     masker(&t);
     let p = post(&t, "srv-068");
-    assert_eq!(sag_post_kopier(&t, p.nr, &p.kode).err(), Some(UiFejl::UkendtPost), "en almindelig værdi kopierer webvisningen");
+    assert!(sag_post_kopier(&t, p.nr, &p.kode).unwrap(), "V-OPBYG.7 N1: en almindelig værdi skriver Rust også");
+    assert_eq!(u.nu().as_deref(), Some("srv-068"));
+    assert_eq!(sag_post_kopier(&t, p.nr, "h9999").err(), Some(UiFejl::UkendtPost), "plads og kode passer ikke");
     let h = poster(&t).into_iter().find(|p| p.hemmelig).unwrap();
     u.afvis_skrivning();
     assert!(!sag_post_kopier(&t, h.nr, &h.kode).unwrap(), "skrivningen mislykkedes");

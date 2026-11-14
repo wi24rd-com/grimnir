@@ -33,6 +33,8 @@ use grimnir_lib::maskering::tekst_glem;
 use grimnir_lib::maskering::{sag_post_kopier, sag_post_slet, udklip_vaerdi_kopieret};
 // V-OPBYG.6 N1: Maskér markering i en åben fil.
 use grimnir_lib::maskering::fil_marker;
+// V-OPBYG.7 N1: Rust skriver Kopiér resultat og Kopiér noterne.
+use grimnir_lib::maskering::{noter_kopier, resultat_kopier, NoteTid};
 // V-OPBYG.2: noterne (`noter_hent`, `note_tilfoej`, `note_ret`, `note_slet`) og Kopiér noterne (`udklip_kopieret` med
 // `noter`) står også i listen (`alle_kommandoer`).
 use grimnir_lib::maskering::{note_ret, note_slet, note_tilfoej, noter_hent, udklip_noter_kopieret};
@@ -177,6 +179,21 @@ fn alle_kommandoer(t: &Tilstand, fil: &std::path::Path, id: &str) -> Vec<(&'stat
         ("sag_post_kopier", j(sag_post_kopier(t, 0, "GRIMNIR_SECRET_0001").map(|x| v(&x)))),
         ("udklip_vaerdi_kopieret", j(udklip_vaerdi_kopieret(t, 0, "h0001").map(|x| v(&x)))),
         ("fil_marker", j(fil_marker(t, 0, 4, "ord").map(|x| v(&x)))),
+        // V-OPBYG.7 N1.
+        ("resultat_kopier", j(resultat_kopier(t, false, Some(TEKST)).map(|x| v(&x)))),
+        ("resultat_kopier", j(resultat_kopier(t, true, None).map(|x| v(&x)))),
+        (
+            "noter_kopier",
+            j(noter_kopier(
+                t,
+                "da",
+                &[NoteTid {
+                    nr: 1,
+                    tekst: "13. november 2026 kl. 15.10".into(),
+                }],
+            )
+            .map(|x| v(&x))),
+        ),
     ]
 }
 

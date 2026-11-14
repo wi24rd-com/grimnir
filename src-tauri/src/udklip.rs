@@ -22,12 +22,19 @@
 //! fra AppKit kan Grimnir ikke nulstille).
 //!
 //! **Rust skriver selv (V-OPBYG.5 N2).** Kopiér værdi for en skjult hemmelighed i sagens indhold: værdien må ikke forbi
-//! webvisningen, så Rust lægger den i udklipsholderen ([`Udklip::skriv_tekst`]: `clearContents` og
-//! `setString:forType:` med `NSPasteboardTypeString`) og husker tælleren bagefter som efter en demaskeret kopi; ved lås
-//! og afslutning ryddes den på samme betingelse (D21). `NSString`'en, AppKit laver af værdien, kan Grimnir ikke nulstille
-//! (som ved læsning); Rust-kopien nulstilles.
+//! webvisningen, så Rust lægger den i udklipsholderen (`clearContents` og `setString:forType:` med
+//! `NSPasteboardTypeString`) og husker tælleren bagefter som efter en demaskeret kopi; ved lås og afslutning ryddes den
+//! på samme betingelse (D21). `NSString`'en, AppKit laver af værdien, kan Grimnir ikke nulstille (som ved læsning);
+//! Rust-kopien nulstilles.
 //!
-//! **Fortroligt-mærket (V-OPBYG.6 N3, ADR D31).** Det, Rust selv skriver (en skjult hemmelighed), skrives med
+//! **V-OPBYG.7 N1:** Rust skriver også de andre fortrolige kopier: Kopiér værdi for en almindelig værdi
+//! ([`crate::maskering::sag_post_kopier`]), Kopiér resultat i Demaskér ([`crate::maskering::resultat_kopier`]) og Kopiér
+//! noterne ([`crate::maskering::noter_kopier`]), alle med mærket. Kan Rust ikke skrive (ingen udklipsholder, som på
+//! Windows, eller skrivningen mislykkes), svarer kommandoen falsk, og webvisningen kopierer som før og melder kopien
+//! bagefter (punkt 1 ovenfor), uden mærket. Kopiér maskeret tekst, Kopiér kvittering og ⌘C på en markering er ikke
+//! fortrolige og kopieres af webvisningen. `skriv_tekst` (uden mærket) er fjernet: intet brugte den efter V-OPBYG.6.
+//!
+//! **Fortroligt-mærket (V-OPBYG.6 N3, ADR D31).** Det, Rust selv skriver, skrives med
 //! [`Udklip::skriv_fortrolig`]: teksten som almindelig tekst (`NSPasteboardTypeString`, så den kan sættes ind i andre
 //! programmer som før) og på samme element konventionens mærke fra nspasteboard.org: [`FORTROLIG`]
 //! (`org.nspasteboard.ConcealedType`, "content that should be treated as confidential"; programmer, der husker
@@ -79,14 +86,10 @@ pub trait Udklip: Send + Sync {
     fn tekst(&self) -> Indhold;
     /// Rydder udklipsholderen.
     fn ryd(&self);
-    /// V-OPBYG.5 N2: lægger `tekst` i udklipsholderen i stedet for det, der stod der (tælleren går op). Falsk, hvis det ikke
-    /// lykkedes. Standarden kan ikke skrive (en udklipsholder, der kun læser og rydder); macOS' og testenes skriver.
-    fn skriv_tekst(&self, _tekst: &str) -> bool {
-        false
-    }
-    /// V-OPBYG.6 N3: som [`Udklip::skriv_tekst`], men med fortroligt-mærket ([`FORTROLIG`]) og kilden ([`KILDE`]) på
-    /// samme element. Falsk, hvis teksten eller mærket ikke kunne skrives (så ligger teksten der ikke). Standarden kan
-    /// ikke skrive.
+    /// V-OPBYG.6 N3: lægger `tekst` i udklipsholderen i stedet for det, der stod der (tælleren går op), som almindelig
+    /// tekst og med fortroligt-mærket ([`FORTROLIG`]) og kilden ([`KILDE`]) på samme element. Falsk, hvis teksten eller
+    /// mærket ikke kunne skrives (så ligger teksten der ikke). Standarden kan ikke skrive (en udklipsholder, der kun læser
+    /// og rydder); macOS' og testenes skriver. (V-OPBYG.7 N1: `skriv_tekst` uden mærket er fjernet; intet brugte den.)
     fn skriv_fortrolig(&self, _tekst: &str) -> bool {
         false
     }
@@ -102,9 +105,6 @@ impl<T: Udklip + ?Sized> Udklip for std::sync::Arc<T> {
     fn ryd(&self) {
         (**self).ryd()
     }
-    fn skriv_tekst(&self, tekst: &str) -> bool {
-        (**self).skriv_tekst(tekst)
-    }
     fn skriv_fortrolig(&self, tekst: &str) -> bool {
         (**self).skriv_fortrolig(tekst)
     }
@@ -119,7 +119,7 @@ pub struct HukommelsesUdklip {
     laesbar: bool,
     /// V-LAAS.5: antal kald af [`Udklip::tekst`] (en læsning, der på macOS kan give en dialog).
     laesninger: AtomicUsize,
-    /// V-OPBYG.5: antal gange, Grimnir selv har skrevet ([`Udklip::skriv_tekst`]).
+    /// V-OPBYG.5: antal gange, Grimnir selv har skrevet ([`Udklip::skriv_fortrolig`]).
     skrivninger: AtomicUsize,
     /// V-OPBYG.5: sand: skrivningen mislykkes (som en udklipsholder, der ikke tager imod).
     afviser: std::sync::atomic::AtomicBool,
@@ -138,7 +138,7 @@ impl HukommelsesUdklip {
         }
     }
 
-    /// V-OPBYG.5: antal gange, Grimnir selv har skrevet til udklipsholderen ([`Udklip::skriv_tekst`]).
+    /// V-OPBYG.5: antal gange, Grimnir selv har skrevet til udklipsholderen ([`Udklip::skriv_fortrolig`]).
     pub fn skrivninger(&self) -> usize {
         self.skrivninger.load(Ordering::SeqCst)
     }
@@ -210,14 +210,6 @@ impl Udklip for HukommelsesUdklip {
         g.1 = None;
         self.typer.lock().unwrap_or_else(|e| e.into_inner()).clear();
     }
-    fn skriv_tekst(&self, tekst: &str) -> bool {
-        self.skrivninger.fetch_add(1, Ordering::SeqCst);
-        if self.afviser.load(Ordering::SeqCst) {
-            return false;
-        }
-        self.skriv(tekst);
-        true
-    }
     fn skriv_fortrolig(&self, tekst: &str) -> bool {
         self.skrivninger.fetch_add(1, Ordering::SeqCst);
         if self.afviser.load(Ordering::SeqCst) {
@@ -279,18 +271,6 @@ mod mac {
             autoreleasepool(|_| {
                 NSPasteboard::generalPasteboard().clearContents();
             });
-        }
-
-        fn skriv_tekst(&self, tekst: &str) -> bool {
-            autoreleasepool(|_| {
-                let pb = NSPasteboard::generalPasteboard();
-                pb.clearContents();
-                let s = NSString::from_str(tekst);
-                // SAFETY: som i `tekst`: `NSPasteboardTypeString` er en konstant `NSString` fra AppKit, gyldig og
-                // uforanderlig hele programmets tid.
-                let type_ = unsafe { NSPasteboardTypeString };
-                pb.setString_forType(&s, type_)
-            })
         }
 
         /// V-OPBYG.6 N3: teksten som almindelig tekst og på samme (første) element fortroligt-mærket og kilden

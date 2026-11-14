@@ -364,10 +364,10 @@
      værdi stod, så den kolonne er der ikke (panelhovedet siger det). id null er den åbne sag (også den midlertidige); en
      anden sag læses kun.
      V-OPBYG.5 N2: rækkens "…"-knap sidst i rækken (GM.raekkeMenu; overskriften "Handlinger" er skjult tekst): Kopiér værdi,
-     Vis/Skjul for en hemmelighed og Slet. Kopiér værdi og Slet kun i den åbne sag (ellers slået fra med forklaring). En
-     almindelig værdi kopierer webvisningen og melder det (udklip_vaerdi_kopieret); en hemmelighed lægger Rust selv i
-     udklipsholderen (sag_post_kopier), så værdien ikke går forbi webvisningen. Begge ryddes ved lås og afslutning, hvis de
-     stadig står der (D21). Slet beder om kittets bekræftelse (farlig, fokus på Annullér); Rust gemmer en navngiven sag
+     Vis/Skjul for en hemmelighed og Slet. Kopiér værdi og Slet kun i den åbne sag (ellers slået fra med forklaring). Rust
+     lægger værdien selv i udklipsholderen med fortroligt-mærket (sag_post_kopier; V-OPBYG.7 N1: også en almindelig
+     værdi); kan Rust ikke, kopierer webvisningen en almindelig værdi og melder det (udklip_vaerdi_kopieret). Den ryddes
+     ved lås og afslutning, hvis den stadig står der (D21). Slet beder om kittets bekræftelse (farlig, fokus på Annullér); Rust gemmer en navngiven sag
      straks (sag_post_slet), og Ret en post er fravalgt (Jan). */
   const SIDE = 500;
   const ind = { aktiv: false, id: null, type: '', soeg: '', vist: new Set(), antal: SIDE, svar: null, fejl: null, nr: 0, foerSoeg: '', foerFilter: null };
@@ -483,17 +483,22 @@
     if (ind.vist.has(p.nr)) ind.vist.delete(p.nr); else ind.vist.add(p.nr);
     return hentIndhold().then(() => { const n = raekkeKnap(p.nr, felt); if (n) n.focus(); });
   }
+  /* V-OPBYG.7 N1: Rust skriver alle værdier med fortroligt-mærket (sag_post_kopier), også en almindelig. Svarer Rust
+     false (ingen udklipsholder som på Windows, eller skrivningen mislykkedes), kopierer webvisningen en almindelig værdi
+     som før, uden mærket, og melder den (udklip_vaerdi_kopieret, D21); en skjult hemmelighed har webvisningen ikke, og en
+     hemmelighed kopierer den aldrig selv. En fejl fra Rust (fx laast) kopierer intet. */
   async function kopierVaerdi(p) {
-    let ok = false;
+    let rust;
     try {
-      if (p.hemmelig) ok = (await invoke('sag_post_kopier', { nr: p.nr, kode: p.kode })) === true;
-      else if (p.vaerdi != null) {
-        ok = (await GM.kopier(p.vaerdi)) === true;
-        if (ok) invoke('udklip_vaerdi_kopieret', { nr: p.nr, kode: p.kode }).catch(() => { /* låst: låsen har ryddet */ });
-      }
+      rust = (await invoke('sag_post_kopier', { nr: p.nr, kode: p.kode })) === true;
     } catch (e) {
       if (e && e.art === 'ukendt_post') { indMeld('bIndholdAendret'); hentIndhold(); return false; }
-      ok = false;
+      rust = e && e.art ? null : false;
+    }
+    let ok = rust === true;
+    if (rust === false && !p.hemmelig && p.vaerdi != null) {
+      ok = (await GM.kopier(p.vaerdi)) === true;
+      if (ok) invoke('udklip_vaerdi_kopieret', { nr: p.nr, kode: p.kode }).catch(() => { /* låst: låsen har ryddet */ });
     }
     indMeld(ok ? 'bVaerdiKopieret' : 'bVaerdiIkkeKopieret');
     return ok;

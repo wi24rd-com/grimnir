@@ -9,10 +9,11 @@
 
    Noternes tekst står kun i DOM'en og i denne fil, mens fanen er åben: den hentes fra Rust, hver gang fanen åbnes
    (noter_hent), og fjernes, når en anden fane vælges. Ugemt tekst i feltet bliver stående ved et faneskift; en lås
-   genindlæser siden (laas.js), og så er alt væk, også den ugemte tekst. Kopiér noterne: webvisningen lægger teksten i
-   udklipsholderen og melder det til Rust (udklip_kopieret med noter: true), så låsen og afslutningen rydder den, hvis den
-   stadig står der (D21, som en demaskeret tekst). Intet skrives til konsollen eller til localStorage.
-   Rust-kommandoer: noter_hent, note_tilfoej, note_ret, note_slet, udklip_kopieret. */
+   genindlæser siden (laas.js), og så er alt væk, også den ugemte tekst. Kopiér noterne (V-OPBYG.7 N1): Rust bygger
+   teksten og lægger den i udklipsholderen med fortroligt-mærket (noter_kopier); kan Rust ikke skrive, lægger webvisningen
+   den der og melder det til Rust (udklip_kopieret med noter: true). Låsen og afslutningen rydder den, hvis den stadig
+   står der (D21, som en demaskeret tekst). Intet skrives til konsollen eller til localStorage.
+   Rust-kommandoer: noter_hent, note_tilfoej, note_ret, note_slet, noter_kopier, udklip_kopieret. */
 (function () {
   'use strict';
   const G = window.Grimnir, K = window.Kit, S = window.Sprog, GM = window.GrimnirMaskering, GS = window.GrimnirSager;
@@ -263,15 +264,24 @@
       if (st.valgt != null) fokusNote(st.valgt); else tekst.focus();
     });
   }
-  /* Kopiér noterne: sagens navn øverst, så hver note med tidspunktet. Rust får besked (D21: ryddes ved lås og afslutning). */
+  /* Kopiér noterne: sagens navn øverst, så hver note med tidspunktet. Rust får besked (D21: ryddes ved lås og afslutning).
+     V-OPBYG.7 N1: Rust bygger teksten (sagens navn og noterne) og skriver den med fortroligt-mærket; webvisningen sender
+     kun sproget og tidspunkterne, som de står på skærmen (sprogets format og maskinens tidszone). Kan Rust ikke skrive,
+     kopieres teksten som før, uden mærket, og meldes bagefter. Er noterne ændret imens (note), hentes de igen. */
   async function kopierNoter() {
     const n = noter();
     if (!n.length) return;
-    const navn = st.svar.navn ? S.t('noterKopiSag', st.svar.navn) : S.t('noterKopiMidl');
-    const dele = n.map(x => tid(x.oprettet) + (x.rettet != null ? ' · ' + S.t('noteRettet', tid(x.rettet)) : '') + '\n' + x.tekst);
-    const ok = await GM.kopier(navn + '\n\n' + dele.join('\n\n') + '\n');
-    if (!ok) return;
-    invoke('udklip_kopieret', { fil: false, noter: true }).catch(() => { /* låst eller uden Rust: intet at huske */ });
+    const tidAf = x => tid(x.oprettet) + (x.rettet != null ? ' · ' + S.t('noteRettet', tid(x.rettet)) : '');
+    const tider = n.map(x => ({ nr: x.nr, tekst: tidAf(x) }));
+    let ok = await GM.kopierFortroligt(() => invoke('noter_kopier', { sprog: S.lang, tider }), e => { if (e.art === 'note') hent(); else visFejl(e); });
+    if (ok === null) return;
+    if (!ok) {
+      const navn = st.svar.navn ? S.t('noterKopiSag', st.svar.navn) : S.t('noterKopiMidl');
+      const dele = n.map(x => tidAf(x) + '\n' + x.tekst);
+      ok = await GM.kopier(navn + '\n\n' + dele.join('\n\n') + '\n');
+      if (!ok) return;
+      invoke('udklip_kopieret', { fil: false, noter: true }).catch(() => { /* låst eller uden Rust: intet at huske */ });
+    }
     st.kopieret = true;
     tegnBannere();
   }

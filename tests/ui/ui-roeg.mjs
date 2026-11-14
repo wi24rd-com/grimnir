@@ -36,6 +36,23 @@ const tjek = (navn, betingelse, detalje = '') => {
   if (betingelse) { ok++; console.log('ok   ' + navn); } else { fejl++; console.log('FEJL ' + navn + (detalje ? ' — ' + detalje : '')); }
 };
 const vent = (ms = 0) => new Promise(r => setTimeout(r, ms));
+// V-OPBYG.7 N2: en tilstand i stedet for en fast ventetid efter en handling med et asynkront svar. Siden er færdig, når
+// den efterlignede Rust ikke har flere svar undervejs, og siden har håndteret dem: antallet af kald og af svar (i alle
+// vinduer, talt i side()) er det samme i to omgange af begivenhedsløkken i træk. Et svar sætter ofte et nyt kald i gang
+// (fx analysen efter indsætning), og nogle efterligninger svarer efter en timer på 0 ms (falskFilRust), derfor to
+// omgange, hver med en timer og setImmediate. Siden selv har ingen timere under 300 ms (maskering.js: 350 ms og 1 s;
+// kittets værktøjstip 150/300 ms), så de ventede de faste 5–10 ms heller ikke på. Et svar, en test holder tilbage med
+// vilje, tæller ikke med (antallet ændrer sig ikke). Højst 500 omgange.
+let kaldIAlt = 0, svarIAlt = 0;
+const omgang = () => new Promise(r => setTimeout(() => setImmediate(r), 0));
+async function stille() {
+  for (let i = 0, ens = 0, foer = ''; i < 500 && ens < 2; i++) {
+    await omgang();
+    const nu = kaldIAlt + ':' + svarIAlt;
+    ens = nu === foer ? ens + 1 : 0;
+    foer = nu;
+  }
+}
 // V-OPBYG.1: flyttet hertil fra V-FANER.2-afsnittet, så alle afsnit kan vente på en hændelse eller en tilstand.
 // Hændelsen grimnir-visning for id (app.js sender den, når visningen er skiftet). false, hvis den ikke kommer.
 const visningSkift = (w, id, maks = 4000) => new Promise(r => {
@@ -72,24 +89,32 @@ function side({ hash = '', lager = {}, platform = 'macos', rust = null, foer = n
   const kald = [], lyttere = {};
   w.__TAURI__ = {
     core: {
-      invoke: async (cmd, args) => {
-        kald.push([cmd, args || {}]);
-        if (cmd === 'kerne_version') return '0.1.0';
-        if (rust && cmd in rust) return rust[cmd](args || {});
-        // V-LAAS.2: uden en efterlignet dør er Grimnir låst op (de ældre afsnit); låseskærmen prøves i sit eget afsnit.
-        if (cmd === 'laas_status') return { laast: false, igen: null, uden_doer: null };
-        if (cmd === 'aktivitet') return null;
-        if (cmd === 'sag_status') return { poster: 0, id: null, navn: null, udloeb: null };
-        if (cmd === 'sag_liste') return [];
-        if (cmd === 'menu_sprog') return null;
-        // V-OPBYG.2: uden en efterlignet Rust for noterne har sagen ingen noter.
-        if (cmd === 'noter_hent') return { id: null, navn: null, noter: [], nr: null, maks_tegn: 4000, maks_antal: 200 };
-        throw new Error('ukendt kommando ' + cmd);
+      invoke: (cmd, args) => {
+        // V-OPBYG.7 N2: kald og svar tælles (stille()).
+        kaldIAlt++;
+        const p = invokeI(cmd, args);
+        p.then(() => { svarIAlt++; }, () => { svarIAlt++; });
+        return p;
       },
     },
     event: { listen: async (navn, cb) => { (lyttere[navn] ||= []).push(cb); return () => { }; } },
     app: { getVersion: async () => '9.8.7' },
   };
+  // Den efterlignede Rust (som før V-OPBYG.7 selve invoke).
+  async function invokeI(cmd, args) {
+    kald.push([cmd, args || {}]);
+    if (cmd === 'kerne_version') return '0.1.0';
+    if (rust && cmd in rust) return rust[cmd](args || {});
+    // V-LAAS.2: uden en efterlignet dør er Grimnir låst op (de ældre afsnit); låseskærmen prøves i sit eget afsnit.
+    if (cmd === 'laas_status') return { laast: false, igen: null, uden_doer: null };
+    if (cmd === 'aktivitet') return null;
+    if (cmd === 'sag_status') return { poster: 0, id: null, navn: null, udloeb: null };
+    if (cmd === 'sag_liste') return [];
+    if (cmd === 'menu_sprog') return null;
+    // V-OPBYG.2: uden en efterlignet Rust for noterne har sagen ingen noter.
+    if (cmd === 'noter_hent') return { id: null, navn: null, noter: [], nr: null, maks_tegn: 4000, maks_antal: 200 };
+    throw new Error('ukendt kommando ' + cmd);
+  }
   if (foer) foer(w);
   for (const s of scripts) w.eval(ui(s));
   const emit = (navn, payload) => (lyttere[navn] || []).forEach(cb => cb({ payload }));
@@ -148,7 +173,7 @@ await (async () => {
   tjek('V-OPBYG.2: genvejene står i visningsknappernes værktøjstip (⌘1–⌘5 på macOS)', links.map(a => forklaring(a)).join() === '⌘1,⌘2,⌘3,⌘4,⌘5');
   for (const [i, id] of VIS.entries()) {
     s.w.location.hash = id;
-    await vent(5);
+    await stille();
     tjek(`#${id} viser ${id}`, JSON.stringify(synlige(d)) === JSON.stringify([id]));
     tjek(`${id}: aria-current flytter med`, alleLinks.filter(a => a.getAttribute('aria-current') === 'page').map(a => a.dataset.visning).join() === VIS.map(() => id).join());
     const bar = d.querySelector(`#baand > [data-visning="${id}"]`);
@@ -174,22 +199,22 @@ await (async () => {
   tjek('primære kommandoer (Demaskér er primær i Demaskér, M4)', JSON.stringify(prim) === JSON.stringify({ masker: 'Maskér', demasker: 'Demaskér', noter: 'Ny note', sager: 'Ny sag', ordbog: 'Tilføj post' }), JSON.stringify(prim));
   // ⌘1–⌘5 (V-OPBYG.2: ⌘3 Noter, ⌘4 Sager, ⌘5 Ordbog)
   s.tast('2', { metaKey: true, code: 'Digit2' });
-  await vent(5);
+  await stille();
   tjek('⌘2 skifter til Demaskér', synlige(d).join() === 'demasker');
   s.tast('3', { metaKey: true, code: 'Digit3' });
-  await vent(5);
+  await stille();
   tjek('V-OPBYG.2: ⌘3 skifter til Noter', synlige(d).join() === 'noter');
   s.tast('4', { metaKey: true, code: 'Digit4' });
-  await vent(5);
+  await stille();
   tjek('V-OPBYG.2: ⌘4 skifter til Sager (før Ordbog)', synlige(d).join() === 'sager');
   s.tast('5', { metaKey: true, code: 'Digit5' });
-  await vent(5);
+  await stille();
   tjek('V-OPBYG.2: ⌘5 skifter til Ordbog', synlige(d).join() === 'ordbog');
   s.tast('1', { ctrlKey: true, code: 'Digit1' });
-  await vent(5);
+  await stille();
   tjek('Ctrl+1 gør intet på macOS', synlige(d).join() === 'ordbog');
   s.tast('1', { metaKey: true, code: 'Digit1' });
-  await vent(5);
+  await stille();
   tjek('⌘1 skifter til Maskér', synlige(d).join() === 'masker');
   // En deaktiveret kommando gør intet, men kan nås med Tab.
   const gem = d.querySelector('#baand > [data-visning="masker"] [data-kommando="gem-masker"]');
@@ -197,7 +222,7 @@ await (async () => {
   try { gem.click(); } catch (e) { kastet = e; }
   tjek('deaktiveret kommando kan klikkes uden fejl og bliver i tab-rækkefølgen', !kastet && gem.tabIndex === 0 && !gem.disabled);
   // Fodlinjen: version og kerne
-  await vent(5);
+  await stille();
   tjek('fodlinjen: Kun på denne maskine', d.getElementById('fod-lokalt').textContent.trim() === 'Kun på denne maskine');
   tjek('fodlinjen: programversion fra app.getVersion', d.getElementById('fod-version').textContent === 'Version 9.8.7');
   tjek('fodlinjen: kernens version fra kerne_version', d.getElementById('fod-kerne').textContent === 'Kerne 0.1.0' && s.kald.some(k => k[0] === 'kerne_version'));
@@ -223,10 +248,10 @@ await (async () => {
   await vent();
   tjek('V-OPBYG.2: Windows: genvejene står som Ctrl+1–5 (i visningsknappernes værktøjstip)', [...s.d.querySelectorAll('#baand > [data-visning]:not([hidden]) .vk')].map(a => forklaring(a)).join() === 'Ctrl+1,Ctrl+2,Ctrl+3,Ctrl+4,Ctrl+5');
   s.tast('3', { ctrlKey: true, code: 'Digit3' });
-  await vent(5);
+  await stille();
   tjek('V-OPBYG.2: Windows: Ctrl+3 skifter til Noter', synlige(s.d).join() === 'noter');
   s.tast('4', { ctrlKey: true, code: 'Digit4' });
-  await vent(5);
+  await stille();
   tjek('V-OPBYG.2: Windows: Ctrl+4 skifter til Sager', synlige(s.d).join() === 'sager');
   s.tast(',', { ctrlKey: true, code: 'Comma' });
   tjek('Windows: Ctrl+, åbner Indstillinger', s.d.getElementById('dlg-indst').hasAttribute('open'));
@@ -297,7 +322,7 @@ await (async () => {
 await (async () => { for (const sprog of ['da', 'en']) {
   const s = side({ lager: { 'grimnir-sprog': sprog } });
   const { d, w } = s;
-  await vent(5);
+  await stille();
   const T = w.Sprog.TEKST;
   const mangler = [];
   for (const attr of ['data-t', 'data-t-aria', 'data-t-title', 'data-t-ph']) {
@@ -464,7 +489,7 @@ await (async () => {
     },
   });
   const { d, w } = s;
-  await vent(5);
+  await stille();
   const G = w.GrimnirMaskering;
   const sek = d.querySelector('section[data-visning="masker"]');
   const tom = sek.querySelector('.tomt');
@@ -491,7 +516,7 @@ await (async () => {
   tjek('indsæt i søgefeltet tages ikke af Maskér', !e2.defaultPrevented && G.M.st.tekst === TEKST);
 
   // V-OPBYG.1 N3: analysen skete ved indsætningen (før: ⌘↵ første gang).
-  await vent(5);
+  await stille();
   const ak = s.kald.filter(k => k[0] === 'analyser');
   tjek('indsæt: analyser med teksten og kernens standard (uden ⌘↵)', ak.length === 1 && ak[0][1].tekst === TEKST && ak[0][1].fravalgt === null && ak[0][1].rettelser === null);
   let r = fundRaekker(d);
@@ -565,7 +590,7 @@ await (async () => {
 
   // ⌘↵: Maskér (V-OPBYG.1: analysen skete ved indsætningen, så første ⌘↵ maskerer)
   s.tast('Enter', { metaKey: true });
-  await vent(5);
+  await stille();
   const gk = s.kald.filter(k => k[0] === 'gem_og_masker');
   tjek('⌘↵: Maskér (gem_og_masker) med valgene', gk.length === 1 && JSON.stringify(gk[0][1].fravalgt.sort((a, b) => a - b)) === '[6,67,70]' && gk[0][1].rettelser[0].kode === 'kunde01' && gk[0][1].tekst === TEKST);
   const forventet = TEKST.split('bruger060').join('kunde01').split(HEMMELIG).join('GRIMNIR_SECRET_0001');
@@ -583,18 +608,18 @@ await (async () => {
   tjek('Før og efter viser originalen igen', pre.textContent === TEKST && knapI(d, 'masker', 'foer-efter').getAttribute('aria-pressed') === 'false');
   knapI(d, 'masker', 'foer-efter').click();
   knapI(d, 'masker', 'kopier').click();
-  await vent(5);
+  await stille();
   tjek('Kopiér: resultatet fra hukommelsen, bytepræcist (CRLF)', skrevet.length === 1 && skrevet[0] === forventet && (skrevet[0].match(/\r\n/g) || []).length === 3);
   tjek('Kopiér: "Kopieret." i en statuslinje', sek.querySelector('.besked').textContent === 'Kopieret.' && sek.querySelector('.besked').getAttribute('role') === 'status');
   s.tast('C', { metaKey: true, shiftKey: true, code: 'KeyC' });
-  await vent(5);
+  await stille();
   tjek('⇧⌘C kopierer også', skrevet.length === 2 && skrevet[1] === forventet);
   tjek('V-LAAS.4: Kopiér i Maskér melder intet til Rust (udklip_kopieret)', !s.kald.some(k => k[0] === 'udklip_kopieret'));
   // V-KVIT.1: Kopiér kvittering er aktiv, når der er et maskeret resultat; teksten kommer fra Rust og kopieres.
   const kv = knapI(d, 'masker', 'kvittering');
   tjek('V-KVIT.1: Kopiér kvittering er aktiv efter maskeringen, i gruppen Resultat', kommandoAktiv(d, 'masker', 'kvittering') && kv.textContent.trim() === 'Kopiér kvittering' && !kv.title && kv.closest('.kn').textContent.includes('Gem maskeret fil') && kv.previousElementSibling === plads(knapI(d, 'masker', 'gem-fil')), kv.closest('.kn').outerHTML.slice(0, 300));
   kv.click();
-  await vent(5);
+  await stille();
   const kvKald = s.kald.filter(k => k[0] === 'kvittering');
   tjek('V-KVIT.1: kvitteringen hentes fra Rust (indsat tekst: fil false) på UI-sproget', kvKald.length === 1 && JSON.stringify(kvKald[0][1]) === '{"fil":false,"sprog":"da"}', JSON.stringify(kvKald));
   tjek('V-KVIT.1: kvitteringen kopieres, som Rust gav den', skrevet.length === 3 && skrevet[2] === 'KVITTERING da tekst\n', JSON.stringify(skrevet[2]));
@@ -608,20 +633,20 @@ await (async () => {
   tjek('ændret valg efter maskering: resultat væk, Kopiér nedtonet, besked', !G.M.st.resultat && !kommandoAktiv(d, 'masker', 'kopier') && sek.textContent.includes('Valgene er ændret'));
   tjek('V-KVIT.1: ændret valg efter maskering: Kopiér kvittering er nedtonet igen, med forklaring', !kommandoAktiv(d, 'masker', 'kvittering') && forklaring(knapI(d, 'masker', 'kvittering')) === 'Maskér teksten først');
   knapI(d, 'masker', 'kvittering').click();
-  await vent(5);
+  await stille();
   tjek('V-KVIT.1: en nedtonet Kopiér kvittering gør intet', s.kald.filter(k => k[0] === 'kvittering').length === 1 && skrevet.length === 3);
   await vent(450);
 
   // Demaskér med den sag, der nu findes
   s.w.location.hash = 'demasker';
-  await vent(5);
+  await stille();
   const dsek = d.querySelector('section[data-visning="demasker"]');
   tjek('Demaskér: tom tilstand, når sagen har poster', dsek.querySelector('.tomt p').textContent === 'Har du fået svar fra support eller en chatbot, sætter Grimnir de rigtige værdier tilbage med koderne i den midlertidige sag.');
   const svarTekst = 'Prøv kunde01 på GRIMNIR_SECRET_0001\r\nog h0099\r\n';
   indsaet(w, dsek.querySelector('.tomt'), svarTekst);
   tjek('Demaskér: svaret indsat bytepræcist, Demaskér aktiv og primær', G.D.st.tekst === svarTekst && kommandoAktiv(d, 'demasker', 'demasker') && knapI(d, 'demasker', 'demasker').classList.contains('pri'));
   s.tast('Enter', { metaKey: true });
-  await vent(5);
+  await stille();
   tjek('⌘↵ i Demaskér: demasker med svaret', s.kald.some(k => k[0] === 'demasker' && k[1].tekst === svarTekst));
   tjek('Demaskér: resultatet med de rigtige værdier og CRLF', dsek.querySelectorAll('pre.tekst')[1].textContent === 'Prøv bruger060 på Sommer2026!\r\nog h0099\r\n');
   tjek('Demaskér: advarsel som banner og ikke-brugt som oplysning', dsek.querySelector('.ban.warn') && dsek.querySelector('.ban.warn').textContent.includes('1 sted i svaret') && !dsek.querySelector('.ban.warn').textContent.includes('1 steder') && dsek.querySelector('.ban.info'));
@@ -635,7 +660,7 @@ await (async () => {
   tjek('Alle koder: sat tilbage + advarsler', dsek.querySelectorAll('.advarselpanel tbody tr').length === 3);
   tjek('Demaskér: træets antal', [dtrae('alle'), dtrae('advarsler'), dtrae('ikke-brugt')].map(b => b.querySelector('.ant').textContent).join() === '3,1,1');
   knapI(d, 'demasker', 'kopier-resultat').click();
-  await vent(5);
+  await stille();
   tjek('Demaskér: Kopiér resultat bytepræcist', skrevet[skrevet.length - 1] === 'Prøv bruger060 på Sommer2026!\r\nog h0099\r\n');
   const meldt = s.kald.filter(k => k[0] === 'udklip_kopieret');
   tjek('V-LAAS.4: efter Kopiér i Demaskér melder webvisningen det til Rust én gang (indsat tekst: fil false), uden teksten', meldt.length === 1 && JSON.stringify(meldt[0][1]) === '{"fil":false}' && s.kald.findIndex(k => k[0] === 'udklip_kopieret') > s.kald.findIndex(k => k[0] === 'demasker'), JSON.stringify(meldt));
@@ -647,7 +672,7 @@ await (async () => {
   tjek('Luk nulstiller ikke', !s.kald.some(k => k[0] === 'sag_nulstil') && !d.getElementById('sag-knap').hidden);
   d.getElementById('sag-knap').click();
   d.getElementById('sag-nulstil').click();
-  await vent(5);
+  await stille();
   tjek('V-OPBYG.1: Nulstil: sagen er tom, titellinjen siger Midlertidig sag · ikke gemt under et navn', s.kald.some(k => k[0] === 'sag_nulstil') && !d.getElementById('sag-knap').hidden && d.getElementById('sag-knap').textContent === 'Midlertidig sag · ikke gemt under et navn' && d.getElementById('sagdel-antal').textContent === '0' && !d.getElementById('dlg-sag').hasAttribute('open'));
   tjek('V-OPBYG.1 N4: efter Nulstil er Gemte erstatninger slået fra igen og siger hvorfor (0 erstatninger)', d.getElementById('sagdel-erst').getAttribute('aria-disabled') === 'true' && d.getElementById('sagdel-erst').title === 'Sagen har ingen gemte erstatninger endnu');
   tjek('Nulstil: Demaskér er nedtonet med forklaring', !kommandoAktiv(d, 'demasker', 'demasker') && forklaring(knapI(d, 'demasker', 'demasker')) === 'Maskér en tekst i denne session først');
@@ -659,12 +684,12 @@ await (async () => {
 
   // Sprogskift: tabellens tekster og programmenuen følger med
   s.w.location.hash = 'masker';
-  await vent(5);
+  await stille();
   tjek('Nulstil: Maskér beholder teksten, men analysen er væk (koderne gælder ikke længere)', G.M.st.tekst === TEKST && !G.M.st.analyse && fundRaekker(d).length === 0);
   w.Sprog.saet('en'); // V-FANER.1: før knappen English på fanen Vis (den kaldte det samme)
-  await vent(5);
+  await stille();
   s.tast('Enter', { metaKey: true });
-  await vent(5);
+  await stille();
   tjek('English: menu_sprog med en', s.kald.some(k => k[0] === 'menu_sprog' && k[1].sprog === 'en'));
   tjek('English: typer og status i tabellen', raekkeMed(d, 24).textContent.includes('User') && raekkeMed(d, 6).textContent.includes('Certain'));
   tjek('English: localStorage har kun tema og sprog', Object.keys(w.localStorage).every(k => ['grimnir-tema', 'grimnir-sprog'].includes(k)) && w.localStorage.getItem('grimnir-sprog') === 'en');
@@ -675,18 +700,18 @@ await (async () => {
   const skrevet = [];
   const s = side({ platform: 'windows', rust: falskRust({ rester: [{ art: 'nyt_fund', type_: 'hemmelighed', tekst: 'Hemmelig42', antal: 2, linje: 2 }], afvis: 'kollision01' }), foer: w => Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async t => { skrevet.push(t); } } }) });
   const { d, w } = s;
-  await vent(5);
+  await stille();
   const sek = d.querySelector('section[data-visning="masker"]');
   indsaet(w, sek.querySelector('.tomt'), TEKST);
   s.tast('Enter', { ctrlKey: true });
-  await vent(5);
+  await stille();
   tjek('Windows: Ctrl+↵ analyserer', s.kald.some(k => k[0] === 'analyser') && knapI(d, 'masker', 'analyser').getAttribute('aria-keyshortcuts') === null);
   // Afvist rettelse: rækken får fejlen, intet gemmes.
   const kode = raekkeMed(d, 24).querySelector('input[data-felt="kode"]');
   kode.value = 'kollision01';
   kode.dispatchEvent(new w.Event('change', { bubbles: true }));
   knapI(d, 'masker', 'gem-masker').click();
-  await vent(5);
+  await stille();
   tjek('afvist rettelse: fejlbanner, intet resultat, ingen sag', sek.querySelector('.ban.danger') && sek.textContent.includes('1 rettelse kan ikke bruges, så intet er gemt. Se rækken med rødt.') && !s.w.GrimnirMaskering.M.st.resultat && d.getElementById('sagdel-antal').textContent === '0');
   const k2 = raekkeMed(d, 24).querySelector('input[data-felt="kode"]');
   const k2fejl = d.getElementById(k2.getAttribute('aria-describedby') || 'mangler');
@@ -697,16 +722,16 @@ await (async () => {
   k2.dispatchEvent(new w.Event('change', { bubbles: true }));
   await vent(450);
   s.tast('Enter', { ctrlKey: true });
-  await vent(5);
+  await stille();
   tjek('rester: advarselsbanner med antal og knap', sek.querySelector('.ban.warn') && sek.querySelector('.ban.warn').textContent.includes('2 steder') && sek.querySelector('.ban.warn button').textContent === 'Vis dem');
   sek.querySelector('.ban.warn button').click();
   tjek('rester: "Vis dem" viser dem i tabellen', sek.querySelector('.resttabel') && sek.querySelector('.resttabel').textContent.includes('Hemmelig42') && sek.querySelector('.ban.warn button').textContent === 'Vis fundene');
   tjek('rester: Kopiér er stadig aktiv', kommandoAktiv(d, 'masker', 'kopier'));
   s.tast('C', { ctrlKey: true, shiftKey: true, code: 'KeyC' });
-  await vent(5);
+  await stille();
   tjek('Windows: Ctrl+Shift+C kopierer ved rester, og banneret bliver stående', skrevet.length === 1 && sek.querySelector('.ban.warn') && knapI(d, 'masker', 'kopier').title === 'Genvej: Ctrl+Shift+C');
   s.tast('C', { metaKey: true, shiftKey: true, code: 'KeyC' });
-  await vent(5);
+  await stille();
   tjek('Windows: ⇧⌘C gør intet', skrevet.length === 1);
 })();
 
@@ -714,13 +739,13 @@ await (async () => {
 await (async () => {
   const s = side({ hash: '#demasker', rust: falskRust() });
   const { d, w } = s;
-  await vent(5);
+  await stille();
   const dsek = d.querySelector('section[data-visning="demasker"]');
   tjek('tom sag: tom tilstand siger, at der først skal maskeres', dsek.querySelector('.tomt p').textContent === 'Der er intet at demaskere endnu: maskér først en tekst i denne session, så kender Grimnir koderne.');
   indsaet(w, dsek.querySelector('.tomt'), 'h0001 og user0001\n');
   tjek('tom sag: svaret indsat, men Demaskér nedtonet med forklaring og banner', !kommandoAktiv(d, 'demasker', 'demasker') && dsek.querySelector('.ban.info') && dsek.textContent.includes('Sagen er tom'));
   s.tast('Enter', { metaKey: true });
-  await vent(5);
+  await stille();
   tjek('tom sag: ⌘↵ kalder ikke demasker', !s.kald.some(k => k[0] === 'demasker'));
 })();
 
@@ -835,24 +860,24 @@ await (async () => {
   const rust = falskSagRust();
   const s = side({ hash: '#masker', rust });
   const { d, w } = s;
-  await vent(5);
+  await stille();
   const sagKnap = d.getElementById('sag-knap');
   tjek('V-OPBYG.1: titellinje: "Midlertidig sag · ikke gemt under et navn" ved en tom midlertidig sag', d.getElementById('sag').hidden && !sagKnap.hidden && sagKnap.textContent === 'Midlertidig sag · ikke gemt under et navn');
   const sek = d.querySelector('section[data-visning="masker"]');
   indsaet(w, sek.querySelector('.tomt'), TEKST);
-  await vent(5); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
-  s.tast('Enter', { metaKey: true }); await vent(5);
+  await stille(); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
+  s.tast('Enter', { metaKey: true }); await stille();
   tjek('V-OPBYG.1: titellinje: "Midlertidig sag · ikke gemt under et navn" efter maskering (antallet i aria-label og i venstre side)', !sagKnap.hidden && sagKnap.textContent === 'Midlertidig sag · ikke gemt under et navn' && d.getElementById('sagdel-antal').textContent === '3' && sagKnap.getAttribute('aria-label') === 'Midlertidig sag, 3 værdier: gem som sag eller nulstil');
   klik(w, sagKnap);
   tjek('titellinje: dialogen tilbyder Gem som sag og Nulstil', aaben(d, 'dlg-sag') && !d.getElementById('sag-gem-som').hidden && !d.getElementById('sag-nulstil').hidden && d.getElementById('sag-luk').hidden && d.getElementById('dlg-sag-p').textContent.includes('3 værdier'));
   klik(w, d.getElementById('sag-gem-som'));
   tjek('Gem som sag: dialogen Ny sag åbner og nævner de 3 værdier', aaben(d, 'dlg-ny-sag') && !aaben(d, 'dlg-sag') && d.querySelector('#dlg-ny-sag .modal-tekst').textContent.includes('3 værdier') && d.activeElement === d.getElementById('ny-sag-navn'));
-  klik(w, d.getElementById('ny-sag-opret')); await vent(5);
+  klik(w, d.getElementById('ny-sag-opret')); await stille();
   tjek('Ny sag: tomt navn afvises i dialogen, intet kald', d.getElementById('dlg-ny-sag-fejl').textContent === 'Skriv et navn.' && !s.kald.some(k => k[0] === 'sag_ny'));
   skriv(w, d.getElementById('ny-sag-navn'), '  Supportsag 0042 ');
   d.getElementById('ny-sag-udloeb').value = '2027-01-31';
   d.getElementById('ny-sag-navn').dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-  await vent(10);
+  await stille();
   const nyKald = s.kald.find(k => k[0] === 'sag_ny');
   tjek('Ny sag: Enter opretter med navn og udløb', nyKald && nyKald[1].navn === 'Supportsag 0042' && nyKald[1].udloeb === '2027-01-31' && !aaben(d, 'dlg-ny-sag'));
   tjek('V-OPBYG.1: titellinje: "Sag: «Supportsag 0042» · gemmes automatisk"', sagKnap.textContent === 'Sag: «Supportsag 0042» · gemmes automatisk' && sagKnap.getAttribute('aria-label') === 'Sag Supportsag 0042, 3 værdier: skift eller luk sagen');
@@ -860,22 +885,22 @@ await (async () => {
   // Gem og maskér i den navngivne sag; konflikt.
   rust.st.konflikt = true;
   indsaet(w, sek.querySelector('pre.tekst'), TEKST);
-  await vent(5); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
-  s.tast('Enter', { metaKey: true }); await vent(5);
+  await stille(); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
+  s.tast('Enter', { metaKey: true }); await stille();
   const ban = sek.querySelector('.ban.danger');
   tjek('konflikt: banner "Sagen er ændret et andet sted. Åbn den igen." med knappen Åbn igen', ban && ban.textContent.includes('Sagen er ændret et andet sted. Åbn den igen.') && ban.querySelector('button').textContent === 'Åbn igen');
   tjek('konflikt: ingen maskeret tekst, Kopiér nedtonet', !w.GrimnirMaskering.M.st.resultat && !kommandoAktiv(d, 'masker', 'kopier'));
   rust.st.konflikt = false;
-  klik(w, ban.querySelector('button')); await vent(10);
+  klik(w, ban.querySelector('button')); await stille();
   tjek('konflikt: Åbn igen læser sagen fra disken (sag_aabn med samme id)', s.kald.some(k => k[0] === 'sag_aabn' && k[1].id === rust.st.aaben) && w.GrimnirMaskering.M.st.analyse === null);
   // Titellinjens dialog for en navngiven sag: Skift sag og Luk sag.
   klik(w, sagKnap);
   tjek('titellinje: navngiven sag giver Skift sag og Luk sag', d.getElementById('dlg-sag-h').textContent === 'Sag: Supportsag 0042' && d.getElementById('sag-gem-som').hidden && d.getElementById('sag-nulstil').hidden && !d.getElementById('sag-skift').hidden && !d.getElementById('sag-luk').hidden);
-  klik(w, d.getElementById('sag-skift')); await vent(5);
+  klik(w, d.getElementById('sag-skift')); await stille();
   tjek('Skift sag: går til Sager', synlige(d).join() === 'sager' && !aaben(d, 'dlg-sag'));
   tjek('Sager: den nye sag står i listen som i brug', sagRaekker(d).length === 1 && sagRaekker(d)[0].textContent.includes('Supportsag 0042') && sagRaekker(d)[0].textContent.includes('i brug'));
   klik(w, sagKnap);
-  klik(w, d.getElementById('sag-luk')); await vent(10);
+  klik(w, d.getElementById('sag-luk')); await stille();
   tjek('V-OPBYG.1: Luk sag: titellinjen er tilbage på "Midlertidig sag · ikke gemt under et navn"', s.kald.some(k => k[0] === 'sag_luk') && d.getElementById('sag').hidden && sagKnap.textContent === 'Midlertidig sag · ikke gemt under et navn');
 })();
 
@@ -884,7 +909,7 @@ await (async () => {
   const rust = falskSagRust({ sager: SAGER() });
   const s = side({ hash: '#sager', rust });
   const { d, w } = s;
-  await vent(10);
+  await stille();
   const sek = d.querySelector('section[data-visning="sager"]');
   const r = sagRaekker(d);
   tjek('Sager: alle fem sager i listen, tom tilstand skjult', r.length === 5 && sek.querySelector('.tomt').hidden);
@@ -897,9 +922,9 @@ await (async () => {
   const ant = id => d.querySelector(`.navdel[data-visning="sager"] [data-punkt="${id}"] .ant`).textContent;
   tjek('Sager: træet tæller Alle 5, Udløber snart 2, Ingen udløb 1', ant('alle') === '5' && ant('udloeber') === '2' && ant('uden-udloeb') === '1' && d.querySelector('.navdel[data-visning="sager"] [data-punkt="uden-udloeb"]').textContent.includes('Ingen udløb'));
   tjek('V-OPBYG.2 N4: Sager: chippen siger 5 sager, fodlinjen sagens navn og gemte erstatninger', sek.querySelector('.vl .chip').textContent === 'i5 sager' && d.getElementById('fod-venstre').textContent === 'Midlertidig sag · 0 gemte erstatninger', d.getElementById('fod-venstre').textContent);
-  w.Grimnir.dele.sager.trae.vaelg('udloeber'); await vent(5);
+  w.Grimnir.dele.sager.trae.vaelg('udloeber'); await stille();
   tjek('træ: Udløber snart viser to', sagRaekker(d).length === 2);
-  w.Grimnir.dele.sager.trae.vaelg('alle'); await vent(5);
+  w.Grimnir.dele.sager.trae.vaelg('alle'); await stille();
   const soeg = sek.querySelector('.vl input[type="search"]');
   skriv(w, soeg, 'backup');
   tjek('søgning på navn', sagRaekker(d).length === 1 && sagRaekker(d)[0].dataset.id === hexId(2));
@@ -915,7 +940,7 @@ await (async () => {
   const omNavn = d.getElementById('omdoeb-navn');
   tjek('Omdøb: dialogen har navnet', aaben(d, 'dlg-omdoeb') && omNavn.value === 'Backup-script');
   skriv(w, omNavn, 'Backup-script nat');
-  klik(w, d.getElementById('omdoeb-ok')); await vent(10);
+  klik(w, d.getElementById('omdoeb-ok')); await stille();
   tjek('Omdøb: sag_omdoeb med id og navn, listen opdateret', s.kald.some(k => k[0] === 'sag_omdoeb' && k[1].id === hexId(2) && k[1].navn === 'Backup-script nat') && sagRaekke(d, hexId(2)).textContent.includes('Backup-script nat') && !aaben(d, 'dlg-omdoeb'));
   // Udløb
   klik(w, sagRaekke(d, hexId(2)).children[0]);
@@ -923,17 +948,17 @@ await (async () => {
   tjek('Udløb: dialogen har datoen og nævner sagen', aaben(d, 'dlg-udloeb') && d.getElementById('udloeb-dato').value === datoOm(3) && !d.getElementById('udloeb-ingen').checked && d.querySelector('#dlg-udloeb .modal-tekst').textContent === 'Sagen «Backup-script nat».');
   d.getElementById('udloeb-ingen').checked = true;
   d.getElementById('udloeb-ingen').dispatchEvent(new w.Event('change', { bubbles: true }));
-  klik(w, d.getElementById('udloeb-ok')); await vent(10);
+  klik(w, d.getElementById('udloeb-ok')); await stille();
   tjek('Udløb: Ingen udløb sender null; sagen er nu Åben', s.kald.some(k => k[0] === 'sag_udloeb' && k[1].id === hexId(2) && k[1].udloeb === null) && chipTekst(hexId(2)) === '✓Åben');
   klik(w, sagRaekke(d, hexId(1)).children[0]);
   klik(w, knapI(d, 'sager', 'udloeb'));
   tjek('Udløb: en sag uden udløb åbner med Ingen udløb afkrydset og datoen nedtonet', d.getElementById('udloeb-ingen').checked && d.getElementById('udloeb-dato').disabled);
   d.getElementById('udloeb-ingen').checked = false;
   d.getElementById('udloeb-ingen').dispatchEvent(new w.Event('change', { bubbles: true }));
-  klik(w, d.getElementById('udloeb-ok')); await vent(5);
+  klik(w, d.getElementById('udloeb-ok')); await stille();
   tjek('Udløb: uden dato og uden flueben afvises i dialogen', d.getElementById('dlg-udloeb-fejl').textContent === 'Vælg en dato, eller sæt flueben ved Ingen udløb.' && aaben(d, 'dlg-udloeb'));
   d.getElementById('udloeb-dato').value = datoOm(5);
-  klik(w, d.getElementById('udloeb-ok')); await vent(10);
+  klik(w, d.getElementById('udloeb-ok')); await stille();
   tjek('Udløb: en dato inden 7 dage giver Udløber snart', s.kald.some(k => k[0] === 'sag_udloeb' && k[1].id === hexId(1) && k[1].udloeb === datoOm(5)) && chipTekst(hexId(1)) === '!Udløber snart');
   // Slet med bekræftelse
   klik(w, sagRaekke(d, hexId(3)).children[0]);
@@ -942,14 +967,14 @@ await (async () => {
   klik(w, d.querySelector('#dlg-slet [data-svar="nej"]'));
   tjek('Slet: Annullér sletter intet', !aaben(d, 'dlg-slet') && !s.kald.some(k => k[0] === 'sag_slet') && sagRaekker(d).length === 5);
   klik(w, knapI(d, 'sager', 'slet-sag'));
-  klik(w, d.querySelector('#dlg-slet [data-svar="ja"]')); await vent(10);
+  klik(w, d.querySelector('#dlg-slet [data-svar="ja"]')); await stille();
   tjek('Slet: sag_slet, og sagen er væk', s.kald.some(k => k[0] === 'sag_slet' && k[1].id === hexId(3)) && !sagRaekke(d, hexId(3)) && sagRaekker(d).length === 4);
   // Åbn i Maskér (dobbeltklik og kommandoen)
   klik(w, sagRaekke(d, hexId(5)).children[0]);
-  klik(w, knapI(d, 'sager', 'aabn-i-masker')); await vent(10);
+  klik(w, knapI(d, 'sager', 'aabn-i-masker')); await stille();
   tjek('Åbn i Maskér: sag_aabn, Maskér vises, titellinjen har sagen', s.kald.some(k => k[0] === 'sag_aabn' && k[1].id === hexId(5)) && synlige(d).join() === 'masker' && d.getElementById('sag-knap').textContent === 'Sag: «Firewall-log» · gemmes automatisk');
   // English
-  w.Sprog.saet('en'); w.Grimnir.vis('sager'); await vent(10);
+  w.Sprog.saet('en'); w.Grimnir.vis('sager'); await stille();
   tjek('English: status og kolonner', chipTekst(hexId(1)) === '!Expiring soon' && sek.querySelector('.sagtabel thead th').textContent === 'Name' && d.getElementById('sag-knap').textContent === 'Case: “Firewall-log” · saved automatically');
   w.Sprog.saet('da');
 })();
@@ -959,11 +984,11 @@ await (async () => {
   const rust = falskSagRust({ sager: SAGER() });
   const s = side({ hash: '#masker', rust });
   const { d, w } = s;
-  await vent(10);
+  await stille();
   const sek = d.querySelector('section[data-visning="masker"]');
   indsaet(w, sek.querySelector('.tomt'), TEKST);
-  await vent(5); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
-  s.tast('Enter', { metaKey: true }); await vent(5);
+  await stille(); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
+  s.tast('Enter', { metaKey: true }); await stille();
   s.emit('menu', 'afslut');
   tjek('afslut: spørgsmålet med antal værdier og Gem som sag, Kassér, Annullér', aaben(d, 'dlg-kasser') && d.querySelector('#dlg-kasser h2').textContent === 'Gem den midlertidige sag, før Grimnir lukker?' && d.querySelector('#dlg-kasser .modal-tekst').textContent.startsWith('Den midlertidige sag har 3 værdier') && d.activeElement === d.getElementById('kasser-gem'));
   klik(w, d.querySelector('#dlg-kasser [data-svar="annuller"]'));
@@ -971,30 +996,30 @@ await (async () => {
   s.emit('menu', 'afslut');
   klik(w, d.getElementById('kasser-gem'));
   skriv(w, d.getElementById('ny-sag-navn'), 'Inden lukning');
-  klik(w, d.getElementById('ny-sag-opret')); await vent(10);
+  klik(w, d.getElementById('ny-sag-opret')); await stille();
   const i = s.kald.findIndex(k => k[0] === 'sag_ny'), j = s.kald.findIndex(k => k[0] === 'program_afslut');
   tjek('afslut: Gem som sag opretter sagen og lukker derefter', i >= 0 && j > i && s.kald[i][1].navn === 'Inden lukning' && s.kald[i][1].udloeb === null);
   // Et nyt program: Kassér lukker uden at gemme.
   const s2 = side({ hash: '#masker', rust: falskSagRust() });
-  await vent(5);
+  await stille();
   indsaet(s2.w, s2.d.querySelector('section[data-visning="masker"] .tomt'), TEKST);
-  await vent(5); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
-  s2.tast('Enter', { metaKey: true }); await vent(5);
+  await stille(); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
+  s2.tast('Enter', { metaKey: true }); await stille();
   s2.emit('menu', 'afslut');
-  klik(s2.w, s2.d.getElementById('kasser-ok')); await vent(5);
+  klik(s2.w, s2.d.getElementById('kasser-ok')); await stille();
   tjek('afslut: Kassér lukker uden sag_ny', s2.kald.some(k => k[0] === 'program_afslut') && !s2.kald.some(k => k[0] === 'sag_ny'));
   // Åbn en gemt sag oven på en midlertidig sag med poster: der spørges først.
   const s3 = side({ hash: '#masker', rust: falskSagRust({ sager: SAGER() }) });
-  await vent(10);
+  await stille();
   indsaet(s3.w, s3.d.querySelector('section[data-visning="masker"] .tomt'), TEKST);
-  await vent(5); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
-  s3.tast('Enter', { metaKey: true }); await vent(5);
-  s3.w.Grimnir.vis('sager'); await vent(10);
+  await stille(); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
+  s3.tast('Enter', { metaKey: true }); await stille();
+  s3.w.Grimnir.vis('sager'); await stille();
   // V-MANUEL.2: dobbeltklik og Enter viser sagens indhold (læser kun); at åbne sagen er Åbn i Maskér i båndet.
-  klik(s3.w, sagRaekke(s3.d, hexId(1))); await vent(5);
-  klik(s3.w, knapI(s3.d, 'sager', 'aabn-i-masker')); await vent(5);
+  klik(s3.w, sagRaekke(s3.d, hexId(1))); await stille();
+  klik(s3.w, knapI(s3.d, 'sager', 'aabn-i-masker')); await stille();
   tjek('åbn oven på midlertidig sag: der spørges først', aaben(s3.d, 'dlg-kasser') && s3.d.querySelector('#dlg-kasser h2').textContent === 'Gem den midlertidige sag, før en anden sag åbnes?' && !s3.kald.some(k => k[0] === 'sag_aabn'));
-  klik(s3.w, s3.d.getElementById('kasser-ok')); await vent(10);
+  klik(s3.w, s3.d.getElementById('kasser-ok')); await stille();
   tjek('åbn oven på midlertidig sag: Kassér åbner sagen', s3.kald.some(k => k[0] === 'sag_aabn' && k[1].id === hexId(1)) && s3.d.getElementById('sag-knap').textContent === 'Sag: «Supportsag 0042» · gemmes automatisk');
 })();
 
@@ -1002,14 +1027,14 @@ await (async () => {
 await (async () => {
   const s = side({ hash: '#demasker', rust: falskSagRust({ sager: SAGER() }) });
   const { d, w } = s;
-  await vent(10);
+  await stille();
   const dsek = d.querySelector('section[data-visning="demasker"]');
   const tilSager = [...dsek.querySelectorAll('.tomt button')].find(b => b.textContent === 'Åbn Sager');
   tjek('Demaskér: tom sag med gemte sager peger på Sager', dsek.querySelector('.tomt p').textContent === 'Der er ingen koder i denne sag endnu. Åbn den sag, svaret hører til, under Sager.' && tilSager && !tilSager.hidden);
   tjek('Demaskér: nedtonet med "Åbn en gemt sag under Sager først"', forklaring(knapI(d, 'demasker', 'demasker')) === 'Åbn en gemt sag under Sager først');
-  klik(w, tilSager); await vent(5);
+  klik(w, tilSager); await stille();
   tjek('Demaskér: "Åbn Sager" går til Sager', synlige(d).join() === 'sager');
-  w.Grimnir.vis('demasker'); await vent(5);
+  w.Grimnir.vis('demasker'); await stille();
   const seks = 'h0001 '.repeat(1024 * 1024);
   indsaet(w, dsek.querySelector('.tomt'), seks);
   tjek('Demaskér: 6 MB tages imod (grænsen er 8 MB)', w.GrimnirMaskering.D.st.tekst === seks);
@@ -1020,7 +1045,7 @@ await (async () => {
   s.emit('fuldskaerm', false);
   tjek('fuldskærm: væk igen', !d.documentElement.hasAttribute('data-fuldskaerm'));
   const tom = side({ hash: '#demasker' });
-  await vent(5);
+  await stille();
   const knap = [...tom.d.querySelectorAll('section[data-visning="demasker"] .tomt button')].find(b => b.textContent === 'Åbn Sager');
   tjek('Demaskér: uden gemte sager er knappen skjult og teksten som før', knap && knap.hidden && tom.d.querySelector('section[data-visning="demasker"] .tomt p').textContent.startsWith('Der er intet at demaskere endnu'));
 })();
@@ -1159,7 +1184,7 @@ await (async () => {
   const rust = falskOrdbogRust({ poster: ORDBOG(), indst: { guide_vist: true } });
   const s = side({ hash: '#ordbog', rust });
   const { d, w } = s;
-  await vent(10);
+  await stille();
   const sek = d.querySelector('section[data-visning="ordbog"]');
   tjek('Ordbog: guiden vises ikke (allerede vist)', !aaben(d, 'dlg-guide'));
   tjek('Ordbog: seks poster, tom tilstand skjult', oRaekker(d).length === 6 && sek.querySelector('.tomt').hidden);
@@ -1193,25 +1218,25 @@ await (async () => {
   tjek('Tilføj: dialogen med type, værdi, note og en linje hjælp pr. type', aaben(d, 'dlg-opost') && d.getElementById('dlg-opost-h').textContent === 'Tilføj post' && typ.value === 'domaene' && d.getElementById('opost-type-hj').textContent.startsWith('Et DNS-domæne med punktum') && d.activeElement === vaerdi);
   vaelgType(w, typ, 'navnemoenster');
   tjek('Tilføj: hjælpen følger typen', d.getElementById('opost-type-hj').textContent.startsWith('# er ét ciffer, * er vilkårlige'));
-  klik(w, d.getElementById('opost-ok')); await vent(5);
+  klik(w, d.getElementById('opost-ok')); await stille();
   tjek('Tilføj: tom værdi afvises i dialogen, intet kald', d.getElementById('opost-vaerdi-fejl').textContent === 'Skriv en værdi.' && !s.kald.some(k => k[0] === 'ordbog_tilfoej'));
   skriv(w, vaerdi, 'srv-[0-9]');
-  klik(w, d.getElementById('opost-ok')); await vent(10);
+  klik(w, d.getElementById('opost-ok')); await stille();
   tjek('Tilføj: Rusts feltfejl står under feltet (aria-invalid), intet gemt', d.getElementById('opost-vaerdi-fejl').textContent === 'Et navnemønster må kun have bogstaver, cifre, -, # og *, og mindst ét bogstav.' && vaerdi.getAttribute('aria-invalid') === 'true' && aaben(d, 'dlg-opost') && rust.ob.db.length === 6);
   skriv(w, vaerdi, 'WS-*');
   skriv(w, note, 'arbejdsstationer');
-  enter(w, note); await vent(10);
+  enter(w, note); await stille();
   const tk = s.kald.filter(k => k[0] === 'ordbog_tilfoej').pop();
   tjek('Tilføj: Enter gemmer med type, værdi og note', tk[1].type === 'navnemoenster' && tk[1].vaerdi === 'WS-*' && tk[1].note === 'arbejdsstationer' && !aaben(d, 'dlg-opost'));
   tjek('Tilføj: den nye post står i listen og er valgt', oRaekker(d).length === 7 && oRaekke(d, 'WS-*').classList.contains('sel') && kommandoAktiv(d, 'ordbog', 'ret'));
   klik(w, knapI(d, 'ordbog', 'tilfoej-post'));
   tjek('Tilføj: dialogen er tom igen', vaerdi.value === '' && note.value === '' && !vaerdi.hasAttribute('aria-invalid') && d.getElementById('opost-vaerdi-fejl').textContent === '');
   skriv(w, vaerdi, 'KONTOR.test');
-  klik(w, d.getElementById('opost-ok')); await vent(10);
+  klik(w, d.getElementById('opost-ok')); await stille();
   tjek('Tilføj: dublet uafhængigt af store/små', d.getElementById('opost-vaerdi-fejl').textContent === 'Værdien står allerede i ordbogen.');
   vaelgType(w, typ, 'aldrig');
   skriv(w, vaerdi, 'uglebo');
-  klik(w, d.getElementById('opost-ok')); await vent(10);
+  klik(w, d.getElementById('opost-ok')); await stille();
   tjek('Tilføj: maskér altid mod maskér aldrig afvises', d.getElementById('opost-vaerdi-fejl').textContent.startsWith('Værdien står allerede på den anden liste'));
   klik(w, d.querySelector('#dlg-opost [data-svar="annuller"]'));
 
@@ -1221,7 +1246,7 @@ await (async () => {
   tjek('Ret: dialogen har posten; typen kan ikke ændres', aaben(d, 'dlg-opost') && d.getElementById('dlg-opost-h').textContent === 'Ret posten' && vaerdi.value === 'Uglebo' && note.value === 'projekt' && typ.value === 'ord' && typ.disabled && d.getElementById('opost-ok').textContent === 'Gem');
   skriv(w, vaerdi, 'Uglebo2');
   skriv(w, note, '');
-  klik(w, d.getElementById('opost-ok')); await vent(10);
+  klik(w, d.getElementById('opost-ok')); await stille();
   const rk = s.kald.find(k => k[0] === 'ordbog_ret');
   tjek('Ret: ordbog_ret med id, værdi og ingen note', rk && rk[1].id === 4 && rk[1].vaerdi === 'Uglebo2' && rk[1].note === null && oRaekke(d, 'Uglebo2') && !aaben(d, 'dlg-opost'));
   oRaekke(d, 'kontor.test').dispatchEvent(new w.MouseEvent('dblclick', { bubbles: true }));
@@ -1235,18 +1260,18 @@ await (async () => {
   klik(w, d.querySelector('#dlg-ofjern [data-svar="nej"]'));
   tjek('Fjern: Annullér fjerner intet', !s.kald.some(k => k[0] === 'ordbog_fjern') && oRaekker(d).length === 7);
   klik(w, knapI(d, 'ordbog', 'fjern-post'));
-  klik(w, d.querySelector('#dlg-ofjern [data-svar="ja"]')); await vent(10);
+  klik(w, d.querySelector('#dlg-ofjern [data-svar="ja"]')); await stille();
   tjek('Fjern: ordbog_fjern med id; posten er væk, intet valgt', s.kald.some(k => k[0] === 'ordbog_fjern' && k[1].id === 6) && !oRaekke(d, 'localhost') && !kommandoAktiv(d, 'ordbog', 'fjern-post'));
 
   // Prøv på tekst
   klik(w, knapI(d, 'ordbog', 'proev'));
   const pt = d.getElementById('proev-tekst');
   tjek('Prøv: dialogen åbner med tomt felt i fokus', aaben(d, 'dlg-proev') && pt.value === '' && d.activeElement === pt);
-  klik(w, d.getElementById('proev-ok')); await vent(5);
+  klik(w, d.getElementById('proev-ok')); await stille();
   tjek('Prøv: uden tekst kaldes intet', d.getElementById('proev-svar').textContent === 'Sæt en tekst ind først.' && !s.kald.some(k => k[0] === 'ordbog_proev'));
   pt.value = 'Projekt Uglebo2 kører på kontor.test\r\nprinteren 10.20.30.40\r\n';
   pt.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Enter', metaKey: true, bubbles: true }));
-  await vent(10);
+  await stille();
   const pr = [...d.querySelectorAll('#proev-svar tbody tr')];
   tjek('Prøv: ⌘↵ kører ordbog_proev; fundene vises (fanges og maskér aldrig)', s.kald.some(k => k[0] === 'ordbog_proev' && k[1].tekst.includes('Uglebo2')) && pr.length === 3 && d.getElementById('proev-svar').textContent.includes('Ordbogen fanger 2 værdier i teksten.') && pr[0].querySelector('.chip').textContent === 'iFanges' && pr[2].querySelector('.chip').textContent === '–Maskér aldrig');
   tjek('Prøv: teksten står ikke i localStorage', !JSON.stringify(Object.entries(w.localStorage)).includes('Uglebo2'));
@@ -1258,7 +1283,7 @@ await (async () => {
   klik(w, d.querySelector('#dlg-proev [data-svar="luk"]'));
 
   // English
-  w.Sprog.saet('en'); await vent(5);
+  w.Sprog.saet('en'); await stille();
   tjek('English: grupper, kolonner og typer', sek.querySelector('.ordbogtabel tr.gruppe').textContent === 'Always mask caught in every case' && sek.querySelector('.ordbogtabel thead th:nth-child(2)').textContent === 'Value or pattern' && oRaekke(d, 'kontor.test').children[0].textContent === 'Domain');
   w.Sprog.saet('da');
 })();
@@ -1268,7 +1293,7 @@ await (async () => {
   const rust = falskOrdbogRust({ indst: { guide_vist: false }, laast: { art: 'beskadiget' } });
   const s = side({ hash: '#ordbog', rust });
   const { d } = s;
-  await vent(10);
+  await stille();
   const sek = d.querySelector('section[data-visning="ordbog"]');
   tjek('kan ikke åbnes: fejlbanner med årsag', sek.querySelector('.ban.danger') && sek.querySelector('.ban.danger').textContent.includes('Ordbogen kunne ikke åbnes: filen er beskadiget eller ændret. Grimnir bruger en tom ordbog og ændrer ikke filen.'));
   tjek('kan ikke åbnes: chip "Kan ikke åbnes"', sek.querySelector('.vl .chip').textContent === '×Kan ikke åbnes');
@@ -1281,10 +1306,10 @@ await (async () => {
   const rust = falskOrdbogRust({ indst: { guide_vist: true } });
   const s = side({ hash: '#masker', rust });
   const { d, w } = s;
-  await vent(10);
+  await stille();
   const sek = d.querySelector('section[data-visning="masker"]');
   indsaet(w, sek.querySelector('.tomt'), TEKST);
-  s.tast('Enter', { metaKey: true }); await vent(10);
+  s.tast('Enter', { metaKey: true }); await stille();
   const knap = (id, hvad) => raekkeMed(d, id).querySelector(`[data-felt="ordbog-${hvad}"]`);
   tjek('Maskér: hver række har Altid og Aldrig som knapper med navn', fundRaekker(d).every(tr => tr.querySelectorAll('.ordbogknapper button').length === 2) && knap(24, 'altid').getAttribute('aria-label') === 'Maskér bruger060 altid: læg værdien i ordbogen' && knap(24, 'aldrig').textContent === 'Aldrig');
   tjek('Maskér: hemmeligheder kan ikke lægges i ordbogen (nedtonet, forklaring, ingen værdi i navnet)', [45, 67].every(id => knap(id, 'altid').disabled && knap(id, 'aldrig').disabled && knap(id, 'altid').title === 'Hemmeligheder kan ikke lægges i ordbogen' && !knap(id, 'aldrig').getAttribute('aria-label').includes(HEMMELIG) && !knap(id, 'aldrig').getAttribute('aria-label').includes('Zq8Xv2Lm9Pw4')));
@@ -1298,7 +1323,7 @@ await (async () => {
   tjek('Altid: besked i statuslinjen', sek.querySelector('.besked').textContent === '10.2.3.4 står nu i ordbogen og maskeres altid.');
   tjek('Altid: brugerens øvrige valg er bevaret (Tjek selv stadig fra)', !raekkeMed(d, 67).querySelector('input[type="checkbox"]').checked && raekkeMed(d, 6).querySelector('input[type="checkbox"]').checked);
   // Tvetydig art: der spørges om typen.
-  klik(w, knap(24, 'altid')); await vent(5);
+  klik(w, knap(24, 'altid')); await stille();
   const typ = d.getElementById('opost-type');
   const synligeTyper = [...typ.options].filter(o => !o.disabled).map(o => o.value);
   tjek('Altid (tvetydig): der spørges om typen, med forslag og værdien udfyldt', aaben(d, 'dlg-opost') && d.getElementById('dlg-opost-h').textContent === 'Maskér altid' && !d.getElementById('dlg-opost-p').hidden && typ.value === 'ord' && d.getElementById('opost-vaerdi').value === 'bruger060' && JSON.stringify(synligeTyper) === JSON.stringify(['netbios', 'ord', 'person']), JSON.stringify(synligeTyper));
@@ -1329,23 +1354,23 @@ await (async () => {
   const rust = falskOrdbogRust({ indst: { guide_vist: true } });
   const s = side({ hash: '#masker', rust });
   const { d, w } = s;
-  await vent(10);
+  await stille();
   const sek = d.querySelector('section[data-visning="masker"]');
   indsaet(w, sek.querySelector('.tomt'), TEKST);
-  s.tast('Enter', { metaKey: true }); await vent(10);
+  s.tast('Enter', { metaKey: true }); await stille();
   const kode = () => raekkeMed(d, 24).querySelector('input[data-felt="kode"]');
   kode().value = 'kunde01';
   kode().dispatchEvent(new w.Event('change', { bubbles: true }));
   tjek('egen kode i en midlertidig sag uden gemte tekster: ingen advarsel', !raekkeMed(d, 24).querySelector('.raekkeadv'));
   await vent(400); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
-  s.tast('Enter', { metaKey: true }); await vent(10);
+  s.tast('Enter', { metaKey: true }); await stille();
   klik(w, d.getElementById('sag-knap'));
   klik(w, d.getElementById('sag-gem-som'));
   skriv(w, d.getElementById('ny-sag-navn'), 'Prøvesag');
-  klik(w, d.getElementById('ny-sag-opret')); await vent(10);
+  klik(w, d.getElementById('ny-sag-opret')); await stille();
   tjek('sagen er nu navngiven med poster', d.getElementById('sag-knap').textContent.startsWith('Sag: «Prøvesag»'));
   indsaet(w, sek.querySelector('pre.tekst'), TEKST);
-  s.tast('Enter', { metaKey: true }); await vent(10);
+  s.tast('Enter', { metaKey: true }); await stille();
   kode().value = 'kunde02';
   kode().dispatchEvent(new w.Event('change', { bubbles: true }));
   await vent(400); // advarslen tegnes med tabellen efter den nye analyse (350 ms)
@@ -1369,30 +1394,30 @@ await (async () => {
   tjek('guide: dialogen har navn fra overskriften', dlg.getAttribute('aria-labelledby') === 'guide-h' && d.getElementById('guide-h') === dlg.querySelector('.indhold h2'));
   tjek('guide: tre trin; første siger tre sætninger, og at alt bliver på maskinen', trin().length === 3 && dlg.querySelectorAll('.guide-punkter li').length === 3 && dlg.querySelector('.guide-punkter').textContent.includes('Alt bliver på denne maskine'));
   tjek('guide: Spring over, Tilbage (nedtonet) og Næste', fod().map(b => b.textContent).join('|') === 'Spring over|Tilbage|Næste' && fod()[1].disabled);
-  klik(w, fod()[2]); await vent(5);
+  klik(w, fod()[2]); await stille();
   tjek('guide: Næste → trin 2 (domæner og NetBIOS)', h() === 'Dine domæner og NetBIOS-navne' && trin()[0].tagName === 'BUTTON' && dlg.querySelector('#guide-domaene'));
   const fd = d.getElementById('guide-domaene');
   skriv(w, fd, 'kontor.test');
-  enter(w, fd); await vent(10);
+  enter(w, fd); await stille();
   skriv(w, fd, 'KONTOR');
-  klik(w, fd.parentElement.querySelector('button')); await vent(10);
+  klik(w, fd.parentElement.querySelector('button')); await stille();
   const tk = s.kald.filter(k => k[0] === 'ordbog_tilfoej').map(k => k[1].type + ':' + k[1].vaerdi);
   tjek('guide: domæne og NetBIOS-navn lægges i ordbogen (punktum afgør typen)', JSON.stringify(tk) === JSON.stringify(['domaene:kontor.test', 'netbios:KONTOR']) && fd.value === '');
   tjek('guide: listen viser det, der står i ordbogen', dlg.querySelector('.guide-liste').textContent.includes('kontor.test') && dlg.querySelector('.guide-liste').textContent.includes('KONTOR'));
   skriv(w, fd, 'kontor.test');
-  enter(w, fd); await vent(10);
+  enter(w, fd); await stille();
   tjek('guide: fejlen står under feltet', d.getElementById('guide-domaene-fejl').textContent === 'Værdien står allerede i ordbogen.' && fd.getAttribute('aria-invalid') === 'true');
-  klik(w, fod()[1]); await vent(5);
+  klik(w, fod()[1]); await stille();
   tjek('guide: Tilbage → trin 1', h() === 'Sådan arbejder Grimnir');
-  klik(w, fod()[2]); klik(w, fod()[2]); await vent(5);
+  klik(w, fod()[2]); klik(w, fod()[2]); await stille();
   tjek('guide: trin 3 (net og navnemønstre) med Færdig', h() === 'Dine net og maskinnavne' && fod()[2].textContent === 'Færdig' && d.getElementById('guide-net') && d.getElementById('guide-moenster'));
-  skriv(w, d.getElementById('guide-net'), '10.20.0.0/16'); enter(w, d.getElementById('guide-net')); await vent(10);
-  skriv(w, d.getElementById('guide-moenster'), 'srv-###'); enter(w, d.getElementById('guide-moenster')); await vent(10);
+  skriv(w, d.getElementById('guide-net'), '10.20.0.0/16'); enter(w, d.getElementById('guide-net')); await stille();
+  skriv(w, d.getElementById('guide-moenster'), 'srv-###'); enter(w, d.getElementById('guide-moenster')); await stille();
   tjek('guide: eget net og navnemønster lægges i ordbogen', rust.ob.db.map(p => p.type).join() === 'domaene,netbios,eget_net,navnemoenster');
-  trin()[1].click(); await vent(5);
+  trin()[1].click(); await stille();
   tjek('guide: et nået trin kan klikkes', h() === 'Dine domæner og NetBIOS-navne');
-  klik(w, fod()[2]); await vent(5); // Næste: trin 3 (et kommende trin kan ikke klikkes)
-  klik(w, fod()[2]); await vent(10); // Færdig
+  klik(w, fod()[2]); await stille(); // Næste: trin 3 (et kommende trin kan ikke klikkes)
+  klik(w, fod()[2]); await stille(); // Færdig
   const gk = s.kald.filter(k => k[0] === 'indstillinger_gem').pop();
   tjek('guide: Færdig lukker og husker det i indstillingerne', !aaben(d, 'dlg-guide') && gk && gk[1].indstillinger.guide_vist === true && rust.ob.indst.guide_vist === true);
   // Næste start: vises ikke igen (heller ikke med tom ordbog).
@@ -1404,7 +1429,7 @@ await (async () => {
   const s3 = side({ hash: '#masker', rust: r3 });
   await vent(20);
   klik(s3.w, s3.d.querySelector('#dlg-guide .fod button'));
-  await vent(10);
+  await stille();
   tjek('guide: Spring over lukker og husker det', !aaben(s3.d, 'dlg-guide') && r3.ob.indst.guide_vist === true && !s3.kald.some(k => k[0] === 'ordbog_tilfoej'));
   // Escape er det samme som Spring over.
   const r4 = falskOrdbogRust();
@@ -1416,7 +1441,7 @@ await (async () => {
   const gd = s4.d.getElementById('dlg-guide');
   gd.dispatchEvent(ev);
   if (!ev.defaultPrevented) gd.close();
-  await vent(10);
+  await stille();
   tjek('guide: Escape springer over', !aaben(s4.d, 'dlg-guide') && r4.ob.indst.guide_vist === true && !ev.defaultPrevented);
   // Ordbogen er ikke tom: guiden vises ikke.
   const s5 = side({ hash: '#masker', rust: falskOrdbogRust({ poster: ORDBOG() }) });
@@ -1424,7 +1449,7 @@ await (async () => {
   tjek('guide: vises ikke, når ordbogen har poster', !aaben(s5.d, 'dlg-guide'));
   // Kan åbnes igen fra Indstillinger.
   s5.emit('menu', 'indstillinger');
-  klik(s5.w, s5.d.getElementById('indst-guide')); await vent(5);
+  klik(s5.w, s5.d.getElementById('indst-guide')); await stille();
   tjek('guide: Vis guiden igen fra Indstillinger', aaben(s5.d, 'dlg-guide') && !aaben(s5.d, 'dlg-indst') && s5.d.querySelector('#dlg-guide .indhold h2').textContent === 'Sådan arbejder Grimnir');
   tjek('guide: listen i trin 2 viser ordbogens domæne', (() => { klik(s5.w, s5.d.querySelectorAll('#dlg-guide .fod button')[2]); return s5.d.querySelector('#dlg-guide .guide-liste').textContent.includes('kontor.test'); })());
 })();
@@ -1451,9 +1476,9 @@ await (async () => {
   w.Tema.saet('system');
   tjek('Indstillinger: følger Vis-fanen', radio('indst-tema', 'system').checked && radio('indst-sprog', 'da').checked);
   fr.checked = true;
-  fr.dispatchEvent(new w.Event('change', { bubbles: true })); await vent(5);
+  fr.dispatchEvent(new w.Event('change', { bubbles: true })); await stille();
   ud.value = '30';
-  ud.dispatchEvent(new w.Event('change', { bubbles: true })); await vent(5);
+  ud.dispatchEvent(new w.Event('change', { bubbles: true })); await stille();
   const g = s.kald.filter(k => k[0] === 'indstillinger_gem');
   tjek('Indstillinger: hvert valg gemmes straks i Rust', g.length === 2 && g[0][1].indstillinger.masker_fremmede === true && g[1][1].indstillinger.udloeb_dage === 30 && g[1][1].indstillinger.masker_fremmede === true && rust.ob.indst.udloeb_dage === 30);
   tjek('Indstillinger: tema og sprog gemmes ikke i Rust', g.every(k => !('tema' in k[1].indstillinger) && !('sprog' in k[1].indstillinger)));
@@ -1461,25 +1486,25 @@ await (async () => {
   // Gælder en ny sag: den åbne sag beholder sine valg; efter Nulstil har den nye sag indstillingernes.
   const sek = d.querySelector('section[data-visning="masker"]');
   indsaet(w, sek.querySelector('.tomt'), TEKST);
-  await vent(10); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
-  s.tast('Enter', { metaKey: true }); await vent(10);
+  await stille(); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
+  s.tast('Enter', { metaKey: true }); await stille();
   klik(w, d.getElementById('sag-knap'));
   tjek('sagens dialog: valgene for den åbne sag (som før indstillingen)', aaben(d, 'dlg-sag') && !d.getElementById('sag-valg').hidden && !d.getElementById('sag-fremmede').checked && d.getElementById('sag-oktet').checked);
   tjek('sagens dialog: en ændring gælder kun nye værdier, og det står der', d.getElementById('sag-valg-hj').textContent === 'Sagen har allerede værdier: en ændring gælder kun nye værdier.');
-  klik(w, d.getElementById('sag-nulstil')); await vent(10);
+  klik(w, d.getElementById('sag-nulstil')); await stille();
   indsaet(w, sek.querySelector('pre.tekst'), TEKST);
-  await vent(10); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
-  s.tast('Enter', { metaKey: true }); await vent(10);
+  await stille(); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
+  s.tast('Enter', { metaKey: true }); await stille();
   klik(w, d.getElementById('sag-knap'));
   tjek('ny sag: får indstillingerne (fremmede adresser maskeres)', d.getElementById('sag-fremmede').checked && d.getElementById('sag-oktet').checked);
   const sv = d.getElementById('sag-oktet');
   sv.checked = false;
-  sv.dispatchEvent(new w.Event('change', { bubbles: true })); await vent(10);
+  sv.dispatchEvent(new w.Event('change', { bubbles: true })); await stille();
   const vk = s.kald.find(k => k[0] === 'sag_valg');
   tjek('sagens dialog: en ændring kalder sag_valg med begge valg', vk && vk[1].maskerFremmede === true && vk[1].bevarSidsteOktet === false && !d.getElementById('sag-oktet').checked);
   klik(w, d.querySelector('#dlg-sag [data-svar="luk"]'));
   // Standardudløbet foreslås i Ny sag.
-  w.Grimnir.vis('sager'); await vent(5);
+  w.Grimnir.vis('sager'); await stille();
   klik(w, knapI(d, 'sager', 'ny-sag'));
   tjek('Ny sag: standardudløbet (30 dage) er foreslået', d.getElementById('ny-sag-udloeb').value === datoOm(30));
   klik(w, d.querySelector('#dlg-ny-sag [data-svar="annuller"]'));
@@ -1490,7 +1515,7 @@ await (async () => {
   s2.emit('menu', 'indstillinger');
   const fr2 = s2.d.getElementById('indst-fremmede');
   fr2.checked = true;
-  fr2.dispatchEvent(new s2.w.Event('change', { bubbles: true })); await vent(10);
+  fr2.dispatchEvent(new s2.w.Event('change', { bubbles: true })); await stille();
   tjek('Indstillinger: en fejl står i dialogen, og valget springer tilbage', s2.d.getElementById('dlg-indst-fejl').textContent === 'Indstillingen blev ikke gemt: disken kunne ikke bruges (PermissionDenied).' && !fr2.checked);
 })();
 
@@ -1513,15 +1538,20 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
   const gemt = [];
   const pause = () => new Promise(res => setTimeout(res, forsinkelse));
   const info = navn => ({ navn, bytes: 12345678, tegnsaet: 'utf16le', linjeskift: 'crlf', linjer: antal + 2, uddrag: 'Password=Sommer2026!;\r\nsrcip=10.20.0.2 msg=ok\r\n', ikke_vist: 1234567 });
-  const side = sv => {
+  const side = (sv, med) => {
     const q = (sv.soeg || '').trim().toLowerCase(), vist = new Set(sv.vist || []);
     const alle = RAEKKER.map(x => ({ ...x, valgt: valgt.get(x.id) }));
     const passer = x => (sv.filter === 'tjek' ? x.status === 'tjek' : sv.filter === 'hemmelig' ? x.hemmelig : sv.filter === 'seneste' ? x.kendt : true)
       && (!q || x.koder.some(k => k.toLowerCase().includes(q)) || ((!x.hemmelig || vist.has(x.id)) && x.vaerdier.some(v => v.toLowerCase().includes(q))));
     const f = alle.filter(passer);
+    // V-OPBYG.7 N3: som Rust (side_af_med): med en række er siden det mindste multiplum af antal, der når den, og
+    // svaret har rækkens plads (null, når filteret eller søgningen skjuler den).
+    const i = med == null ? -1 : f.findIndex(x => x.id === med), plads = i >= 0 ? i : null;
+    const n = plads != null && plads >= sv.antal ? sv.antal * (Math.floor(plads / sv.antal) + 1) : sv.antal;
     return {
+      plads,
       // V-OPBYG.4 N1: som Rust (raekke_ud): en hemmelighed uden sin værdi.
-      raekker: f.slice(0, sv.antal).map(x => (x.hemmelig ? { ...x, vaerdier: [] } : x)), i_alt: f.length, valgte: alle.filter(x => x.valgt).length,
+      raekker: f.slice(0, n).map(x => (x.hemmelig ? { ...x, vaerdier: [] } : x)), i_alt: f.length, valgte: alle.filter(x => x.valgt).length,
       antal: { alle: alle.length, tjek: alle.filter(x => x.status === 'tjek').length, hemmelig: alle.filter(x => x.hemmelig).length, seneste: 0, status_tjek: alle.filter(x => x.status === 'tjek').length },
     };
   };
@@ -1536,7 +1566,7 @@ function falskFilRust({ antal = 1200, rester = [], forsinkelse = 0, kopierbar = 
       valgt = new Map(RAEKKER.map(x => [x.id, rort ? (new Map(rort).has(x.id) ? new Map(rort).get(x.id) : x.standard) : fravalgt ? !fravalgt.includes(x.id) : x.standard]));
       return { side: side(sv), fejl: [], advarsler: [], bytes: 12345678, linjer: antal + 2, fravalgt: RAEKKER.filter(x => !valgt.get(x.id)).map(x => x.id) };
     },
-    fil_raekker: ({ side: sv }) => side(sv),
+    fil_raekker: ({ side: sv, med }) => side(sv, med),
     raekke_vaerdi: ({ fil: f, id }) => { const x = f ? RAEKKER.find(y => y.id === id && y.hemmelig) : null; if (!x) throw { art: 'ukendt_raekke' }; return { id, vaerdier: [...x.vaerdier] }; },
     fil_gem_og_masker: async () => {
       await pause();
@@ -1584,7 +1614,7 @@ await (async () => {
   const rust = falskFilRust();
   const s = side({ rust, foer: w => Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async t => { skrevet.push(t); } }, configurable: true }) });
   const { d, w } = s;
-  await vent(5);
+  await stille();
   const G = w.GrimnirMaskering;
   const sek = d.querySelector('section[data-visning="masker"]');
   tjek('Maskér: Åbn fil er aktiv fra start, med genvejen ⌘O', kommandoAktiv(d, 'masker', 'aabn-fil') && knapI(d, 'masker', 'aabn-fil').title === 'Genvej: ⌘O');
@@ -1592,7 +1622,7 @@ await (async () => {
   tjek('Maskér: Gem maskeret fil er nedtonet uden fil, med forklaring', !kommandoAktiv(d, 'masker', 'gem-fil') && forklaring(knapI(d, 'masker', 'gem-fil')) === 'Åbn en fil først; en indsat tekst kopieres i stedet');
   tjek('V-KVIT.1: Maskér: Kopiér kvittering er nedtonet før en maskering, med forklaring', !kommandoAktiv(d, 'masker', 'kvittering') && forklaring(knapI(d, 'masker', 'kvittering')) === 'Maskér teksten først');
   s.emit('menu', 'aabn');
-  await vent(10);
+  await stille();
   tjek('Arkiv → Åbn… (⌘O): fil_aabn for Maskér', s.kald.some(k => k[0] === 'fil_aabn' && k[1].visning === 'masker') && G.M.st.fil && G.M.st.fil.navn === 'app.log');
   const fi = sek.querySelector('.vl .filinfo');
   tjek('værktøjslinjen: filnavn, størrelse, tegnsæt og linjeskift', fi && !fi.hidden && fi.textContent === 'app.log11,8 MBUTF-16 LECRLF', fi && fi.textContent);
@@ -1611,25 +1641,25 @@ await (async () => {
   // V-OPBYG.1: ⌘↵ er Maskér, når analysen er der (filen analyseres ved åbningen), så filen er maskeret her.
   tjek('V-OPBYG.2 N4: fodlinjen: værdier, maskeret og bevaret efter maskeringen (fra Rust)', d.getElementById('fod-venstre').textContent === '1200 værdier · 1199 maskeret · 1 bevaret', d.getElementById('fod-venstre').textContent);
   sek.querySelector('.flere button').click();
-  await vent(5);
+  await stille();
   tjek('Vis flere: fil_raekker med 1000', s.kald.some(k => k[0] === 'fil_raekker' && k[1].side.antal === 1000) && fundRaekker(d).length === 1000);
   const soeg = sek.querySelector('.vl input[type="search"]');
   soeg.value = '10.20.4.150';
   soeg.dispatchEvent(new w.Event('input', { bubbles: true }));
-  await vent(5);
+  await stille();
   tjek('søgning dækker alle rækker: en adresse langt ude i filen findes', fundRaekker(d).length === 1 && fundRaekker(d)[0].textContent.includes('10.20.4.150') && s.kald.some(k => k[0] === 'fil_raekker' && k[1].side.soeg === '10.20.4.150'));
   soeg.value = 'sommer';
   soeg.dispatchEvent(new w.Event('input', { bubbles: true }));
-  await vent(5);
+  await stille();
   tjek('søgning: en skjult hemmelighed findes ikke på værdien', fundRaekker(d).length === 0);
   soeg.value = '';
   soeg.dispatchEvent(new w.Event('input', { bubbles: true }));
-  await vent(5);
+  await stille();
   d.querySelector('.navdel[data-visning="masker"] [data-punkt="hemmelig"]').click();
-  await vent(5);
+  await stille();
   tjek('filteret Hemmeligheder hentes fra Rust', fundRaekker(d).length === 1 && s.kald.some(k => k[0] === 'fil_raekker' && k[1].side.filter === 'hemmelig'));
   d.querySelector('.navdel[data-visning="masker"] [data-punkt="alle"]').click();
-  await vent(5);
+  await stille();
   const cb = raekkeMed(d, 70).querySelector('input[type="checkbox"]');
   cb.checked = false;
   cb.dispatchEvent(new w.Event('change', { bubbles: true }));
@@ -1637,27 +1667,27 @@ await (async () => {
   const fa2 = s.kald.filter(k => k[0] === 'fil_analyser').pop();
   tjek('et fravalg sendes til Rust (fil_analyser med fravalgt)', fa2[1].fravalgt.includes(70) && d.getElementById('fod-venstre').textContent === '1200 værdier · 1198 maskeres · 2 bevares', d.getElementById('fod-venstre').textContent);
   s.tast('Enter', { metaKey: true });
-  await vent(10);
+  await stille();
   tjek('Gem og maskér: fil_gem_og_masker uden tekst', s.kald.some(k => k[0] === 'fil_gem_og_masker' && !('tekst' in k[1]) && k[1].fravalgt.includes(70)));
   tjek('efter maskeringen: det maskerede uddrag vises', sek.querySelector('pre.tekst').textContent.startsWith('Password=GRIMNIR_SECRET_0001') && sek.querySelector('.afkortet').textContent.includes('1.234.000'));
   tjek('Gem maskeret fil og Kopiér er aktive (⌘S og ⇧⌘C)', kommandoAktiv(d, 'masker', 'gem-fil') && knapI(d, 'masker', 'gem-fil').title === 'Genvej: ⌘S' && kommandoAktiv(d, 'masker', 'kopier'));
   knapI(d, 'masker', 'kopier').click();
-  await vent(10);
+  await stille();
   tjek('Kopiér: hele resultatet hentes fra Rust (fil_kopi) og kopieres', s.kald.some(k => k[0] === 'fil_kopi' && k[1].visning === 'masker') && skrevet.pop() === 'MASKERET-HELE-FILEN');
   tjek('V-LAAS.4: Kopiér af en maskeret fil melder intet til Rust', !s.kald.some(k => k[0] === 'udklip_kopieret'));
   // V-KVIT.1: kvitteringen for en fil.
   tjek('V-KVIT.1: en maskeret fil: Kopiér kvittering er aktiv', kommandoAktiv(d, 'masker', 'kvittering'));
   knapI(d, 'masker', 'kvittering').click();
-  await vent(10);
+  await stille();
   tjek('V-KVIT.1: en maskeret fil: kvitteringen hentes med fil true og kopieres', JSON.stringify(s.kald.filter(k => k[0] === 'kvittering').map(k => k[1])) === '[{"fil":true,"sprog":"da"}]' && skrevet.pop() === 'KVITTERING da fil\n' && sek.querySelector('.besked').textContent.startsWith('Kvitteringen er kopieret.'));
   tjek('V-KVIT.1: en maskeret fil: kvitteringen meldes ikke til Rust, og filens resultat hentes ikke (fil_kopi kun én gang)', !s.kald.some(k => k[0] === 'udklip_kopieret') && s.kald.filter(k => k[0] === 'fil_kopi').length === 1);
   s.emit('menu', 'gem');
-  await vent(10);
+  await stille();
   tjek('Arkiv → Gem… (⌘S): fil_gem for Maskér uden "alligevel"', rust.fil.gemt.length === 1 && rust.fil.gemt[0].join() === 'masker,false' && sek.querySelector('.besked').textContent === 'Gemt som app.maskeret.log.');
   tjek('ingen kommando har fået en sti eller hele filen', s.kald.every(k => !/sti|path|\//i.test(JSON.stringify(Object.keys(k[1]))) && !('tekst' in k[1] && /^fil_/.test(k[0]))));
   // En indsat tekst tager over: filen slippes i Rust.
   indsaet(w, sek.querySelector('pre.tekst'), TEKST);
-  await vent(5);
+  await stille();
   tjek('indsæt efter en fil: fil_luk, og værktøjslinjen viser ingen fil', s.kald.some(k => k[0] === 'fil_luk' && k[1].visning === 'masker') && G.M.st.fil === null && fi.hidden && G.M.st.tekst === TEKST);
 })();
 
@@ -1666,20 +1696,20 @@ await (async () => {
   const rust = falskFilRust({ antal: 3, rester: [{ art: 'original', type_: 'hemmelighed', tekst: 'SOMMER2026!', antal: 1, linje: 4 }], kopierbar: false });
   const s = side({ rust });
   const { d } = s;
-  await vent(5);
+  await stille();
   const sek = d.querySelector('section[data-visning="masker"]');
   knapI(d, 'masker', 'aabn-fil').click();
-  await vent(10);
-  await vent(10); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
-  s.tast('Enter', { metaKey: true }); await vent(10);
+  await stille();
+  await stille(); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
+  s.tast('Enter', { metaKey: true }); await stille();
   tjek('rester: banneret om rester står', sek.textContent.includes('Lækagetjekket fandt 1 sted i resultatet, der stadig ligner en følsom værdi'));
   tjek('over 5 MB: Kopiér er nedtonet med forklaring', !kommandoAktiv(d, 'masker', 'kopier') && forklaring(knapI(d, 'masker', 'kopier')) === 'Over 5 MB kan ikke kopieres; gem resultatet som fil');
   knapI(d, 'masker', 'gem-fil').click();
-  await vent(5);
+  await stille();
   const alligevel = [...sek.querySelectorAll('.ban button')].find(b => b.textContent === 'Gem alligevel');
   tjek('Gem maskeret fil med rester: intet gemt, et ekstra tryk kræves', rust.fil.gemt.length === 0 && !s.kald.some(k => k[0] === 'fil_gem') && alligevel && sek.textContent.includes('står i klartekst i filen'));
   alligevel.click();
-  await vent(10);
+  await stille();
   tjek('Gem alligevel: fil_gem med ok', rust.fil.gemt.length === 1 && rust.fil.gemt[0].join() === 'masker,true');
 })();
 
@@ -1688,7 +1718,7 @@ await (async () => {
   const rust = falskFilRust({ antal: 3, forsinkelse: 1300 });
   const s = side({ rust });
   const { d } = s;
-  await vent(5);
+  await stille();
   const sek = d.querySelector('section[data-visning="masker"]');
   knapI(d, 'masker', 'aabn-fil').click();
   await vent(50);
@@ -1709,7 +1739,7 @@ await (async () => {
   const rust = falskFilRust({ antal: 3 });
   const s = side({ rust });
   const { d, w } = s;
-  await vent(5);
+  await stille();
   const G = w.GrimnirMaskering;
   const flade = d.querySelector('section[data-visning="masker"] .flade');
   s.emit('fil-traek', true);
@@ -1718,23 +1748,23 @@ await (async () => {
   tjek('træk over vinduet: fladen viser, at den tager imod', tomFlade.classList.contains('tomt-slip') && !tomFlade.hidden);
   rust.fil.sluppet = 'sluppet.log';
   s.emit('fil-sluppet', { navn: 'sluppet.log', fejl: null });
-  await vent(10);
+  await stille();
   tjek('slip én fil: fil_aabn_sluppet i Maskér, og filen er åben', !flade.hasAttribute('data-traek') && !tomFlade.classList.contains('tomt-slip') && s.kald.some(k => k[0] === 'fil_aabn_sluppet' && k[1].visning === 'masker') && G.M.st.fil && G.M.st.fil.navn === 'sluppet.log');
   s.emit('fil-sluppet', { navn: null, fejl: 'flere' });
   // V-OPBYG.3: venter på beskeden i stedet for 5 ms (fejlede én gang af tre under belastning); påstanden er uændret.
   await ventTil(w, () => d.querySelector('section[data-visning="masker"]').textContent.includes('Træk én fil ad gangen ind'));
   tjek('slip flere filer: afvist med besked', d.querySelector('section[data-visning="masker"]').textContent.includes('Træk én fil ad gangen ind'));
   s.w.location.hash = 'demasker';
-  await vent(5);
+  await stille();
   s.emit('fil-sluppet', { navn: null, fejl: 'mappe' });
-  await vent(5);
+  await stille();
   tjek('slip en mappe i Demaskér: afvist med besked dér', d.querySelector('section[data-visning="demasker"]').textContent.includes('En mappe kan ikke åbnes'));
   rust.fil.sluppet = 'svar.log';
   s.emit('fil-sluppet', { navn: 'svar.log', fejl: null });
-  await vent(10);
+  await stille();
   tjek('slip i Demaskér: filen åbnes i Demaskér', s.kald.some(k => k[0] === 'fil_aabn_sluppet' && k[1].visning === 'demasker') && G.D.st.fil && G.D.st.fil.navn === 'svar.log');
   s.w.location.hash = 'sager';
-  await vent(5);
+  await stille();
   rust.fil.sluppet = 'fra-sager.log';
   s.emit('fil-sluppet', { navn: 'fra-sager.log', fejl: null });
   await vent(20);
@@ -1747,15 +1777,15 @@ await (async () => {
   const rust = falskFilRust({ antal: 3 });
   const s = side({ hash: '#demasker', rust, foer: w => Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async t => { skrevet.push(t); } }, configurable: true }) });
   const { d, w } = s;
-  await vent(5);
+  await stille();
   w.GrimnirMaskering.saetSag(3);
   const sek = d.querySelector('section[data-visning="demasker"]');
   tjek('Demaskér: Åbn fil aktiv; Gem som fil nedtonet med forklaring', kommandoAktiv(d, 'demasker', 'aabn-fil') && !kommandoAktiv(d, 'demasker', 'gem-fil') && forklaring(knapI(d, 'demasker', 'gem-fil')) === 'Åbn en fil først; en indsat tekst kopieres i stedet');
   s.emit('menu', 'aabn');
-  await vent(10);
+  await stille();
   tjek('Demaskér: fil_aabn for Demaskér, filinfo i værktøjslinjen', s.kald.some(k => k[0] === 'fil_aabn' && k[1].visning === 'demasker') && sek.querySelector('.vl .filinfo').textContent.startsWith('app.maskeret.log'));
   s.tast('Enter', { metaKey: true });
-  await vent(10);
+  await stille();
   tjek('Demaskér: fil_demasker uden tekst; de rigtige værdier i uddrag', s.kald.some(k => k[0] === 'fil_demasker' && !('tekst' in k[1])) && sek.querySelectorAll('pre.tekst')[1].textContent === 'Password=Sommer2026!;\r\n');
   {
     // V-PUDS.1 N4: en fil: Antal og Linje i rækken "Sat tilbage" kommer fra Rust (fil_demasker → tilbage).
@@ -1765,22 +1795,22 @@ await (async () => {
   }
   tjek('Demaskér: Gem som fil er aktiv (⌘S)', kommandoAktiv(d, 'demasker', 'gem-fil') && knapI(d, 'demasker', 'gem-fil').title === 'Genvej: ⌘S');
   knapI(d, 'demasker', 'gem-fil').click();
-  await vent(5);
+  await stille();
   // V-KITBRUG.1: kittets bekræftelse (Kit.bekraeft) laves, når den åbner, og fjernes igen, når den lukker.
   const dlg = () => d.getElementById('dlg-demfil');
   const aaben = () => Boolean(dlg() && dlg().open);
   tjek('Gem som fil: først en bekræftelse om klartekst; intet gemt endnu', aaben() && dlg().textContent.includes('rigtige værdier i klartekst') && !s.kald.some(k => k[0] === 'fil_gem') && d.activeElement === dlg().querySelector('[data-svar="nej"]'));
   dlg().querySelector('[data-svar="nej"]').click();
-  await vent(5);
+  await stille();
   tjek('Annullér: intet gemt', !aaben() && !s.kald.some(k => k[0] === 'fil_gem'));
   s.emit('menu', 'gem');
-  await vent(5);
+  await stille();
   tjek('⌘S i Demaskér: også først bekræftelsen', aaben() && !s.kald.some(k => k[0] === 'fil_gem'));
   dlg().querySelector('[data-svar="ja"]').click();
-  await vent(10);
+  await stille();
   tjek('Bekræftet: fil_gem for Demaskér med ok, og besked med filnavnet', !aaben() && rust.fil.gemt.length === 1 && rust.fil.gemt[0].join() === 'demasker,true' && sek.querySelector('.besked').textContent === 'Gemt som app.demaskeret.log.');
   knapI(d, 'demasker', 'kopier-resultat').click();
-  await vent(10);
+  await stille();
   tjek('Kopiér resultat: fra Rust (fil_kopi)', skrevet.pop() === 'RIGTIGE-HELE-FILEN');
   tjek('V-LAAS.4: Kopiér af en demaskeret fil melder det til Rust (fil true)', JSON.stringify(s.kald.filter(k => k[0] === 'udklip_kopieret').map(k => k[1])) === '[{"fil":true}]');
 })();
@@ -1790,20 +1820,20 @@ await (async () => {
   const rust = falskFilRust({ antal: 3 });
   const s = side({ platform: 'windows', rust });
   const { d, w } = s;
-  await vent(5);
+  await stille();
   tjek('Windows: Åbn fil har genvejen Ctrl+O', knapI(d, 'masker', 'aabn-fil').title === 'Genvej: Ctrl+O');
   s.tast('o', { ctrlKey: true, code: 'KeyO' });
-  await vent(10);
+  await stille();
   tjek('Windows: Ctrl+O åbner en fil i Maskér', w.GrimnirMaskering.M.st.fil && w.GrimnirMaskering.M.st.fil.navn === 'app.log');
-  s.tast('Enter', { ctrlKey: true }); await vent(10);
-  s.tast('Enter', { ctrlKey: true }); await vent(10);
+  s.tast('Enter', { ctrlKey: true }); await stille();
+  s.tast('Enter', { ctrlKey: true }); await stille();
   s.tast('s', { ctrlKey: true, code: 'KeyS' });
-  await vent(10);
+  await stille();
   tjek('Windows: Ctrl+S gemmer den maskerede fil', rust.fil.gemt.length === 1 && rust.fil.gemt[0][0] === 'masker');
   const s2 = side({ rust: falskFilRust({ antal: 3 }) });
-  await vent(5);
+  await stille();
   s2.tast('o', { ctrlKey: true, code: 'KeyO' });
-  await vent(10);
+  await stille();
   tjek('macOS: Ctrl+O gør intet (menuen har ⌘O)', !s2.kald.some(k => k[0] === 'fil_aabn'));
 })();
 
@@ -1818,12 +1848,12 @@ await (async () => {
   const knap = [...sek.querySelectorAll('.ban button')].find(b => b.textContent === 'Start forfra');
   tjek('Ordbog, der ikke kan åbnes: banneret har Start forfra', Boolean(knap));
   knap.click();
-  await vent(5);
+  await stille();
   const dlg = d.getElementById('dlg-oforfra');
   const idag = (() => { const x = new Date(); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; })();
   tjek('Start forfra: bekræftelse med det nye filnavn; filen slettes ikke', dlg.open && dlg.textContent.includes(`ordbog.${idag}.ulaeselig`) && dlg.textContent.includes('slettes ikke') && !s.kald.some(k => k[0] === 'ordbog_start_forfra'));
   dlg.querySelector('[data-svar="ja"]').click();
-  await vent(10);
+  await stille();
   tjek('Start forfra: kaldt med dagens dato; ordbogen er tom og kan ændres', s.kald.some(k => k[0] === 'ordbog_start_forfra' && k[1].dato === idag) && !dlg.open && sek.textContent.includes(`Den gamle ordbog hedder nu ordbog.${idag}.ulaeselig`) && kommandoAktiv(d, 'ordbog', 'tilfoej-post'));
 })();
 await (async () => {
@@ -1832,7 +1862,7 @@ await (async () => {
   const { d, w } = s;
   await vent(20);
   knapI(d, 'ordbog', 'tilfoej-post').click();
-  await vent(5);
+  await stille();
   const v = d.getElementById('opost-vaerdi'), adv = d.getElementById('opost-vaerdi-adv');
   vaelgType(w, d.getElementById('opost-type'), 'ord');
   v.value = 'Sommer2026!';
@@ -1852,7 +1882,7 @@ await (async () => {
   v.value = 'Vinter2027#';
   v.dispatchEvent(new w.Event('input', { bubbles: true }));
   d.getElementById('opost-ok').click();
-  await vent(10);
+  await stille();
   tjek('Tilføj post: advarslen blokerer ikke (posten tilføjes)', rust.ob.db.some(p => p.vaerdi === 'Vinter2027#') && !d.getElementById('dlg-opost').open);
 })();
 
@@ -1865,7 +1895,7 @@ await (async () => {
   const sek = d.querySelector('section[data-visning="masker"]');
   indsaet(w, sek.querySelector('.tomt'), TEKST);
   s.tast('Enter', { metaKey: true });
-  await vent(10);
+  await stille();
   const tr = raekkeMed(d, 24);
   const [altid, aldrig] = [...tr.querySelectorAll('.ordbogknapper button')];
   tjek('R1: Altid og Aldrig er ikonknapper med ikon, navn, title og skjult ord', [altid, aldrig].every(b => b.classList.contains('ikonknap') && b.querySelector('svg.ik') && b.getAttribute('aria-label').length > 10 && b.title.length > 10 && b.querySelector('.skjult-tekst')) && altid.title === 'Maskér altid: læg værdien i ordbogen' && aldrig.title === 'Maskér aldrig: læg værdien i ordbogen');
@@ -1878,25 +1908,25 @@ await (async () => {
   tjek('R1: Maskér-tabellen har klassen fundtabel (kolonnerne i app.css)', sek.querySelector('table.tabel.fundtabel'));
   // Rester: teksten forkortes og står i title.
   s.tast('Enter', { metaKey: true });
-  await vent(10);
+  await stille();
   w.GrimnirMaskering.M.st.visRester = true;
   w.GrimnirMaskering.M.tegn();
   // Demaskér: tabellen har klassen advtabel, og koden står i title.
   w.location.hash = 'demasker';
-  await vent(5);
+  await stille();
   const dsek = d.querySelector('section[data-visning="demasker"]');
   indsaet(w, dsek.querySelector('.tomt'), 'svar med h0099\n');
   s.tast('Enter', { metaKey: true });
-  await vent(10);
+  await stille();
   const at = dsek.querySelector('table.advtabel');
   tjek('R1: Demaskér-tabellen har klassen advtabel og koden forkortet med title', at && [...at.querySelectorAll('tbody td:nth-child(2) .mono')].every(k => k.classList.contains('kort') && k.title === k.textContent && k.title.length > 0));
   // Sager og Ordbog: navnet og værdien forkortes og står i title.
   w.location.hash = 'sager';
-  await vent(10);
+  await stille();
   const navn = d.querySelector('section[data-visning="sager"] .sagtabel tbody tr .sagnavn .kort');
   tjek('R1: Sager: navnet forkortes og står i title', navn && navn.title === navn.textContent && navn.textContent.length > 0);
   w.location.hash = 'ordbog';
-  await vent(10);
+  await stille();
   const ov = d.querySelector('section[data-visning="ordbog"] .ordbogtabel tbody tr[data-id] .mono');
   tjek('R1: Ordbog: værdien forkortes (mono) og står i title', ov && ov.classList.contains('kort') && ov.title === ov.textContent);
   const note = [...d.querySelectorAll('section[data-visning="ordbog"] .ordbogtabel tbody tr[data-id] .muted')].find(n => n.textContent);
@@ -1907,7 +1937,7 @@ await (async () => {
 await (async () => {
   const s = side({ hash: '#masker', rust: falskRust() });
   const { d, w } = s;
-  await vent(5);
+  await stille();
   w.GrimnirMaskering.M.st.resultat = { maskeret: 'x', rester: [{ art: 'nyt_fund', type_: 'hemmelighed', tekst: 'Hemmelig42', antal: 1, linje: 1 }], advarsler: [] };
   w.GrimnirMaskering.M.st.analyse = { raekker: [], fejl: [], advarsler: [], linjer: 1 };
   w.GrimnirMaskering.M.st.tekst = 'x';
@@ -1922,7 +1952,7 @@ await (async () => {
 await (async () => {
   const s = side({ hash: '#demasker', rust: falskRust() });
   const { d, w } = s;
-  await vent(5);
+  await stille();
   const D = w.GrimnirMaskering.D;
   D.st.tekst = 'Svar\r\nFW-YDRE og FW-YDRE\r\nFw-Ydre\r\nfw-ydre\r\n';
   D.st.bytes = D.st.tekst.length;
@@ -1948,10 +1978,10 @@ await (async () => {
 await (async () => {
   const s = side({ rust: falskRust() });
   const { d, w } = s;
-  await vent(5);
+  await stille();
   const sek = d.querySelector('section[data-visning="masker"]');
   indsaet(w, sek.querySelector('.tomt'), TEKST);
-  await vent(5);
+  await stille();
   const pre = sek.querySelector('pre.tekst');
   const knap = sek.querySelector('.panel-hoved .ombryd-knap');
   tjek('R2: Maskér: tekstpanelet har "Ombryd" i panelhovedet, ikke trykket, med navn og title', knap && knap.textContent === 'Ombryd' && knap.getAttribute('aria-pressed') === 'false' && knap.getAttribute('aria-label') === 'Ombryd lange linjer' && knap.title.includes('huskes ikke') && !pre.classList.contains('ombryd'));
@@ -1962,7 +1992,7 @@ await (async () => {
   knap.click();
   tjek('R2: valget står ikke i localStorage', !JSON.stringify(Object.entries(w.localStorage)).toLowerCase().includes('ombryd'));
   const s2 = side({ rust: falskRust() });
-  await vent(5);
+  await stille();
   tjek('R2: ved næste start er tekstfeltet uden ombrydning', !s2.d.querySelector('section[data-visning="masker"] pre.tekst').classList.contains('ombryd') && s2.d.querySelector('section[data-visning="masker"] .ombryd-knap').getAttribute('aria-pressed') === 'false');
   const dk = [...d.querySelectorAll('section[data-visning="demasker"] .panel-hoved .ombryd-knap')];
   tjek('R2: Demaskér: begge tekstpaneler har hver sin "Ombryd"', dk.length === 2 && dk.every(b => b.closest('.panel').querySelector('pre.tekst')));
@@ -1977,18 +2007,18 @@ await (async () => {
 await (async () => {
   const s = side({ rust: falskRust() });
   const { d, w } = s;
-  await vent(5);
+  await stille();
   indsaet(w, d.querySelector('section[data-visning="masker"] .tomt'), TEKST);
-  await vent(5); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
-  s.tast('Enter', { metaKey: true }); await vent(5);
+  await stille(); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
+  s.tast('Enter', { metaKey: true }); await stille();
   w.location.hash = 'demasker';
-  await vent(5);
+  await stille();
   const dsek = d.querySelector('section[data-visning="demasker"]');
   const info = () => dsek.querySelector('.panel .panel-hoved .muted').textContent;
   indsaet(w, dsek.querySelector('.tomt'), 'a\r\nb\r\nc\r\nd\r\n');
   // V-PUDS.3 N5: før "…" til Rust svarede; nu tælles der straks i webvisningen efter Rusts regel (fil::antal_linjer).
   tjek('R3 (V-PUDS.3 N5): Demaskér før demaskering: linjetallet står straks, efter Rusts regel (4 linjer, afsluttende CRLF)', info().startsWith('4 linjer · '), info());
-  s.tast('Enter', { metaKey: true }); await vent(5);
+  s.tast('Enter', { metaKey: true }); await stille();
   tjek('R3: Demaskér efter demaskering: 4 linjer fra Rust (tekst med afsluttende CRLF)', info().startsWith('4 linjer'), info());
   const m = ui('assets/maskering.js');
   tjek('R3 (V-MANUEL.1 N5): webvisningen tæller linjerne uden split på linjeskift (efter Rusts regel, antalLinjer)', !/split\(['"]\\n['"]\)/.test(m) && !/split\(\/\\r\?\\n\//.test(m));
@@ -2063,7 +2093,7 @@ await (async () => {
   await vent(20);
   tjek('V-OPBYG.2 N4: R4: Sager: chippen siger "1 sag"; fodlinjen sagens navn og gemte erstatninger', d.querySelector('section[data-visning="sager"] .vl .chip').textContent === 'i1 sag' && /^Midlertidig sag · \d+ (gemt erstatning|gemte erstatninger)$/.test(d.getElementById('fod-venstre').textContent), d.getElementById('fod-venstre').textContent);
   w.location.hash = 'ordbog';
-  await vent(10);
+  await stille();
   tjek('V-OPBYG.2 N4: R4: Ordbog: chippen siger "1 post"; fodlinjen sagens navn og gemte erstatninger', d.querySelector('section[data-visning="ordbog"] .vl .chip').textContent === 'i1 post' && /^Midlertidig sag · \d+ (gemt erstatning|gemte erstatninger)$/.test(d.getElementById('fod-venstre').textContent), d.getElementById('fod-venstre').textContent);
 })();
 
@@ -2154,15 +2184,15 @@ await (async () => {
   e.clipboardData = { getData: () => 'srv-web01.kontor.test 10.20.0.5' };
   d.dispatchEvent(e);
   s.emit('fil-sluppet', { navn: 'indsat.log', fejl: null });
-  await vent(10);
+  await stille();
   tjek('Lås: ⌘3, indsæt, menuens Åbn og træk og slip gør intet', fremmedeKald(kald, foer).length === 0 && synlige(d).join() === 'masker' && !e.defaultPrevented, JSON.stringify(fremmedeKald(kald, foer)));
   tjek('Lås: stadig intet fra sagerne i DOM\'en', !/Uglebo|Kragevig/.test(altIDom(d)));
   // Om og Indstillinger virker; "Vis guiden igen" er nedtonet med forklaring.
   s.emit('menu', 'om');
-  await vent(5);
+  await stille();
   tjek('Lås: Om virker', d.getElementById('dlg-om').hasAttribute('open'));
   s.emit('menu', 'indstillinger');
-  await vent(5);
+  await stille();
   tjek('Lås: Indstillinger virker', d.getElementById('dlg-indst').hasAttribute('open') && !d.getElementById('dlg-om').hasAttribute('open'));
   tjek('Lås: "Lås efter stilstand" kan vælges, mens der er låst (15 minutter)', d.getElementById('indst-stilstand').value === '15' && !d.getElementById('indst-stilstand').disabled);
   tjek('Lås: "Vis guiden igen" er nedtonet med forklaring', d.getElementById('indst-guide').disabled && /låst/.test(d.getElementById('indst-guide').title));
@@ -2172,19 +2202,19 @@ await (async () => {
   const opFoer = rust.st.opKald.length;
   d.getElementById('laas-afslut').focus();
   d.getElementById('laas-afslut').dispatchEvent(new s.w.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-  await vent(5);
+  await stille();
   tjek('Lås: Enter på Afslut låser ikke op', rust.st.opKald.length === opFoer);
   d.getElementById('laas-afslut').click();
-  await vent(5);
+  await stille();
   tjek('Lås: Afslut kalder program_afslut', rust.st.afsluttet === true);
   // Afvist, så fejl, så ok med Enter.
   rust.st.kue.push({ svar: 'afvist' }, { svar: 'fejl', kode: -1004 }, { svar: 'ok' });
   d.getElementById('laas-op').focus();
   d.getElementById('laas-op').click();
-  await vent(10);
+  await stille();
   tjek('Lås: afvist → stadig låst med besked', laaseskaerm(d) && d.getElementById('laas-besked').textContent === 'Det lykkedes ikke at bekræfte, at det er dig. Grimnir er stadig låst.' && d.getElementById('laas-besked').classList.contains('fejl'));
   s.tast('Enter');
-  await vent(10);
+  await stille();
   tjek('Lås: Enter låser op (her: fejl -1004 → stadig låst, koden står)', laaseskaerm(d) && /-1004/.test(d.getElementById('laas-besked').textContent), d.getElementById('laas-besked').textContent);
   tjek('Lås: stadig ingen kald efter data', rust.st.kaldLaast.length === 0 && !/Uglebo|Kragevig/.test(altIDom(d)));
   s.tast('Enter');
@@ -2195,7 +2225,7 @@ await (async () => {
   tjek('Lås: ok → "Vis guiden igen" virker igen', !d.getElementById('indst-guide').disabled && !d.getElementById('indst-guide').hasAttribute('title'));
   tjek('Lås: alle laas_op-kald var på dansk', rust.st.opKald.every(x => x === 'da') && rust.st.opKald.length === 4, JSON.stringify(rust.st.opKald));
   s.tast('3', { metaKey: true, code: 'Digit3' });
-  await vent(5);
+  await stille();
   tjek('Lås: låst op virker ⌘3 igen', synlige(d).join() === 'noter');
 })();
 await (async () => {
@@ -2227,11 +2257,11 @@ await (async () => {
   tjek('Lås: ikke tilgængelig → låst op', !laaseskaerm(d));
   tjek('Lås: ikke tilgængelig → banner med den aftalte sætning', b && b.classList.contains('info') && b.querySelector('.ord').textContent === 'Denne maskine kan ikke bekræfte, hvem du er. Grimnir er ikke låst.' && b.getAttribute('role') === 'status', b && b.textContent);
   s.tast('3', { metaKey: true, code: 'Digit3' });
-  await vent(10);
+  await stille();
   tjek('Lås: banneret står også efter visningsskift (vedvarende)', d.querySelectorAll('#laas-banner .ban').length === 1 && synlige(d).join() === 'noter');
   // Engelsk: banneret skifter sprog.
   s.w.Sprog.saet('en');
-  await vent(5);
+  await stille();
   tjek('Lås: banneret på engelsk', d.querySelector('#laas-banner .ord').textContent === 'This machine cannot confirm who you are. Grimnir is not locked.');
 })();
 await (async () => {
@@ -2261,11 +2291,11 @@ await (async () => {
   let slip = null;
   rust.st.vent = new Promise(r => { slip = r; });
   d.getElementById('laas-op').click();
-  await vent(5);
+  await stille();
   tjek('Lås: mens døren spørger, er Lås op optaget', d.getElementById('laas-op').disabled && d.getElementById('laas-op').getAttribute('aria-busy') === 'true' && d.getElementById('laas-besked').textContent === 'Venter på Touch ID eller din adgangskode …');
   d.getElementById('laas-op').click();
   s.tast('Enter');
-  await vent(5);
+  await stille();
   slip();
   await vent(20);
   tjek('Lås: to tryk og Enter mens døren spørger → ét kald', rust.st.opKald.length === 2 && !laaseskaerm(d), JSON.stringify(rust.st.opKald));
@@ -2273,7 +2303,7 @@ await (async () => {
 await (async () => {
   // Windows (ingen dør i denne cyklus): hjælpeteksten lover ikke en lås ved start, men nævner stilstand.
   const { d } = side({ platform: 'windows' });
-  await vent(10);
+  await stille();
   tjek('Lås (Windows): hjælpeteksten siger, at Grimnir ikke starter låst her', d.getElementById('indst-stilstand-hj').textContent.startsWith('Denne maskine kan endnu ikke bekræfte, hvem du er, så Grimnir starter ikke låst her.') && /stået stille/.test(d.getElementById('indst-stilstand-hj').textContent));
 })();
 
@@ -2296,7 +2326,7 @@ await (async () => {
     const { d } = s;
     await vent(30);
     s.emit('menu', 'indstillinger');
-    await vent(5);
+    await stille();
     const dlg = d.getElementById('dlg-indst');
     tjek(`V-LAAS.3 (${lang}): Indstillinger har ingen "Lås ved start"`, !d.getElementById('indst-laas') && !dlg.querySelector('input[type="checkbox"][id*="laas"]') && !/ved start|at startup/i.test(dlg.textContent), dlg.textContent.slice(0, 120));
     const sel = d.getElementById('indst-stilstand');
@@ -2314,11 +2344,11 @@ await (async () => {
   const { d, kald } = s;
   await vent(30);
   s.emit('menu', 'indstillinger');
-  await vent(5);
+  await stille();
   const sel = d.getElementById('indst-stilstand');
   sel.value = '5';
   sel.dispatchEvent(new s.w.Event('change', { bubbles: true }));
-  await vent(10);
+  await stille();
   const gemt = kald.filter(([c]) => c === 'indstillinger_gem').map(([, a]) => a.indstillinger);
   tjek('V-LAAS.3: 5 minutter gemmes (laas_efter_min: 5) uden laas_ved_start', gemt.length === 1 && gemt[0].laas_efter_min === 5 && !('laas_ved_start' in gemt[0]) && rust.ob.indst.laas_efter_min === 5, JSON.stringify(gemt));
   tjek('V-LAAS.3: valget står efter gemningen', sel.value === '5');
@@ -2331,11 +2361,11 @@ await (async () => {
   await vent(30);
   tjek('V-LAAS.3: kontrol: låst op, og sagens navn står i DOM\'en', !laaseskaerm(d) && /Uglebo-sagen/.test(altIDom(d)));
   s.emit('menu', 'om');
-  await vent(5);
+  await stille();
   const opFoer = rust.st.opKald.length;
   rust.laasIgen('dvale', { midlertidig_gemt: 'Midlertidig 2026-11-11 09.05.30', midlertidig_fejl: null, gem_fejl: null });
   s.emit('laast', 'dvale');
-  await vent(10);
+  await stille();
   tjek('V-LAAS.3: hændelsen laast genindlæser siden (location.reload)', s.jsdomFejl.some(m => /navigation/.test(m)), JSON.stringify(s.jsdomFejl));
   tjek('V-LAAS.3: visningerne skjules med det samme, før siden er genindlæst', laaseskaerm(d));
   tjek('V-LAAS.3: laast kalder ikke laas_op', rust.st.opKald.length === opFoer);
@@ -2404,28 +2434,28 @@ await (async () => {
   d.dispatchEvent(new w.MouseEvent('pointermove', { bubbles: true }));
   d.dispatchEvent(new w.MouseEvent('pointerdown', { bubbles: true }));
   d.dispatchEvent(new w.WheelEvent('wheel', { bubbles: true }));
-  await vent(5);
+  await stille();
   tjek('V-LAAS.3: tastatur og mus → ét kald til aktivitet inden for 20 sekunder', rust.st.aktivitet === n0 + 1, String(rust.st.aktivitet - n0));
   nu = nu0 + 19999;
   s.tast('b');
-  await vent(5);
+  await stille();
   tjek('V-LAAS.3: 19,999 sekunder efter → intet nyt kald', rust.st.aktivitet === n0 + 1);
   nu = nu0 + 20000;
   d.dispatchEvent(new w.MouseEvent('pointermove', { bubbles: true }));
-  await vent(5);
+  await stille();
   tjek('V-LAAS.3: 20 sekunder efter → nyt kald', rust.st.aktivitet === n0 + 2);
   const l = falskLaasRust({ svar: [{ svar: 'annulleret' }] });
   const ls = side({ rust: l });
   await vent(30);
   ls.tast('x');
   ls.d.dispatchEvent(new ls.w.MouseEvent('pointermove', { bubbles: true }));
-  await vent(5);
+  await stille();
   tjek('V-LAAS.3: mens der er låst, sendes ingen aktivitet', l.st.aktivitet === 0 && laaseskaerm(ls.d));
 })();
 await (async () => {
   // N4: tandhjulet i titellinjen er et tandhjul, ikke solen; solen er stadig ikonet for Lys i Vis-fanen.
   const { w, d } = side();
-  await vent(5);
+  await stille();
   const I = w.Kit.IKONER;
   const tal = JSON.stringify(I.tandhjul).match(/-?\d+(\.\d+)?/g).map(Number);
   tjek('V-LAAS.3: tandhjul er en egen tegning, ikke solen', JSON.stringify(I.tandhjul) !== JSON.stringify(I.sol) && I.tandhjul.some(([el, a]) => el === 'path' && (a.d.match(/L/g) || []).length >= 18 && (a.d.match(/A/g) || []).length === 6), JSON.stringify(I.tandhjul).slice(0, 80));
@@ -2484,28 +2514,28 @@ await (async () => { for (const lang of ['da', 'en']) {
 await (async () => { for (const lang of ['da', 'en']) {
   // Indstillinger: én sætning om udklipsholderen i teksten om låsen (macOS). Windows rydder intet og lover det ikke.
   const s = side({ lager: { 'grimnir-sprog': lang } });
-  await vent(10);
+  await stille();
   s.emit('menu', 'indstillinger');
-  await vent(5);
+  await stille();
   const hj = s.d.getElementById('indst-stilstand-hj').textContent;
   // V-LAAS.5 N1: "når den låser eller afsluttes" / "when it locks or quits".
   const r = lang === 'da' ? /Har du kopieret en demaskeret tekst med Kopiér resultat, fjerner Grimnir den fra udklipsholderen, når den låser eller afsluttes, hvis den stadig ligger der\./ : /If you copied unmasked text with Copy result, Grimnir removes it from the clipboard when it locks or quits, if it is still there\./;
   tjek(`V-LAAS.4/5 (${lang}): Indstillinger siger, at kopieret demaskeret tekst fjernes fra udklipsholderen ved lås og ved afslut`, r.test(hj), hj);
   const win = side({ platform: 'windows', lager: { 'grimnir-sprog': lang } });
-  await vent(10);
+  await stille();
   tjek(`V-LAAS.4 (${lang}, Windows): teksten lover ikke at rydde udklipsholderen`, !/udklipsholder|clipboard/i.test(win.d.getElementById('indst-stilstand-hj').textContent));
 } })();
 await (async () => {
   // En kopi, der ikke lykkedes, meldes ikke.
   const s = side({ hash: '#demasker', rust: falskRust(), foer: w => Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async () => { throw new Error('nægtet'); } }, configurable: true }) });
   const { d, w } = s;
-  await vent(5);
+  await stille();
   w.GrimnirMaskering.saetSag(3);
   indsaet(w, d.querySelector('section[data-visning="demasker"] .tomt'), 'Prøv kunde01 på GRIMNIR_SECRET_0001\n');
   s.tast('Enter', { metaKey: true });
-  await vent(5);
+  await stille();
   knapI(d, 'demasker', 'kopier-resultat').click();
-  await vent(5);
+  await stille();
   tjek('V-LAAS.4: kontrol: demaskeret, og Kopiér er prøvet', s.kald.some(k => k[0] === 'demasker') && d.querySelector('section[data-visning="demasker"] .ban.danger'));
   tjek('V-LAAS.4: en kopi, der fejlede, meldes ikke til Rust', !s.kald.some(k => k[0] === 'udklip_kopieret'));
 })();
@@ -2516,7 +2546,7 @@ await (async () => {
   const NAVN = 'Wi24rd Grimnir', SLOGAN = 'Mask. Share. Restore.', BESKRIVELSE = 'Sensitive data masking tool for logs and scripts';
   const TITEL = `${NAVN} — ${SLOGAN}`;
   const { w } = side();
-  await vent(5);
+  await stille();
   const T = w.Sprog.TEKST;
   tjek('V-LAAS.5: navn, slogan og beskrivelse står præcist som besluttet og ens i begge sprog', ['da', 'en'].every(l => T[l].appNavn === NAVN && T[l].slogan === SLOGAN && T[l].beskrivelse === BESKRIVELSE && T[l].dokTitel === TITEL), JSON.stringify([T.da.appNavn, T.en.slogan, T.en.dokTitel]));
   tjek('V-LAAS.5: tankestregen i titlen er U+2014 med mellemrum om', TITEL.includes(' — ') && T.da.dokTitel.charCodeAt(NAVN.length + 1) === 0x2014);
@@ -2535,7 +2565,7 @@ await (async () => {
 await (async () => { for (const lang of ['da', 'en']) {
   const s = side({ lager: { 'grimnir-sprog': lang } });
   const { d } = s;
-  await vent(10);
+  await stille();
   tjek(`V-LAAS.5 (${lang}): dokumentets titel`, d.title === 'Wi24rd Grimnir — Mask. Share. Restore.', d.title);
   // Titellinjen: navnet fremhævet (b), derefter sloganet nedtonet; Wi24rd står ikke længere for sig.
   const titel = d.querySelector('header.titel');
@@ -2544,7 +2574,7 @@ await (async () => { for (const lang of ['da', 'en']) {
   tjek(`V-LAAS.5 (${lang}): titellinjen har ikke et ekstra "Wi24rd"`, (titel.textContent.match(/Wi24rd/g) || []).length === 1);
   // Om-dialogen: overskriften uændret; navnet, sloganet og beskrivelsen; derunder den forklarende sætning på UI-sproget.
   s.emit('menu', 'om');
-  await vent(5);
+  await stille();
   const om = d.getElementById('dlg-om');
   const linjer = [...om.querySelectorAll('.identitet p')].map(p => p.textContent);
   const omP = om.querySelector('p[data-t="omP"]');
@@ -2566,10 +2596,10 @@ await (async () => { for (const lang of ['da', 'en']) {
   tjek(`V-LAAS.5 (${lang}): guidens første skærm har navn, slogan og beskrivelse øverst`, id && !id.hidden && id === dlg.querySelector('.indhold').firstElementChild && JSON.stringify(linjer) === JSON.stringify(['Wi24rd Grimnir', 'Mask. Share. Restore.', 'Sensitive data masking tool for logs and scripts']), JSON.stringify(linjer));
   tjek(`V-LAAS.5 (${lang}): fokus står stadig på overskriften`, d.activeElement === dlg.querySelector('.indhold h2'));
   klik(w, [...dlg.querySelectorAll('.fod button')][2]);
-  await vent(5);
+  await stille();
   tjek(`V-LAAS.5 (${lang}): de tre linjer står ikke på næste skærm`, id && id.hidden);
   klik(w, [...dlg.querySelectorAll('.fod button')][1]);
-  await vent(5);
+  await stille();
   tjek(`V-LAAS.5 (${lang}): tilbage på første skærm står de igen`, id && !id.hidden);
 } })();
 await (async () => {
@@ -2626,7 +2656,7 @@ await (async () => {
   for (const lang of ['da', 'en']) {
     const s = side({ rust: falskRust(), lager: { 'grimnir-sprog': lang } });
     const { d, w } = s;
-    await vent(5);
+    await stille();
     for (const [n, ventet] of SAGP[lang]) {
       w.GrimnirMaskering.saetSag(n);
       d.getElementById('sag-knap').click();
@@ -2648,7 +2678,7 @@ await (async () => {
     const sek = d.querySelector('section[data-visning="masker"]');
     indsaet(w, sek.querySelector('.tomt'), TEKST);
     s.tast('Enter', { metaKey: true });
-    await vent(10);
+    await stille();
     const [altid, aldrig] = [...raekkeMed(d, 24).querySelectorAll('.ordbogknapper button')];
     const ord = b => b.querySelector('.skjult-tekst') && b.querySelector('.skjult-tekst').textContent;
     const V = lang === 'da'
@@ -2673,15 +2703,15 @@ await (async () => {
   // N4: indsat tekst: Antal og Linje for hver kode, der er sat tilbage, fra Rust (tilbage); CRLF og to gange på én linje.
   const s = side({ rust: falskRust() });
   const { d, w } = s;
-  await vent(5);
+  await stille();
   indsaet(w, d.querySelector('section[data-visning="masker"] .tomt'), TEKST);
-  await vent(5); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
-  s.tast('Enter', { metaKey: true }); await vent(5);
+  await stille(); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
+  s.tast('Enter', { metaKey: true }); await stille();
   w.location.hash = 'demasker';
-  await vent(5);
+  await stille();
   const dsek = d.querySelector('section[data-visning="demasker"]');
   indsaet(w, dsek.querySelector('.tomt'), 'Svar fra leverandøren\r\nuser0001 og user0001 igen\r\nGRIMNIR_SECRET_0001\r\n');
-  s.tast('Enter', { metaKey: true }); await vent(5);
+  s.tast('Enter', { metaKey: true }); await stille();
   const raekke = kode => { const tr = [...dsek.querySelectorAll('.advtabel tbody tr')].find(x => x.children[1] && x.children[1].textContent === kode && x.textContent.includes('Sat tilbage')); return tr ? [...tr.children].map(c => c.textContent) : []; };
   const u = raekke('user0001'), g = raekke('GRIMNIR_SECRET_0001');
   tjek('V-PUDS.1 N4: indsat tekst: user0001 sat tilbage 2 steder, første på linje 2', u[2] === '2' && u[3] === '2', u.join(' | '));
@@ -2700,16 +2730,16 @@ await (async () => {
   const skrevet = [];
   const s = side({ rust: falskRust(), lager: { 'grimnir-sprog': 'en' }, foer: w => Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async t => { skrevet.push(t); } }, configurable: true }) });
   const { d, w } = s;
-  await vent(5);
+  await stille();
   const sek = d.querySelector('section[data-visning="masker"]');
   const kv = knapI(d, 'masker', 'kvittering');
   tjek('V-KVIT.1: English: Copy receipt, nedtonet fra start med forklaring', kv.textContent.trim() === 'Copy receipt' && !kommandoAktiv(d, 'masker', 'kvittering') && forklaring(kv) === 'Mask the text first');
   indsaet(w, sek.querySelector('.tomt'), TEKST);
-  s.tast('Enter', { metaKey: true }); await vent(5);
+  s.tast('Enter', { metaKey: true }); await stille();
   tjek('V-KVIT.1: efter analysen alene er Copy receipt stadig nedtonet', !kommandoAktiv(d, 'masker', 'kvittering') && forklaring(kv) === 'Mask the text first');
-  s.tast('Enter', { metaKey: true }); await vent(5);
+  s.tast('Enter', { metaKey: true }); await stille();
   tjek('V-KVIT.1: English: aktiv efter maskeringen', kommandoAktiv(d, 'masker', 'kvittering') && !kv.title);
-  kv.click(); await vent(5);
+  kv.click(); await stille();
   tjek('V-KVIT.1: English: Rust får sproget en, og teksten kopieres', JSON.stringify(s.kald.filter(k => k[0] === 'kvittering').map(k => k[1])) === '[{"fil":false,"sprog":"en"}]' && skrevet.join('|') === 'KVITTERING en tekst\n');
   tjek('V-KVIT.1: English: bekræftelsen', sek.querySelector('.besked').textContent === 'The receipt is copied. It contains no original values.');
   tjek('V-KVIT.1: English: intet meldes til udklip_kopieret', !s.kald.some(k => k[0] === 'udklip_kopieret'));
@@ -2718,7 +2748,7 @@ await (async () => {
   // Nulstil sagen: resultatet er væk, og knappen er nedtonet.
   w.GrimnirMaskering.M.nulstilt();
   tjek('V-KVIT.1: efter Nulstil er Copy receipt nedtonet', !kommandoAktiv(d, 'masker', 'kvittering') && forklaring(kv) === 'Mask the text first');
-  kv.click(); await vent(5);
+  kv.click(); await stille();
   tjek('V-KVIT.1: efter Nulstil hentes ingen kvittering', s.kald.filter(k => k[0] === 'kvittering').length === 1 && skrevet.length === 1);
 })();
 await (async () => {
@@ -2727,24 +2757,24 @@ await (async () => {
   const rust = { ...falskRust(), kvittering: () => { throw { art: 'intet_resultat' }; } };
   const s = side({ rust, foer: w => Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async t => { skrevet.push(t); } }, configurable: true }) });
   const { d, w } = s;
-  await vent(5);
+  await stille();
   const sek = d.querySelector('section[data-visning="masker"]');
   indsaet(w, sek.querySelector('.tomt'), TEKST);
-  await vent(5); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
-  s.tast('Enter', { metaKey: true }); await vent(5);
-  knapI(d, 'masker', 'kvittering').click(); await vent(5);
+  await stille(); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
+  s.tast('Enter', { metaKey: true }); await stille();
+  knapI(d, 'masker', 'kvittering').click(); await stille();
   tjek('V-KVIT.1: fejl fra Rust: banner, ingen bekræftelse, intet kopieret', Boolean(sek.querySelector('.arbejde .bannere .ban.danger')) && sek.querySelector('.besked').textContent === '' && skrevet.length === 0, sek.querySelector('.besked').textContent);
 })();
 await (async () => {
   // Udklipsholderen afviser: fejlbanner med kvitteringens egen tekst, ingen bekræftelse.
   const s = side({ rust: falskRust(), foer: w => Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async () => { throw new Error('nægtet'); } }, configurable: true }) });
   const { d, w } = s;
-  await vent(5);
+  await stille();
   const sek = d.querySelector('section[data-visning="masker"]');
   indsaet(w, sek.querySelector('.tomt'), TEKST);
-  await vent(5); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
-  s.tast('Enter', { metaKey: true }); await vent(5);
-  knapI(d, 'masker', 'kvittering').click(); await vent(5);
+  await stille(); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
+  s.tast('Enter', { metaKey: true }); await stille();
+  knapI(d, 'masker', 'kvittering').click(); await stille();
   tjek('V-KVIT.1: en kopi, der fejler: "Grimnir kunne ikke kopiere kvitteringen."', [...sek.querySelectorAll('.arbejde .bannere .ban.danger')].some(b => b.textContent.includes('Grimnir kunne ikke kopiere kvitteringen.')) && sek.querySelector('.besked').textContent === '');
   tjek('V-KVIT.1: en kopi, der fejler, meldes heller ikke til Rust', !s.kald.some(k => k[0] === 'udklip_kopieret'));
 })();
@@ -2759,12 +2789,12 @@ await (async () => {
     },
   });
   const { d, w } = s;
-  await vent(5);
+  await stille();
   const sek = d.querySelector('section[data-visning="masker"]');
   indsaet(w, sek.querySelector('.tomt'), TEKST);
-  await vent(5); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
-  s.tast('Enter', { metaKey: true }); await vent(5);
-  knapI(d, 'masker', 'kvittering').click(); await vent(10);
+  await stille(); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
+  s.tast('Enter', { metaKey: true }); await stille();
+  knapI(d, 'masker', 'kvittering').click(); await stille();
   tjek('V-KVIT.1: med ClipboardItem: kvitteringen skrives i klikket (samme vej som Kopiér af en fil)', skrevet.join('|') === 'KVITTERING da tekst\n' && s.kald.filter(k => k[0] === 'kvittering').length === 1 && sek.querySelector('.besked').textContent.startsWith('Kvitteringen er kopieret.'), JSON.stringify(skrevet));
 })();
 await (async () => {
@@ -2785,11 +2815,11 @@ await (async () => {
   // N2: uden valg ingen attribut; Indstillinger har kittets radiogruppe med tre trin.
   const s = side();
   const { d, w } = s;
-  await vent(5);
+  await stille();
   const html = d.documentElement;
   tjek('V-KITBRUG.1 N2: uden valg står der ingen data-tekst på <html> og intet i localStorage', !html.hasAttribute('data-tekst') && w.localStorage.getItem('grimnir-tekst') === null && w.Tekst.valg === 'normal');
   tjek('V-KITBRUG.1 N2: <html> har de samme attributter som før (ingen ny)', JSON.stringify([...html.attributes].map(a => a.name).sort()) === JSON.stringify(['data-kit-praefiks', 'data-platform', 'data-tema', 'lang']), [...html.attributes].map(a => a.name).join());
-  s.emit('menu', 'indstillinger'); await vent(5);
+  s.emit('menu', 'indstillinger'); await stille();
   const g = d.querySelector('#dlg-indst fieldset.valgsaet.vandret:has(input[name="indst-tekst"])');
   const r = v => d.querySelector(`input[name="indst-tekst"][value="${v}"]`);
   tjek('V-KITBRUG.1 N2: Indstillinger har Tekststørrelse som kittets radiogruppe (fieldset, legend, tre radioknapper i en række)', g && g.querySelector('legend').textContent === 'Tekststørrelse' && [...g.querySelectorAll('input.afk-boks[type="radio"]')].map(i => i.value).join() === 'lille,normal,stor');
@@ -2814,7 +2844,7 @@ await (async () => {
   w.Sprog.saet('da');
   // Huskes: en ny side med valget i localStorage.
   const s2 = side({ lager: { 'grimnir-tekst': 'stor' } });
-  await vent(5);
+  await stille();
   tjek('V-KITBRUG.1 N2: valget huskes ved næste start (sat af tema.js før første tegning)', s2.d.documentElement.getAttribute('data-tekst') === 'stor' && s2.d.querySelector('input[name="indst-tekst"][value="stor"]').checked);
 })();
 await (async () => {
@@ -2825,7 +2855,7 @@ await (async () => {
   await vent(30);
   const html = d.documentElement;
   tjek('V-KITBRUG.1 N2: låst: låseskærmen står, og trinnet stor gælder for hele siden (<html>)', html.hasAttribute('data-laast') && html.getAttribute('data-tekst') === 'stor' && html.contains(d.getElementById('laas')));
-  s.emit('menu', 'indstillinger'); await vent(5);
+  s.emit('menu', 'indstillinger'); await stille();
   const lille = d.querySelector('input[name="indst-tekst"][value="lille"]');
   lille.checked = true;
   lille.dispatchEvent(new w.Event('change', { bubbles: true }));
@@ -2878,7 +2908,7 @@ await (async () => {
   // N3: værktøjstip. Filterknappens forklaring (før title) er kittets værktøjstip: tastaturfokus viser det, Esc skjuler det.
   const s = side();
   const { d, w } = s;
-  await vent(5);
+  await stille();
   const fl = d.querySelector('section[data-visning="masker"] .fl');
   const tip = d.getElementById(fl.getAttribute('aria-describedby') || '');
   tjek('V-KITBRUG.1 N3: filterknappen: forklaringen står i kittets værktøjstip (role="tooltip", aria-describedby), ikke i title', !fl.hasAttribute('title') && tip && tip.getAttribute('role') === 'tooltip' && tip.textContent === 'Vælg filter i træet til venstre' && tip.hidden && fl.getAttribute('aria-disabled') === 'true' && fl.parentElement.classList.contains('tip-plads'));
@@ -2894,7 +2924,7 @@ await (async () => {
   const rust = falskFilRust({ antal: 3, forsinkelse: 1300 });
   const s = side({ rust });
   const { d } = s;
-  await vent(5);
+  await stille();
   knapI(d, 'masker', 'aabn-fil').click();
   await vent(1060);
   const f = d.querySelector('section[data-visning="masker"] .flade > .frem.ubestemt');
@@ -2907,7 +2937,7 @@ await (async () => {
   const rust = falskSagRust({ sager: SAGER() });
   const s = side({ hash: '#sager', rust });
   const { d, w } = s;
-  await vent(10);
+  await stille();
   const knapper = (id, dd = d) => [...dd.querySelectorAll(`#${id} .modal-fod button`)].map(b => b.textContent + (b.classList.contains('danger') ? '!' : b.classList.contains('primary') ? '*' : ''));
   const navn = (id, dd = d) => { const e = dd.getElementById(id); return dd.getElementById(e.getAttribute('aria-labelledby')).textContent; };
   const beskr = (id, dd = d) => { const e = dd.getElementById(id); const p = e.getAttribute('aria-describedby'); return p ? dd.getElementById(p).textContent : null; };
@@ -2917,10 +2947,10 @@ await (async () => {
   const forfraSide = side({ hash: '#ordbog', rust: falskOrdbogRust({ indst: { guide_vist: true }, laast: { art: 'beskadiget' } }) });
   await vent(20);
   klik(w, sagRaekke(d, hexId(3)).children[0]);
-  klik(w, knapI(d, 'sager', 'slet-sag')); await vent(5);
+  klik(w, knapI(d, 'sager', 'slet-sag')); await stille();
   klik(ordbogSide.w, oRaekke(ordbogSide.d, 'localhost').children[0]);
-  klik(ordbogSide.w, knapI(ordbogSide.d, 'ordbog', 'fjern-post')); await vent(5);
-  [...forfraSide.d.querySelectorAll('section[data-visning="ordbog"] .ban button')].find(b => b.textContent === 'Start forfra').click(); await vent(5);
+  klik(ordbogSide.w, knapI(ordbogSide.d, 'ordbog', 'fjern-post')); await stille();
+  [...forfraSide.d.querySelectorAll('section[data-visning="ordbog"] .ban button')].find(b => b.textContent === 'Start forfra').click(); await stille();
   const DOK = { 'dlg-ofjern': ordbogSide.d, 'dlg-oforfra': forfraSide.d };
   const FORVENTET = {
     'dlg-om': ['Om Grimnir', null, ['Luk']],
@@ -2948,7 +2978,7 @@ await (async () => {
   // Fokus tilbage og Esc: Ny sag fra båndet; Esc (cancel + close som i browseren) lukker, og fokus går tilbage til knappen.
   const nyKnap = knapI(d, 'sager', 'ny-sag');
   nyKnap.focus();
-  klik(w, nyKnap); await vent(5);
+  klik(w, nyKnap); await stille();
   tjek('V-KITBRUG.1 N4: Ny sag åbner med fokus i Navn', aaben(d, 'dlg-ny-sag') && d.activeElement === d.getElementById('ny-sag-navn'));
   skriv(w, d.getElementById('ny-sag-navn'), 'Prøvesag 0007');
   const ny = d.getElementById('dlg-ny-sag');
@@ -2956,17 +2986,17 @@ await (async () => {
   ny.close();
   tjek('V-KITBRUG.1 N4: Esc lukker Ny sag uden at oprette', !aaben(d, 'dlg-ny-sag') && !s.kald.some(k => k[0] === 'sag_ny') && ny.returnValue !== 'opret');
   tjek('V-KITBRUG.1 N4: fokus går tilbage til det, der åbnede dialogen (Ny sag i båndet)', d.activeElement === nyKnap);
-  klik(w, nyKnap); await vent(5);
+  klik(w, nyKnap); await stille();
   tjek('V-KITBRUG.1 N4: Ny sag åbner igen med tomt navn (intet bliver stående)', aaben(d, 'dlg-ny-sag') && d.getElementById('ny-sag-navn').value === '');
   // Kun én dialog ad gangen: Om fra menuen lukker Ny sag; Indstillinger lukker Om.
-  s.emit('menu', 'om'); await vent(5);
+  s.emit('menu', 'om'); await stille();
   tjek('V-KITBRUG.1 N4: kun én dialog åben: Om fra menuen lukker Ny sag', aaben(d, 'dlg-om') && !aaben(d, 'dlg-ny-sag') && d.querySelectorAll('dialog[open]').length === 1);
-  s.emit('menu', 'indstillinger'); await vent(5);
+  s.emit('menu', 'indstillinger'); await stille();
   tjek('V-KITBRUG.1 N4: kun én dialog åben: Indstillinger (Grimnirs egen) lukker Om (kittets)', aaben(d, 'dlg-indst') && !aaben(d, 'dlg-om') && d.querySelectorAll('dialog[open]').length === 1);
   d.querySelector('#dlg-indst [data-svar="luk"]').click();
   // Slet: fokus på Slet sag som før; Annullér via tastaturet (Enter på knappen = klik).
   klik(w, sagRaekke(d, hexId(3)).children[0]);
-  klik(w, knapI(d, 'sager', 'slet-sag')); await vent(5);
+  klik(w, knapI(d, 'sager', 'slet-sag')); await stille();
   // V-KITBRUG.2 N2 (Jan): fokus står på Annullér (kittets standard ved en farlig handling); før på Slet sag.
   tjek('V-KITBRUG.2 N2: Slet sag: fokus står på Annullér, ikke på Slet sag', d.activeElement === d.querySelector('#dlg-slet [data-svar="nej"]') && d.activeElement.textContent === 'Annullér' && d.querySelector('dialog[open]') === d.getElementById('dlg-slet'));
   klik(w, d.querySelector('#dlg-slet [data-svar="nej"]'));
@@ -2976,14 +3006,14 @@ await (async () => {
   // N4: genvejene er slået fra, mens en af kittets dialoger er åben (maskering.js spørger dialog[open]): ⌘↵ analyserer ikke.
   const s = side({ rust: falskRust() });
   const { d, w } = s;
-  await vent(5);
+  await stille();
   indsaet(w, d.querySelector('section[data-visning="masker"] .tomt'), TEKST);
-  await vent(5); // V-OPBYG.1 N3: analysen skete ved indsætningen; ⌘↵ ville nu maskere
-  s.emit('menu', 'om'); await vent(5);
-  s.tast('Enter', { metaKey: true }); await vent(5);
+  await stille(); // V-OPBYG.1 N3: analysen skete ved indsætningen; ⌘↵ ville nu maskere
+  s.emit('menu', 'om'); await stille();
+  s.tast('Enter', { metaKey: true }); await stille();
   tjek('V-KITBRUG.1 N4: med Om (kittets dialog) åben gør ⌘↵ intet', aaben(d, 'dlg-om') && d.querySelector('dialog[open]') === d.getElementById('dlg-om') && s.kald.filter(k => k[0] === 'analyser').length === 1 && !s.kald.some(k => k[0] === 'gem_og_masker'));
   d.querySelector('#dlg-om [data-svar="luk"]').click();
-  s.tast('Enter', { metaKey: true }); await vent(5);
+  s.tast('Enter', { metaKey: true }); await stille();
   tjek('V-KITBRUG.1 N4: kontrol: lukket analyserer ⌘↵', s.kald.some(k => k[0] === 'analyser'));
 })();
 await (async () => {
@@ -2993,7 +3023,7 @@ await (async () => {
   const { d } = s;
   await vent(20);
   tjek('V-KITBRUG.1 N4: kontrol: guiden står ved første start', aaben(d, 'dlg-guide'));
-  s.emit('menu', 'om'); await vent(5);
+  s.emit('menu', 'om'); await stille();
   tjek('V-KITBRUG.1 N4: Om (kittets dialog) lukker guiden, uden at den gemmes som vist', aaben(d, 'dlg-om') && !aaben(d, 'dlg-guide') && !s.kald.some(k => k[0] === 'indstillinger_gem' && k[1].indstillinger && k[1].indstillinger.guide_vist));
 })();
 await (async () => {
@@ -3002,13 +3032,13 @@ await (async () => {
   const s = side({ hash: '#ordbog', rust });
   const { d, w } = s;
   await vent(20);
-  klik(w, knapI(d, 'ordbog', 'proev')); await vent(5);
+  klik(w, knapI(d, 'ordbog', 'proev')); await stille();
   d.getElementById('proev-tekst').value = 'Projekt Uglebo2 på kontor.test';
-  s.emit('menu', 'om'); await vent(5);
+  s.emit('menu', 'om'); await stille();
   tjek('V-KITBRUG.1 N4: Prøv på tekst tømmes, også når en anden dialog lukker den', !aaben(d, 'dlg-proev') && d.getElementById('proev-tekst').value === '' && aaben(d, 'dlg-om'));
   d.querySelector('#dlg-om [data-svar="luk"]').click();
   klik(w, oRaekke(d, 'localhost').children[0]);
-  klik(w, knapI(d, 'ordbog', 'fjern-post')); await vent(5);
+  klik(w, knapI(d, 'ordbog', 'fjern-post')); await stille();
   // V-KITBRUG.2 N2 (Jan): fokus på Annullér; før på Fjern post.
   tjek('V-KITBRUG.2 N2: Fjern post åbner med fokus på Annullér, ikke på Fjern post', aaben(d, 'dlg-ofjern') && d.activeElement === d.querySelector('#dlg-ofjern [data-svar="nej"]') && d.activeElement.textContent === 'Annullér');
 })();
@@ -3019,11 +3049,11 @@ await (async () => {
   const s = side({ rust, hash: '#sager' });
   const { d, w } = s;
   await vent(30);
-  klik(w, knapI(d, 'sager', 'ny-sag')); await vent(5);
+  klik(w, knapI(d, 'sager', 'ny-sag')); await stille();
   skriv(w, d.getElementById('ny-sag-navn'), 'Ravnsborg-sagen');
   tjek('V-KITBRUG.1 N4: kontrol: Ny sag er åben med et navn', aaben(d, 'dlg-ny-sag') && /Ravnsborg/.test(d.getElementById('ny-sag-navn').value));
   rust.laasIgen('dvale', null);
-  s.emit('laast', 'dvale'); await vent(10);
+  s.emit('laast', 'dvale'); await stille();
   tjek('V-KITBRUG.1 N4: låsen genindlæser siden (location.reload)', s.jsdomFejl.some(m => /navigation/.test(m)));
   const g = side({ rust, hash: '#sager' });
   await vent(30);
@@ -3049,19 +3079,19 @@ await (async () => {
   await vent(20);
   const tandhjul = d.getElementById('aabn-indst');
   tandhjul.focus();
-  klik(w, tandhjul); await vent(5);
+  klik(w, tandhjul); await stille();
   const dlg = d.getElementById('dlg-indst');
   tjek('V-KITBRUG.2 N1: Indstillinger er kittets brede dialog (dialog.modal.bred) med navn fra overskriften', dlg.tagName === 'DIALOG' && dlg.classList.contains('modal') && dlg.classList.contains('bred') && d.getElementById(dlg.getAttribute('aria-labelledby')).textContent === 'Indstillinger' && aaben(d, 'dlg-indst'));
   tjek('V-KITBRUG.2 N1: Indstillinger: samme indhold i samme rækkefølge (Tema, Sprog, Tekststørrelse, Nye sager, Lås, Første start) og én knap, Luk', [...dlg.querySelectorAll('#indst-valg > fieldset > legend')].map(l => l.textContent).join() === 'Tema,Sprog,Tekststørrelse,Nye sager,Lås,Første start' && [...dlg.querySelectorAll('.modal-fod button')].map(b => b.textContent).join() === 'Luk' && d.getElementById('indst-guide').textContent === 'Vis guiden igen');
   tjek('V-KITBRUG.2 N1: Indstillinger åbner med fokus på det første valg (som browserens: Lys i Tema)', d.activeElement === d.querySelector('input[name="indst-tema"][value="lys"]'));
   const fr = d.getElementById('indst-fremmede');
   fr.checked = true;
-  fr.dispatchEvent(new w.Event('change', { bubbles: true })); await vent(10);
+  fr.dispatchEvent(new w.Event('change', { bubbles: true })); await stille();
   const f = d.getElementById('dlg-indst-fejl');
   tjek('V-KITBRUG.2 N1: Indstillinger: fejlen står i kittets fejlfelt (role="alert") lige over knapperne', f && f.classList.contains('modal-fejl') && f.getAttribute('role') === 'alert' && f.textContent.startsWith('Indstillingen blev ikke gemt') && f.nextElementSibling === dlg.querySelector('.modal-fod'));
   esc(w, dlg);
   tjek('V-KITBRUG.2 N1: Esc lukker Indstillinger, og fokus går tilbage til tandhjulet', !aaben(d, 'dlg-indst') && d.activeElement === tandhjul);
-  s.emit('menu', 'indstillinger'); await vent(5);
+  s.emit('menu', 'indstillinger'); await stille();
   tjek('V-KITBRUG.2 N1: Indstillinger åbner igen uden den gamle fejl', aaben(d, 'dlg-indst') && f.textContent === '');
 })();
 await (async () => {
@@ -3071,11 +3101,11 @@ await (async () => {
   const { d, w } = s;
   await vent(20);
   indsaet(w, d.querySelector('section[data-visning="masker"] .tomt'), TEKST);
-  await vent(10); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
-  s.tast('Enter', { metaKey: true }); await vent(10);
+  await stille(); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
+  s.tast('Enter', { metaKey: true }); await stille();
   const sagKnap = d.getElementById('sag-knap');
   sagKnap.focus();
-  klik(w, sagKnap); await vent(5);
+  klik(w, sagKnap); await stille();
   const dlg = d.getElementById('dlg-sag');
   const synligeKnapper = () => [...dlg.querySelectorAll('.modal-fod button')].filter(b => !b.hidden).map(b => b.textContent + (b.classList.contains('danger') ? '!' : b.classList.contains('primary') ? '*' : ''));
   tjek('V-KITBRUG.2 N1: sagens dialog er kittets (dialog.modal) med overskrift og sætning som navn og beskrivelse', dlg.classList.contains('modal') && dlg.getAttribute('aria-labelledby') === 'dlg-sag-h' && d.getElementById('dlg-sag-h').textContent === 'Midlertidig sag' && dlg.getAttribute('aria-describedby') === 'dlg-sag-p' && d.getElementById('dlg-sag-p').textContent.includes('3 værdier'));
@@ -3086,18 +3116,18 @@ await (async () => {
   rust.sag_valg = () => { throw { art: 'sag', fejl: { art: 'disk', hvad: 'PermissionDenied' } }; };
   const ok2 = d.getElementById('sag-oktet');
   ok2.checked = false;
-  ok2.dispatchEvent(new w.Event('change', { bubbles: true })); await vent(10);
+  ok2.dispatchEvent(new w.Event('change', { bubbles: true })); await stille();
   const f = d.getElementById('dlg-sag-fejl');
   tjek('V-KITBRUG.2 N1: sagens dialog: en fejl står i kittets fejlfelt (role="alert") før knapperne', f && f.getAttribute('role') === 'alert' && f.textContent === 'Det lykkedes ikke: disken kunne ikke bruges (PermissionDenied).' && (f.compareDocumentPosition(dlg.querySelector('.modal-fod')) & 4) && ok2.checked);
   rust.sag_valg = gl;
   esc(w, dlg);
   tjek('V-KITBRUG.2 N1: Esc lukker sagens dialog uden at nulstille, og fokus går tilbage til sagsknappen', !aaben(d, 'dlg-sag') && !s.kald.some(k => k[0] === 'sag_nulstil') && d.activeElement === sagKnap);
   // Navngiven sag: Luk, Skift sag og Luk sag (primær, yderst).
-  klik(w, sagKnap); await vent(5);
-  klik(w, d.getElementById('sag-gem-som')); await vent(5);
+  klik(w, sagKnap); await stille();
+  klik(w, d.getElementById('sag-gem-som')); await stille();
   skriv(w, d.getElementById('ny-sag-navn'), 'Prøvesag 0011');
-  klik(w, d.getElementById('ny-sag-opret')); await vent(10);
-  klik(w, sagKnap); await vent(5);
+  klik(w, d.getElementById('ny-sag-opret')); await stille();
+  klik(w, sagKnap); await stille();
   tjek('V-KITBRUG.2 N1: sagens dialog (navngiven): Luk, Vis indhold (V-MANUEL.2), Skift sag og Luk sag (primær, yderst); én synlig primær', JSON.stringify(synligeKnapper()) === JSON.stringify(['Luk', 'Vis indhold', 'Skift sag', 'Luk sag*']) && d.getElementById('dlg-sag-h').textContent === 'Sag: Prøvesag 0011', JSON.stringify(synligeKnapper()));
   tjek('V-KITBRUG.2 N1: kittets regel: den synlige primære er den sidste synlige knap, og de skjulte er skjult (hidden)', [...dlg.querySelectorAll('.modal-fod button')].filter(b => b.hidden).map(b => b.id).sort().join() === 'sag-gem-som,sag-nulstil' && synligeKnapper().filter(k => k.endsWith('*')).length === 1 && synligeKnapper().pop().endsWith('*'));
 })();
@@ -3110,14 +3140,14 @@ await (async () => {
   const GO = w.GrimnirOrdbog;
   const knap = knapI(d, 'ordbog', 'tilfoej-post');
   knap.focus();
-  klik(w, knap); await vent(5);
+  klik(w, knap); await stille();
   const dlg = d.getElementById('dlg-opost');
   tjek('V-KITBRUG.2 N1: Tilføj post er kittets dialog med navn fra overskriften; sætningen er skjult og beskriver ikke', dlg.classList.contains('modal') && d.getElementById(dlg.getAttribute('aria-labelledby')).textContent === 'Tilføj post' && d.getElementById('dlg-opost-p').hidden && !dlg.hasAttribute('aria-describedby'));
   tjek('V-KITBRUG.2 N1: Tilføj post: felterne Type, Værdi og Note i den rækkefølge; Annullér og Tilføj post (primær)', [...dlg.querySelectorAll('.dlg-felter > .felt label')].map(l => l.textContent).join('|') === 'Type|Værdi eller mønster|Note (valgfri)' && JSON.stringify([...dlg.querySelectorAll('.modal-fod button')].map(b => b.textContent + (b.classList.contains('primary') ? '*' : ''))) === JSON.stringify(['Annullér', 'Tilføj post*']));
   tjek('V-KITBRUG.2 N1: Tilføj post åbner med fokus i Værdi', d.activeElement === d.getElementById('opost-vaerdi'));
   rust.ob.laast = { art: 'beskadiget' };
   skriv(w, d.getElementById('opost-vaerdi'), 'Ravnsborg');
-  klik(w, d.getElementById('opost-ok')); await vent(10);
+  klik(w, d.getElementById('opost-ok')); await stille();
   const f = d.getElementById('dlg-opost-fejl');
   tjek('V-KITBRUG.2 N1: Tilføj post: en fejl, der ikke hører til et felt, står i kittets fejlfelt (role="alert")', f && f.getAttribute('role') === 'alert' && /ordbogen kunne ikke åbnes/i.test(f.textContent) && aaben(d, 'dlg-opost'));
   rust.ob.laast = null;
@@ -3126,16 +3156,16 @@ await (async () => {
   tjek('V-KITBRUG.2 N1: Esc lukker Tilføj post uden at gemme, og fokus går tilbage', !aaben(d, 'dlg-opost') && !rust.ob.db.some(p => p.vaerdi === 'Ravnsborg') && d.activeElement === knap);
   // Fra Maskér: Esc, en anden dialog og Tilføj giver Maskérs ventende løfte false, false og true.
   const r = { art: 'vaert', vaerdier: ['srv-web01'], hemmelig: false };
-  const p1 = GO.fraMasker(r, 'altid'); await vent(5);
+  const p1 = GO.fraMasker(r, 'altid'); await stille();
   tjek('V-KITBRUG.2 N1: fra Maskér: Tilføj post åbner med fokus på Type og med sætningen som beskrivelse', aaben(d, 'dlg-opost') && d.activeElement === d.getElementById('opost-type') && !d.getElementById('dlg-opost-p').hidden && dlg.getAttribute('aria-describedby') === 'dlg-opost-p');
   esc(w, dlg);
   const v1 = await p1;
-  const p2 = GO.fraMasker(r, 'altid'); await vent(5);
-  s.emit('menu', 'om'); await vent(5);
+  const p2 = GO.fraMasker(r, 'altid'); await stille();
+  s.emit('menu', 'om'); await stille();
   const v2 = await p2;
   d.querySelector('#dlg-om [data-svar="luk"]').click();
-  const p3 = GO.fraMasker(r, 'altid'); await vent(5);
-  klik(w, d.getElementById('opost-ok')); await vent(10);
+  const p3 = GO.fraMasker(r, 'altid'); await stille();
+  klik(w, d.getElementById('opost-ok')); await stille();
   const v3 = await p3;
   tjek('V-KITBRUG.2 N1: Tilføj post: lukningen løser Maskérs ventende løfte (Esc: false, en anden dialog: false, gemt: true)', v1 === false && v2 === false && v3 === true && rust.ob.db.some(p => p.vaerdi === 'srv-web01'), [v1, v2, v3].join());
 })();
@@ -3145,13 +3175,13 @@ await (async () => {
   const s = side({ hash: '#ordbog', rust });
   const { d, w } = s;
   await vent(20);
-  klik(w, knapI(d, 'ordbog', 'proev')); await vent(5);
+  klik(w, knapI(d, 'ordbog', 'proev')); await stille();
   const dlg = d.getElementById('dlg-proev'), pt = d.getElementById('proev-tekst');
   tjek('V-KITBRUG.2 N1: Prøv på tekst er kittets brede dialog med navn og sætning; Luk og Prøv (primær)', dlg.classList.contains('modal') && dlg.classList.contains('bred') && d.getElementById(dlg.getAttribute('aria-labelledby')).textContent === 'Prøv ordbogen på en tekst' && dlg.hasAttribute('aria-describedby') && JSON.stringify([...dlg.querySelectorAll('.modal-fod button')].map(b => b.textContent + (b.classList.contains('primary') ? '*' : ''))) === JSON.stringify(['Luk', 'Prøv*']));
   tjek('V-KITBRUG.2 N1: Prøv på tekst åbner med fokus i feltet (mono, ingen stavekontrol)', d.activeElement === pt && pt.classList.contains('mono') && pt.getAttribute('spellcheck') === 'false' && pt.getAttribute('aria-label') === 'Tekst');
   rust.ordbog_proev = () => { throw { art: 'for_stor', bytes: 6 * 1048576 }; };
   pt.value = 'Projekt Uglebo2';
-  klik(w, d.getElementById('proev-ok')); await vent(10);
+  klik(w, d.getElementById('proev-ok')); await stille();
   tjek('V-KITBRUG.2 N1: Prøv på tekst: en fejl står i svaret (role="status") som før', d.getElementById('proev-svar').getAttribute('role') === 'status' && d.querySelector('#proev-svar .dlg-fejl') && /6\.0/.test(d.getElementById('proev-svar').textContent));
   esc(w, dlg);
   tjek('V-KITBRUG.2 N1: Esc lukker Prøv på tekst og tømmer feltet og svaret', !aaben(d, 'dlg-proev') && pt.value === '' && d.getElementById('proev-svar').textContent === '');
@@ -3176,11 +3206,11 @@ await (async () => {
     const rust = falskLaasRust({ svar: [{ svar: 'ok' }] });
     const s = side({ rust, hash: '#ordbog' });
     await vent(30);
-    aabn(s); await vent(5);
+    aabn(s); await stille();
     if (skrivI) skriv(s.w, s.d.getElementById(skrivI), tekst);
     const foer = aaben(s.d, id);
     rust.laasIgen('dvale', null);
-    s.emit('laast', 'dvale'); await vent(10);
+    s.emit('laast', 'dvale'); await stille();
     const g = side({ rust, hash: '#ordbog' });
     await vent(30);
     tjek(`V-KITBRUG.2 N1: lås med ${id} åben: siden genindlæses, og bagefter er ingen dialog åben og intet af teksten tilbage`, foer && s.jsdomFejl.some(m => /navigation/.test(m)) && g.d.querySelectorAll('dialog[open]').length === 0 && !/Ravnsborg/.test(g.d.documentElement.outerHTML));
@@ -3197,7 +3227,7 @@ await (async () => {
   const rust = falskSagRust({ sager: SAGER() });
   const s = side({ hash: '#sager', rust });
   const { d, w } = s;
-  await vent(10);
+  await stille();
   const om = (s.emit('menu', 'om'), d.getElementById('dlg-om'));
   tjek('V-KITBRUG.2 N1: Om har fletbåndet over overskriften i kittets .modal-foer (G5), og overskriften navngiver dialogen', om.firstElementChild.classList.contains('modal-foer') && om.firstElementChild.querySelector('svg.flet') && om.firstElementChild.nextElementSibling.classList.contains('modal-top') && om.getAttribute('aria-labelledby') === 'dlg-om-h');
   om.querySelector('[data-svar="luk"]').click();
@@ -3205,26 +3235,26 @@ await (async () => {
   let slip;
   const gl = rust.sag_ny;
   rust.sag_ny = a => new Promise(r => { slip = () => r(gl(a)); });
-  klik(w, knapI(d, 'sager', 'ny-sag')); await vent(5);
+  klik(w, knapI(d, 'sager', 'ny-sag')); await stille();
   skriv(w, d.getElementById('ny-sag-navn'), 'Ventesag 0001');
   const opret = d.getElementById('ny-sag-opret');
-  klik(w, opret); await vent(5);
+  klik(w, opret); await stille();
   const venter = opret.getAttribute('aria-busy') === 'true' && aaben(d, 'dlg-ny-sag');
-  klik(w, opret); await vent(5);
+  klik(w, opret); await stille();
   const kaldt = s.kald.filter(k => k[0] === 'sag_ny').length;
-  slip(); await vent(10);
+  slip(); await stille();
   tjek('V-KITBRUG.2 N1: Opret sag venter på Rust (aria-busy, kan ikke trykkes igen) og lukker selv bagefter (G1)', venter && kaldt === 1 && !aaben(d, 'dlg-ny-sag') && !opret.hasAttribute('aria-busy'));
   rust.sag_ny = gl;
   // Slet sag, der fejler, bliver åben med fejlen; ja kan trykkes igen og lykkes; dialogen fjernes ved lukning.
   const sl = rust.sag_slet;
   rust.sag_slet = () => { throw { art: 'sag', fejl: { art: 'disk', hvad: 'PermissionDenied' } }; };
   klik(w, sagRaekke(d, hexId(3)).children[0]);
-  klik(w, knapI(d, 'sager', 'slet-sag')); await vent(5);
-  klik(w, d.querySelector('#dlg-slet [data-svar="ja"]')); await vent(10);
+  klik(w, knapI(d, 'sager', 'slet-sag')); await stille();
+  klik(w, d.querySelector('#dlg-slet [data-svar="ja"]')); await stille();
   const fejlTekst = (d.querySelector('#dlg-slet .modal-fejl') || {}).textContent;
   tjek('V-KITBRUG.2 N1: Slet sag, der fejler, bliver åben med fejlen i kittets felt (role="alert"); intet er slettet', aaben(d, 'dlg-slet') && fejlTekst === 'disken kunne ikke bruges (PermissionDenied)' && d.querySelector('#dlg-slet .modal-fejl').getAttribute('role') === 'alert' && sagRaekker(d).length === 6, fejlTekst);
   rust.sag_slet = sl;
-  klik(w, d.querySelector('#dlg-slet [data-svar="ja"]')); await vent(10);
+  klik(w, d.querySelector('#dlg-slet [data-svar="ja"]')); await stille();
   tjek('V-KITBRUG.2 N1: Slet sag kan trykkes igen og lykkes; bekræftelsen er fjernet fra siden', !d.getElementById('dlg-slet') && !sagRaekke(d, hexId(3)) && d.querySelectorAll('dialog.modal:not([id])').length === 0);
 })();
 await (async () => {
@@ -3232,7 +3262,7 @@ await (async () => {
   const app = ui('assets/app.css').replace(/\/\*[\s\S]*?\*\//g, '');
   tjek('V-KITBRUG.2 N1: app.css har ingen .dlg-regler tilbage (.dlg, .dlg-bred, .dlg-guide, .dlg-knapper)', !/\.dlg(?![\w-])|\.dlg-bred|\.dlg-guide|\.dlg-knapper/.test(app));
   const s = side();
-  await vent(5);
+  await stille();
   tjek('V-KITBRUG.2 N1: ingen element bruger de gamle klasser (.dlg, .dlg-bred, .dlg-guide, .dlg-knapper, data-luk)', !s.d.querySelector('.dlg, .dlg-bred, .dlg-guide, .dlg-knapper, [data-luk]'));
 })();
 await (async () => {
@@ -3240,18 +3270,18 @@ await (async () => {
   const rust = falskSagRust({ sager: SAGER() });
   const s = side({ hash: '#sager', rust });
   const { d, w } = s;
-  await vent(10);
+  await stille();
   klik(w, sagRaekke(d, hexId(2)).children[0]);
-  klik(w, knapI(d, 'sager', 'slet-sag')); await vent(5);
-  klik(w, d.activeElement); await vent(10);
+  klik(w, knapI(d, 'sager', 'slet-sag')); await stille();
+  klik(w, d.activeElement); await stille();
   tjek('V-KITBRUG.2 N2: Slet sag: Enter uden Tab rammer Annullér og sletter intet', !aaben(d, 'dlg-slet') && !s.kald.some(k => k[0] === 'sag_slet') && sagRaekker(d).length === 5);
   const r2 = falskOrdbogRust({ poster: ORDBOG(), indst: { guide_vist: true } });
   const s2 = side({ hash: '#ordbog', rust: r2 });
   await vent(20);
   klik(s2.w, oRaekke(s2.d, 'localhost').children[0]);
-  klik(s2.w, knapI(s2.d, 'ordbog', 'fjern-post')); await vent(5);
+  klik(s2.w, knapI(s2.d, 'ordbog', 'fjern-post')); await stille();
   const fokus = s2.d.activeElement.textContent;
-  klik(s2.w, s2.d.activeElement); await vent(10);
+  klik(s2.w, s2.d.activeElement); await stille();
   tjek('V-KITBRUG.2 N2: Fjern post: fokus på Annullér, og Enter uden Tab fjerner intet', fokus === 'Annullér' && !s2.kald.some(k => k[0] === 'ordbog_fjern') && oRaekke(s2.d, 'localhost'));
 })();
 await (async () => {
@@ -3259,16 +3289,16 @@ await (async () => {
   // (intet title); Tab viser tippet; Esc skjuler det; låst viser båndet intet tip.
   const s = side({ rust: falskSagRust({ sager: SAGER() }) });
   const { d, w } = s;
-  await vent(10);
+  await stille();
   // V-OPBYG.1: sagens status skal være hentet (Gem som sag… slås til eller fra efter den), før kommandoerne tælles.
   await ventTil(w, () => !d.getElementById('sag-knap').hidden);
   const alle = () => [...d.querySelectorAll('#baand .grupper[data-fane="start"] .cb[aria-disabled="true"]')];
   const da = alle().map(b => [b.closest('[data-visning]').dataset.visning + ':' + b.dataset.kommando, forklaring(b), b.getAttribute('title')]);
   tjek('V-KITBRUG.2 N3 (G11): hver kommando, der er slået fra, har sin forklaring i et værktøjstip (role="tooltip") og intet title (dansk)', da.length >= 15 && da.every(([, f, t]) => f && f.length > 10 && !/^hvorfor/.test(f) && t === null), JSON.stringify(da.filter(([, f, t]) => !f || t !== null)));
-  w.Sprog.saet('en'); await vent(5);
+  w.Sprog.saet('en'); await stille();
   const en = alle().map(b => [b.dataset.kommando, forklaring(b)]);
   tjek('V-KITBRUG.2 N3 (G11): … og på engelsk (anden tekst, ingen nøgle)', en.length === da.length && en.every(([, f], i) => f && f.length > 10 && !/^hvorfor/.test(f) && f !== da[i][1]), JSON.stringify([en.length, da.length, en.filter(([, f], i) => !(f && f.length > 10 && !/^hvorfor/.test(f) && f !== da[i][1]))]));
-  w.Sprog.saet('da'); await vent(5);
+  w.Sprog.saet('da'); await stille();
   const b = knapI(d, 'masker', 'analyser');
   const tip = d.getElementById(b.getAttribute('aria-describedby'));
   tjek('V-KITBRUG.2 N3 (G11): kommandoen står i kittets .tip-plads, tippet er skjult, og knappen kan nås med Tab (aria-disabled, ikke disabled)', b.parentElement.classList.contains('tip-plads') && tip.hidden && !b.disabled && b.tabIndex === 0 && b.getAttribute('aria-disabled') === 'true');
@@ -3284,7 +3314,7 @@ await (async () => {
   b.focus();
   tjek('V-KITBRUG.2 N3 (G11): slået til: intet tip, ingen .tip-plads, genvejen i title', !b.hasAttribute('aria-disabled') && forklaring(b) === null && !b.parentElement.classList.contains('tip-plads') && !b.title && knapI(d, 'masker', 'gem-masker').title === 'Genvej: ⌘↵' && !knapI(d, 'masker', 'gem-masker').parentElement.classList.contains('tip-plads') && d.activeElement === b);
   // Sager: årsagen ({v}) står i tippet.
-  w.Grimnir.vis('sager'); await vent(10);
+  w.Grimnir.vis('sager'); await stille();
   klik(w, sagRaekke(d, hexId(4)).children[0]);
   tjek('V-KITBRUG.2 N3 (G11): Sager: årsagen til, at en sag ikke kan åbnes, står i tippet på begge sprog', forklaring(knapI(d, 'sager', 'omdoeb')) === 'Sagen kan ikke åbnes: nøglen mangler i nøgleringen' && (w.Sprog.saet('en'), /^The case cannot be opened: /.test(forklaring(knapI(d, 'sager', 'omdoeb')))), forklaring(knapI(d, 'sager', 'omdoeb')));
   w.Sprog.saet('da');
@@ -3302,9 +3332,9 @@ await (async () => {
   // N3 (G7): afkrydsningen i fundtabellen er kittets Kit.afkrydsning({ aria }): boksen alene, 16 px, navn i aria-label.
   const s = side({ rust: falskRust() });
   const { d, w } = s;
-  await vent(5);
+  await stille();
   indsaet(w, d.querySelector('section[data-visning="masker"] .tomt'), TEKST);
-  s.tast('Enter', { metaKey: true }); await vent(10);
+  s.tast('Enter', { metaKey: true }); await stille();
   const cb = fundRaekker(d)[0].querySelector('input[type="checkbox"]');
   tjek('V-KITBRUG.2 N3 (G7): fundtabellens afkrydsning er kittets boks alene (input.afk-boks i cellen, ingen label, ingen .afk-felt) med navn', cb && cb.classList.contains('afk-boks') && cb.parentElement.tagName === 'TD' && !cb.closest('label, .afk-felt') && /^Maskér /.test(cb.getAttribute('aria-label')) && cb.getAttribute('data-felt') === 'valg');
   const kit = ui('assets/kit.css'), app = ui('assets/app.css');
@@ -3319,7 +3349,7 @@ await (async () => {
   const rust = falskSagRust({ sager: SAGER() });
   const s = side({ rust });
   const { d, w } = s;
-  await vent(10);
+  await stille();
   for (const [v, navn] of [['masker', 'Tom flade: indsæt en log eller et script med ⌘V'], ['demasker', 'Tom flade: indsæt svaret med ⌘V']]) {
     const t = d.querySelector(`section[data-visning="${v}"] .tomt`);
     tjek(`V-KITBRUG.2 N3 (G8): ${v}: den tomme flade er kittets modtager (.tomt-modtager, role="region", tabindex 0, navn med ⌘V)`, t.classList.contains('tomt-modtager') && t.getAttribute('role') === 'region' && t.tabIndex === 0 && t.getAttribute('aria-label') === navn, t.getAttribute('aria-label'));
@@ -3332,19 +3362,19 @@ await (async () => {
   }
   const tilSager = d.querySelector('section[data-visning="demasker"] .tomt-ekstra');
   tjek('V-KITBRUG.2 N3 (G8): Demaskér: Åbn Sager vises, når sagen er tom og der er gemte sager (kittets regel: den hjælper videre)', !tilSager.hidden);
-  klik(w, tilSager); await vent(5);
+  klik(w, tilSager); await stille();
   tjek('V-KITBRUG.2 N3 (G8): Demaskér: Åbn Sager går til Sager', synlige(d).join() === 'sager');
-  w.Grimnir.vis('masker'); await vent(5);
+  w.Grimnir.vis('masker'); await stille();
   const aabnFil = d.querySelector('section[data-visning="masker"] .tomt-handlinger > button:last-child');
   const r2 = falskFilRust({ antal: 3 });
   const s2 = side({ rust: r2 });
-  await vent(5);
+  await stille();
   tjek('V-KITBRUG.2 N3 (G8): Demaskér: Åbn Sager er skjult, når der ingen gemte sager er (den ville ikke hjælpe videre)', s2.d.querySelector('section[data-visning="demasker"] .tomt-ekstra').hidden);
-  klik(s2.w, s2.d.querySelector('section[data-visning="masker"] .tomt-handlinger > button:last-child')); await vent(10);
+  klik(s2.w, s2.d.querySelector('section[data-visning="masker"] .tomt-handlinger > button:last-child')); await stille();
   tjek('V-KITBRUG.2 N3 (G8): Åbn fil i den tomme flade åbner filvalget (fil_aabn) som kommandoen i båndet', s2.kald.some(k => k[0] === 'fil_aabn' && k[1].visning === 'masker') && aabnFil.textContent === 'Åbn fil');
   // Trækket: kittets .tomt-slip på den tomme flade; med en tekst hele fladen (data-traek) som før.
   const s3 = side({ rust: falskFilRust({ antal: 3 }) });
-  await vent(5);
+  await stille();
   const t3 = s3.d.querySelector('section[data-visning="masker"] .tomt'), f3 = t3.parentElement;
   s3.emit('fil-traek', true);
   const tom = t3.classList.contains('tomt-slip') && !f3.hasAttribute('data-traek');
@@ -3359,7 +3389,7 @@ await (async () => {
   // N4: ⌘+ ⌘− ⌘0 (⌘= er ⌘+), stopper ved lille og stor, virker låst og med en dialog åben, følger Indstillinger begge veje.
   const s = side();
   const { d, w } = s;
-  await vent(5);
+  await stille();
   const html = d.documentElement, r = v => d.querySelector(`input[name="indst-tekst"][value="${v}"]`);
   const tast = (key, x = {}) => { const e = new w.KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, metaKey: true, ...x }); d.dispatchEvent(e); return e; };
   const e1 = tast('+');
@@ -3379,7 +3409,7 @@ await (async () => {
   tast('+', { altKey: true });
   tjek('V-KITBRUG.2 N4: ⌥⌘+ gør intet', w.Tekst.valg === 'normal');
   // Følger Indstillinger begge veje, også med Indstillinger åben.
-  s.emit('menu', 'indstillinger'); await vent(5);
+  s.emit('menu', 'indstillinger'); await stille();
   tast('+');
   tjek('V-KITBRUG.2 N4: genvejen virker med en dialog åben, og Indstillinger viser valget (Stor)', aaben(d, 'dlg-indst') && r('stor').checked && w.Tekst.valg === 'stor');
   r('lille').checked = true;
@@ -3410,7 +3440,7 @@ await (async () => {
   tjek('V-KITBRUG.2 N4: genvejen og menuen virker på låseskærmen', sl.d.documentElement.hasAttribute('data-laast') && laastStor === 'stor' && sl.w.Tekst.valg === 'normal');
   // Windows: Ctrl.
   const sw = side({ platform: 'windows' });
-  await vent(5);
+  await stille();
   const ew = new sw.w.KeyboardEvent('keydown', { key: '=', ctrlKey: true, bubbles: true, cancelable: true });
   sw.d.dispatchEvent(ew);
   sw.d.dispatchEvent(new sw.w.KeyboardEvent('keydown', { key: '+', metaKey: true, bubbles: true, cancelable: true }));
@@ -3422,17 +3452,17 @@ await (async () => {
   // N5: ⌘1–⌘4 med en dialog åben skifter ikke visningen bag den; lukket virker de igen.
   const s = side({ rust: falskSagRust({ sager: SAGER() }) });
   const { d } = s;
-  await vent(10);
-  s.emit('menu', 'om'); await vent(5);
-  s.tast('2', { metaKey: true, code: 'Digit2' }); await vent(5);
+  await stille();
+  s.emit('menu', 'om'); await stille();
+  s.tast('2', { metaKey: true, code: 'Digit2' }); await stille();
   tjek('V-KITBRUG.2 N5: med en dialog åben gør ⌘2 intet (visningen bag dialogen skifter ikke)', synlige(d).join() === 'masker' && aaben(d, 'dlg-om'));
   d.querySelector('#dlg-om [data-svar="luk"]').click();
-  s.tast('2', { metaKey: true, code: 'Digit2' }); await vent(5);
+  s.tast('2', { metaKey: true, code: 'Digit2' }); await stille();
   tjek('V-KITBRUG.2 N5: kontrol: lukket skifter ⌘2 til Demaskér', synlige(d).join() === 'demasker');
   const sw = side({ platform: 'windows' });
-  await vent(5);
-  sw.emit('menu', 'om'); await vent(5);
-  sw.tast('3', { ctrlKey: true, code: 'Digit3' }); await vent(5);
+  await stille();
+  sw.emit('menu', 'om'); await stille();
+  sw.tast('3', { ctrlKey: true, code: 'Digit3' }); await stille();
   tjek('V-KITBRUG.2 N5: Windows: med en dialog åben gør Ctrl+3 intet', synlige(sw.d).join() === 'masker');
 })();
 await (async () => {
@@ -3499,7 +3529,7 @@ const elNavn = e => e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') + (e.clas
 await (async () => {
   // Kontrol af kaskaden: kendte værdier fra kit.css og app.css.
   const { d } = side();
-  await vent(5);
+  await stille();
   const sp = d.createElement('span');
   sp.className = 'skjult-tekst';
   d.body.appendChild(sp);
@@ -3516,7 +3546,7 @@ await (async () => {
   const s = side({ rust: falskOrdbogRust({ indst: { guide_vist: true } }) });
   const { d } = s;
   await vent(20);
-  s.emit('menu', 'indstillinger'); await vent(5);
+  s.emit('menu', 'indstillinger'); await stille();
   const dlg = d.getElementById('dlg-indst');
   // Elementet og dets forfædre inde i dialogen: hvilke har en max-width (andet end none og 100 %)?
   const smal = e => { const ud = []; for (let a = e; a && !a.classList.contains('modal'); a = a.parentElement) { const v = cssVaerdi(a, 'max-width'); if (v && v !== 'none' && v !== '100%') ud.push(elNavn(a) + ': ' + v); } return ud; };
@@ -3544,10 +3574,10 @@ await (async () => {
   const rust = falskSagRust({ sager: SAGER() });
   const s = side({ hash: '#sager', rust });
   const { d, w } = s;
-  await vent(10);
+  await stille();
   klik(w, knapI(d, 'sager', 'ny-sag'));
   const fe = d.getElementById('dlg-ny-sag-fejl'), navn = d.getElementById('ny-sag-navn'), udl = d.getElementById('ny-sag-udloeb');
-  klik(w, d.getElementById('ny-sag-opret')); await vent(5);
+  klik(w, d.getElementById('ny-sag-opret')); await stille();
   tjek('V-PUDS.3 N4: Ny sag: tomt navn giver "Skriv et navn." (som før)', aaben(d, 'dlg-ny-sag') && fe.textContent === 'Skriv et navn.');
   udl.value = '2027-01-31';
   udl.dispatchEvent(new w.Event('input', { bubbles: true }));
@@ -3556,11 +3586,11 @@ await (async () => {
   skriv(w, navn, 'S');
   tjek('V-PUDS.3 N4: Ny sag: fejlen forsvinder, så snart der skrives i Navn (dialogen er stadig åben)', fe.textContent === '' && aaben(d, 'dlg-ny-sag'));
   skriv(w, navn, '');
-  klik(w, d.getElementById('ny-sag-opret')); await vent(5);
+  klik(w, d.getElementById('ny-sag-opret')); await stille();
   tjek('V-PUDS.3 N4: Ny sag: et nyt forsøg med tomt navn viser fejlen igen', fe.textContent === 'Skriv et navn.');
   rust.sag_ny = () => { throw { art: 'sag', fejl: { art: 'disk', hvad: 'PermissionDenied' } }; };
   skriv(w, navn, 'Supportsag 0099');
-  klik(w, d.getElementById('ny-sag-opret')); await vent(10);
+  klik(w, d.getElementById('ny-sag-opret')); await stille();
   const rustFejl = fe.textContent;
   tjek('V-PUDS.3 N4: Ny sag: en fejl fra Rust efter et forsøg vises som før (fejlfeltet, dialogen åben)', rustFejl.length > 10 && rustFejl !== 'Skriv et navn.' && aaben(d, 'dlg-ny-sag'), rustFejl);
   udl.value = '2027-02-28';
@@ -3568,12 +3598,12 @@ await (async () => {
   tjek('V-PUDS.3 N4: … og ryddes, når et vilkårligt felt ændres (her Udløb), fordi den ikke hører til ét felt', fe.textContent === '');
   // Åbnet igen efter "Skriv et navn.": kittet tømmer fejlfeltet ved åbning, og en fejl fra Rust gælder hele dialogen.
   skriv(w, navn, '');
-  klik(w, d.getElementById('ny-sag-opret')); await vent(5);
+  klik(w, d.getElementById('ny-sag-opret')); await stille();
   klik(w, d.querySelector('#dlg-ny-sag [data-svar="annuller"]'));
   klik(w, knapI(d, 'sager', 'ny-sag'));
   const tomVedAabning = fe.textContent === '';
   skriv(w, navn, 'Supportsag 0100');
-  klik(w, d.getElementById('ny-sag-opret')); await vent(10);
+  klik(w, d.getElementById('ny-sag-opret')); await stille();
   const igen = fe.textContent;
   udl.value = '2027-03-31';
   udl.dispatchEvent(new w.Event('change', { bubbles: true }));
@@ -3584,7 +3614,7 @@ await (async () => {
   klik(w, knapI(d, 'sager', 'omdoeb'));
   const ofe = d.getElementById('dlg-omdoeb-fejl'), onavn = d.getElementById('omdoeb-navn');
   skriv(w, onavn, '   ');
-  klik(w, d.getElementById('omdoeb-ok')); await vent(5);
+  klik(w, d.getElementById('omdoeb-ok')); await stille();
   tjek('V-PUDS.3 N4: Omdøb: tomt navn giver fejlen (som før)', aaben(d, 'dlg-omdoeb') && ofe.textContent === 'Skriv et navn.');
   skriv(w, onavn, 'Supportsag 0043');
   tjek('V-PUDS.3 N4: Omdøb: fejlen forsvinder, så snart der skrives i Navn', ofe.textContent === '');
@@ -3594,12 +3624,12 @@ await (async () => {
   const ufe = d.getElementById('dlg-udloeb-fejl'), uingen = d.getElementById('udloeb-ingen'), udato = d.getElementById('udloeb-dato');
   const saetIngen = v => { uingen.checked = v; uingen.dispatchEvent(new w.Event('change', { bubbles: true })); };
   saetIngen(false);
-  klik(w, d.getElementById('udloeb-ok')); await vent(5);
+  klik(w, d.getElementById('udloeb-ok')); await stille();
   tjek('V-PUDS.3 N4: Udløb: uden dato og uden flueben giver fejlen (som før)', ufe.textContent === 'Vælg en dato, eller sæt flueben ved Ingen udløb.');
   saetIngen(true);
   tjek('V-PUDS.3 N4: Udløb: fejlen forsvinder ved flueben i Ingen udløb', ufe.textContent === '');
   saetIngen(false);
-  klik(w, d.getElementById('udloeb-ok')); await vent(5);
+  klik(w, d.getElementById('udloeb-ok')); await stille();
   udato.value = datoOm(20);
   udato.dispatchEvent(new w.Event('input', { bubbles: true }));
   tjek('V-PUDS.3 N4: Udløb: … og når en dato vælges', ufe.textContent === '' && aaben(d, 'dlg-udloeb'));
@@ -3613,32 +3643,32 @@ await (async () => {
   await vent(20);
   klik(w, knapI(d, 'ordbog', 'tilfoej-post'));
   const vaerdi = d.getElementById('opost-vaerdi'), note = d.getElementById('opost-note'), vfe = d.getElementById('opost-vaerdi-fejl'), pfe = d.getElementById('dlg-opost-fejl');
-  klik(w, d.getElementById('opost-ok')); await vent(5);
+  klik(w, d.getElementById('opost-ok')); await stille();
   tjek('V-PUDS.3 N4: Tilføj post: tom værdi giver fejlen under Værdi (som før)', vfe.textContent === 'Skriv en værdi.' && vaerdi.getAttribute('aria-invalid') === 'true');
   skriv(w, note, 'n');
   tjek('V-PUDS.3 N4: Tilføj post: fejlen under Værdi bliver stående, når Note ændres', vfe.textContent === 'Skriv en værdi.');
   skriv(w, vaerdi, 'k');
   tjek('V-PUDS.3 N4: Tilføj post: fejlen under Værdi forsvinder, så snart der skrives i Værdi (også aria-invalid)', vfe.textContent === '' && !vaerdi.hasAttribute('aria-invalid'));
   skriv(w, vaerdi, 'kontor.test');
-  klik(w, d.getElementById('opost-ok')); await vent(10);
+  klik(w, d.getElementById('opost-ok')); await stille();
   const pf = pfe.textContent;
   tjek('V-PUDS.3 N4: Tilføj post: en fejl fra Rust, der ikke hører til et felt, står i fejlfeltet (som før)', pf.length > 10 && aaben(d, 'dlg-opost'), pf);
   skriv(w, note, 'arbejdsstationer');
   tjek('V-PUDS.3 N4: … og ryddes, når et vilkårligt felt ændres (her Note)', pfe.textContent === '');
   klik(w, d.querySelector('#dlg-opost [data-svar="annuller"]'));
   // Indstillinger: en fejl fra Rust efter en ændring; næste ændring rydder den.
-  s.emit('menu', 'indstillinger'); await vent(5);
+  s.emit('menu', 'indstillinger'); await stille();
   const ife = d.getElementById('dlg-indst-fejl'), fremmede = d.getElementById('indst-fremmede');
   fremmede.checked = !fremmede.checked;
-  fremmede.dispatchEvent(new w.Event('change', { bubbles: true })); await vent(10);
+  fremmede.dispatchEvent(new w.Event('change', { bubbles: true })); await stille();
   tjek('V-PUDS.3 N4: Indstillinger: en fejl fra Rust efter en ændring vises som før', ife.textContent.length > 10, ife.textContent);
   const lys = d.querySelector('input[name="indst-tema"][value="moerk"]');
   lys.checked = true;
   lys.dispatchEvent(new w.Event('change', { bubbles: true }));
   tjek('V-PUDS.3 N4: … og ryddes ved næste ændring i dialogen (her Tema, som ikke går til Rust)', ife.textContent === '');
   // Guiden: fejlen under feltet ryddes, når der skrives i det.
-  klik(w, d.getElementById('indst-guide')); await vent(5);
-  klik(w, [...d.querySelectorAll('#dlg-guide .fod button')][2]); await vent(5);
+  klik(w, d.getElementById('indst-guide')); await stille();
+  klik(w, [...d.querySelectorAll('#dlg-guide .fod button')][2]); await stille();
   const gf = d.getElementById('guide-domaene'), gfe = d.getElementById('guide-domaene-fejl');
   klik(w, gf.closest('.guide-felt').querySelector('button'));
   tjek('V-PUDS.3 N4: guiden: tomt felt giver fejlen under feltet (som før)', gfe.textContent === 'Skriv en værdi.' && gf.getAttribute('aria-invalid') === 'true');
@@ -3650,7 +3680,7 @@ await (async () => {
 // ── N5: linjetal straks og størrelse i en enhed, der passer ──
 await (async () => {
   const { w } = side();
-  await vent(5);
+  await stille();
   const GM = w.GrimnirMaskering;
   const rs = fs.readFileSync(path.join(repo, 'src-tauri', 'src', 'fil.rs'), 'utf8');
   const fra = rs.indexOf('fn antal_linjer_efter_reglen');
@@ -3683,7 +3713,7 @@ await (async () => {
 await (async () => {
   const s = side({ rust: falskRust() });
   const { d, w } = s;
-  await vent(5);
+  await stille();
   const GM = w.GrimnirMaskering;
   const sek = d.querySelector('section[data-visning="masker"]');
   const info = () => sek.querySelector('.panel .panel-hoved .muted').textContent;
@@ -3692,15 +3722,15 @@ await (async () => {
   const n = GM.utf8Laengde(TEKST);
   tjek(`V-PUDS.3 N5: Maskér før analysen: panelhovedet viser linjetallet straks og størrelsen i bytes ("3 linjer · ${n} bytes")`, info() === `3 linjer · ${n} bytes`, info());
   tjek('V-PUDS.3 N5: … uden et kald til Rust ud over analysen (teksten sendes ikke for at blive talt; V-OPBYG.1: analysen sker ved indsætningen)', s.kald.slice(kaldFoer).map(k => k[0]).join() === 'analyser', JSON.stringify(s.kald.slice(kaldFoer).map(k => k[0])));
-  await vent(5);
+  await stille();
   tjek('V-PUDS.3 N5: … og efter analysen det samme tal fra Rust', info() === `3 linjer · ${n} bytes` && s.kald.some(k => k[0] === 'analyser'), info());
   const stor = 'x'.repeat(200000) + '\n' + 'y'.repeat(10);
   indsaet(w, sek.querySelector('pre.tekst'), stor);
   tjek('V-PUDS.3 N5: en tekst på 200.011 bytes: "2 linjer · 0,2 MB"', info() === '2 linjer · 0,2 MB', info());
-  w.Sprog.saet('en'); await vent(5);
+  w.Sprog.saet('en'); await stille();
   tjek('V-PUDS.3 N5: sprogskift: talformatet følger med ("2 lines · 0.2 MB")', info() === '2 lines · 0.2 MB', info());
-  w.Sprog.saet('da'); await vent(5);
-  w.location.hash = 'demasker'; await vent(5);
+  w.Sprog.saet('da'); await stille();
+  w.location.hash = 'demasker'; await stille();
   const dsek = d.querySelector('section[data-visning="demasker"]');
   indsaet(w, dsek.querySelector('.tomt'), 'Prøv h0099\n');
   tjek('V-PUDS.3 N5: Demaskér før demaskering: "1 linje · 12 bytes" (det samme i Demaskér)', dsek.querySelector('.panel .panel-hoved .muted').textContent === '1 linje · 12 bytes', dsek.querySelector('.panel .panel-hoved .muted').textContent);
@@ -3711,7 +3741,7 @@ await (async () => {
 await (async () => {
   const s = side({ rust: falskRust() });
   const { d, w } = s;
-  await vent(5);
+  await stille();
   const kaldt = [];
   // jsdom indsætter ikke selv: som en webvisning, der ikke må hente udklipsholderen (execCommand giver false).
   d.execCommand = c => { kaldt.push(c); return false; };
@@ -3731,7 +3761,7 @@ await (async () => {
   klik(w, knapI(d, 'masker', 'indsaet'));
   const besk = sek.querySelector('.arbejde .besked');
   tjek('V-PUDS.3 N6: med en tekst står beskeden som før over teksten (synlig)', besk.textContent === 'Tryk ⌘V for at indsætte.' && synlig(besk) && tb.textContent === '');
-  w.location.hash = 'demasker'; await vent(5);
+  w.location.hash = 'demasker'; await stille();
   const dsek = d.querySelector('section[data-visning="demasker"]');
   klik(w, knapI(d, 'demasker', 'indsaet'));
   tjek('V-PUDS.3 N6: det samme i Demaskér uden tekst', dsek.querySelector('.arbejde').hidden && ord(dsek.querySelector('.tom-bannere')) === 'Tryk ⌘V for at indsætte.');
@@ -3740,7 +3770,7 @@ await (async () => {
   klik(w, knapI(d, 'demasker', 'indsaet'));
   tjek('V-PUDS.3 N6: indsætter webvisningen selv (execCommand giver true), står der ingen besked', dsek.querySelector('.tom-bannere').textContent === '' && dsek.querySelector('.arbejde .besked').textContent === '');
   const sw = side({ platform: 'windows' });
-  await vent(5);
+  await stille();
   sw.d.execCommand = () => false;
   klik(sw.w, knapI(sw.d, 'masker', 'indsaet'));
   tjek('V-PUDS.3 N6: Windows: "Tryk Ctrl+V for at indsætte."', ord(sw.d.querySelector('section[data-visning="masker"] .tom-bannere')) === 'Tryk Ctrl+V for at indsætte.', sw.d.querySelector('section[data-visning="masker"] .tom-bannere').textContent);
@@ -3753,15 +3783,15 @@ await (async () => {
   const { d, w } = s;
   await vent(20);
   indsaet(w, d.querySelector('section[data-visning="masker"] .tomt'), TEKST);
-  s.tast('Enter', { metaKey: true }); await vent(10);
+  s.tast('Enter', { metaKey: true }); await stille();
   const iTabel = [...d.querySelectorAll('table .skjult-tekst')].filter(e => cssVaerdi(e, 'position') === 'absolute');
   const udenForfader = e => { for (let a = e.parentElement; a; a = a.parentElement) { const p = cssVaerdi(a, 'position'); if (p && p !== 'static') return false; if (a.classList.contains('tabelvaert')) return true; } return true; };
   const uden = iTabel.filter(udenForfader);
   tjek('V-PUDS.3 N7: ingen absolut placeret skjult tekst i en tabel mangler en forfader med position (inden for tabellens rullefelt)', iTabel.length >= 10 && uden.length === 0, `${iTabel.length} i tabeller, ${uden.length} uden: ${uden.slice(0, 2).map(e => elNavn(e.parentElement)).join(', ')}`);
   tjek('V-PUDS.3 N7: rullefeltet (.tabelvaert) har position: relative, som kittets .tabel-rul', cssVaerdi(d.querySelector('section[data-visning="masker"] .tabelvaert'), 'position') === 'relative' && CSS_REGLER.some(r => r.sel === '.tabel-rul' && r.decl.position === 'relative'));
   // Gennemgang: alle skjulte tekster i Grimnirs visninger (alle fire, med indhold), også uden for tabeller.
-  w.location.hash = 'ordbog'; await vent(10);
-  w.location.hash = 'masker'; await vent(5);
+  w.location.hash = 'ordbog'; await stille();
+  w.location.hash = 'masker'; await stille();
   const alle = [...d.querySelectorAll('.skjult-tekst')].filter(e => cssVaerdi(e, 'position') === 'absolute');
   const udenNogen = alle.filter(e => { for (let a = e.parentElement; a; a = a.parentElement) { const p = cssVaerdi(a, 'position'); if (p && p !== 'static') return false; } return true; });
   tjek(`V-PUDS.3 N7: gennemgang: hver af de ${alle.length} skjulte tekster i Grimnir har en forfader med position`, alle.length >= 10 && udenNogen.length === 0, udenNogen.map(e => elNavn(e.parentElement)).join(', '));
@@ -3843,10 +3873,10 @@ async function manuelSide(o = {}) {
   const rust = falskManuelRust();
   const s = side({ rust, ...o });
   const { d, w } = s;
-  await vent(5);
+  await stille();
   indsaet(w, d.querySelector('section[data-visning="masker"] .tomt'), MTEKST);
   s.tast('Enter', { metaKey: !o.platform || o.platform === 'macos', ctrlKey: o.platform === 'windows' });
-  await vent(10);
+  await stille();
   return { ...s, rust, GM: w.GrimnirMaskering };
 }
 
@@ -3865,7 +3895,7 @@ await (async () => {
   tjek('V-MANUEL.1 N1: musetrykket på båndets knap tager ikke markeringen eller fokus fra teksten (mousedown stoppes)', md.defaultPrevented && GM.M.markering() === 'jdoe');
   const foer = rust.log.analyser.length;
   b.click();
-  await vent(10);
+  await stille();
   const sidst = rust.log.analyser[rust.log.analyser.length - 1];
   tjek('V-MANUEL.1 N1: værdien sendes til Rust med analysen (tilfoejede, type Ord som standard)', rust.log.analyser.length === foer + 1 && JSON.stringify(sidst.tilfoejede) === '[{"vaerdi":"jdoe","art":"ord"}]', JSON.stringify(sidst && sidst.tilfoejede));
   const tr = tilfRaekke(d, 'jdoe');
@@ -3881,7 +3911,7 @@ await (async () => {
   // Typen: erstatningens form skifter
   sel.value = 'bruger';
   sel.dispatchEvent(new w.Event('change', { bubbles: true }));
-  await vent(10);
+  await stille();
   const tr2 = tilfRaekke(d, 'jdoe');
   tjek('V-MANUEL.1 N1: skift typen til Bruger: Rust får typen, og erstatningen får formen user0001', JSON.stringify(rust.log.analyser[rust.log.analyser.length - 1].tilfoejede) === '[{"vaerdi":"jdoe","art":"bruger"}]' && tr2.querySelector('[data-felt="kode"]').value.startsWith('user0001') && tr2.querySelector('select').value === 'bruger');
   // En rettet erstatning bliver ved et typeskift
@@ -3892,16 +3922,16 @@ await (async () => {
   const s3 = tilfRaekke(d, 'jdoe').querySelector('select');
   s3.value = 'vaert';
   s3.dispatchEvent(new w.Event('change', { bubbles: true }));
-  await vent(10);
+  await stille();
   tjek('V-MANUEL.1 N1: en erstatning, brugeren selv har rettet, bliver ved et typeskift', tilfRaekke(d, 'jdoe').querySelector('[data-felt="kode"]').value === 'konto-a' && GM.M.st.tilfoejede[0].art === 'vaert');
   // Analysér igen beholder de tilføjede
   knapI(d, 'masker', 'analyser').click();
-  await vent(10);
+  await stille();
   tjek('V-MANUEL.1 N1: Analysér igen beholder de tilføjede værdier', JSON.stringify(rust.log.analyser[rust.log.analyser.length - 1].tilfoejede) === '[{"vaerdi":"jdoe","art":"vaert"}]' && tilfRaekke(d, 'jdoe'));
   // Fjern
   const fj = tilfRaekke(d, 'jdoe').querySelector('[data-felt="fjern"]');
   fj.click();
-  await vent(10);
+  await stille();
   tjek('V-MANUEL.1 N1: Fjern fjerner rækken (ikke kun fravalg): Rust får den ikke længere, rettelsen er væk, fokus i teksten', !tilfRaekke(d, 'jdoe') && GM.M.st.tilfoejede.length === 0 && JSON.stringify(rust.log.analyser[rust.log.analyser.length - 1].tilfoejede) === '[]' && GM.M.st.rettelser.size === 0 && d.activeElement === preM(d));
   tjek('V-MANUEL.1 N1: … og siger det', beskedM(d).textContent === 'Fjernet: jdoe.', beskedM(d).textContent);
 })();
@@ -3935,7 +3965,7 @@ await (async () => {
   markerOrd(w, d, 'db1');
   pre.dispatchEvent(new w.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
   punkter[0].click();
-  await vent(10);
+  await stille();
   tjek('V-MANUEL.1 N1: Maskér dette fra genvejsmenuen tilføjer værdien og lukker menuen', menu.hidden && tilfRaekke(d, 'db1') && JSON.stringify(rust.log.analyser[rust.log.analyser.length - 1].tilfoejede) === '[{"vaerdi":"db1","art":"ord"}]');
   // Tastaturet: markér pc-17 med Skift + piletaster og brug genvejen ⇧⌘M
   pre.focus();
@@ -3944,7 +3974,7 @@ await (async () => {
   for (let n = 0; n < 5; n++) pre.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'ArrowRight', shiftKey: true, bubbles: true, cancelable: true }));
   tjek('V-MANUEL.1 N1: Skift + højre pil markerer tegn for tegn i tekstfeltet (fra der, hvor der er klikket)', GM.M.markering() === 'pc-17' && kommandoAktiv(d, 'masker', 'masker-dette'), GM.M.markering());
   s.tast('M', { metaKey: true, shiftKey: true, code: 'KeyM' });
-  await vent(10);
+  await stille();
   tjek('V-MANUEL.1 N1: ⇧⌘M tilføjer markeringen (uden mus)', tilfRaekke(d, 'pc-17') && GM.M.st.tilfoejede.map(x => x.vaerdi).join() === 'db1,pc-17');
   w.getSelection().setBaseAndExtent(pre.firstChild, 0, pre.firstChild, 0);
   pre.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'ArrowRight', shiftKey: true, altKey: true, bubbles: true, cancelable: true }));
@@ -3959,7 +3989,7 @@ await (async () => {
   d.dispatchEvent(new w.Event('selectionchange'));
   const ryddet = w.getSelection().toString() === '';
   tjek('V-MANUEL.1 N1: Tab til båndets Maskér dette (markeringen ryddes af fokus): den seneste markering i teksten huskes, og knappen er slået til', ryddet && kommandoAktiv(d, 'masker', 'masker-dette') && GM.M.markering() === 'fejl');
-  bk.click(); await vent(10);
+  bk.click(); await stille();
   tjek('V-MANUEL.1 N1: … Enter/klik tilføjer den huskede værdi og lægger markeringen tilbage i teksten', tilfRaekke(d, 'fejl') && w.getSelection().toString() === 'fejl');
   const p0 = MTEKST.indexOf('host');
   w.getSelection().setBaseAndExtent(pre.firstChild, p0, pre.firstChild, p0);
@@ -3983,7 +4013,7 @@ await (async () => {
   const s = await manuelSide();
   const { d, w, GM, rust } = s;
   const pre = preM(d);
-  const maskerDette = async () => { knapI(d, 'masker', 'masker-dette').click(); await vent(10); };
+  const maskerDette = async () => { knapI(d, 'masker', 'masker-dette').click(); await stille(); };
   const n0 = rust.log.analyser.length;
   marker(w, d, MTEKST.indexOf(' fra'), MTEKST.indexOf(' fra') + 1);
   await maskerDette();
@@ -4025,7 +4055,7 @@ await (async () => {
   GM.M.st.tilfoejede.push({ vaerdi: 'aldrigord', art: 'ord' });
   GM.M.st.meld = { v: 'aldrigord' };
   await GM.M.analyser();
-  await vent(10);
+  await stille();
   tjek('V-MANUEL.1 N1: en værdi på "maskér aldrig" afvises af Rust med grunden og fjernes igen', !GM.M.st.tilfoejede.some(x => x.vaerdi === 'aldrigord') && beskedM(d).textContent === 'aldrigord står på Maskér aldrig i ordbogen, og det vinder over alt. Fjern den dér først.' && GM.M.hist.bag.length === foerTrin, beskedM(d).textContent);
   // Før og efter med resultatet vist: Maskér dette er slået fra
   GM.M.st.foerEfter = true; GM.M.st.resultat = { maskeret: 'x', rester: [], advarsler: [] };
@@ -4036,10 +4066,10 @@ await (async () => {
   tjek('V-OPBYG.6 N1: i en åben fil er Maskér markering ikke længere kun for indsat tekst; uden markering forklarer den det viste uddrag og hele filen', GM.M.kanMarkere() === 'hvorforMarkerFil');
   GM.M.st.fil = null;
   // Gem og maskér sender de tilføjede, og en ny tekst fjerner dem
-  s.tast('Enter', { metaKey: true }); await vent(10);
+  s.tast('Enter', { metaKey: true }); await stille();
   tjek('V-MANUEL.1 N1: Gem og maskér sender de tilføjede værdier til Rust (de lægges i sagen)', rust.log.gem.length === 1 && rust.log.gem[0].tilfoejede.map(x => x.vaerdi).join() === 'jdoe,20.30,og');
   indsaet(w, pre, 'ny tekst om jdoe\n');
-  await vent(5);
+  await stille();
   tjek('V-MANUEL.1 N1: en ny indsat tekst fjerner de tilføjede værdier (og historikken)', GM.M.st.tilfoejede.length === 0 && GM.M.hist.bag.length === 0);
 })();
 
@@ -4054,11 +4084,11 @@ await (async () => {
   const ip = MTEKST.indexOf('10.20.30.11');
   // 1. afkrydsning, 2. Maskér dette, 3. type, 4. erstatning, 5. Fjern
   raekkeMed(d, ip).querySelector('[data-felt="valg"]').click(); await vent(400);
-  markerOrd(w, d, 'jdoe'); knapI(d, 'masker', 'masker-dette').click(); await vent(10);
-  const sel = tilfRaekke(d, 'jdoe').querySelector('select'); sel.value = 'person'; sel.dispatchEvent(new w.Event('change', { bubbles: true })); await vent(10);
+  markerOrd(w, d, 'jdoe'); knapI(d, 'masker', 'masker-dette').click(); await stille();
+  const sel = tilfRaekke(d, 'jdoe').querySelector('select'); sel.value = 'person'; sel.dispatchEvent(new w.Event('change', { bubbles: true })); await stille();
   const k = tilfRaekke(d, 'jdoe').querySelector('[data-felt="kode"]'); k.value = 'anna-k'; k.dispatchEvent(new w.Event('change', { bubbles: true })); await vent(400);
-  markerOrd(w, d, 'db1'); knapI(d, 'masker', 'masker-dette').click(); await vent(10);
-  tilfRaekke(d, 'db1').querySelector('[data-felt="fjern"]').click(); await vent(10);
+  markerOrd(w, d, 'db1'); knapI(d, 'masker', 'masker-dette').click(); await stille();
+  tilfRaekke(d, 'db1').querySelector('[data-felt="fjern"]').click(); await stille();
   tjek('V-MANUEL.1 N2: hver handling er ét trin (afkrydsning, Maskér dette ×2, type, erstatning, Fjern)', GM.M.hist.bag.map(x => x.art).join() === 'valg,tilfoej,type,kode,tilfoej,fjern', GM.M.hist.bag.map(x => x.art).join());
   tjek('V-MANUEL.1 N2: Fortryd er slået til med genvejen ⌘Z, Gentag er stadig slået fra', kommandoAktiv(d, 'masker', 'fortryd') && fb.getAttribute('title') === 'Genvej: ⌘Z' && !kommandoAktiv(d, 'masker', 'gentag'));
   const meldt = [];
@@ -4066,17 +4096,17 @@ await (async () => {
   for (let n = 0; n < 6; n++) {
     d.body.focus();
     s.tast('z', { metaKey: true, code: 'KeyZ' });
-    await vent(10);
+    await stille();
     meldt.push(beskedM(d).textContent);
     tilbage.push(JSON.stringify(rust.log.analyser[rust.log.analyser.length - 1].tilfoejede));
   }
   tjek('V-MANUEL.1 N2: ⌘Z fortryder trin for trin og melder hvert (fodlinjens besked, role="status")', meldt.join(' | ') === 'Fortrudt: Fjern for db1 | Fortrudt: Maskér markering for db1 | Fortrudt: erstatning for jdoe | Fortrudt: type for jdoe | Fortrudt: Maskér markering for jdoe | Fortrudt: afkrydsning for 10.20.30.11', meldt.join(' | '));
   tjek('V-MANUEL.1 N2: … og Rust får valgene, som de var (tilføjede værdier og typer)', tilbage.join(' | ') === '[{"vaerdi":"jdoe","art":"person"},{"vaerdi":"db1","art":"ord"}] | [{"vaerdi":"jdoe","art":"person"}] | [{"vaerdi":"jdoe","art":"person"}] | [{"vaerdi":"jdoe","art":"ord"}] | [] | []', tilbage.join(' | '));
   tjek('V-MANUEL.1 N2: efter alle trin er valgene som før (afkrydset, ingen rettelser, intet tilføjet), og Fortryd er slået fra', raekkeMed(d, ip).querySelector('[data-felt="valg"]').checked && GM.M.st.rettelser.size === 0 && GM.M.st.tilfoejede.length === 0 && !kommandoAktiv(d, 'masker', 'fortryd') && kommandoAktiv(d, 'masker', 'gentag') && gb.getAttribute('title') === 'Genvej: ⇧⌘Z');
-  for (let n = 0; n < 4; n++) { s.tast('Z', { metaKey: true, shiftKey: true, code: 'KeyZ' }); await vent(10); }
+  for (let n = 0; n < 4; n++) { s.tast('Z', { metaKey: true, shiftKey: true, code: 'KeyZ' }); await stille(); }
   tjek('V-MANUEL.1 N2: ⇧⌘Z gentager (fire trin: afkrydsning, Maskér dette, type, erstatning)', beskedM(d).textContent === 'Gentaget: erstatning for jdoe' && !raekkeMed(d, ip).querySelector('[data-felt="valg"]').checked && tilfRaekke(d, 'jdoe').querySelector('select').value === 'person' && tilfRaekke(d, 'jdoe').querySelector('[data-felt="kode"]').value === 'anna-k', beskedM(d).textContent);
-  gb.click(); await vent(10);
-  fb.click(); await vent(10);
+  gb.click(); await stille();
+  fb.click(); await stille();
   tjek('V-MANUEL.1 N2: båndets Gentag og Fortryd gør det samme', beskedM(d).textContent === 'Fortrudt: Maskér markering for db1' && GM.M.st.tilfoejede.map(x => x.vaerdi).join() === 'jdoe');
   // En ny handling efter Fortryd tømmer Gentag
   raekkeMed(d, ip).querySelector('[data-felt="valg"]').click(); await vent(400);
@@ -4087,24 +4117,24 @@ await (async () => {
   const tr0 = GM.M.hist.bag.length;
   const ev = new w.KeyboardEvent('keydown', { key: 'z', code: 'KeyZ', metaKey: true, bubbles: true, cancelable: true });
   kode.dispatchEvent(ev);
-  await vent(10);
+  await stille();
   tjek('V-MANUEL.1 N2: ⌘Z med fokus i et tekstfelt (Erstatning) er feltets egen fortryd: ikke stoppet, Grimnirs historik urørt', !ev.defaultPrevented && GM.M.hist.bag.length === tr0);
   const kaldt = [];
   d.execCommand = c => { kaldt.push(c); return true; };
   s.emit('menu', 'fortryd');
   s.emit('menu', 'gentag');
-  await vent(10);
+  await stille();
   tjek('V-MANUEL.1 N2: menuen Rediger → Fortryd/Gentag med fokus i et felt: webvisningens undo/redo i feltet (execCommand), historikken urørt', kaldt.join() === 'undo,redo' && GM.M.hist.bag.length === tr0, kaldt.join());
   d.body.focus();
   kode.blur();
   s.emit('menu', 'fortryd');
-  await vent(10);
+  await stille();
   tjek('V-MANUEL.1 N2: menuen Rediger → Fortryd uden fokus i et felt: Grimnirs Fortryd', GM.M.hist.bag.length === tr0 - 1 && beskedM(d).textContent === 'Fortrudt: afkrydsning for 10.20.30.11' && kaldt.length === 2, beskedM(d).textContent);
   // Tastetrykket og menuen sammen (hvis WebKit også lod menuen slå til): kun ét trin
   const tr1 = GM.M.hist.bag.length;
   s.tast('z', { metaKey: true, code: 'KeyZ' });
   s.emit('menu', 'fortryd');
-  await vent(10);
+  await stille();
   tjek('V-MANUEL.1 N2: ⌘Z og menuens hændelse lige efter fortryder kun ét trin', GM.M.hist.bag.length === tr1 - 1);
   // Mindst 50 trin; højst 100 huskes
   for (let n = 0; n < 60; n++) raekkeMed(d, ip).querySelector('[data-felt="valg"]').click();
@@ -4116,13 +4146,13 @@ await (async () => {
   await vent(400);
   tjek('V-MANUEL.1 N2: historikken husker højst 100 trin', GM.M.hist.bag.length === 100);
   // Gem og maskér tømmer historikken
-  s.tast('Enter', { metaKey: true }); await vent(10);
+  s.tast('Enter', { metaKey: true }); await stille();
   tjek('V-MANUEL.1 N2: Gem og maskér tømmer historikken; Fortryd er slået fra og forklaringen siger hvorfor', GM.M.st.resultat && GM.M.hist.bag.length === 0 && GM.M.hist.frem.length === 0 && !kommandoAktiv(d, 'masker', 'fortryd') && /ved Maskér,/.test(forklaring(fb)));
   const efter = new w.KeyboardEvent('keydown', { key: 'z', code: 'KeyZ', metaKey: true, bubbles: true, cancelable: true });
   d.dispatchEvent(efter);
   tjek('V-MANUEL.1 N2: ⌘Z efter Gem og maskér fortryder intet (sagen er gemt)', GM.M.st.resultat && GM.M.hist.bag.length === 0);
   // Ikke i Demaskér, Sager eller Ordbog
-  w.location.hash = 'ordbog'; await vent(5);
+  w.location.hash = 'ordbog'; await stille();
   const ord = new w.KeyboardEvent('keydown', { key: 'z', code: 'KeyZ', metaKey: true, bubbles: true, cancelable: true });
   d.dispatchEvent(ord);
   tjek('V-MANUEL.1 N2: ⌘Z i Ordbog bruges ikke af Grimnir (ikke stoppet)', !ord.defaultPrevented);
@@ -4138,12 +4168,12 @@ await (async () => {
   const ip = MTEKST.indexOf('10.20.30.11');
   raekkeMed(d, ip).querySelector('[data-felt="valg"]').click(); await vent(400);
   raekkeMed(d, ip).querySelector('[data-felt="valg"]').click(); await vent(400);
-  s.tast('z', { ctrlKey: true, code: 'KeyZ' }); await vent(10);
+  s.tast('z', { ctrlKey: true, code: 'KeyZ' }); await stille();
   const a = !raekkeMed(d, ip).querySelector('[data-felt="valg"]').checked;
-  s.tast('y', { ctrlKey: true, code: 'KeyY' }); await vent(10);
+  s.tast('y', { ctrlKey: true, code: 'KeyY' }); await stille();
   const b = raekkeMed(d, ip).querySelector('[data-felt="valg"]').checked;
-  s.tast('z', { ctrlKey: true, code: 'KeyZ' }); await vent(10);
-  s.tast('Z', { ctrlKey: true, shiftKey: true, code: 'KeyZ' }); await vent(10);
+  s.tast('z', { ctrlKey: true, code: 'KeyZ' }); await stille();
+  s.tast('Z', { ctrlKey: true, shiftKey: true, code: 'KeyZ' }); await stille();
   tjek('V-MANUEL.1 N2: Windows: Ctrl+Z fortryder, Ctrl+Y og Ctrl+Shift+Z gentager; titlerne siger Ctrl+Z og Ctrl+Y', a && b && raekkeMed(d, ip).querySelector('[data-felt="valg"]').checked && knapI(d, 'masker', 'fortryd').getAttribute('title') === 'Genvej: Ctrl+Z' && (() => { GM.M.fortryd(); GM.M.tegn(); return knapI(d, 'masker', 'gentag').getAttribute('title') === 'Genvej: Ctrl+Y'; })());
 })();
 
@@ -4155,46 +4185,46 @@ await (async () => {
   const rb = knapI(d, 'masker', 'ryd');
   tjek('V-MANUEL.1 N3: Ryd står i båndets gruppe Tekst og er slået til med en tekst', rb.closest('.grp').querySelector('.cap').textContent === 'Tekst' && kommandoAktiv(d, 'masker', 'ryd'));
   const sagFoer = kald.filter(k => /^sag_/.test(k[0]) && k[0] !== 'sag_status').length;
-  rb.click(); await vent(10);
+  rb.click(); await stille();
   tjek('V-MANUEL.1 N3: uden valg og uden resultat rydder Ryd straks (ingen bekræftelse): tom flade, fokus på den', !d.querySelector('dialog[open]') && GM.M.st.tekst === null && GM.M.st.analyse === null && !sek.querySelector('.tomt').hidden && sek.querySelector('.arbejde').hidden && d.activeElement === sek.querySelector('.tomt'));
   tjek('V-MANUEL.1 N3: uden tekst er Ryd slået fra med en forklaring; sagen er ikke rørt', !kommandoAktiv(d, 'masker', 'ryd') && forklaring(rb) === 'Indsæt en tekst først' && kald.filter(k => /^sag_/.test(k[0]) && k[0] !== 'sag_status').length === sagFoer);
   // Med valg: bekræftelse med fokus på Annullér
   indsaet(w, sek.querySelector('.tomt'), MTEKST);
-  s.tast('Enter', { metaKey: true }); await vent(10);
-  markerOrd(w, d, 'jdoe'); knapI(d, 'masker', 'masker-dette').click(); await vent(10);
-  rb.click(); await vent(5);
+  s.tast('Enter', { metaKey: true }); await stille();
+  markerOrd(w, d, 'jdoe'); knapI(d, 'masker', 'masker-dette').click(); await stille();
+  rb.click(); await stille();
   const dlg = d.querySelector('dialog[open]');
   tjek('V-MANUEL.1 N3: med valg spørger Ryd først (kittets bekræftelse, fokus på Annullér, Ryd kan ikke fortrydes)', dlg && dlg.id === 'dlg-ryd' && dlg.querySelector('h2').textContent === 'Ryd teksten?' && /Ryd kan ikke fortrydes\.$/.test(dlg.querySelector('p').textContent) && /tilføjede værdier/.test(dlg.querySelector('p').textContent) && d.activeElement && d.activeElement.textContent === 'Annullér', dlg && dlg.textContent);
-  [...dlg.querySelectorAll('button')].find(x => x.textContent === 'Annullér').click(); await vent(5);
+  [...dlg.querySelectorAll('button')].find(x => x.textContent === 'Annullér').click(); await stille();
   tjek('V-MANUEL.1 N3: Annullér: intet er ryddet', GM.M.st.tekst === MTEKST && GM.M.st.tilfoejede.length === 1);
-  rb.click(); await vent(5);
-  [...d.querySelector('dialog[open]').querySelectorAll('button')].find(x => x.textContent === 'Ryd').click(); await vent(10);
+  rb.click(); await stille();
+  [...d.querySelector('dialog[open]').querySelectorAll('button')].find(x => x.textContent === 'Ryd').click(); await stille();
   tjek('V-MANUEL.1 N3: Ryd: teksten, fundene, de tilføjede værdier, historikken og resultatet er væk', GM.M.st.tekst === null && GM.M.st.tilfoejede.length === 0 && GM.M.hist.bag.length === 0 && GM.M.st.resultat === null && !sek.querySelector('.fundtabel'));
   // Et resultat, der hverken er kopieret eller gemt
   indsaet(w, sek.querySelector('.tomt'), MTEKST);
-  await vent(10); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
-  s.tast('Enter', { metaKey: true }); await vent(10);
-  rb.click(); await vent(5);
+  await stille(); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
+  s.tast('Enter', { metaKey: true }); await stille();
+  rb.click(); await stille();
   const d2 = d.querySelector('dialog[open]');
   tjek('V-MANUEL.1 N3: et maskeret resultat, der ikke er kopieret eller gemt: Ryd spørger først', d2 && /hverken kopieret eller gemt/.test(d2.querySelector('p').textContent));
-  [...d2.querySelectorAll('button')].find(x => x.textContent === 'Annullér').click(); await vent(5);
+  [...d2.querySelectorAll('button')].find(x => x.textContent === 'Annullér').click(); await stille();
   w.navigator.clipboard = { writeText: async () => { } };
-  knapI(d, 'masker', 'kopier').click(); await vent(10);
-  rb.click(); await vent(10);
+  knapI(d, 'masker', 'kopier').click(); await stille();
+  rb.click(); await stille();
   tjek('V-MANUEL.1 N3: efter Kopiér rydder Ryd uden at spørge', !d.querySelector('dialog[open]') && GM.M.st.tekst === null);
   // Demaskér
-  w.location.hash = 'demasker'; await vent(5);
+  w.location.hash = 'demasker'; await stille();
   const dsek = d.querySelector('section[data-visning="demasker"]');
   const drb = knapI(d, 'demasker', 'ryd');
   indsaet(w, dsek.querySelector('.tomt'), 'svar med ord0001');
-  s.tast('Enter', { metaKey: true }); await vent(10);
-  drb.click(); await vent(5);
+  s.tast('Enter', { metaKey: true }); await stille();
+  drb.click(); await stille();
   const d3 = d.querySelector('dialog[open]');
   tjek('V-MANUEL.1 N3: Demaskér: et demaskeret resultat, der ikke er kopieret eller gemt: Ryd spørger først (fokus på Annullér)', d3 && d3.id === 'dlg-ryd-dem' && /Ryd kan ikke fortrydes\.$/.test(d3.querySelector('p').textContent) && d.activeElement.textContent === 'Annullér');
-  [...d3.querySelectorAll('button')].find(x => x.textContent === 'Ryd').click(); await vent(10);
+  [...d3.querySelectorAll('button')].find(x => x.textContent === 'Ryd').click(); await stille();
   tjek('V-MANUEL.1 N3: Demaskér: Ryd tømmer svaret og resultatet og går til den tomme flade', GM.D.st.tekst === null && GM.D.st.resultat === null && !dsek.querySelector('.tomt').hidden && d.activeElement === dsek.querySelector('.tomt') && !kommandoAktiv(d, 'demasker', 'ryd'));
   indsaet(w, dsek.querySelector('.tomt'), 'svar uden resultat');
-  drb.click(); await vent(10);
+  drb.click(); await stille();
   tjek('V-MANUEL.1 N3: Demaskér uden resultat: Ryd rydder straks', !d.querySelector('dialog[open]') && GM.D.st.tekst === null);
 })();
 
@@ -4202,14 +4232,14 @@ await (async () => {
 await (async () => {
   const s = await manuelSide();
   const { d, w, GM } = s;
-  s.tast('Enter', { metaKey: true }); await vent(10);
-  w.location.hash = 'demasker'; await vent(5);
+  s.tast('Enter', { metaKey: true }); await stille();
+  w.location.hash = 'demasker'; await stille();
   const dsek = d.querySelector('section[data-visning="demasker"]');
   const nb = knapI(d, 'demasker', 'naeste-advarsel');
   const svar = 'linje et\r\nh0099 her\nlinje tre\rUSER0001 og USER0001\n';
   indsaet(w, dsek.querySelector('.tomt'), svar);
   tjek('V-MANUEL.1 N4: før demaskeringen er Næste advarsel slået fra (Demaskér først)', !kommandoAktiv(d, 'demasker', 'naeste-advarsel') && forklaring(nb) === 'Demaskér først');
-  s.tast('Enter', { metaKey: true }); await vent(10);
+  s.tast('Enter', { metaKey: true }); await stille();
   tjek('V-MANUEL.1 N4: med advarsler er Næste advarsel slået til med genvejen ⌘G (ikke længere "Kommer i en senere version")', kommandoAktiv(d, 'demasker', 'naeste-advarsel') && nb.getAttribute('title') === 'Genvej: ⌘G' && nb.getAttribute('aria-keyshortcuts') === 'Meta+G' && !/senere\('naeste-advarsel'/.test(ui('assets/app.js')));
   const beskedD = () => dsek.querySelector('.arbejde .besked');
   const valgtRk = () => [...dsek.querySelectorAll('.advtabel tbody tr')].findIndex(tr => tr.getAttribute('aria-selected') === 'true');
@@ -4217,7 +4247,7 @@ await (async () => {
   const forloeb = [];
   for (let n = 0; n < 4; n++) {
     if (n === 1) s.tast('g', { metaKey: true, code: 'KeyG' }); else nb.click();
-    await vent(5);
+    await stille();
     forloeb.push([GM.D.st.filter, valgtRk(), beskedD().textContent, markeret()]);
   }
   tjek('V-MANUEL.1 N4: hvert tryk (knap eller ⌘G) vælger den næste række under Advarsler og starter forfra efter den sidste', forloeb.map(x => x[0] + ':' + x[1]).join() === 'advarsler:0,advarsler:1,advarsler:2,advarsler:0', JSON.stringify(forloeb));
@@ -4226,16 +4256,16 @@ await (async () => {
   tjek('V-MANUEL.1 N4: visLinje: en linje efter det viste svar giver false (intet markeres)', GM.D.visLinje(99) === false && GM.D.visLinje(0) === false && GM.D.visLinje(3) === true && markeret() === 'linje tre');
   // Uden advarsler
   indsaet(w, dsek.querySelector('pre.tekst'), 'ingen advarsler her');
-  s.tast('Enter', { metaKey: true }); await vent(10);
+  s.tast('Enter', { metaKey: true }); await stille();
   tjek('V-MANUEL.1 N4: uden advarsler er den slået fra med forklaringen "Ingen advarsler i dette svar"', GM.D.st.resultat && !kommandoAktiv(d, 'demasker', 'naeste-advarsel') && forklaring(nb) === 'Ingen advarsler i dette svar', forklaring(nb));
   const foerG = beskedD().textContent, adv0 = GM.D.st.adv;
   const g = new w.KeyboardEvent('keydown', { key: 'g', code: 'KeyG', metaKey: true, bubbles: true, cancelable: true });
   d.dispatchEvent(g);
   tjek('V-MANUEL.1 N4: ⌘G uden advarsler gør intet', beskedD().textContent === foerG && GM.D.st.adv === adv0 && adv0 === -1);
   S_EN: {
-    w.Sprog.saet('en'); await vent(5);
+    w.Sprog.saet('en'); await stille();
     tjek('V-MANUEL.1 N4: engelsk: "No warnings in this reply"', forklaring(nb) === 'No warnings in this reply', forklaring(nb));
-    w.Sprog.saet('da'); await vent(5);
+    w.Sprog.saet('da'); await stille();
   }
 })();
 
@@ -4243,16 +4273,16 @@ await (async () => {
 await (async () => {
   const s = side({ rust: falskRust() });
   const { d, w } = s;
-  await vent(5);
+  await stille();
   const GM = w.GrimnirMaskering;
   const linjer = 'a\n'.repeat(12344) + 'b';
   indsaet(w, d.querySelector('section[data-visning="masker"] .tomt'), linjer);
   const info = () => d.querySelector('section[data-visning="masker"] .panel-hoved .muted').textContent;
   tjek('V-MANUEL.1 N5: linjetallet har sprogets tusindtalsskille ("12.345 linjer")', info() === '12.345 linjer · 24 kB', info());
-  w.Sprog.saet('en'); await vent(5);
+  w.Sprog.saet('en'); await stille();
   tjek('V-MANUEL.1 N5: … og på engelsk ("12,345 lines")', info() === '12,345 lines · 24 kB', info());
   tjek('V-MANUEL.1 N5: engelsk: fejlen om en stor fil og grænsen med punktum', GM.filFejlTekst({ art: 'for_stor', bytes: 110100480, maks: 104857600 }) === 'the file is 105.0 MB, and the limit is 100.0 MB');
-  w.Sprog.saet('da'); await vent(5);
+  w.Sprog.saet('da'); await stille();
   indsaet(w, d.querySelector('section[data-visning="masker"] pre.tekst'), 'x');
   tjek('V-MANUEL.1 N5: ental ved præcis 1 ("1 linje")', info() === '1 linje · 1 byte', info());
   const m5 = ui('assets/maskering.js');
@@ -4264,13 +4294,13 @@ await (async () => {
   // Filinfoen følger sproget ved et sprogskift
   const s = side({ rust: { ...falskRust(), fil_aabn: () => ({ navn: 'app.log', bytes: 12345678, tegnsaet: 'utf8', linjeskift: 'lf', linjer: 1202, uddrag: 'x', ikke_vist: 0 }) } });
   const { d, w } = s;
-  await vent(5);
-  knapI(d, 'masker', 'aabn-fil').click(); await vent(10);
+  await stille();
+  knapI(d, 'masker', 'aabn-fil').click(); await stille();
   const fi = () => d.querySelector('section[data-visning="masker"] .vl .filinfo').textContent;
   const da = fi();
-  w.Sprog.saet('en'); await vent(5);
+  w.Sprog.saet('en'); await stille();
   tjek('V-MANUEL.1 N5: filinfoens størrelse følger sproget ("11,8 MB" → "11.8 MB")', da.includes('11,8 MB') && fi().includes('11.8 MB'), da + ' / ' + fi());
-  w.Sprog.saet('da'); await vent(5);
+  w.Sprog.saet('da'); await stille();
 })();
 
 // ── V-MANUEL.1: tekster, CSS og regler ──
@@ -4658,9 +4688,9 @@ await (async () => {
   rust.analyser = a => { const x = analyser(a); x.raekker[1] = { ...x.raekker[1], laast: true, valgt: true }; return x; };
   const s = side({ rust });
   const { d, w } = s;
-  await vent(5);
+  await stille();
   indsaet(w, d.querySelector('section[data-visning="masker"] .tomt'), TEKST);
-  s.tast('Enter', { metaKey: true }); await vent(10);
+  s.tast('Enter', { metaKey: true }); await stille();
   const cb = raekkeMed(d, 24).querySelector('input[type="checkbox"]');
   tjek('V-MANUEL.2 N4: en låst række har rækkens forklaring i title (ikke "Grimnir er låst")', cb.disabled && cb.title === 'Teksten har allerede en af sagens koder her; den skal maskeres, ellers sætter demaskeringen en forkert værdi ind', cb.title);
   // N1: filteret "Kendt fra sagen" i træet.
@@ -4677,9 +4707,9 @@ await (async () => {
   const { d, w } = s;
   await vent(20);
   tjek('V-MANUEL.2 N1: uden valgt sag er Vis indhold nedtonet med forklaring', !kommandoAktiv(d, 'sager', 'vis-indhold') && forklaring(knapI(d, 'sager', 'vis-indhold')) === 'Vælg en sag i listen først');
-  klik(w, sagRaekke(d, hexId(1))); await vent(5);
+  klik(w, sagRaekke(d, hexId(1))); await stille();
   tjek('V-MANUEL.2 N1: med en valgt sag er Vis indhold aktiv', kommandoAktiv(d, 'sager', 'vis-indhold'));
-  klik(w, knapI(d, 'sager', 'vis-indhold')); await vent(10);
+  klik(w, knapI(d, 'sager', 'vis-indhold')); await stille();
   const kald = rust.st.indholdKald;
   tjek('V-MANUEL.2 N1: Vis indhold henter sagens poster fra Rust (id, alle typer, ingen søgning, 500 ad gangen, ingen viste)', kald.length === 1 && kald[0].id === hexId(1) && kald[0].valg.type === '' && kald[0].valg.soeg === '' && kald[0].valg.antal === 500 && kald[0].valg.vist.length === 0, JSON.stringify(kald));
   tjek('V-MANUEL.2 N1: visningen erstatter listen (listen er skjult)', indholdVises(d) && d.querySelector('section[data-visning="sager"] .sagliste:not(.sagindhold)').hidden);
@@ -4699,42 +4729,42 @@ await (async () => {
   tjek('V-OPBYG.2 N4: fokus står på Tilbage; fodlinjen siger sagen og dens gemte erstatninger (antallet i panelhovedet)', d.activeElement === d.getElementById('indhold-tilbage') && /· \d+ (gemt erstatning|gemte erstatninger)$/.test(d.getElementById('fod-venstre').textContent), d.getElementById('fod-venstre').textContent);
   tjek('V-MANUEL.2 N1: læst, ikke åbnet: banneret siger det (den midlertidige sag er stadig den åbne)', sek.querySelector('.sagindhold .bannere').textContent.includes('Sagen er kun læst, ikke åbnet: den midlertidige sag er stadig den åbne.') && !s.kald.some(k => k[0] === 'sag_aabn'));
   // Vis hemmeligheden: kun den sendes, og Skjul skjuler den igen.
-  klik(w, hRaekke.querySelector('[data-felt="vis"]')); await vent(10);
+  klik(w, hRaekke.querySelector('[data-felt="vis"]')); await stille();
   tjek('V-MANUEL.2 N1: Vis beder Rust om netop den hemmelighed', JSON.stringify(kald[kald.length - 1].valg.vist) === '[' + hRaekke.querySelector('[data-felt="vis"]').closest('tr').getAttribute('data-nr') + ']');
   tjek('V-MANUEL.2 N1: den viste hemmelighed står, de andre er stadig prikker', /Hemmelig-0001!/.test(altIDom(d)) && !/Hemmelig-0002!/.test(altIDom(d)));
   // Type i venstre side.
-  klik(w, d.querySelector('.navdel[data-visning="sager"] [data-punkt="i-bruger"]')); await vent(10);
+  klik(w, d.querySelector('.navdel[data-visning="sager"] [data-punkt="i-bruger"]')); await stille();
   tjek('V-MANUEL.2 N1: et klik på Bruger viser kun brugere', kald[kald.length - 1].valg.type === 'bruger' && indholdRaekker(d).length === 54 && indholdRaekker(d).every(tr => tr.textContent.startsWith('Bruger')) && sek.querySelector('.fl span').textContent === 'Bruger');
   // Søgning (i Rust).
   const soeg = d.querySelector('section[data-visning="sager"] input[type="search"]');
-  skriv(w, soeg, 'BRUGER-001'); await vent(10);
+  skriv(w, soeg, 'BRUGER-001'); await stille();
   tjek('V-MANUEL.2 N1: søgning sendes til Rust og viser de poster, der passer', kald[kald.length - 1].valg.soeg === 'BRUGER-001' && indholdRaekker(d).length === 10, String(indholdRaekker(d).length));
-  skriv(w, soeg, 'findes-ikke'); await vent(10);
+  skriv(w, soeg, 'findes-ikke'); await stille();
   tjek('V-MANUEL.2 N1: ingen træf siger det', indholdRaekker(d).length === 0 && sek.querySelector('.sagindhold .tabel-tom').textContent === 'Ingen af sagens værdier passer til søgningen.');
   // Tilbage (Esc): listen står igen, værdierne er væk fra DOM'en, og søgningen og træet er listens.
-  d.getElementById('indhold-tilbage').dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); await vent(5);
+  d.getElementById('indhold-tilbage').dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); await stille();
   tjek('V-MANUEL.2 N1: Esc går tilbage til listen; ingen værdier står tilbage i DOM\'en', !indholdVises(d) && sagRaekker(d).length === 5 + 1 && !/srv-opdigtet|bruger-0|Hemmelig-/.test(altIDom(d)));
   tjek('V-OPBYG.2 N4: tilbage i listen: træet og søgefeltet er listens, fodlinjen sagens, fokus på den valgte sag', JSON.stringify(traePunkter(d)) === JSON.stringify(['Sager', 'Alle6', 'Udløber snart2', 'Ingen udløb2']) && soeg.placeholder === 'Søg i sagerne' && soeg.value === '' && d.activeElement === sagRaekke(d, hexId(1)) && /· \d+ (gemt erstatning|gemte erstatninger)$/.test(d.getElementById('fod-venstre').textContent), JSON.stringify(traePunkter(d)));
   // Enter på en række viser indholdet; den viste hemmelighed fra før er skjult igen.
-  sagRaekke(d, hexId(1)).dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); await vent(10);
+  sagRaekke(d, hexId(1)).dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); await stille();
   tjek('V-MANUEL.2 N1: Enter på rækken viser indholdet igen, og hemmeligheden er skjult igen', indholdVises(d) && JSON.stringify(kald[kald.length - 1].valg.vist) === '[]' && !/Hemmelig-/.test(altIDom(d)));
-  klik(w, d.getElementById('indhold-tilbage')); await vent(5);
+  klik(w, d.getElementById('indhold-tilbage')); await stille();
   tjek('V-MANUEL.2 N1: Tilbage-knappen går tilbage til listen', !indholdVises(d) && sagRaekker(d).length === 6);
   // Dobbeltklik på den store sag: 500 ad gangen og Vis flere.
-  sagRaekke(d, hexId(6)).dispatchEvent(new w.MouseEvent('dblclick', { bubbles: true })); await vent(10);
+  sagRaekke(d, hexId(6)).dispatchEvent(new w.MouseEvent('dblclick', { bubbles: true })); await stille();
   tjek('V-MANUEL.2 N1: dobbeltklik viser indholdet; en stor sag viser 500 af 1200', indholdVises(d) && indholdRaekker(d).length === 500 && sek.querySelector('.sagindhold .flere').textContent.startsWith('Viser 500 af 1200'));
-  klik(w, sek.querySelector('.sagindhold .flere button')); await vent(10);
+  klik(w, sek.querySelector('.sagindhold .flere button')); await stille();
   tjek('V-MANUEL.2 N1: Vis flere henter 1000', kald[kald.length - 1].valg.antal === 1000 && indholdRaekker(d).length === 1000);
   // En anden visning lukker indholdet.
-  w.Grimnir.vis('masker'); await vent(10);
+  w.Grimnir.vis('masker'); await stille();
   tjek('V-MANUEL.2 N1: en anden visning lukker indholdet (værdierne er væk fra DOM\'en)', !indholdVises(d) && !/srv-opdigtet|bruger-0/.test(altIDom(d)));
-  w.Grimnir.vis('sager'); await vent(10);
+  w.Grimnir.vis('sager'); await stille();
   tjek('V-MANUEL.2 N1: tilbage i Sager står listen', !indholdVises(d) && sagRaekker(d).length === 6);
   // En sag, der ikke kan åbnes, og en udløbet sag forklarer det.
-  sagRaekke(d, hexId(4)).dispatchEvent(new w.MouseEvent('dblclick', { bubbles: true })); await vent(10);
+  sagRaekke(d, hexId(4)).dispatchEvent(new w.MouseEvent('dblclick', { bubbles: true })); await stille();
   tjek('V-MANUEL.2 N1: en sag uden nøgle siger hvorfor (ingen tabel)', indholdVises(d) && sek.querySelector('.sagindhold .bannere').textContent.includes('Sagens indhold kan ikke vises: nøglen mangler i nøgleringen') && indholdRaekker(d).length === 0, sek.querySelector('.sagindhold .bannere').textContent);
-  klik(w, d.getElementById('indhold-tilbage')); await vent(5);
-  sagRaekke(d, hexId(3)).dispatchEvent(new w.MouseEvent('dblclick', { bubbles: true })); await vent(10);
+  klik(w, d.getElementById('indhold-tilbage')); await stille();
+  sagRaekke(d, hexId(3)).dispatchEvent(new w.MouseEvent('dblclick', { bubbles: true })); await stille();
   tjek('V-MANUEL.2 N1: en udløbet sag siger, at den er udløbet, og viser indholdet', /Sagen udløb .+\. Den slettes ikke af sig selv/.test(sek.querySelector('.sagindhold .bannere').textContent) && indholdRaekker(d).length === 42);
   w.Sprog.saet('en');
   tjek('V-OPBYG.5 N2 (English): heading, columns (Actions as hidden text) and back button', sek.querySelector('.indholdpanel h3').textContent === 'Contents of “SQL-job fejler”' && [...sek.querySelectorAll('.indholdtabel thead th')].map(t => t.textContent).join() === 'Type,Code,Real value,Earlier codes,Actions' && d.getElementById('indhold-tilbage').textContent === 'Back to the cases');
@@ -4755,24 +4785,24 @@ await (async () => {
   tjek('V-OPBYG.1 N4: venstre side: Aktuel sag «Firewall-log», Gemmes automatisk, Gemte erstatninger 9 (slået til), ingen Gem som sag…', d.getElementById('sagdel-navn').textContent === 'Firewall-log' && d.getElementById('sagdel-status').textContent === 'Gemmes automatisk' && d.getElementById('sagdel-gem').hidden && !anden.hasAttribute('aria-disabled') && d.getElementById('sagdel-antal').textContent === '9' && anden.getAttribute('aria-label') === 'Gemte erstatninger: 9. Vis sagens indhold');
   klik(w, anden); await vent(20);
   tjek('V-OPBYG.1 N4: et klik på Gemte erstatninger viser den åbne sags indhold i Sager (ingen sag åbnes eller lukkes)', synlige(d).join() === 'sager' && indholdVises(d) && rust.st.indholdKald.at(-1).id === null && !s.kald.some(k => ['sag_luk', 'sag_nulstil'].includes(k[0])) && indholdRaekker(d).length === 9 && !d.querySelector('section[data-visning="sager"] .sagindhold .bannere').textContent.includes('kun læst'));
-  w.Grimnir.vis('demasker'); await vent(10);
+  w.Grimnir.vis('demasker'); await stille();
   const dsek = d.querySelector('section[data-visning="demasker"]');
   tjek('V-OPBYG.1 N3: Demaskér: sætningen nævner sagen («Firewall-log»), og Åbn Sager er skjult (sagen har koder)', dsek.querySelector('.tomt p').textContent === 'Har du fået svar fra support eller en chatbot, sætter Grimnir de rigtige værdier tilbage med koderne i sagen «Firewall-log».' && dsek.querySelector('.tomt-ekstra').hidden && dsek.querySelector('.tomt-sag').textContent === 'Svaret bliver på denne maskine.');
   klik(w, d.getElementById('sagdel-erst')); await vent(20);
   tjek('V-OPBYG.1 N4: fra Demaskér viser Gemte erstatninger i venstre side sagens indhold', synlige(d).join() === 'sager' && indholdVises(d));
-  w.Grimnir.vis('masker'); await vent(10);
-  klik(w, d.getElementById('sag-knap')); await vent(5);
+  w.Grimnir.vis('masker'); await stille();
+  klik(w, d.getElementById('sag-knap')); await stille();
   klik(w, d.getElementById('sag-vis-indhold')); await vent(20);
   tjek('V-MANUEL.2 N1: sagens dialog i titellinjen har Vis indhold; den lukker dialogen og viser indholdet', !aaben(d, 'dlg-sag') && synlige(d).join() === 'sager' && indholdVises(d));
   // Den midlertidige sag uden navn.
   const s2 = side({ rust: falskSagRust() });
-  await vent(10);
+  await stille();
   indsaet(s2.w, s2.d.querySelector('section[data-visning="masker"] .tomt'), TEKST);
-  await vent(5); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
-  s2.tast('Enter', { metaKey: true }); await vent(5);
-  klik(s2.w, knapI(s2.d, 'masker', 'ryd')); await vent(5);
+  await stille(); // V-OPBYG.1 N3: analysen sker ved indsætning (før ⌘↵ første gang)
+  s2.tast('Enter', { metaKey: true }); await stille();
+  klik(s2.w, knapI(s2.d, 'masker', 'ryd')); await stille();
   const ok = s2.d.querySelector('dialog[open] .btn.danger, dialog[open] .btn.primary');
-  if (ok) { klik(s2.w, [...s2.d.querySelectorAll('dialog[open] button')].find(b => b.textContent === 'Ryd') || ok); await vent(5); }
+  if (ok) { klik(s2.w, [...s2.d.querySelectorAll('dialog[open] button')].find(b => b.textContent === 'Ryd') || ok); await stille(); }
   const p2 = s2.d.querySelector('section[data-visning="masker"] .tomt .tomt-sag').textContent;
   tjek('V-OPBYG.1 N4: den midlertidige sag: "Du arbejder i en midlertidig sag med 3 gemte erstatninger …"', p2 === 'Du arbejder i en midlertidig sag med 3 gemte erstatninger. Giv den et navn, når du vil gemme den.', p2);
 })();
@@ -4781,14 +4811,14 @@ await (async () => {
   const rust = falskFilRust({ antal: 3 });
   const s = side({ rust });
   const { d, w } = s;
-  await vent(5);
+  await stille();
   klik(w, knapI(d, 'masker', 'aabn-fil')); await vent(20);
   const h = d.querySelector('section[data-visning="masker"] .tekstpanel h3');
   tjek('V-MANUEL.2 N1: for en åben fil hedder panelet "Fil · app.log" (ikke "Indsat tekst")', h.textContent === 'Fil · app.log' && h.closest('.panel').getAttribute('aria-label') === 'Filen app.log', h.textContent);
   w.Sprog.saet('en');
   tjek('V-MANUEL.2 N1 (English): "File · app.log"', h.textContent === 'File · app.log');
   w.Sprog.saet('da');
-  indsaet(w, d.querySelector('section[data-visning="masker"] pre.tekst'), TEKST); await vent(5);
+  indsaet(w, d.querySelector('section[data-visning="masker"] pre.tekst'), TEKST); await stille();
   tjek('V-MANUEL.2 N1: indsat tekst hedder stadig "Indsat tekst"', h.textContent === 'Indsat tekst');
 })();
 await (async () => {
@@ -4801,11 +4831,11 @@ await (async () => {
   await vent(20);
   const sek = d.querySelector('section[data-visning="masker"]');
   indsaet(w, sek.querySelector('.tomt'), TEKST);
-  s.tast('Enter', { metaKey: true }); await vent(10);
+  s.tast('Enter', { metaKey: true }); await stille();
   const forslag = () => sek.querySelector('.ban.moenster-forslag');
   tjek('V-MANUEL.2 N3: banneret foreslår det første mønster med antal og to knapper', forslag() && forslag().querySelector('.ord').textContent === '3 maskinnavne i teksten har formen srv-*. Læg mønsteret i ordbogen, så Grimnir finder navne af den form fremover.' && [...forslag().querySelectorAll('button')].map(b => b.textContent).join() === 'Læg i ordbogen,Ikke nu', forslag() && forslag().textContent);
   tjek('V-MANUEL.2 N3: banneret står over tabellen, ikke i den', forslag().closest('.bannere') && !forslag().closest('.tabelvaert'));
-  klik(w, [...forslag().querySelectorAll('button')].find(b => b.textContent === 'Ikke nu')); await vent(5);
+  klik(w, [...forslag().querySelectorAll('button')].find(b => b.textContent === 'Ikke nu')); await stille();
   tjek('V-MANUEL.2 N3: Ikke nu: det næste forslag vises (pc-*)', forslag() && forslag().querySelector('.ord').textContent.includes('formen pc-*'));
   const analyserFoer = s.kald.filter(k => k[0] === 'analyser').length;
   klik(w, [...forslag().querySelectorAll('button')].find(b => b.textContent === 'Læg i ordbogen')); await vent(20);
@@ -4813,9 +4843,9 @@ await (async () => {
   tjek('V-MANUEL.2 N3: teksten analyseres igen med ordbogen, og intet forslag står tilbage (srv-* er afvist for denne tekst)', s.kald.filter(k => k[0] === 'analyser').length > analyserFoer && !forslag() && sek.querySelector('.besked').textContent === 'Mønsteret pc-* er lagt i ordbogen.', sek.querySelector('.besked').textContent);
   // En ny tekst: det afviste forslag kommer igen (det, der er lagt i ordbogen, gør ikke).
   indsaet(w, sek.querySelector('pre.tekst'), TEKST + 'x');
-  s.tast('Enter', { metaKey: true }); await vent(10);
+  s.tast('Enter', { metaKey: true }); await stille();
   tjek('V-MANUEL.2 N3: en ny tekst: srv-* foreslås igen; pc-* står i ordbogen og foreslås ikke', forslag() && forslag().querySelector('.ord').textContent.includes('formen srv-*') && rust.ob.db.some(p => p.type === 'navnemoenster' && p.vaerdi === 'pc-*'));
-  s.tast('Enter', { metaKey: true }); await vent(10);
+  s.tast('Enter', { metaKey: true }); await stille();
   tjek('V-MANUEL.2 N3: efter Gem og maskér står forslaget ikke (kun før)', !forslag());
   w.Sprog.saet('en');
   tjek('V-MANUEL.2 N3 (English): texts', w.Sprog.t('bMoenster', 2, 'pc-*') === '2 machine names in the text have the form pc-*. Add the pattern to the dictionary, and Grimnir finds names of that form from now on.' && w.Sprog.t('kIkkeNu') === 'Not now');
@@ -4827,11 +4857,11 @@ await (async () => {
   const s = side({ rust, hash: '#sager' });
   const { d, w } = s;
   await vent(30);
-  klik(w, sagRaekke(d, hexId(7))); await vent(5);
+  klik(w, sagRaekke(d, hexId(7))); await stille();
   klik(w, knapI(d, 'sager', 'vis-indhold')); await vent(20);
   tjek('V-MANUEL.2 N1 (lås): kontrol: værdierne står i DOM\'en med tabellen åben', indholdVises(d) && /srv-opdigtet-0001/.test(altIDom(d)));
   rust.laasIgen('dvale');
-  s.emit('laast', 'dvale'); await vent(10);
+  s.emit('laast', 'dvale'); await stille();
   tjek('V-MANUEL.2 N1 (lås): laast genindlæser siden', s.jsdomFejl.some(m => /navigation/.test(m)) && laaseskaerm(d));
   const g = side({ rust, hash: '#sager' });
   await vent(30);
@@ -5299,7 +5329,7 @@ await (async () => {
   await ventTil(w, () => rust.kald.length === 1);
   s.tast('Enter', { metaKey: true });
   s.tast('Enter', { metaKey: true });
-  await vent(5);
+  await stille();
   tjek('V-OPBYG.2 N4: ⌘↵ mens analysen kører, starter ingen analyse til (og maskerer ikke)', rust.kald.filter(k => k[0] === 'analyser').length === 1 && !s.kald.some(k => k[0] === 'gem_og_masker'));
   slip();
   await ventTil(w, () => fundRaekker(d).length === 3);
@@ -5563,7 +5593,7 @@ await (async () => { for (const sprog of ['da', 'en']) {
   const besked = () => sek.querySelector('.arbejde .besked').textContent;
   const vaelg = (fra, til) => { w.getSelection().setBaseAndExtent(pre.firstChild, fra, pre.firstChild, til); d.dispatchEvent(new w.Event('selectionchange')); };
   const vaelgOrd = o => { const i = pre.firstChild.data.indexOf(o); vaelg(i, i + o.length); };
-  const tryk = async id => { const n = rust.log.analyser.length; knapI(d, 'masker', id).click(); await ventTil(w, () => rust.log.analyser.length > n || /./.test(besked()) && rust.log.marker.length > 0, 2000); await vent(5); };
+  const tryk = async id => { const n = rust.log.analyser.length; knapI(d, 'masker', id).click(); await ventTil(w, () => rust.log.analyser.length > n || /./.test(besked()) && rust.log.marker.length > 0, 2000); await stille(); };
   // Uden markering: forklaringen siger, at kun det viste kan markeres, og at rækken gælder hele filen.
   w.getSelection().collapse(pre.firstChild, 0);
   d.dispatchEvent(new w.Event('selectionchange'));
@@ -6008,25 +6038,45 @@ await (async () => { for (const sprog of ['da', 'en']) {
   rmKnap(raekke('h0001')).click();
   tjek(`V-OPBYG.5 N2 (${sprog}): menuen i sagens indhold: Kopiér værdi og Slet (en hemmelighed også Vis)`, rmPunkter(raekke('h0001')).map(x => x.textContent).join('|') === (da ? 'Kopiér værdi|Slet' : 'Copy value|Delete') && (rmKnap(raekke('GRIMNIR_SECRET_0001')).click(), rmPunkter(raekke('GRIMNIR_SECRET_0001')).map(x => x.getAttribute('data-punkt')).join() === 'kopier,vis,slet'));
   tastPaa(w, d.activeElement, 'Escape');
-  // Kopiér værdi: en almindelig værdi kopierer webvisningen og melder den til Rust.
+  // V-OPBYG.7 N1: Kopiér værdi for en almindelig værdi skriver Rust med fortroligt-mærket; webvisningen kopierer intet.
+  rmKnap(raekke('h0001')).click();
+  rmPunkt(raekke('h0001'), 'kopier').click();
+  await ventTil(w, () => s.kald.some(k => k[0] === 'sag_post_kopier'));
+  await ventTil(w, () => besked().textContent === w.Sprog.TEKST[sprog].bVaerdiKopieret);
+  const ak = s.kald.find(k => k[0] === 'sag_post_kopier');
+  tjek(`V-OPBYG.7 N1 (${sprog}): Kopiér værdi (almindelig): Rust lægger den i udklipsholderen med mærket (sag_post_kopier med plads og kode); webvisningen kopierer intet og melder intet`, skrevet.length === 0 && ak[1].nr === 0 && ak[1].kode === 'h0001' && Object.keys(ak[1]).sort().join() === 'kode,nr' && !s.kald.some(k => k[0] === 'udklip_vaerdi_kopieret') && besked().textContent === w.Sprog.TEKST[sprog].bVaerdiKopieret, JSON.stringify(ak));
+  // Kan Rust ikke skrive (false: Windows, eller skrivningen mislykkedes), kopierer webvisningen den som før og melder den.
+  rust.sag_post_kopier = ({ kode }) => kode === 'GRIMNIR_SECRET_0001';
+  besked().textContent = '';
   rmKnap(raekke('h0001')).click();
   rmPunkt(raekke('h0001'), 'kopier').click();
   await ventTil(w, () => s.kald.some(k => k[0] === 'udklip_vaerdi_kopieret'));
   const uk = s.kald.find(k => k[0] === 'udklip_vaerdi_kopieret');
-  tjek(`V-OPBYG.5 N2 (${sprog}): Kopiér værdi (almindelig): webvisningen kopierer værdien og melder plads og kode til Rust (D21)`, skrevet.at(-1) === 'srv-opdigtet-0001' && uk[1].nr === 0 && uk[1].kode === 'h0001' && !('vaerdi' in uk[1]) && besked().textContent === w.Sprog.TEKST[sprog].bVaerdiKopieret, JSON.stringify(uk));
+  tjek(`V-OPBYG.7 N1 (${sprog}): kan Rust ikke skrive (false), kopierer webvisningen en almindelig værdi som før og melder plads og kode til Rust (D21)`, skrevet.at(-1) === 'srv-opdigtet-0001' && uk[1].nr === 0 && uk[1].kode === 'h0001' && !('vaerdi' in uk[1]) && besked().textContent === w.Sprog.TEKST[sprog].bVaerdiKopieret, JSON.stringify(uk));
+  // En fejl fra Rust (fx laast): intet kopieres af webvisningen.
+  rust.sag_post_kopier = () => { throw { art: 'laast' }; };
+  const n0 = skrevet.length, m0 = s.kald.filter(k => k[0] === 'udklip_vaerdi_kopieret').length;
+  rmKnap(raekke('h0001')).click();
+  rmPunkt(raekke('h0001'), 'kopier').click();
+  await ventTil(w, () => besked().textContent === w.Sprog.TEKST[sprog].bVaerdiIkkeKopieret);
+  tjek(`V-OPBYG.7 N1 (${sprog}): en fejl fra Rust (laast) ved Kopiér værdi: webvisningen kopierer intet og melder intet`, skrevet.length === n0 && s.kald.filter(k => k[0] === 'udklip_vaerdi_kopieret').length === m0);
+  rust.sag_post_kopier = () => true;
   // En hemmelighed: Rust skriver selv; værdien går ikke forbi webvisningen.
   const n = skrevet.length;
+  const foerPk = s.kald.filter(k => k[0] === 'sag_post_kopier').length;
   rmKnap(raekke('GRIMNIR_SECRET_0001')).click();
   rmPunkt(raekke('GRIMNIR_SECRET_0001'), 'kopier').click();
-  await ventTil(w, () => s.kald.some(k => k[0] === 'sag_post_kopier'));
-  const pk = s.kald.find(k => k[0] === 'sag_post_kopier');
+  await ventTil(w, () => s.kald.filter(k => k[0] === 'sag_post_kopier').length > foerPk);
+  const pk = s.kald.filter(k => k[0] === 'sag_post_kopier').at(-1);
   await ventTil(w, () => besked().textContent === w.Sprog.TEKST[sprog].bVaerdiKopieret);
   tjek(`V-OPBYG.5 N2 (${sprog}): Kopiér værdi (skjult hemmelighed): Rust lægger den i udklipsholderen (sag_post_kopier med plads og kode); webvisningen kopierer intet og har ikke værdien`, skrevet.length === n && pk[1].kode === 'GRIMNIR_SECRET_0001' && Object.keys(pk[1]).sort().join() === 'kode,nr' && !d.body.outerHTML.includes('Hemmelig-0001'));
   rust.sag_post_kopier = () => false;
+  const n2 = skrevet.length;
   rmKnap(raekke('GRIMNIR_SECRET_0001')).click();
   rmPunkt(raekke('GRIMNIR_SECRET_0001'), 'kopier').click();
   await ventTil(w, () => besked().textContent === w.Sprog.TEKST[sprog].bVaerdiIkkeKopieret);
   tjek(`V-OPBYG.5 N2 (${sprog}): kunne Rust ikke kopiere, siger meldingen det`, besked().textContent === w.Sprog.TEKST[sprog].bVaerdiIkkeKopieret);
+  tjek(`V-OPBYG.7 N1 (${sprog}): en hemmelighed kopierer webvisningen aldrig selv, heller ikke når Rust ikke kunne skrive`, skrevet.length === n2 && !d.body.outerHTML.includes('Hemmelig-0001'));
   // Vis i menuen.
   rmKnap(raekke('GRIMNIR_SECRET_0001')).click();
   rmPunkt(raekke('GRIMNIR_SECRET_0001'), 'vis').click();
@@ -6074,6 +6124,158 @@ await (async () => { for (const sprog of ['da', 'en']) {
   rmKnap(raekke('user0001')).click();
   const kp = rmPunkt(raekke('user0001'), 'kopier'), sp = rmPunkt(raekke('user0001'), 'slet');
   tjek(`V-OPBYG.5 N2 (${sprog}): i en sag, der kun læses, er Kopiér værdi og Slet slået fra med forklaring`, [kp, sp].every(x => x.getAttribute('aria-disabled') === 'true' && d.getElementById(x.getAttribute('aria-describedby')).textContent === w.Sprog.TEKST[sprog].hvorforKunAabenSag));
+} })();
+
+// ── V-OPBYG.7 N1: Rust skriver Kopiér resultat (Demaskér) og Kopiér noterne med fortroligt-mærket; ellers som før ──
+await (async () => { for (const sprog of ['da', 'en']) {
+  const skrevet = [];
+  const klip = w => Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async t => { skrevet.push(t); } }, configurable: true });
+  // Indsat tekst.
+  const rust = falskRust();
+  const rk = [];
+  let rkSvar = () => true;
+  rust.resultat_kopier = a => { rk.push(a); return rkSvar(a); };
+  const s = side({ hash: '#demasker', rust, lager: { 'grimnir-sprog': sprog }, foer: klip });
+  const { d, w } = s;
+  const T = w.Sprog.TEKST[sprog];
+  await ventTil(w, () => !laaseskaerm(d));
+  await stille();
+  const dsek = d.querySelector('section[data-visning="demasker"]');
+  const besked = () => dsek.querySelector('.besked').textContent;
+  w.GrimnirMaskering.saetSag(3);
+  const svar = 'Svar fra support: user0001 og 198.18.0.11\r\n';
+  indsaet(w, dsek.querySelector('.tomt'), svar);
+  s.tast('Enter', { metaKey: true });
+  await ventTil(w, () => w.GrimnirMaskering.D.st.resultat);
+  knapI(d, 'demasker', 'kopier-resultat').click();
+  await ventTil(w, () => besked() === T.bKopieret);
+  tjek(`V-OPBYG.7 N1 (${sprog}): Kopiér resultat (indsat tekst): Rust skriver det med mærket (resultat_kopier med resultatet); webvisningen kopierer intet og melder intet`, rk.length === 1 && rk[0].fil === false && rk[0].tekst === w.GrimnirMaskering.D.st.resultat.tekst && skrevet.length === 0 && !s.kald.some(k => k[0] === 'udklip_kopieret') && besked() === T.bKopieret && w.GrimnirMaskering.D.st.resultatBrugt === true, JSON.stringify(rk));
+  // Kan Rust ikke skrive (false): som før (webvisningen kopierer og melder fil: false).
+  rkSvar = () => false;
+  dsek.querySelector('.besked').textContent = '';
+  knapI(d, 'demasker', 'kopier-resultat').click();
+  await ventTil(w, () => s.kald.some(k => k[0] === 'udklip_kopieret'));
+  tjek(`V-OPBYG.7 N1 (${sprog}): kan Rust ikke skrive resultatet (false), kopierer webvisningen det som før og melder det (udklip_kopieret, fil: false)`, rk.length === 2 && skrevet.length === 1 && skrevet[0] === w.GrimnirMaskering.D.st.resultat.tekst && JSON.stringify(s.kald.filter(k => k[0] === 'udklip_kopieret').map(k => k[1])) === '[{"fil":false}]' && besked() === T.bKopieret);
+  // En fejl fra Rust (en art): intet kopieres, ingen melding om kopien.
+  rkSvar = () => { throw { art: 'intet_resultat' }; };
+  dsek.querySelector('.besked').textContent = '';
+  knapI(d, 'demasker', 'kopier-resultat').click();
+  await ventTil(w, () => rk.length === 3);
+  await stille();
+  tjek(`V-OPBYG.7 N1 (${sprog}): en fejl fra Rust ved Kopiér resultat: intet kopieres, og der står ikke "Kopieret"`, skrevet.length === 1 && s.kald.filter(k => k[0] === 'udklip_kopieret').length === 1 && besked() !== T.bKopieret);
+  // En fil: Rust har resultatet; webvisningen sender ingen tekst og henter den ikke (fil_kopi).
+  const fr = falskFilRust({ antal: 3 });
+  const fk = [];
+  let fkSvar = () => true;
+  fr.resultat_kopier = a => { fk.push(a); return fkSvar(a); };
+  skrevet.length = 0;
+  const s2 = side({ hash: '#demasker', rust: fr, lager: { 'grimnir-sprog': sprog }, foer: klip });
+  await ventTil(s2.w, () => !laaseskaerm(s2.d));
+  await stille();
+  s2.w.GrimnirMaskering.saetSag(3);
+  s2.emit('menu', 'aabn');
+  await ventTil(s2.w, () => s2.w.GrimnirMaskering.D.st.fil);
+  s2.tast('Enter', { metaKey: true });
+  await ventTil(s2.w, () => s2.w.GrimnirMaskering.D.st.resultat);
+  const besked2 = () => s2.d.querySelector('section[data-visning="demasker"] .besked').textContent;
+  knapI(s2.d, 'demasker', 'kopier-resultat').click();
+  await ventTil(s2.w, () => besked2() === T.bKopieret);
+  tjek(`V-OPBYG.7 N1 (${sprog}): Kopiér resultat (fil): resultat_kopier med fil og uden tekst; intet hentes til webvisningen (fil_kopi), intet kopieres af den, intet meldes`, fk.length === 1 && JSON.stringify(fk[0]) === '{"fil":true}' && !s2.kald.some(k => k[0] === 'fil_kopi') && skrevet.length === 0 && !s2.kald.some(k => k[0] === 'udklip_kopieret'), JSON.stringify(fk));
+  fkSvar = () => false;
+  knapI(s2.d, 'demasker', 'kopier-resultat').click();
+  await ventTil(s2.w, () => s2.kald.some(k => k[0] === 'udklip_kopieret'));
+  tjek(`V-OPBYG.7 N1 (${sprog}): kan Rust ikke skrive filens resultat (false), hentes det som før (fil_kopi) og meldes (fil: true)`, skrevet.at(-1) === 'RIGTIGE-HELE-FILEN' && JSON.stringify(s2.kald.filter(k => k[0] === 'udklip_kopieret').map(k => k[1])) === '[{"fil":true}]');
+} })();
+
+await (async () => { for (const sprog of ['da', 'en']) {
+  const rust = falskNoterRust({ noter: TO_NOTER() });
+  const nk = [];
+  let nkSvar = () => true;
+  rust.noter_kopier = a => { nk.push(a); return nkSvar(a); };
+  const skrevet = [];
+  const s = side({ hash: '#noter', rust, lager: { 'grimnir-sprog': sprog }, foer: w => Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async t => { skrevet.push(t); } }, configurable: true }) });
+  const { d, w } = s;
+  await ventTil(w, () => noteLi(d).length === 2);
+  const sek = d.querySelector('section[data-visning="noter"]');
+  const ok = () => [...sek.querySelectorAll('.bannere .ban.ok .ord')].length > 0;
+  const tidS = ms => new Date(ms).toLocaleString(sprog === 'en' ? 'en-GB' : 'da-DK', { dateStyle: 'long', timeStyle: 'short' });
+  const [n1, n2] = TO_NOTER();
+  const forventet = [{ nr: 1, tekst: tidS(n1.oprettet) }, { nr: 2, tekst: tidS(n2.oprettet) + ' · ' + w.Sprog.TEKST[sprog].noteRettet.replace('{v}', tidS(n2.rettet)) }];
+  klik(w, knapI(d, 'noter', 'kopier-noter'));
+  await ventTil(w, () => nk.length === 1 && ok());
+  tjek(`V-OPBYG.7 N1 (${sprog}): Kopiér noterne: Rust bygger teksten og skriver den med mærket (noter_kopier med sproget og tidspunkterne, som de står på skærmen; aldrig noternes tekst)`, nk.length === 1 && nk[0].sprog === sprog && JSON.stringify(nk[0].tider) === JSON.stringify(forventet) && !JSON.stringify(nk[0]).includes('fw-syd02') && JSON.stringify(Object.keys(nk[0]).sort()) === '["sprog","tider"]', JSON.stringify(nk[0]));
+  tjek(`V-OPBYG.7 N1 (${sprog}): … webvisningen kopierer intet og melder intet, og beskeden om lås og afslutning står der som før`, skrevet.length === 0 && !rust.st.noteKald.some(k => k[0] === 'udklip_kopieret') && ok());
+  // Kan Rust ikke skrive (false): som før.
+  nkSvar = () => false;
+  klik(w, knapI(d, 'noter', 'kopier-noter'));
+  await ventTil(w, () => rust.st.noteKald.some(k => k[0] === 'udklip_kopieret'));
+  const hoved = sprog === 'en' ? 'Notes · Temporary case\n\n' : 'Noter · Midlertidig sag\n\n';
+  tjek(`V-OPBYG.7 N1 (${sprog}): kan Rust ikke skrive noterne (false), kopierer webvisningen den samme tekst som før og melder den (noter: true)`, skrevet.length === 1 && skrevet[0] === hoved + forventet[0].tekst + '\n' + n1.tekst + '\n\n' + forventet[1].tekst + '\n' + n2.tekst + '\n' && JSON.stringify(rust.st.noteKald.find(k => k[0] === 'udklip_kopieret')[1]) === '{"fil":false,"noter":true}', JSON.stringify(skrevet[0]));
+  // Noterne er ændret imens (note/ukendt): de hentes igen, og intet kopieres.
+  nkSvar = () => { throw { art: 'note', hvad: 'ukendt', maks: 0 }; };
+  const foerHent = rust.st.noteKald.filter(k => k[0] === 'noter_hent').length;
+  klik(w, knapI(d, 'noter', 'kopier-noter'));
+  await ventTil(w, () => rust.st.noteKald.filter(k => k[0] === 'noter_hent').length > foerHent);
+  await stille();
+  tjek(`V-OPBYG.7 N1 (${sprog}): er noterne ændret imens (note), hentes de igen, og intet kopieres`, rust.st.noteKald.filter(k => k[0] === 'noter_hent').length > foerHent && skrevet.length === 1 && rust.st.noteKald.filter(k => k[0] === 'udklip_kopieret').length === 1);
+} })();
+
+// ── V-OPBYG.7 N3: Vis række i en fil efter de første 500 rækker ──
+await (async () => { for (const sprog of ['da', 'en']) {
+  const rust = falskFilRust({ antal: 1200 });
+  // Rækken med indeks 700 (id 10 + 700 · 30) har værdien 10.20.2.201; den står i uddraget.
+  const MAAL = 10 + 700 * 30, VAERDI = '10.20.2.201';
+  const UDDRAG = `Password=Sommer2026!;\r\nsrcip=${VAERDI} msg=ok\r\n`;
+  const aabn = rust.fil_aabn;
+  rust.fil_aabn = async a => ({ ...(await aabn(a)), uddrag: UDDRAG });
+  rust.fil_marker = () => ({ tid: null, afvist: 'findes', raekke: MAAL, linje: 701, hemmelig: false });
+  const s = side({ rust, foer: hlFoer, lager: { 'grimnir-sprog': sprog } });
+  const { d, w } = s;
+  const T = w.Sprog.TEKST[sprog];
+  await ventTil(w, () => !laaseskaerm(d));
+  knapI(d, 'masker', 'aabn-fil').click();
+  await ventTil(w, () => fundRaekker(d).length === 500);
+  tjek(`V-OPBYG.7 N3 (${sprog}): en fil med 1.200 rækker viser de første 500; rækken efter dem er ikke i tabellen`, fundRaekker(d).length === 500 && !raekkeMed(d, MAAL));
+  const sek = d.querySelector('section[data-visning="masker"]');
+  const pre = sek.querySelector('pre.tekst');
+  const i = pre.firstChild.data.indexOf(VAERDI);
+  w.getSelection().setBaseAndExtent(pre.firstChild, i, pre.firstChild, i + VAERDI.length);
+  d.dispatchEvent(new w.Event('selectionchange'));
+  knapI(d, 'masker', 'masker-dette').click();
+  await ventTil(w, () => raekkeMed(d, MAAL) && raekkeMed(d, MAAL).getAttribute('aria-selected') === 'true');
+  const fk = s.kald.filter(k => k[0] === 'fil_raekker' && 'med' in k[1]);
+  tjek(`V-OPBYG.7 N3 (${sprog}): "allerede et fund" for rækken efter de første 500: Rust giver siden med rækken (fil_raekker med med); den vælges, og siden er 1000 rækker`, fk.length === 1 && fk[0][1].med === MAAL && fk[0][1].side.antal === 500 && raekkeMed(d, MAAL).getAttribute('aria-selected') === 'true' && fundRaekker(d).length === 1000 && w.GrimnirMaskering.M.st.side === 1000 && sek.querySelector('.arbejde .besked').textContent === T.bFindesAllerede.replace('{v}', VAERDI), JSON.stringify(fk.map(k => k[1])));
+  // Skjuler søgningen rækken, ryddes den, og der spørges igen (som for indsat tekst).
+  const soeg = d.querySelector('section[data-visning="masker"] .vl input');
+  skriv(w, soeg, '10.20.0.');
+  await ventTil(w, () => !raekkeMed(d, MAAL));
+  const n = s.kald.filter(k => k[0] === 'fil_raekker' && 'med' in k[1]).length;
+  w.getSelection().setBaseAndExtent(pre.firstChild, i, pre.firstChild, i + VAERDI.length);
+  d.dispatchEvent(new w.Event('selectionchange'));
+  knapI(d, 'masker', 'masker-dette').click();
+  await ventTil(w, () => raekkeMed(d, MAAL) && raekkeMed(d, MAAL).getAttribute('aria-selected') === 'true');
+  const fk2 = s.kald.filter(k => k[0] === 'fil_raekker' && 'med' in k[1]).slice(n);
+  tjek(`V-OPBYG.7 N3 (${sprog}): skjuler søgningen rækken, ryddes søgningen og filteret, og rækken hentes og vælges`, fk2.length === 2 && fk2[0][1].side.soeg === '10.20.0.' && fk2[1][1].side.soeg === '' && fk2[1][1].side.filter === 'alle' && soeg.value === '' && raekkeMed(d, MAAL).getAttribute('aria-selected') === 'true', JSON.stringify(fk2.map(k => k[1].side)));
+  // En række på den viste side: intet ekstra kald til Rust.
+  const m = s.kald.filter(k => k[0] === 'fil_raekker').length;
+  rust.fil_marker = () => ({ tid: null, afvist: 'findes', raekke: 10 + 5 * 30, linje: 6, hemmelig: false });
+  knapI(d, 'masker', 'masker-dette').click();
+  await ventTil(w, () => raekkeMed(d, 160).getAttribute('aria-selected') === 'true');
+  await stille();
+  tjek(`V-OPBYG.7 N3 (${sprog}): en række, der allerede står i tabellen, vælges uden et nyt kald til Rust`, raekkeMed(d, 160).getAttribute('aria-selected') === 'true' && s.kald.filter(k => k[0] === 'fil_raekker').length === m);
+  // En tilføjet værdi, hvis række står efter de første 500: analysens svar om de tilføjede værdier siger rækken.
+  const MAAL2 = 10 + 900 * 30;
+  const analyser = rust.fil_analyser;
+  rust.fil_analyser = async a => ({ ...(await analyser(a)), tilfoejede: (a.tilfoejede || []).map((t, nr) => ({ nr, raekke: MAAL2, antal: 1, afvist: null })) });
+  rust.fil_marker = () => ({ tid: 0, afvist: null, raekke: null, linje: null, hemmelig: false });
+  w.GrimnirMaskering.M.st.side = 500;
+  skriv(w, soeg, '');
+  await ventTil(w, () => fundRaekker(d).length === 500);
+  w.getSelection().setBaseAndExtent(pre.firstChild, i, pre.firstChild, i + VAERDI.length);
+  d.dispatchEvent(new w.Event('selectionchange'));
+  knapI(d, 'masker', 'masker-dette').click();
+  await ventTil(w, () => raekkeMed(d, MAAL2) && raekkeMed(d, MAAL2).getAttribute('aria-selected') === 'true');
+  tjek(`V-OPBYG.7 N3 (${sprog}): en tilføjet værdi, hvis række står efter de første 500, vælges ud fra analysens svar (fil_raekker med rækken)`, raekkeMed(d, MAAL2) && raekkeMed(d, MAAL2).getAttribute('aria-selected') === 'true' && s.kald.some(k => k[0] === 'fil_raekker' && k[1].med === MAAL2));
 } })();
 
 console.log(`\n${ok + fejl} tjek: ${ok} ok, ${fejl} fejl`);

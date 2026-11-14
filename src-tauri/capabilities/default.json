@@ -63,6 +63,8 @@
     "allow-sag-post-slet",
     "allow-sag-post-kopier",
     "allow-udklip-vaerdi-kopieret",
-    "allow-fil-marker"
+    "allow-fil-marker",
+    "allow-resultat-kopier",
+    "allow-noter-kopier"
   ]
 }

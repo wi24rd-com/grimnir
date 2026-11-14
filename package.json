@@ -9,7 +9,7 @@
     "tokens": "node design/build-tokens.mjs",
     "kit": "node design/build-kit.mjs",
     "tjek": "node design/build-tokens.mjs --check && node design/build-kit.mjs --check",
-    "test:ui": "node tests/ui/ui-roeg.mjs",
+    "test:ui": "node --max-old-space-size=1024 tests/ui/ui-roeg.mjs",
     "test:kontrast": "node tests/ui/kontrast.mjs",
     "test:kolonner": "node tests/ui/kolonner.mjs",
     "test:kit": "node tests/ui/kit-pakke.mjs",

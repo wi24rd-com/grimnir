@@ -18,7 +18,8 @@
    rester kræver "Gem alligevel", og den demaskerede fil kræver en bekræftelse. Stien ser webvisningen aldrig.
 
    Rust-kommandoer: analyser, gem_og_masker, demasker, menu_sprog; fil_aabn, fil_aabn_sluppet, fil_luk, fil_analyser,
-   fil_raekker, fil_gem_og_masker, fil_demasker, fil_kopi, fil_gem; udklip_kopieret (V-LAAS.4, efter Kopiér i Demaskér);
+   fil_raekker, fil_gem_og_masker, fil_demasker, fil_kopi, fil_gem; resultat_kopier (V-OPBYG.7: Rust skriver Kopiér
+   resultat i Demaskér med fortroligt-mærket); udklip_kopieret (V-LAAS.4, efter Kopiér i Demaskér, når Rust ikke kunne);
    kvittering (V-KVIT.1: Kopiér kvittering i Maskér; teksten bygges i Rust og meldes ikke til udklip_kopieret).
    Hændelser fra Rust: menu ("aabn" | "gem"), fil-traek,
    fil-sluppet (kun filnavnet). */
@@ -193,6 +194,19 @@
     try { document.execCommand('copy'); } catch (e) { /* ok forbliver false */ }
     document.removeEventListener('copy', h, true);
     return ok;
+  }
+
+  /* V-OPBYG.7 N1: en fortrolig kopi (Kopiér resultat i Demaskér, Kopiér noterne, Kopiér værdi) skriver Rust selv, med
+     fortroligt-mærket (org.nspasteboard.ConcealedType), så programmer, der husker udklipsholderens historik, kan springe
+     den over; Rust husker tælleren, og lås og afslutning rydder den, hvis den stadig står der (D21). `kald` er kommandoen.
+     Svar: true (Rust har skrevet), false (Rust kan ikke skrive: ingen udklipsholder som på Windows, eller skrivningen
+     mislykkedes; kalderen kopierer så som før, uden mærket, og melder kopien til Rust bagefter) eller null (en fejl fra
+     Rust, vist med vedFejl). En fejl uden art (intet svar fra Rust) regnes som false: kopien virker som før. */
+  async function kopierFortroligt(kald, vedFejl) {
+    try { return (await kald()) === true; } catch (e) {
+      if (e && e.art) { vedFejl(e); return null; }
+      return false;
+    }
   }
 
   /* V-OPBYG.1 N2 (D27): status er resultatet. Før maskeringen: Maskeres (afkrydset), Bevares (ikke afkrydset) og Tjek selv
@@ -1587,24 +1601,62 @@
       const r = st.analyse && st.analyse.raekker.find(x => { const tf = tilfoejetAf(x); return tf && tf.vaerdi === vaerdi; });
       if (r) return r.id;
       const i = st.tilfoejede.findIndex(x => x.vaerdi === vaerdi);
+      /* V-OPBYG.7 N3: for en fil har webvisningen kun én side rækker; analysens svar om de tilføjede værdier siger, hvilken
+         række værdien står i (også efter de første 500). */
+      if (i >= 0 && st.fil && st.analyse && st.analyse.sendt) {
+        const j = st.analyse.sendt.findIndex(x => x.vaerdi === vaerdi);
+        const svar = j >= 0 ? (st.analyse.tilfoejede || []).find(x => x.nr === j) : null;
+        if (svar && svar.raekke != null) return svar.raekke;
+      }
       return i >= 0 ? 't' + i : null;
     }
     /* Vælger en række (kittets valg i tabellen) og ruller den frem. id: rækkens id eller en tilføjet værdi. Fokus bliver,
        hvor det er (i teksten), så brugeren kan markere den næste; meldingen er høflig (role="status"). */
     function visRaekke(id) {
       if (typeof id === 'string' && !/^t\d+$/.test(id)) id = raekkeIdFor(id);
-      if (id == null) return;
+      if (id == null) return Promise.resolve();
       const find = () => tabelvaert.querySelector(`tr[data-id="${id}"]`);
+      if (st.fil && typeof id === 'number' && !find()) return visRaekkeFil(id, find);
       if (!find() && (st.filter !== 'alle' || st.soeg)) { st.soeg = ''; d.soeg.value = ''; G.dele.masker.trae.vaelg('alle'); tegnTabel(); }
       if (!find() && typeof id === 'number') {
         const i = filtrerede().findIndex(x => x.id === id);
         if (i >= st.side) { st.side = Math.ceil((i + 1) / SIDE) * SIDE; tegnTabel(); }
       }
-      const tr = find();
+      vaelgTr(find());
+      return Promise.resolve();
+    }
+    function vaelgTr(tr) {
       if (!tr) return;
       const t = tr.closest('table');
       t.vaelg([...t.querySelectorAll('tbody tr')].indexOf(tr));
       if (tr.scrollIntoView) tr.scrollIntoView({ block: 'nearest' });
+    }
+    /* V-OPBYG.7 N3: en række i en åben fil, der ikke står på den viste side (efter de første 500, eller skjult af filter
+       eller søgning). Webvisningen har kun siden, så Rust giver den side, der har rækken (fil_raekker med `med`), og
+       rækkens plads i listen efter filter og søgning; sidestørrelsen regnes om som i Rust (det mindste multiplum, der når
+       rækken). Skjuler filteret eller søgningen den (ingen plads), ryddes de (som for indsat tekst), og der spørges igen.
+       Et senere svar (en ny side eller en ny analyse) vinder: sideNr og analysen tjekkes, som i hentSide. */
+    function visRaekkeFil(id, find) {
+      const analyse = st.analyse;
+      if (!analyse) return Promise.resolve();
+      const hent = () => {
+        const nr = ++st.sideNr;
+        return invoke('fil_raekker', { side: sideValg(), med: id }).then(s => (nr === st.sideNr && analyse === st.analyse ? s : null));
+      };
+      return hent().then(s => {
+        if (s && s.plads == null && (st.filter !== 'alle' || st.soeg)) {
+          st.soeg = ''; d.soeg.value = '';
+          G.dele.masker.trae.vaelg('alle'); // filter('alle'): sidestørrelsen tilbage og en ny side; svaret nedenfor vinder
+          return hent();
+        }
+        return s;
+      }).then(s => {
+        if (!s || s.plads == null) return;
+        if (s.plads >= st.side) st.side = Math.ceil((s.plads + 1) / st.side) * st.side;
+        st.analyse = { ...analyse, raekker: s.raekker, side: s };
+        tegnTabel(); tegnTrae(); tegnChip(); tegnFod();
+        vaelgTr(find());
+      }).catch(e => { fejl(e); tegnBannere(); });
     }
     function skiftType(vaerdi, art) {
       const x = st.tilfoejede.find(y => y.vaerdi === vaerdi);
@@ -2263,13 +2315,19 @@
       if (!st.resultat || st.travl) return;
       if (st.resultat.fil && !st.resultat.kopierbar) { fejlBanner = ['bKopiForStor', null]; tegnBannere(); return; }
       const fil = Boolean(st.resultat.fil);
-      const ok = fil ? await kopierFraRust('demasker', e => { fejl(e); tegnBannere(); }) : await kopier(st.resultat.tekst);
+      const vedFejl = e => { fejl(e); tegnBannere(); };
+      /* V-OPBYG.7 N1: Rust skriver resultatet med fortroligt-mærket: filens har Rust; den indsatte teksts sendes (Rust
+         skriver det kun, hvis det er Rusts eget resultat). Kan Rust ikke skrive, kopieres det som før, uden mærket. */
+      let ok = await kopierFortroligt(() => invoke('resultat_kopier', fil ? { fil } : { fil, tekst: st.resultat.tekst }), vedFejl);
+      if (ok === false) {
+        ok = fil ? await kopierFraRust('demasker', vedFejl) : await kopier(st.resultat.tekst);
+        /* V-LAAS.4: Rust får at vide, at udklipsholderen nu har det demaskerede resultat, så låsen kan rydde den (kun hvis
+           ingen har skrevet til den siden). Kun her, ikke efter Kopiér i Maskér: maskeret tekst er lavet til at blive delt. */
+        if (ok === true) invoke('udklip_kopieret', { fil }).catch(() => { /* låst eller uden Rust: intet at huske */ });
+      }
       if (ok === true) { st.resultatBrugt = true; tegnKommandoer(); }
       besked(f, ok ? 'bKopieret' : null);
       if (ok === false) banner(f.bannere, 'danger', 'bKopiFejl');
-      /* V-LAAS.4: Rust får at vide, at udklipsholderen nu har det demaskerede resultat, så låsen kan rydde den (kun hvis
-         ingen har skrevet til den siden). Kun her, ikke efter Kopiér i Maskér: maskeret tekst er lavet til at blive delt. */
-      if (ok === true) invoke('udklip_kopieret', { fil }).catch(() => { /* låst eller uden Rust: intet at huske */ });
     }
     return {
       st, modtag, demasker, kopierResultat, tegn, tegnFod, tegnInfo, aabnFil, gemFil, modtagFil,
@@ -2447,5 +2505,5 @@
   M.tegn();
   D.tegn();
   menuSprog();
-  window.GrimnirMaskering = { M, D, utf8Laengde, antalLinjer, stoerrelse, MAKS_BYTES, MAKS_DEMASKER, saetSag, saetGemteSager, kommando, sagFejlTekst, filFejlTekst, banner, get poster() { return poster; }, tegnFodlinje, kopier, tekstVisning, raekkeMenu };
+  window.GrimnirMaskering = { M, D, utf8Laengde, antalLinjer, stoerrelse, MAKS_BYTES, MAKS_DEMASKER, saetSag, saetGemteSager, kommando, sagFejlTekst, filFejlTekst, banner, get poster() { return poster; }, tegnFodlinje, kopier, kopierFortroligt, tekstVisning, raekkeMenu };
 })();

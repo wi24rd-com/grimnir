@@ -9,7 +9,8 @@
 //! (V-KVIT.1): `kvittering`; noterne (V-OPBYG.2): `noter_hent`, `note_tilfoej`, `note_ret` og `note_slet`; en
 //! hemmeligheds værdi ved Vis (V-OPBYG.4): `raekke_vaerdi`; Ryd glemmer den indsatte teksts hemmeligheder (V-OPBYG.5):
 //! `tekst_glem`; en post i sagens indhold slettes og kopieres (V-OPBYG.5): `sag_post_slet`, `sag_post_kopier` og
-//! `udklip_vaerdi_kopieret`; Maskér markering i en åben fil (V-OPBYG.6): `fil_marker`.
+//! `udklip_vaerdi_kopieret`; Maskér markering i en åben fil (V-OPBYG.6): `fil_marker`; Rust skriver de fortrolige kopier
+//! (V-OPBYG.7): `resultat_kopier` og `noter_kopier`.
 //!
 //! **Låsen (V-LAAS.2).** Grimnir starter altid låst ([`Tilstand::ved_start`]; V-LAAS.3 N1, ADR D20). UI'et kalder
 //! `laas_op` én gang ved start; døren ([`laas::platformens`]: Touch ID med adgangskoden som reserve på macOS) svarer i
@@ -69,7 +70,7 @@ mod programmenu;
 use indstillinger::Indstillinger;
 use laas::Udloeser;
 use maskering::{
-    AnalyseMed, Demaskering, FilAnalyse, FilDemaskering, FilInfo, FilMarkering, FilMaskering, FilTilfoejet, IndholdValg, LaasStatus, LaasSvar, Maskering, NoterUd,
+    AnalyseMed, Demaskering, FilAnalyse, FilDemaskering, FilInfo, FilMarkering, FilMaskering, FilTilfoejet, IndholdValg, LaasStatus, LaasSvar, Maskering, NoteTid, NoterUd,
     OrdbogUd, Proeve, RaekkeSide, RaekkeVaerdi, Rettelse, SagIndhold, SagListePost, SagStatus, SideValg, StartForfra, Tilfoejet, Tilstand, UiFejl,
     Visning,
 };
@@ -142,16 +143,39 @@ fn sag_post_slet(tilstand: State<'_, Tilstand>, nr: usize, kode: String) -> Resu
     maskering::sag_post_slet(&tilstand, nr, &kode)
 }
 
-/// V-OPBYG.5 N2: Kopiér værdi for en hemmelighed i sagens indhold: Rust lægger den selv i udklipsholderen (D21).
+/// V-OPBYG.5 N2: Kopiér værdi i sagens indhold: Rust lægger den selv i udklipsholderen med fortroligt-mærket (D21).
+/// V-OPBYG.7 N1: også en almindelig værdi; `false`: Rust kunne ikke skrive, og webvisningen kopierer som før.
 #[tauri::command(async)]
 fn sag_post_kopier(tilstand: State<'_, Tilstand>, nr: usize, kode: String) -> Result<bool, UiFejl> {
     maskering::sag_post_kopier(&tilstand, nr, &kode)
 }
 
 /// V-OPBYG.5 N2: webvisningen har kopieret en almindelig værdi fra sagens indhold (D21: Rust husker tælleren).
+/// V-OPBYG.7 N1: kun når Rust ikke kunne skrive den selv (`sag_post_kopier` svarede `false`).
 #[tauri::command(async)]
 fn udklip_vaerdi_kopieret(tilstand: State<'_, Tilstand>, nr: usize, kode: String) -> Result<bool, UiFejl> {
     maskering::udklip_vaerdi_kopieret(&tilstand, nr, &kode)
+}
+
+/// V-OPBYG.7 N1: Kopiér resultat i Demaskér: Rust lægger resultatet i udklipsholderen med fortroligt-mærket (D21). `fil`:
+/// den åbne fils resultat (Rust har det); ellers sender webvisningen den indsatte teksts resultat (`tekst`), og Rust
+/// skriver det kun, hvis det er Rusts eget. Teksten nulstilles efter kaldet. `false`: Rust kunne ikke skrive, og
+/// webvisningen kopierer som før og melder det til `udklip_kopieret`.
+#[tauri::command(async)]
+fn resultat_kopier(tilstand: State<'_, Tilstand>, fil: bool, tekst: Option<String>) -> Result<bool, UiFejl> {
+    let r = maskering::resultat_kopier(&tilstand, fil, tekst.as_deref());
+    if let Some(mut tekst) = tekst {
+        zeroize::Zeroize::zeroize(&mut tekst);
+    }
+    r
+}
+
+/// V-OPBYG.7 N1: Kopiér noterne: Rust bygger teksten (sagens navn og noter, webvisningens tidspunkter) og lægger den i
+/// udklipsholderen med fortroligt-mærket (D21). `false`: Rust kunne ikke skrive, og webvisningen kopierer som før og
+/// melder det til `udklip_kopieret` med `noter`.
+#[tauri::command(async)]
+fn noter_kopier(tilstand: State<'_, Tilstand>, sprog: String, tider: Vec<NoteTid>) -> Result<bool, UiFejl> {
+    maskering::noter_kopier(&tilstand, &sprog, &tider)
 }
 
 /// V-OPBYG.5 N1: Ryd i Maskér: Rust glemmer den indsatte teksts hemmeligheder med det samme. Låst: `laast` (intet at
@@ -496,11 +520,12 @@ fn fil_marker(tilstand: State<'_, Tilstand>, start: usize, laengde: usize, art: 
     maskering::fil_marker(&tilstand, start, laengde, &art)
 }
 
-/// En side rækker fra seneste analyse af filen (filter, søgning, Vis flere).
+/// En side rækker fra seneste analyse af filen (filter, søgning, Vis flere). V-OPBYG.7 N3: `med` (en rækkes `id`): siden
+/// rækker så langt, at rækken er med, og svaret har dens plads ([`maskering::fil_raekker_med`]).
 #[tauri::command(async)]
-fn fil_raekker(tilstand: State<'_, Tilstand>, side: SideValg) -> Result<RaekkeSide, UiFejl> {
+fn fil_raekker(tilstand: State<'_, Tilstand>, side: SideValg, med: Option<usize>) -> Result<RaekkeSide, UiFejl> {
     let _travl = tilstand.travl();
-    maskering::fil_raekker(&tilstand, &side)
+    maskering::fil_raekker_med(&tilstand, &side, med)
 }
 
 /// `gem_og_masker` for den åbne fil i Maskér; den maskerede tekst bliver i Rust. V-OPBYG.6 N1: med de markerede værdiers
@@ -722,6 +747,8 @@ pub fn run() {
         sag_post_kopier,
         udklip_vaerdi_kopieret,
         fil_marker,
+        resultat_kopier,
+        noter_kopier,
         raekke_vaerdi
     ]);
     tauri::Builder::default()

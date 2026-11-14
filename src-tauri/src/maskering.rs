@@ -2607,20 +2607,19 @@ fn nulstil_slettet(post: grimnir_core::Post, enhed: Option<grimnir_core::Enhed>)
     }
 }
 
-/// V-OPBYG.5 N2: Kopiér værdi for en hemmelighed i den åbne sags indhold. Værdien går ikke forbi webvisningen: Rust
-/// lægger den selv i udklipsholderen (V-OPBYG.6 N3: [`Udklip::skriv_fortrolig`], med fortroligt-mærket) og husker tælleren som efter en demaskeret kopi (D21), så
-/// låsen og afslutningen rydder den, hvis den stadig står der. Svaret er `true`, når værdien ligger der; `false` uden
-/// udklipsholder (tests, Windows indtil B4) eller hvis skrivningen mislykkes. Kun en post med klassen Hemmelighed
-/// ([`UiFejl::UkendtPost`] ellers; en almindelig værdi kopierer webvisningen og melder den med
-/// [`udklip_vaerdi_kopieret`]). Låst: [`UiFejl::Laast`]; porten tjekkes igen, før der skrives. Intet skrives til log.
+/// V-OPBYG.5 N2: Kopiér værdi for en post i den åbne sags indhold. Værdien går ikke forbi webvisningen: Rust lægger den
+/// selv i udklipsholderen (V-OPBYG.6 N3: [`Udklip::skriv_fortrolig`], med fortroligt-mærket) og husker tælleren som efter
+/// en demaskeret kopi (D21), så låsen og afslutningen rydder den, hvis den stadig står der. Svaret er `true`, når værdien
+/// ligger der; `false` uden udklipsholder (tests, Windows indtil B4) eller hvis skrivningen mislykkes. V-OPBYG.7 N1: alle
+/// poster, også en almindelig værdi (før kun en hemmelighed). Ved `false` kopierer webvisningen en almindelig værdi som
+/// før, uden mærket, og melder den med [`udklip_vaerdi_kopieret`]; en skjult hemmelighed har webvisningen ikke.
+/// [`UiFejl::UkendtPost`], når pladsen og koden ikke passer. Låst: [`UiFejl::Laast`]; porten tjekkes igen, før der
+/// skrives. Intet skrives til log.
 pub fn sag_post_kopier(t: &Tilstand, nr: usize, kode: &str) -> Result<bool, UiFejl> {
     t.aaben()?;
     let vaerdi = {
         let a = t.sag_aaben()?;
         let i = post_med(&a.sag, nr, kode)?;
-        if a.sag.data().enheder.get(a.sag.data().poster[i].enhed).map(|e| e.klasse) != Some(Klasse::Hemmelighed) {
-            return Err(UiFejl::UkendtPost);
-        }
         zeroize::Zeroizing::new(a.sag.data().poster[i].original.som_tekst().to_string())
     };
     let Some(u) = t.udklip.as_deref() else {
@@ -2671,6 +2670,140 @@ pub fn udklip_vaerdi_kopieret(t: &Tilstand, nr: usize, kode: &str) -> Result<boo
     }
     h.taeller = Some(foer);
     Ok(true)
+}
+
+/// V-OPBYG.7 N1: skriver `tekst` med fortroligt-mærket ([`Udklip::skriv_fortrolig`]) og husker tælleren bagefter (D21),
+/// så låsen og afslutningen rydder den, hvis den stadig står der ([`ryd_udklip`]). `h` er `udklip_husk`, taget af
+/// kalderen, og porten er tjekket under den: en lås, der kommer imens, venter på den og rydder bagefter. En tidligere
+/// husket tæller glemmes først (som [`udklip_kopieret`]). `false`: skrivningen mislykkedes (intet ligger der, intet
+/// huskes).
+fn skriv_og_husk(h: &mut UdklipHusk, u: &dyn Udklip, tekst: &str) -> bool {
+    h.taeller = None;
+    if !u.skriv_fortrolig(tekst) {
+        return false;
+    }
+    h.taeller = u.taeller();
+    h.taeller.is_some()
+}
+
+/// V-OPBYG.7 N1: Kopiér resultat i Demaskér. Rust lægger det demaskerede resultat i udklipsholderen med
+/// fortroligt-mærket ([`Udklip::skriv_fortrolig`]) og husker tælleren (D21: låsen og afslutningen rydder det, hvis det
+/// stadig står der).
+///
+/// - `fil`: den åbne fil i Demaskér. Rust har resultatet ([`fil_demasker`]); webvisningen sender ingen tekst. Højst
+///   [`fil::MAKS_KOPI`] ([`UiFejl::ForStorTilKopi`]); [`UiFejl::IngenFil`] / [`UiFejl::IntetResultat`] som [`fil_kopi`].
+/// - Ellers den indsatte tekst: webvisningen sender resultatet (`tekst`), som den allerede viser, og Rust skriver det kun,
+///   hvis det er præcis det, Rust selv demaskerede sidst (fingeraftrykket fra [`demasker`]); ellers `false`. Rust holder
+///   ikke en kopi af resultatet: teksten findes i Rust kun under kaldet (`lib.rs` nulstiller den bagefter). Valgt frem
+///   for at Rust holder resultatet, til det er kopieret eller erstattet (HANDOFF-V-OPBYG.7, Fase A 2).
+///
+/// Svaret er `true`, når teksten ligger der med mærket; `false` uden udklipsholder (tests, Windows indtil B4), hvis
+/// skrivningen mislykkes, eller hvis den indsatte tekst ikke er Rusts resultat. Ved `false` kopierer webvisningen som før
+/// og melder kopien med [`udklip_kopieret`] (uden mærket). Låst: [`UiFejl::Laast`]; porten tjekkes igen, før der
+/// skrives. Intet skrives til log.
+pub fn resultat_kopier(t: &Tilstand, fil: bool, tekst: Option<&str>) -> Result<bool, UiFejl> {
+    t.aaben()?;
+    let Some(u) = t.udklip.as_deref() else {
+        return Ok(false);
+    };
+    if fil {
+        // Filens lås før udklipsholderens (som i fil_demasker); resultatet kopieres ikke.
+        let g = t.fil(Visning::Demasker);
+        let r = g.as_ref().ok_or(UiFejl::IngenFil)?.resultat.as_ref().ok_or(UiFejl::IntetResultat)?;
+        if r.tekst.len() > fil::MAKS_KOPI {
+            return Err(UiFejl::ForStorTilKopi {
+                bytes: r.tekst.len(),
+                maks: fil::MAKS_KOPI,
+            });
+        }
+        let mut h = t.udklip_husk();
+        t.aaben()?;
+        return Ok(skriv_og_husk(&mut h, u, &r.tekst));
+    }
+    let Some(tekst) = tekst else {
+        return Err(UiFejl::IntetResultat);
+    };
+    let mut h = t.udklip_husk();
+    t.aaben()?;
+    if h.demaskeret[0] != Some(h.fingeraftryk(tekst)) {
+        h.taeller = None;
+        return Ok(false);
+    }
+    Ok(skriv_og_husk(&mut h, u, tekst))
+}
+
+/// V-OPBYG.7 N1: et tidspunkt til Kopiér noterne, som webvisningen viser det (sprogets format og maskinens tidszone),
+/// for noten med løbenummeret `nr`. Kun tidspunktet; noternes tekst har Rust.
+#[derive(Clone, Debug, Deserialize)]
+pub struct NoteTid {
+    /// Notens løbenummer ([`NoteUd::nr`]).
+    pub nr: u64,
+    /// Tidspunktet, fx "13. november 2026 kl. 15.10" eller med " · rettet …" efter.
+    pub tekst: String,
+}
+
+/// V-OPBYG.7 N1: højst så mange tegn i et tidspunkt fra webvisningen ([`NoteTid::tekst`]).
+pub const MAKS_TID_TEGN: usize = 200;
+
+/// V-OPBYG.7 N1: teksten til Kopiér noterne, som webvisningen byggede den før (`noter.js`): overskriften med sagens navn
+/// (`Noter · <navn>` / `Noter · Midlertidig sag`; engelsk `Notes · …` / `Notes · Temporary case`, samme ord som
+/// `sprog.js` `noterKopiSag`/`noterKopiMidl`), en tom linje, og hver note som tidspunktet, et linjeskift og teksten, med en
+/// tom linje imellem, og et linjeskift til sidst. Sagens navn og noterne er Rusts; kun tidspunkterne kommer fra
+/// webvisningen. Der skal være præcis ét tidspunkt pr. note (samme løbenumre), på én linje og højst [`MAKS_TID_TEGN`]
+/// tegn; ellers [`UiFejl::Note`] med `ukendt` (noterne er ændret imens). Ingen noter: `None`.
+fn noter_tekst(navn: Option<&str>, noter: &[Note], sprog: &str, tider: &[NoteTid]) -> Result<Option<zeroize::Zeroizing<String>>, UiFejl> {
+    if noter.is_empty() {
+        return Ok(None);
+    }
+    let ukendt = UiFejl::Note { hvad: "ukendt", maks: 0 };
+    if tider.len() != noter.len() {
+        return Err(ukendt);
+    }
+    let engelsk = sprog == "en";
+    let mut ud = zeroize::Zeroizing::new(match (navn, engelsk) {
+        (Some(n), false) => format!("Noter · {n}"),
+        (Some(n), true) => format!("Notes · {n}"),
+        (None, false) => "Noter · Midlertidig sag".to_string(),
+        (None, true) => "Notes · Temporary case".to_string(),
+    });
+    for n in noter {
+        let Some(tid) = tider.iter().find(|x| x.nr == n.nr) else {
+            return Err(ukendt);
+        };
+        if tid.tekst.chars().count() > MAKS_TID_TEGN || tid.tekst.contains(['\r', '\n']) {
+            return Err(ukendt);
+        }
+        ud.push_str("\n\n");
+        ud.push_str(&tid.tekst);
+        ud.push('\n');
+        ud.push_str(&n.tekst);
+    }
+    ud.push('\n');
+    Ok(Some(ud))
+}
+
+/// V-OPBYG.7 N1: Kopiér noterne. Rust bygger teksten af den åbne sags navn og noter og webvisningens tidspunkter
+/// ([`noter_tekst`]) og lægger den i udklipsholderen med fortroligt-mærket; tælleren huskes (D21: låsen og afslutningen
+/// rydder den, hvis den stadig står der). Webvisningen sender kun sproget og tidspunkterne, aldrig noternes tekst.
+/// `false` uden udklipsholder (tests, Windows indtil B4), hvis skrivningen mislykkes, eller uden noter; så kopierer
+/// webvisningen som før og melder kopien med [`udklip_noter_kopieret`] (uden mærket). Låst: [`UiFejl::Laast`]; porten
+/// tjekkes igen, før der skrives. Teksten nulstilles bagefter; intet skrives til log.
+pub fn noter_kopier(t: &Tilstand, sprog: &str, tider: &[NoteTid]) -> Result<bool, UiFejl> {
+    t.aaben()?;
+    let Some(u) = t.udklip.as_deref() else {
+        return Ok(false);
+    };
+    let tekst = {
+        let a = t.sag_aaben()?;
+        let navn = a.aaben.as_ref().map(|x| x.hoved.navn.as_str());
+        noter_tekst(navn, a.sag.noter(), sprog, tider)?
+    };
+    let Some(tekst) = tekst else {
+        return Ok(false);
+    };
+    let mut h = t.udklip_husk();
+    t.aaben()?;
+    Ok(skriv_og_husk(&mut h, u, &tekst))
 }
 
 // ------------------------------------------------------------------------------------------------------- ordbogen
@@ -3572,9 +3705,19 @@ pub struct RaekkeSide {
     pub antal: TraeAntal,
     /// Antal rækker, der maskeres.
     pub valgte: usize,
+    /// V-OPBYG.7 N3: rækkens plads i listen efter filter og søgning (0 er den første), når siden blev bedt om en bestemt
+    /// række ([`fil_raekker_med`]); `None` ellers, og når rækken ikke er med i filteret og søgningen.
+    pub plads: Option<usize>,
 }
 
 fn side_af(raekker: &[Raekke], fejl: &[RaekkeFejl], valg: &SideValg) -> RaekkeSide {
+    side_af_med(raekker, fejl, valg, None)
+}
+
+/// [`side_af`]; V-OPBYG.7 N3: med `med` (en rækkes `id`) er rækken med på siden, også når den står efter de første
+/// `antal`: siden bliver så det mindste multiplum af `antal`, der når den (højst [`MAKS_SIDE`]; webvisningen regner sin
+/// sidestørrelse om på samme måde ud fra `plads`).
+fn side_af_med(raekker: &[Raekke], fejl: &[RaekkeFejl], valg: &SideValg, med: Option<usize>) -> RaekkeSide {
     let med_fejl: HashSet<usize> = fejl.iter().map(|f| f.id).collect();
     let tjek = |r: &Raekke| r.status == "tjek" || med_fejl.contains(&r.id);
     let antal = TraeAntal {
@@ -3600,10 +3743,16 @@ fn side_af(raekker: &[Raekke], fejl: &[RaekkeFejl], valg: &SideValg) -> RaekkeSi
                 || r.koder.iter().any(|k| k.to_lowercase().contains(&q))
                 || ((!r.hemmelig || vist.contains(&r.id)) && r.vaerdier.iter().any(|v| v.to_lowercase().contains(&q))))
     };
-    let antal_side = valg.antal.clamp(1, MAKS_SIDE);
+    let mut antal_side = valg.antal.clamp(1, MAKS_SIDE);
+    let plads = med.and_then(|id| raekker.iter().filter(|r| passer(r)).position(|r| r.id == id));
+    if let Some(p) = plads {
+        if p >= antal_side {
+            antal_side = antal_side.saturating_mul(p / antal_side + 1).min(MAKS_SIDE);
+        }
+    }
     let mut i_alt = 0;
     let mut side = Vec::new();
-    for r in raekker.iter().filter(passer) {
+    for r in raekker.iter().filter(|r| passer(r)) {
         if side.len() < antal_side {
             // V-OPBYG.4 N1: en hemmelighed uden sin værdi.
             side.push(raekke_ud(r));
@@ -3615,6 +3764,7 @@ fn side_af(raekker: &[Raekke], fejl: &[RaekkeFejl], valg: &SideValg) -> RaekkeSi
         i_alt,
         antal,
         valgte: raekker.iter().filter(|r| r.valgt).count(),
+        plads,
     }
 }
 
@@ -3840,10 +3990,18 @@ pub fn fil_marker(t: &Tilstand, start: usize, laengde: usize, art: &str) -> Resu
 
 /// En ny side rækker fra seneste analyse (filter, søgning, "Vis flere").
 pub fn fil_raekker(t: &Tilstand, side: &SideValg) -> Result<RaekkeSide, UiFejl> {
+    fil_raekker_med(t, side, None)
+}
+
+/// V-OPBYG.7 N3: [`fil_raekker`], der også kan vise en bestemt række (`med`: rækkens `id`), fx når Maskér markering svarer
+/// "allerede et fund", eller når en tilføjet værdi vælges: siden rækker så langt, at rækken er med, og svaret har dens
+/// plads i listen efter filter og søgning ([`RaekkeSide::plads`]; `None`, når filteret eller søgningen skjuler den, så
+/// webvisningen kan rydde dem og spørge igen). Webvisningen har kun én side ad gangen og kan ikke selv finde pladsen.
+pub fn fil_raekker_med(t: &Tilstand, side: &SideValg, med: Option<usize>) -> Result<RaekkeSide, UiFejl> {
     t.aaben()?;
     let g = t.fil(Visning::Masker);
     let h = g.as_ref().ok_or(UiFejl::IngenFil)?;
-    Ok(side_af(&h.raekker, &h.fejl, side))
+    Ok(side_af_med(&h.raekker, &h.fejl, side, med))
 }
 
 /// Svaret fra `fil_gem_og_masker`.
