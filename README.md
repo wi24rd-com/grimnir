@@ -6,7 +6,7 @@ Sensitive data masking tool for logs and scripts. Wi24rd Grimnir is a desktop ap
 
 **Privacy:** the app has no network code and sends nothing. No telemetry, no account and no Wi24rd server: everything happens on your own machine. The codes and the real values are stored only in encrypted case files on your machine. The **Guide** button only asks the operating system to open a web page in your browser.
 
-**Status:** early prototype. Development builds on macOS only. Not released. The Windows version has not been built.
+**Status:** version 1.0.0 for macOS, signed with Developer ID and notarised by Apple. The Windows version has not been built.
 
 ## The app
 - **One window** with five tabs in this order: **Mask**, **Unmask**, **Notes**, **Cases** and **Dictionary**. Each tab has a band with its commands; a command that cannot be used yet is dimmed and says why.
