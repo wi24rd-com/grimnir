@@ -623,36 +623,44 @@ fn n4_readme_naevner_de_faner_og_genveje_koden_har_paa_begge_sprog() {
     }
 }
 
-/// README og CHANGELOG lover intet om udgivelse, signering eller Windows ud over, at det ikke findes endnu, og har ingen
-/// klokkeslæt eller datoer i CHANGELOG.
+/// README og CHANGELOG siger det, der findes: version 1.0.0 til macOS er udgivet, signeret og notariseret, Windows-udgaven
+/// er ikke bygget, og vejledningen på wi24rd.com nævnes ikke, før den findes. CHANGELOG har kun datoer i udgavernes
+/// overskrifter og ingen klokkeslæt.
 #[test]
 fn n4_readme_og_changelog_lover_intet_der_ikke_findes() {
     let en = repo("README.md");
     let da = repo("README.da.md");
-    assert!(
-        en.contains("**Status:** early prototype. Development builds on macOS only. Not released. The Windows version has not been built.")
-    );
-    assert!(da.contains("**Status:** tidlig prototype. Kun udviklingsbygninger til macOS. Ikke udgivet. Windows-udgaven er ikke bygget."));
+    let udgaver = "https://github.com/wi24rd-com/grimnir/releases/latest";
+    assert!(en.contains(&format!(
+        "**Status:** version 1.0.0 for macOS (Apple silicon), signed with Developer ID and notarised by Apple. Download it from [Releases]({udgaver}). The Windows version has not been built."
+    )));
+    assert!(da.contains(&format!(
+        "**Status:** version 1.0.0 til macOS (Apple silicon), signeret med Developer ID og notariseret af Apple. Hent den under [Releases]({udgaver}). Windows-udgaven er ikke bygget."
+    )));
     for (fil, r) in [("README.md", &en), ("README.da.md", &da)] {
-        for ord in ["Releases", "notar", "Developer ID", "wi24rd.com", "Download", "Hent "] {
-            assert!(!r.contains(ord), "{fil}: {ord}");
-        }
+        assert!(!r.contains("wi24rd.com"), "{fil}: wi24rd.com");
     }
     let c = repo("CHANGELOG.md");
-    assert!(c.contains("## [Ikke udgivet]"));
-    assert_eq!(c.matches("\n## ").count(), 1, "én post");
-    for (i, ch) in c.char_indices() {
-        // Ingen dato (2026-…) og intet klokkeslæt (TT:MM).
-        if ch.is_ascii_digit() {
-            let rest = &c[i..];
-            assert!(
-                !rest.starts_with("20") || !rest[2..].starts_with(|x: char| x.is_ascii_digit()) || !rest[4..].starts_with('-'),
-                "en dato i CHANGELOG"
-            );
-            assert!(
-                !(rest.len() > 4 && rest.as_bytes()[2] == b':' && rest.as_bytes()[1].is_ascii_digit()),
-                "et klokkeslæt i CHANGELOG"
-            );
+    assert!(c.contains("\n## [Ikke udgivet]\n"));
+    assert!(c.contains("\n## [1.0.0] — 2026-11-14\n"));
+    for linje in c.lines() {
+        // En dato (2026-…) må kun stå i en udgaves overskrift; et klokkeslæt (TT:MM) ingen steder.
+        let udgave = linje.starts_with("## [") && linje != "## [Ikke udgivet]";
+        for (i, ch) in linje.char_indices() {
+            if ch.is_ascii_digit() {
+                let rest = &linje[i..];
+                assert!(
+                    udgave
+                        || !rest.starts_with("20")
+                        || !rest[2..].starts_with(|x: char| x.is_ascii_digit())
+                        || !rest[4..].starts_with('-'),
+                    "en dato i CHANGELOG uden for en udgaves overskrift"
+                );
+                assert!(
+                    !(rest.len() > 4 && rest.as_bytes()[2] == b':' && rest.as_bytes()[1].is_ascii_digit()),
+                    "et klokkeslæt i CHANGELOG"
+                );
+            }
         }
     }
 }
