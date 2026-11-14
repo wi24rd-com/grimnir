@@ -2,11 +2,14 @@
 
 *Mask. Share. Restore.*
 
+### [⬇ Hent Grimnir 1.0.0 til macOS](https://github.com/wi24rd-com/grimnir/releases/latest)
+Signeret og notariseret af Apple · Apple silicon · macOS 11 eller nyere · åbn zip-filen, og træk programmet til Programmer
+
 Sensitive data masking tool for logs and scripts. Wi24rd Grimnir er et skrivebordsprogram (Tauri), der erstatter følsomme værdier i en log eller et script, fx IP-adresser, maskinnavne, brugere og adgangskoder, med neutrale koder, før du deler teksten med en leverandørs support eller en chatbot. Når svaret kommer tilbage, sætter Wi24rd Grimnir de rigtige værdier ind igen i stedet for koderne.
 
 **Privatliv:** programmet har ingen netværkskode og sender intet. Ingen telemetri, ingen konto og ingen Wi24rd-server: alt sker på din egen maskine. Koderne og de rigtige værdier gemmes kun i krypterede sagsfiler på maskinen. Knappen **Vejledning** beder kun styresystemet åbne en side i din browser.
 
-**Status:** version 1.0.0 til macOS, signeret med Developer ID og notariseret af Apple. Windows-udgaven er ikke bygget.
+**Status:** version 1.0.0 til macOS (Apple silicon), signeret med Developer ID og notariseret af Apple. Hent den under [Releases](https://github.com/wi24rd-com/grimnir/releases/latest). Windows-udgaven er ikke bygget.
 
 ## Programmet
 - **Ét vindue** med fem faner i denne rækkefølge: **Maskér**, **Demaskér**, **Noter**, **Sager** og **Ordbog**. Hver fane har et bånd med sine kommandoer; en kommando, der ikke kan bruges endnu, er nedtonet og siger hvorfor.
