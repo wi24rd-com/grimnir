@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-tekst-glem"
+description = "Enables the tekst_glem command without any pre-configured scope."
+commands.allow = ["tekst_glem"]
+
+[[permission]]
+identifier = "deny-tekst-glem"
+description = "Denies the tekst_glem command without any pre-configured scope."
+commands.deny = ["tekst_glem"]

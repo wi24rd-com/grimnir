@@ -32,6 +32,10 @@
     gentag: [['path', { d: 'M15 14l5-5-5-5' }], ['path', { d: 'M20 9H9.5a5.5 5.5 0 0 0 0 11H13' }]],
     ryd: [['path', { d: 'M8 20h12' }], ['path', { d: 'M4.6 14.6l9.2-9.2a2 2 0 0 1 2.8 0l2 2a2 2 0 0 1 0 2.8L11 18.8H8.8z' }], ['path', { d: 'M9.5 9.7l4.8 4.8' }]],
     markering: [['path', { d: 'M4 8V5h3M17 5h3v3M20 16v3h-3M7 19H4v-3' }], ['path', { d: 'M12 8.5v7M8.5 12h7' }]],
+    // V-OPBYG.5 N2: rækkens "…"-knap (tre prikker).
+    handlinger: [['circle', { cx: 6, cy: 12, r: 1.4 }], ['circle', { cx: 12, cy: 12, r: 1.4 }], ['circle', { cx: 18, cy: 12, r: 1.4 }]],
+    // V-OPBYG.5 N1: Maskér som hemmelighed: markeringens hjørner med en lille hængelås.
+    markeringHemmelig: [['path', { d: 'M4 8V5h3M17 5h3v3M20 16v3h-3M7 19H4v-3' }], ['rect', { x: 8.5, y: 11.5, width: 7, height: 5, rx: 1 }], ['path', { d: 'M10 11.5V10a2 2 0 0 1 4 0v1.5' }]],
     // V-OPBYG.3 N3: ⓘ for Om Grimnir i titellinjen (kittet har intet info-ikon; ønske G36).
     info: [['circle', { cx: 12, cy: 12, r: 9 }], ['path', { d: 'M12 11v6' }], ['path', { d: 'M12 7.5v.5' }]],
   });
@@ -57,6 +61,10 @@
         { t: 'gMaskering', knapper: [aktiv('masker', 'analyser', 'kAnalyser', 'soeg'), aktiv('masker', 'gem-masker', 'kGemMasker', 'skjold', true), aktiv('masker', 'foer-efter', 'kFoerEfter', 'foerefter')] },
         // V-FIL.1: Gem maskeret fil ved siden af Kopiér. V-KVIT.1: Kopiér kvittering (aktiv, når der er et maskeret resultat).
         { t: 'gResultat', knapper: [aktiv('masker', 'kopier', 'kKopier', 'kopier'), aktiv('masker', 'gem-fil', 'kGemMaskeretFil', 'gem'), aktiv('masker', 'kvittering', 'kKvittering', 'kvittering')] },
+        // V-OPBYG.5 N1: Maskér som hemmelighed (samme handling som genvejsmenuens punkt) i sin egen gruppe sidst i båndet, så
+        // kittets Mere flytter den først: målt i WebKit ved 1024 px står resten af båndet som før i alle tekststørrelser på
+        // begge sprog (i gruppen Rediger skubbede den Kopiér maskeret tekst ind i Mere; HANDOFF-V-OPBYG.5, Fase A 4).
+        { t: 'gHemmelig', knapper: [aktiv('masker', 'masker-hemmelig', 'kMaskerSomHemmelighed', 'markeringHemmelig')] },
       ],
       /* V-OPBYG.1 (D27): filtrene efter skitsen: Alle fund, Maskeres (Maskerede efter maskeringen), Bevares (Bevarede),
          Kræver gennemgang og Hemmeligheder. V-MANUEL.2's "Kendt fra sagen" (fundene, sagen kendte i forvejen) står som et

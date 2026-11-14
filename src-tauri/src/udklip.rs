@@ -21,7 +21,15 @@
 //! Teksten fra udklipsholderen gemmes ikke og logges ikke: den sammenlignes og nulstilles (Rust-kopien; `NSString`'en
 //! fra AppKit kan Grimnir ikke nulstille).
 //!
-//! **Windows** har endnu ingen udgave (B4): [`platformens`] svarer `None`, og intet ryddes.
+//! **Rust skriver selv (V-OPBYG.5 N2).** Kopiér værdi for en skjult hemmelighed i sagens indhold: værdien må ikke forbi
+//! webvisningen, så Rust lægger den i udklipsholderen ([`Udklip::skriv_tekst`]: `clearContents` og
+//! `setString:forType:` med `NSPasteboardTypeString`) og husker tælleren bagefter som efter en demaskeret kopi; ved lås
+//! og afslutning ryddes den på samme betingelse (D21). `NSString`'en, AppKit laver af værdien, kan Grimnir ikke nulstille
+//! (som ved læsning); Rust-kopien nulstilles.
+//!
+//! **Windows** har endnu ingen udgave (B4): [`platformens`] svarer `None`, og intet ryddes eller skrives. En Windows-udgave
+//! kræver `OpenClipboard`/`EmptyClipboard`/`SetClipboardData(CF_UNICODETEXT)` og `GetClipboardSequenceNumber` som tæller
+//! (en binding, Grimnir ikke har i dag); se HANDOFF-V-OPBYG.5, Fase A 2.
 //!
 //! `unsafe` står kun her (og i `laas.rs` og `notifikationer.rs`), hver gang med `SAFETY:`.
 #![allow(unsafe_code)]
@@ -50,6 +58,11 @@ pub trait Udklip: Send + Sync {
     fn tekst(&self) -> Indhold;
     /// Rydder udklipsholderen.
     fn ryd(&self);
+    /// V-OPBYG.5 N2: lægger `tekst` i udklipsholderen i stedet for det, der stod der (tælleren går op). Falsk, hvis det ikke
+    /// lykkedes. Standarden kan ikke skrive (en udklipsholder, der kun læser og rydder); macOS' og testenes skriver.
+    fn skriv_tekst(&self, _tekst: &str) -> bool {
+        false
+    }
 }
 
 impl<T: Udklip + ?Sized> Udklip for std::sync::Arc<T> {
@@ -62,6 +75,9 @@ impl<T: Udklip + ?Sized> Udklip for std::sync::Arc<T> {
     fn ryd(&self) {
         (**self).ryd()
     }
+    fn skriv_tekst(&self, tekst: &str) -> bool {
+        (**self).skriv_tekst(tekst)
+    }
 }
 
 /// En udklipsholder i hukommelsen til tests: en tæller og en tekst. `laesbar` afgør, om teksten må læses (som
@@ -71,6 +87,10 @@ pub struct HukommelsesUdklip {
     laesbar: bool,
     /// V-LAAS.5: antal kald af [`Udklip::tekst`] (en læsning, der på macOS kan give en dialog).
     laesninger: AtomicUsize,
+    /// V-OPBYG.5: antal gange, Grimnir selv har skrevet ([`Udklip::skriv_tekst`]).
+    skrivninger: AtomicUsize,
+    /// V-OPBYG.5: sand: skrivningen mislykkes (som en udklipsholder, der ikke tager imod).
+    afviser: std::sync::atomic::AtomicBool,
 }
 
 impl HukommelsesUdklip {
@@ -80,7 +100,19 @@ impl HukommelsesUdklip {
             indhold: Mutex::new((0, None)),
             laesbar,
             laesninger: AtomicUsize::new(0),
+            skrivninger: AtomicUsize::new(0),
+            afviser: std::sync::atomic::AtomicBool::new(false),
         }
+    }
+
+    /// V-OPBYG.5: antal gange, Grimnir selv har skrevet til udklipsholderen ([`Udklip::skriv_tekst`]).
+    pub fn skrivninger(&self) -> usize {
+        self.skrivninger.load(Ordering::SeqCst)
+    }
+
+    /// V-OPBYG.5: fra nu af mislykkes Grimnirs skrivning (tælleren og teksten røres ikke).
+    pub fn afvis_skrivning(&self) {
+        self.afviser.store(true, Ordering::SeqCst);
     }
 
     fn laas(&self) -> std::sync::MutexGuard<'_, (isize, Option<String>)> {
@@ -129,6 +161,14 @@ impl Udklip for HukommelsesUdklip {
         g.0 += 1;
         g.1 = None;
     }
+    fn skriv_tekst(&self, tekst: &str) -> bool {
+        self.skrivninger.fetch_add(1, Ordering::SeqCst);
+        if self.afviser.load(Ordering::SeqCst) {
+            return false;
+        }
+        self.skriv(tekst);
+        true
+    }
 }
 
 /// Platformens udklipsholder: `NSPasteboard.generalPasteboard` på macOS; ingen andre steder endnu (B4).
@@ -147,6 +187,7 @@ pub fn platformens() -> Option<Box<dyn Udklip>> {
 mod mac {
     use objc2::rc::autoreleasepool;
     use objc2_app_kit::{NSPasteboard, NSPasteboardAccessBehavior, NSPasteboardTypeString};
+    use objc2_foundation::NSString;
     use zeroize::Zeroizing;
 
     use super::{Indhold, Udklip};
@@ -181,6 +222,18 @@ mod mac {
             autoreleasepool(|_| {
                 NSPasteboard::generalPasteboard().clearContents();
             });
+        }
+
+        fn skriv_tekst(&self, tekst: &str) -> bool {
+            autoreleasepool(|_| {
+                let pb = NSPasteboard::generalPasteboard();
+                pb.clearContents();
+                let s = NSString::from_str(tekst);
+                // SAFETY: som i `tekst`: `NSPasteboardTypeString` er en konstant `NSString` fra AppKit, gyldig og
+                // uforanderlig hele programmets tid.
+                let type_ = unsafe { NSPasteboardTypeString };
+                pb.setString_forType(&s, type_)
+            })
         }
     }
 }

@@ -57,7 +57,8 @@ const VAERDI_MIN = 140;
 const BREDDER = [900, 1024, 1200, 1400, 1600, 1920]; // V-OPBYG.2: 1400 er startvinduet
 // V-PUDS.1 N3: 1839/1840, hvor ordet i Altid/Aldrig kommer igen, når fundene står side om side.
 // V-PUDS.3 N3: 943/944, hvor cellerne i Maskér får deres almindelige polstring igen, og 1013 (Erstatning: 15 tegn derfra).
-const OVERGANGE = [943, 944, 1013, 1099, 1100, 1199, 1719, 1720, 1839, 1840];
+// V-OPBYG.5 N2: 1209/1210 og 1859/1860, hvor ordet i Altid/Aldrig nu kommer (før 1200 og 1840; "…"-knappen står i Ordbog).
+const OVERGANGE = [943, 944, 1013, 1099, 1100, 1199, 1209, 1210, 1719, 1720, 1839, 1840, 1859, 1860];
 /* V-LAAS.4 N3: fra 1200 px skal Erstatning kunne vise 24 tegn i feltets skrift, og Fundet værdi skal have mindst 240 px.
    Feltets skrift er JetBrains Mono (pakket med). Fremføringen er målt i ui/assets/fonts/jetbrains-mono-latin-wght-normal.woff2
    (hhea/hmtx/cmap efter brotli-udpakning): alle 95 tegn fra U+0020 til U+007E har 600 enheder ved unitsPerEm 1000, altså
@@ -220,23 +221,51 @@ const MINI_KANT = Number((decl(APP, '.mini', 'border') || '').match(/^(\d+)px/)?
 const IKON = px(decl(APP, '.mini.ikonknap svg', 'width'));
 const IKONKNAP = px(decl(APP, '.mini.ikonknap', 'width'));
 const KNAP_AFSTAND = px(decl(APP, '.ordbogknapper', 'gap'));
+/* V-OPBYG.5 N2: rækkens "…"-knap står i samme celle efter Altid/Aldrig (.raekkehandlinger): dens bredde og afstanden læses
+   fra CSS'en og lægges til Ordbog-cellens indhold. */
+const MERE_KNAP = px(decl(APP, '.mini.ikonknap.mere-knap', 'width'));
+const MERE_MELLEM = px(decl(APP, '.raekkehandlinger', 'gap'));
+const MERE = MERE_MELLEM + MERE_KNAP;
 function ordbogBredde(sprog, W, trin = 'normal') {
-  if (!ordVises(W, trin)) return 2 * IKONKNAP + KNAP_AFSTAND;
+  if (!ordVises(W, trin)) return 2 * IKONKNAP + KNAP_AFSTAND + MERE;
   const k = knapRegel(W, trin);
   const pol = (k.decl.padding || '').split(/\s+/).map(px);
   const mellem = px(k.decl.gap);
-  return ['kAltid', 'kAldrig'].reduce((a, n) => a + 2 * MINI_KANT + 2 * (pol[1] ?? pol[0]) + IKON + mellem + MAALT_KNAPORD[S.TEKST[sprog][n]], 0) + KNAP_AFSTAND;
+  return ['kAltid', 'kAldrig'].reduce((a, n) => a + 2 * MINI_KANT + 2 * (pol[1] ?? pol[0]) + IKON + mellem + MAALT_KNAPORD[S.TEKST[sprog][n]], 0) + KNAP_AFSTAND + MERE;
+}
+tjek('V-OPBYG.5 N2: "…"-knappens mål læst fra CSS\'en (22 px, 2 px fra Altid/Aldrig)', MERE_KNAP === 22 && MERE_MELLEM === 2, [MERE_KNAP, MERE_MELLEM].join());
+/* V-OPBYG.5 N2: målt i WebKit (WKWebView, macOS 26.6; engangsværktøjet maal i scratchpad; en kopi af ui/ og en efterlignet
+   __TAURI__ uden net; 1024 × 560; Maskér med tre fund og sagens indhold med tre poster). Vinduets px (zoom: lille 0,9, stor
+   1,125), ens på dansk og engelsk: "…"-knappen, Ordbog-cellens indhold (Altid, Aldrig og "…"), Fundet værdi, og hvor meget
+   tabellen ruller vandret (scrollWidth − clientWidth). Ved stor ruller begge tabeller 1 px, også på HEAD uden "…" (layoutets
+   bredde er 652,2 px, tabellen fylder den; en afrunding, se HANDOFF-V-OPBYG.5, sideeffekt-fund). Sagens indhold: den femte
+   kolonne (40 px) med knappen inden for cellens polstring. Menuen (180 px ved normal) står inden for vinduet. */
+const MAALT_HANDLINGER = {
+  lille: { knap: 19.8, celle: 68.4, vaerdi: 300.3, rul: 0, rulHead: 0, indholdKol: 36, indholdRul: 0, menuHoejre: 1005 },
+  normal: { knap: 22, celle: 76, vaerdi: 220, rul: 0, rulHead: 0, indholdKol: 40, indholdRul: 0, menuHoejre: 1003 },
+  stor: { knap: 24.8, celle: 85.5, vaerdi: 169.3, rul: 1, rulHead: 1, indholdKol: 45, indholdRul: 1, menuHoejre: 1005 },
+};
+for (const trin of TRIN) {
+  const m = MAALT_HANDLINGER[trin.navn], z = trin.z;
+  const regnetCelle = ordbogBredde('da', 1024, trin.navn);
+  const v = variabler('indholdtabel', 'da', 1024, trin.navn);
+  tjek(`V-OPBYG.5 N2 (målt mod regnet, 1024 px, ${trin.navn}): "…" er ${MERE_KNAP} px, Ordbog-cellens indhold ${regnetCelle} px, Fundet værdi mindst ${VAERDI_MIN} px, og tabellerne ruller ikke mere end på HEAD`,
+    Math.abs(m.knap / z - MERE_KNAP) < 0.1 && Math.abs(m.celle / z - regnetCelle) < 0.1 && m.vaerdi / z >= VAERDI_MIN && m.rul === m.rulHead && m.rul <= 1 && m.indholdRul <= 1
+      && Math.abs(m.indholdKol / z - px(v['--k5'])) < 0.1 && m.menuHoejre <= 1024,
+    JSON.stringify({ knap: m.knap / z, celle: m.celle / z, regnetCelle, k5: v['--k5'] }));
 }
 tjek('V-PUDS.1 N3: knappernes mål læst fra CSS\'en (kant 1, ikon 14, ikonknap 24, afstand 4 px)', MINI_KANT === 1 && IKON === 14 && IKONKNAP === 24 && KNAP_AFSTAND === 4, [MINI_KANT, IKON, IKONKNAP, KNAP_AFSTAND].join());
 tjek('V-PUDS.1 N3: ordene i Altid/Aldrig er målt i begge sprog', ['da', 'en'].every(sp => ['kAltid', 'kAldrig'].every(n => S.TEKST[sp][n] in MAALT_KNAPORD)));
-for (const W of [900, 1099, 1100, 1199]) tjek(`V-PUDS.1 N3: ${W} px: kun ikonet i Altid/Aldrig (under 1200 px)`, !ordVises(W));
-for (const W of [1200, 1600, 1719, 1840, 1920]) tjek(`V-PUDS.1 N3: ${W} px: ordet står ved ikonet i Altid/Aldrig`, ordVises(W) && knapRegel(W));
-tjek('V-PUDS.1 N3: 1720 px (side om side, smal tabel): kun ikonet', !ordVises(1720) && !ordVises(1839));
+// V-OPBYG.5 N2: grænserne er 1210 og 1860 px (før 1200 og 1840): "…"-knappen står også i Ordbog-cellen.
+for (const W of [900, 1099, 1100, 1199, 1200, 1209]) tjek(`V-OPBYG.5 N2: ${W} px: kun ikonet i Altid/Aldrig (under 1210 px)`, !ordVises(W));
+for (const W of [1210, 1600, 1719, 1860, 1920]) tjek(`V-OPBYG.5 N2: ${W} px: ordet står ved ikonet i Altid/Aldrig`, ordVises(W) && knapRegel(W));
+tjek('V-OPBYG.5 N2: 1720–1859 px (side om side, smal tabel): kun ikonet', !ordVises(1720) && !ordVises(1839) && !ordVises(1840) && !ordVises(1859));
 // V-KITBRUG.1 N2: lille har grænserne som normal; stor har dem × 1,125 (1200 → 1350, 1720 → 1935, 1840 → 2070).
-for (const W of [900, 1199, 1720, 1839]) tjek(`V-KITBRUG.1: lille ${W} px: kun ikonet i Altid/Aldrig (som normal)`, !ordVises(W, 'lille'));
-for (const W of [1200, 1719, 1840]) tjek(`V-KITBRUG.1: lille ${W} px: ordet står ved ikonet (som normal)`, ordVises(W, 'lille') && knapRegel(W, 'lille'));
-for (const W of [900, 1200, 1349, 1935, 2069]) tjek(`V-KITBRUG.1: stor ${W} px: kun ikonet i Altid/Aldrig`, !ordVises(W, 'stor'));
-for (const W of [1350, 1600, 1934, 2070]) tjek(`V-KITBRUG.1: stor ${W} px: ordet står ved ikonet`, ordVises(W, 'stor') && knapRegel(W, 'stor'));
+// V-OPBYG.5 N2: ordets grænser er 1210 og 1860 (stor: 1362 og 2093).
+for (const W of [900, 1199, 1209, 1720, 1859]) tjek(`V-OPBYG.5 N2: lille ${W} px: kun ikonet i Altid/Aldrig (som normal)`, !ordVises(W, 'lille'));
+for (const W of [1210, 1719, 1860]) tjek(`V-OPBYG.5 N2: lille ${W} px: ordet står ved ikonet (som normal)`, ordVises(W, 'lille') && knapRegel(W, 'lille'));
+for (const W of [900, 1200, 1361, 1935, 2092]) tjek(`V-OPBYG.5 N2: stor ${W} px: kun ikonet i Altid/Aldrig`, !ordVises(W, 'stor'));
+for (const W of [1362, 1600, 1934, 2093]) tjek(`V-OPBYG.5 N2: stor ${W} px: ordet står ved ikonet`, ordVises(W, 'stor') && knapRegel(W, 'stor'));
 // V-PUDS.1 N4: Demaskér-tabellens Antal og Linje har faste bredder i begge sprog ved alle bredder.
 for (const sprog of ['da', 'en']) for (const W of [...BREDDER, ...OVERGANGE]) {
   const v = variabler('advtabel', sprog, W);
@@ -246,7 +275,7 @@ for (const sprog of ['da', 'en']) for (const W of [...BREDDER, ...OVERGANGE]) {
 const rapport = [];
 // V-KITBRUG.1 N2: overgangene ved stor (grænserne × 1,125) og hvor layoutet når 900 px (1012/1013 px vindue).
 // V-PUDS.3 N3: 1061/1062 (943/944 × 1,125).
-const OVERGANGE_STOR = [1012, 1013, 1061, 1062, 1237, 1238, 1349, 1350, 1934, 1935, 2069, 2070];
+const OVERGANGE_STOR = [1012, 1013, 1061, 1062, 1237, 1238, 1349, 1350, 1361, 1362, 1934, 1935, 2069, 2070, 2092, 2093];
 for (const trin of TRIN) for (const tb of TABELLER) {
   const n = tb.kol.length;
   const tn = trin.navn === 'normal' ? '' : ' ' + trin.navn;
@@ -401,16 +430,16 @@ const VALG_SEL = '.fundtabel .typevalg .vliste select';
 tjek('V-MANUEL.1: valglistens polstring er den, der blev målt (dansk 0 20px 0 4px med pil, engelsk 0 2px uden pil); ellers mål igen',
   APP.some(r => !r.media && r.valg.includes(VALG_SEL) && r.decl.padding === '0 20px 0 4px') && APP.some(r => !r.media && r.valg.includes('html[lang="en"] ' + VALG_SEL) && r.decl.padding === '0 2px') && APP.some(r => !r.media && r.valg.includes('html[lang="en"] .fundtabel .typevalg .vliste svg') && r.decl.display === 'none'));
 function ordbogBreddeTilfoejet(sprog, W, trin = 'normal') {
-  if (!ordVises(W, trin)) return 2 * IKONKNAP + KNAP_AFSTAND;
+  if (!ordVises(W, trin)) return 2 * IKONKNAP + KNAP_AFSTAND + MERE;
   const k = knapRegel(W, trin);
   const pol = (k.decl.padding || '').split(/\s+/).map(px);
   const mellem = px(k.decl.gap);
-  return 2 * MINI_KANT + 2 * (pol[1] ?? pol[0]) + IKON + mellem + MAALT_KNAPORD[T[sprog].kAltid] + KNAP_AFSTAND + IKONKNAP;
+  return 2 * MINI_KANT + 2 * (pol[1] ?? pol[0]) + IKON + mellem + MAALT_KNAPORD[T[sprog].kAltid] + KNAP_AFSTAND + IKONKNAP + MERE;
 }
 // Hvis Fjern viste ordet som Altid og Aldrig: for bredt på engelsk (derfor reglen).
 function ordbogBreddeMedOrd(sprog, W, trin) {
   const k = knapRegel(W, trin), pol = (k.decl.padding || '').split(/\s+/).map(px), mellem = px(k.decl.gap);
-  return [MAALT_KNAPORD[T[sprog].kAltid], MAALT_KNAPORD_MANUEL[T[sprog].kFjern]].reduce((a, w) => a + 2 * MINI_KANT + 2 * (pol[1] ?? pol[0]) + IKON + mellem + w, 0) + KNAP_AFSTAND;
+  return [MAALT_KNAPORD[T[sprog].kAltid], MAALT_KNAPORD_MANUEL[T[sprog].kFjern]].reduce((a, w) => a + 2 * MINI_KANT + 2 * (pol[1] ?? pol[0]) + IKON + mellem + w, 0) + KNAP_AFSTAND + MERE;
 }
 {
   const v = variabler('fundtabel', 'en', 1600, 'normal'), celle = px(v['--celle']) ?? px('var(--space-3)');

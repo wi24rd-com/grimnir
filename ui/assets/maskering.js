@@ -371,6 +371,103 @@
     if (m && !m.disabled) m.focus();
   }
 
+  /* ═════════════════════════════ V-OPBYG.5 N2: rækkens "…"-menu ═════════════════════════════
+     Grimnirs egen menu efter samme mønster som genvejsmenuen i tekstpanelet (kittet har ingen menu til en række; ønske G39).
+     o: { ariaT, ariaV (knappens og menuens navn: "Handlinger for {v}"), punkter: () => [{ t, v, ved, hvorfor, farlig }] }.
+     Knappen står sidst i rækken og kan nås med Tab; Enter, mellemrum og pil ned åbner med fokus på første punkt (pil op:
+     sidste), piletaster, Home og End flytter, Esc lukker med fokus på knappen, Tab lukker, og et klik udenfor lukker. Et
+     punkt, der ikke kan bruges, har aria-disabled og hvorfor under navnet (som kittets Mere). Punkterne bygges, når menuen
+     åbnes, så de altid følger rækken. Tasterne, menuen bruger, går ikke videre til tabellen (rækkens egne taster). Én menu
+     er åben ad gangen. Svarer med elementet (knap og menu). */
+  let rmNr = 0, rmAaben = null;
+  function raekkeMenu(o) {
+    const nr = ++rmNr;
+    const rod = el('span', 'raekkemenu');
+    const b = el('button', 'mini ikonknap mere-knap');
+    b.type = 'button';
+    b.appendChild(K.ikon('handlinger', 'ik'));
+    b.setAttribute('aria-haspopup', 'menu');
+    b.setAttribute('aria-expanded', 'false');
+    b.setAttribute('data-t-aria', o.ariaT);
+    b.setAttribute('data-v', String(o.ariaV));
+    b.setAttribute('data-t-title', 'titelHandlinger');
+    b.setAttribute('data-felt', 'handlinger');
+    b.id = 'rm-knap-' + nr;
+    const m = el('div', 'genvejsmenu raekke-menu');
+    m.setAttribute('role', 'menu');
+    m.setAttribute('aria-labelledby', b.id);
+    m.id = 'rm-menu-' + nr;
+    m.hidden = true;
+    b.setAttribute('aria-controls', m.id);
+    rod.append(b, m);
+    const punkter = () => [...m.querySelectorAll('[role="menuitem"]')];
+    const udenfor = e => { if (!rod.contains(e.target)) luk(false); };
+    function byg() {
+      m.textContent = '';
+      o.punkter().forEach((p, i) => {
+        const x = el('button', 'menupunkt' + (p.farlig ? ' farlig' : ''));
+        x.type = 'button';
+        x.setAttribute('role', 'menuitem');
+        x.setAttribute('data-felt', 'handlinger');
+        if (p.id) x.setAttribute('data-punkt', p.id);
+        x.tabIndex = -1;
+        x.appendChild(el('span', 'rm-navn', p.t, p.v));
+        if (p.hvorfor) {
+          x.setAttribute('aria-disabled', 'true');
+          const h = el('span', 'rm-hvorfor', p.hvorfor);
+          h.id = m.id + '-h' + i;
+          x.setAttribute('aria-describedby', h.id);
+          x.appendChild(h);
+        }
+        x.addEventListener('click', () => {
+          if (x.getAttribute('aria-disabled') === 'true') return;
+          luk(p.fokusTilbage !== false);
+          p.ved();
+        });
+        m.appendChild(x);
+      });
+      S.anvend(m);
+    }
+    function aaben(hvor) {
+      if (rmAaben && rmAaben !== luk) rmAaben(false);
+      byg();
+      m.hidden = false;
+      b.setAttribute('aria-expanded', 'true');
+      rmAaben = luk;
+      document.addEventListener('mousedown', udenfor, true);
+      const p = punkter();
+      if (p.length) (hvor === 'sidste' ? p[p.length - 1] : p[0]).focus();
+    }
+    function luk(fokus) {
+      if (m.hidden) return;
+      m.hidden = true;
+      b.setAttribute('aria-expanded', 'false');
+      document.removeEventListener('mousedown', udenfor, true);
+      if (rmAaben === luk) rmAaben = null;
+      if (fokus && b.isConnected) b.focus();
+    }
+    b.addEventListener('click', e => { e.stopPropagation(); if (m.hidden) aaben('foerste'); else luk(true); });
+    b.addEventListener('keydown', e => {
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+      e.preventDefault();
+      e.stopPropagation();
+      aaben(e.key === 'ArrowDown' ? 'foerste' : 'sidste');
+    });
+    m.addEventListener('mousedown', e => e.preventDefault());
+    m.addEventListener('click', e => e.stopPropagation());
+    m.addEventListener('keydown', e => {
+      const p = punkter(), i = p.indexOf(document.activeElement);
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); luk(true); return; }
+      if (e.key === 'Tab') { luk(false); return; }
+      const ny = { ArrowDown: i + 1, ArrowUp: i - 1 + p.length, Home: 0, End: p.length - 1 }[e.key];
+      if (ny != null && p.length) { e.preventDefault(); e.stopPropagation(); p[ny % p.length].focus(); return; }
+      if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
+    });
+    rod.luk = luk;
+    rod.aaben = aaben;
+    return rod;
+  }
+
   /* ═════════════════════════════ Sagen ═════════════════════════════ */
   /* Antal poster i den aktuelle sag og antal gemte sager. Titellinjen og sagerne står i sager.js; den får besked med
      hændelsen 'grimnir-poster' og sætter selv tallene med saetSag og saetGemteSager. */
@@ -1503,6 +1600,9 @@
       if (!st.tekst || st.travl) return Promise.resolve(false);
       const valg = harValg(), res = Boolean(st.resultat) && !st.resultatBrugt;
       const goer = () => {
+        // V-OPBYG.5 N1: Rust glemmer den indsatte teksts hemmeligheder med det samme (en åben fil slippes med fil_luk).
+        // Låst svarer Rust laast; så har låsen allerede glemt dem.
+        if (!st.fil) invoke('tekst_glem').catch(() => { /* låst eller ingen Rust: intet at glemme */ });
         slipFil();
         nulstilValg();
         st.tekst = null; st.bytes = 0; st.linjer = null; fejlBanner = null;
@@ -1576,7 +1676,10 @@
           type.append(tf ? typeValg(tf) : el('span', null, 'art_' + r.art), ' ', el('span', 'sikkerhed', tf ? 'stTilfoejet' : SIKKERHED[r.status] || 'stTjek'));
           erst = r.nul ? el('span', 'muted ingen-kode') : erstatningCelle(r, on);
           if (r.nul) erst.textContent = '—';
-          return { celler: [cb, type, vaerdiCelle(r, tf), erst, String(r.antal), status, ordbogCelle(r, tf)], data: r.id, fra: !on };
+          // V-OPBYG.5 N2: rækkens "…"-knap sidst i rækken (i Ordbog-cellen efter Altid/Aldrig; de virker som før).
+          const hand = el('span', 'raekkehandlinger');
+          hand.append(ordbogCelle(r, tf), raekkeMenu({ ariaT: 'ariaHandlinger', ariaV: handlingNavn(r, tf), punkter: () => fundPunkter(r, tf, cb) }));
+          return { celler: [cb, type, vaerdiCelle(r, tf), erst, String(r.antal), status, hand], data: r.id, fra: !on };
         }),
       });
       t.classList.add('fundtabel');
@@ -1598,6 +1701,26 @@
       tabelPanel.info.setAttribute('data-w', String(side ? side.valgte : st.analyse.raekker.filter(valgt).length));
       S.anvend(tabelPanel.p);
       genskabFokus(tabelvaert, n);
+    }
+    /* V-OPBYG.5 N2: navnet på rækkens "…"-knap: værdien, eller for en hemmelighed altid koden (aldrig værdien; uden kode
+       "en hemmelighed"). */
+    function handlingNavn(r, tf) {
+      if (r.hemmelig || (tf && erHemmelig(tf.art))) return r.koder[0] || S.t('navnHemmelig');
+      return vaerdierAf(r)[0] || r.koder[0] || '';
+    }
+    /* V-OPBYG.5 N2: rækkens handlinger i fundtabellen. Hver gør det samme som vejen i rækken (afkrydsningen, feltet,
+       valget af rækken, Vis/Skjul og Fjern), som stadig virker. */
+    function fundPunkter(r, tf, cb) {
+      const on = !r.nul && cb.checked;
+      const tr = () => tabelvaert.querySelector(`tr[data-id="${r.id}"]`);
+      const ud = [
+        { id: 'valg', t: on ? 'rmBevar' : 'rmMasker', hvorfor: r.laast ? 'hvorforRaekkeLaast' : r.nul ? 'hvorforNulSteder' : null, ved: () => cb.click() },
+        { id: 'ret', t: 'rmRet', hvorfor: r.nul ? 'hvorforNulSteder' : !on ? 'hvorforRetBevaret' : null, fokusTilbage: false, ved: () => { const i = tr() && tr().querySelector('[data-felt="kode"]'); if (i) { i.focus(); i.select(); } } },
+        { id: 'find', t: 'rmFind', hvorfor: r.nul ? 'hvorforNulSteder' : null, fokusTilbage: false, ved: () => { visRaekke(r.id); tv.pre.focus(); } },
+      ];
+      if (r.hemmelig && !r.nul) ud.push({ id: 'vis', t: st.hv.has(r.id) ? 'skjul' : 'vis', ved: () => { const v = tr() && tr().querySelector('[data-felt="vis"]'); if (v) v.click(); } });
+      if (tf) ud.push({ id: 'fjern', t: 'rmFjern', fokusTilbage: false, ved: () => fjernTilfoejet(tf.vaerdi) });
+      return ud;
     }
     function tegnRester() {
       const t = K.tabel({
@@ -1637,7 +1760,9 @@
       }
       S.anvend(d.nd);
     }
-    function tegnMaskerDette() { const h = kanMarkere(); kommando('masker', 'masker-dette', !h, h, GV.maskerDette()); }
+    /* V-OPBYG.5 N1: Maskér som hemmelighed står også i båndet (samme handling som genvejsmenuens punkt) og er slået fra med
+       samme forklaring som Maskér markering. */
+    function tegnMaskerDette() { const h = kanMarkere(); kommando('masker', 'masker-dette', !h, h, GV.maskerDette()); kommando('masker', 'masker-hemmelig', !h, h); }
     function tegnKommandoer() {
       const v = 'masker', t = st.travl, res = st.resultat;
       kommando(v, 'aabn-fil', !t, 'hvorforVent', GV.aabn());
@@ -1700,12 +1825,14 @@
     G.haandter('masker', 'gem-fil', () => gemFil(false));
     G.haandter('masker', 'kvittering', () => kopierKvittering());
     G.haandter('masker', 'masker-dette', () => maskerDette());
+    G.haandter('masker', 'masker-hemmelig', () => maskerDette('hemmelighed'));
     G.haandter('masker', 'fortryd', () => fortryd());
     G.haandter('masker', 'gentag', () => gentag());
     G.haandter('masker', 'ryd', () => ryd());
     G.haandter('masker', 'tom-anden', () => visSagensIndhold());
     /* Båndets Maskér dette må ikke tage markeringen eller fokus fra teksten ved musetrykket (klikket virker som før). */
     G.dele.masker.bar.knap('masker-dette').addEventListener('mousedown', e => e.preventDefault());
+    G.dele.masker.bar.knap('masker-hemmelig').addEventListener('mousedown', e => e.preventDefault());
     d.soeg.addEventListener('input', () => { st.soeg = d.soeg.value; st.side = SIDE; if (st.fil) hentSide(); else tegnTabel(); });
     // V-OPBYG.4 N1: søgefeltet siger, at en skjult hemmelighed ikke søges på værdien.
     d.soeg.setAttribute('data-t-title', 'soegMaskerHjaelp');
@@ -2254,5 +2381,5 @@
   M.tegn();
   D.tegn();
   menuSprog();
-  window.GrimnirMaskering = { M, D, utf8Laengde, antalLinjer, stoerrelse, MAKS_BYTES, MAKS_DEMASKER, saetSag, saetGemteSager, kommando, sagFejlTekst, filFejlTekst, banner, get poster() { return poster; }, tegnFodlinje, kopier, tekstVisning };
+  window.GrimnirMaskering = { M, D, utf8Laengde, antalLinjer, stoerrelse, MAKS_BYTES, MAKS_DEMASKER, saetSag, saetGemteSager, kommando, sagFejlTekst, filFejlTekst, banner, get poster() { return poster; }, tegnFodlinje, kopier, tekstVisning, raekkeMenu };
 })();

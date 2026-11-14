@@ -139,6 +139,13 @@ pub fn demasker_med_steder(tekst: &str, sag: &Sag) -> (String, Vec<Advarsel>, Ve
             }
             fjernet[k0..k1].iter_mut().for_each(|f| *f = true);
         }
+        // V-OPBYG.5 N2: en kode, brugeren har slettet, sættes aldrig tilbage, heller ikke som en anden stavemåde af en
+        // enhed, der stadig har en (F4); den står urørt og meldes som ukendt.
+        if sag.er_slettet(&kode) {
+            advarsler.push(advarsel(AdvarselArt::UkendtKode, s, e, &kode, None));
+            ukendte += 1;
+            return;
+        }
         match form {
             Kodeform::Ipv4(v) => {
                 if let Some(eget) = sag.eget_net_for(v >> 8) {
@@ -183,6 +190,17 @@ pub fn demasker_med_steder(tekst: &str, sag: &Sag) -> (String, Vec<Advarsel>, Ve
             // Ens bortset fra store/små for poster i flere enheder: ingen sættes tilbage, og koden står urørt.
             None => advarsler.push(advarsel(AdvarselArt::UkendtKode, s, e, kode, None)),
         }
+    }
+
+    // V-OPBYG.5 N2: en slettet kode uden kodeform (brugerens egen) står urørt og meldes som ukendt; en slettet kode med
+    // kodeform er allerede meldt ovenfor (den er hverken sagens eller reserveret).
+    for (s, e) in sag.find_slettede_uden_form(t) {
+        let optaget = |a: usize, b: usize| a < e && s < b;
+        if traef.iter().any(|x| optaget(x.0, x.1)) || ekstra.iter().any(|x| optaget(x.0, x.1)) || advarsler.iter().any(|x| optaget(x.start, x.slut)) {
+            continue;
+        }
+        advarsler.push(advarsel(AdvarselArt::UkendtKode, s, e, std::str::from_utf8(&t[s..e]).unwrap_or_default(), None));
+        ukendte += 1;
     }
 
     if ukendte >= ANDEN_SAG && ukendte > traef.len() {

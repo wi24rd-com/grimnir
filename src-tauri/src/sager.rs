@@ -25,6 +25,10 @@
 //! afviser en sag med noter med [`SagFejl::UkendtVersion`] ("filen er fra en nyere udgave af Grimnir") i listen og ved
 //! Åbn, Omdøb og Udløb; den kan derfor ikke gemme sagen igen og miste noterne stiltiende. En sag uden noter kan den
 //! stadig åbne. Ordbogen ([`Ident::Ordbog`]) har altid version 1.
+//! **Formatversion 3 (V-OPBYG.5)** er version 2 med slettede koder: kroppens data har `slettede_koder` (koder for poster,
+//! brugeren har slettet; de gives aldrig igen, og demaskeringen melder dem som ukendte). En sag skrives med version 3, når
+//! den har slettede koder (med eller uden noter); ellers som før. En ældre Grimnir afviser den med
+//! [`SagFejl::UkendtVersion`] i stedet for at åbne den, glemme listen ved næste gemning og give en slettet kode igen.
 //! **Hovedet** (navn, oprettet, sidst brugt, udløb, antal poster, antal noter, skrivetæller) kan læses uden kroppen, så
 //! listen kan vises. **Kroppen** er hele sagen: hovedet igen og sagens data. Skrivetælleren står i begge og skal være ens, så et
 //! hoved og en krop fra to forskellige skrivninger ikke kan sættes sammen.
@@ -67,8 +71,10 @@ pub const MAGI: &[u8; 8] = b"GRIMNIRS";
 pub const FORMATVERSION: u16 = 1;
 /// V-OPBYG.2: formatversionen for en sag med noter (version 1 + `noter` i hovedet og `noter`/`note_taeller` i kroppen).
 pub const FORMATVERSION_NOTER: u16 = 2;
+/// V-OPBYG.5 N2: formatversionen for en sag med slettede koder (version 2 + `slettede_koder` i kroppen; noter må være der).
+pub const FORMATVERSION_SLETTEDE: u16 = 3;
 /// De versioner, en sagsfil kan have.
-const SAG_VERSIONER: [u16; 2] = [FORMATVERSION, FORMATVERSION_NOTER];
+const SAG_VERSIONER: [u16; 3] = [FORMATVERSION, FORMATVERSION_NOTER, FORMATVERSION_SLETTEDE];
 /// Tjenesten i Keychain/Credential Manager.
 pub const TJENESTE: &str = "com.wi24rd.grimnir";
 /// Sagsfilernes endelse.
@@ -437,6 +443,9 @@ struct DataUd<'a> {
     noter: Vec<(u64, &'a str, u64, Option<u64>)>,
     #[serde(skip_serializing_if = "er_nul64")]
     note_taeller: u64,
+    /// V-OPBYG.5 N2: udeladt uden slettede koder (formatversion 1 og 2).
+    #[serde(skip_serializing_if = "<[String]>::is_empty")]
+    slettede_koder: &'a [String],
 }
 
 fn er_nul64(n: &u64) -> bool {
@@ -467,6 +476,9 @@ struct DataInd {
     noter: Vec<(u64, String, u64, Option<u64>)>,
     #[serde(default)]
     note_taeller: u64,
+    /// V-OPBYG.5 N2: mangler i formatversion 1 og 2: ingen slettede koder.
+    #[serde(default)]
+    slettede_koder: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -515,6 +527,7 @@ fn data_ud(d: &SagData) -> DataUd<'_> {
         aliaser: &d.aliaser,
         noter: d.noter.iter().map(|n| (n.nr, n.tekst.as_str(), n.oprettet, n.rettet)).collect(),
         note_taeller: if d.noter.is_empty() { 0 } else { d.note_taeller },
+        slettede_koder: &d.slettede_koder,
     }
 }
 
@@ -584,6 +597,7 @@ fn data_ind(d: DataInd) -> Result<SagData, SagFejl> {
             })
             .collect(),
         note_taeller: d.note_taeller,
+        slettede_koder: d.slettede_koder,
     })
 }
 
@@ -610,7 +624,7 @@ pub fn nulstil(d: SagData) {
     for s in d.sid_domaener {
         s.til_tekst().zeroize();
     }
-    for mut s in d.reserverede_navne.into_iter().chain(d.rettede_koder) {
+    for mut s in d.reserverede_navne.into_iter().chain(d.rettede_koder).chain(d.slettede_koder) {
         s.zeroize();
     }
     for (mut s, _) in d.aliaser {
@@ -783,19 +797,22 @@ pub fn anslaa_krop(hoved: &Hoved, d: &SagData) -> usize {
     n += d.vaerter4.len() * 26 + d.iid6.len() * 46 + d.reserverede_ip4.len() * 12 + d.reserverede_ip6.len() * 36;
     n += d.reserverede_mac.len() * 22 + KLASSER * 21;
     n += d.sid_domaener.iter().map(|x| s(x.som_tekst())).sum::<usize>();
-    n += d.reserverede_navne.iter().chain(&d.rettede_koder).map(|x| s(x)).sum::<usize>();
+    n += d.reserverede_navne.iter().chain(&d.rettede_koder).chain(&d.slettede_koder).map(|x| s(x)).sum::<usize>();
     n += d.aliaser.iter().map(|(x, _)| s(x) + 24).sum::<usize>();
     n += d.noter.iter().map(|x| s(&x.tekst) + 64).sum::<usize>();
     n
 }
 
 /// Hele filens bytes for et hoved og en sag. Klarteksten (JSON) nulstilles efter krypteringen. V-OPBYG.2: formatversion 2,
-/// når sagen har noter, ellers 1; `hoved.noter` skal være antallet af noter (ellers [`SagFejl::Beskadiget`]).
+/// når sagen har noter, ellers 1; `hoved.noter` skal være antallet af noter (ellers [`SagFejl::Beskadiget`]). V-OPBYG.5:
+/// formatversion 3, når sagen har slettede koder.
 fn byg_fil(noegle: &Noegle, id: &SagsId, hoved: &Hoved, data: &SagData) -> Result<Vec<u8>, SagFejl> {
     if hoved.noter != data.noter.len() {
         return Err(SagFejl::Beskadiget);
     }
-    let version = if data.noter.is_empty() {
+    let version = if !data.slettede_koder.is_empty() {
+        FORMATVERSION_SLETTEDE
+    } else if data.noter.is_empty() {
         FORMATVERSION
     } else {
         FORMATVERSION_NOTER
@@ -880,9 +897,10 @@ fn laes_krypteret_v(fil: &Path, ident: Ident<'_>, noegle: &Noegle, kendte: &[u16
     Ok((version, (hoved, krop)))
 }
 
-/// V-OPBYG.2: hovedet passer til versionen: noter kun i version 2, og version 2 kun med noter.
+/// V-OPBYG.2: hovedet passer til versionen: noter kun i version 2, og version 2 kun med noter. V-OPBYG.5: version 3 må
+/// have noter (kroppen afgør resten, [`laes`]).
 fn tjek_hoved_version(hoved: &Hoved, version: u16) -> Result<(), SagFejl> {
-    if (version == FORMATVERSION_NOTER) != (hoved.noter > 0) {
+    if version != FORMATVERSION_SLETTEDE && (version == FORMATVERSION_NOTER) != (hoved.noter > 0) {
         return Err(SagFejl::Beskadiget);
     }
     Ok(())
@@ -903,7 +921,8 @@ pub fn laes(mappe: &Path, id: &SagsId, noegle: &Noegle) -> Result<(Hoved, SagDat
     let hoved: Hoved = serde_json::from_slice(&hoved_klar).map_err(|_| SagFejl::Beskadiget)?;
     let krop: KropInd = serde_json::from_slice(&krop_klar).map_err(|_| SagFejl::Beskadiget)?;
     drop(krop_klar);
-    if krop.hoved != hoved || hoved.noter != krop.data.noter.len() {
+    // V-OPBYG.5: slettede koder kun i version 3, og version 3 kun med slettede koder.
+    if krop.hoved != hoved || hoved.noter != krop.data.noter.len() || (version == FORMATVERSION_SLETTEDE) == krop.data.slettede_koder.is_empty() {
         nulstil_noter(data_noter(krop.data));
         return Err(SagFejl::Beskadiget);
     }

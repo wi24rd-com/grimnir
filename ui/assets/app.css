@@ -199,8 +199,11 @@ html[data-laast] .sagdel { visibility: hidden; }
 /* V-PUDS.3 N3: Erstatning viser mindst 15 tegn i alle trin og ved alle vinduesbredder (15 × 7,8 px = 117 px + feltets
    polstring og kant 18 px + cellens polstring 2 × 8 px = 151 px → 152 px; før 106 px, 9 tegn, så fx "198.18.0.41" blev
    til "198.18.0." ved stor i 1200 px). Pladsen kommer fra Fundet værdi, som under 1200 px havde mere end sine 140 px. */
-.fundtabel { --celle: var(--space-2); --k1: 28px; --k2: 108px; --k4: 152px; --k5: 60px; --k6: 108px; --k7: 68px; --tabel-min: 664px; }
-html[lang="en"] .fundtabel { --k2: 80px; --k6: 134px; --k7: 92px; --tabel-min: 686px; }
+/* V-OPBYG.5 N2: Ordbog-cellen har også rækkens "…"-knap (22 px, 2 px fra Altid/Aldrig): Altid 24 + 4 + Aldrig 24 + 2 + 22 =
+   76 px + polstringen; på engelsk er overskriften "Dictionary" (76) lige så bred. Antal på dansk er 58 px (8 px polstring)
+   og 50 px (4 px), så tabellen stadig står uden vandret rulning ved 944 og 900 px ("Antal" er 41 px målt). */
+.fundtabel { --celle: var(--space-2); --k1: 28px; --k2: 108px; --k4: 152px; --k5: 58px; --k6: 108px; --k7: 92px; --tabel-min: 686px; }
+html[lang="en"] .fundtabel { --k2: 80px; --k5: 60px; --k6: 134px; --k7: 92px; --tabel-min: 686px; }
 /* V-PUDS.3 N3: under 944 px (stor: 1062 px; layoutet under 944 px) kan 15 tegn i Erstatning, de andre kolonner og 140 px til
    værdien ikke være der med 8 px polstring i cellerne. Der er cellernes polstring 4 px, og hver fast kolonne er så smal,
    som dens målte indhold tillader (tests/ui/kolonner.mjs, MAALT_*): ✓ 4 + 16 + 4; Type "Hemmelighed" 92 (en: "Machine"
@@ -208,12 +211,12 @@ html[lang="en"] .fundtabel { --k2: 80px; --k6: 134px; --k7: 92px; --tabel-min: 6
    + 8; Ordbog knapperne 52 (en: "Dictionary" 76) + 8. Ved 900 px er der så 642 px til tabellen: værdien får 162 px
    (en: 140). Ved stor gælder det fra 1013 px vindue, hvor layoutet er 900 px; smallere ruller tabellen vandret. */
 @media (max-width: 943px) {
-  :root:not([data-tekst="stor"]) .fundtabel { --celle: var(--space-1); --k1: 24px; --k2: 100px; --k4: 144px; --k5: 52px; --k6: 100px; --k7: 60px; --tabel-min: 620px; }
-  :root:not([data-tekst="stor"])[lang="en"] .fundtabel { --k2: 72px; --k6: 126px; --k7: 84px; --tabel-min: 642px; }
+  :root:not([data-tekst="stor"]) .fundtabel { --celle: var(--space-1); --k1: 24px; --k2: 100px; --k4: 144px; --k5: 50px; --k6: 100px; --k7: 84px; --tabel-min: 642px; }
+  :root:not([data-tekst="stor"])[lang="en"] .fundtabel { --k2: 72px; --k5: 52px; --k6: 126px; --k7: 84px; --tabel-min: 642px; }
 }
 @media (max-width: 1061px) {
-  :root[data-tekst="stor"] .fundtabel { --celle: var(--space-1); --k1: 24px; --k2: 100px; --k4: 144px; --k5: 52px; --k6: 100px; --k7: 60px; --tabel-min: 620px; }
-  :root[data-tekst="stor"][lang="en"] .fundtabel { --k2: 72px; --k6: 126px; --k7: 84px; --tabel-min: 642px; }
+  :root[data-tekst="stor"] .fundtabel { --celle: var(--space-1); --k1: 24px; --k2: 100px; --k4: 144px; --k5: 50px; --k6: 100px; --k7: 84px; --tabel-min: 642px; }
+  :root[data-tekst="stor"][lang="en"] .fundtabel { --k2: 72px; --k5: 52px; --k6: 126px; --k7: 84px; --tabel-min: 642px; }
 }
 /* V-LAAS.4 N3: fra 1200 px har Erstatning plads til 24 tegn i feltets skrift (JetBrains Mono 13 px: 600/1000 em = 7,8 px
    pr. tegn → 187,2 px + feltets polstring og kant 18 px + cellens polstring 16 px = 221,2 px), så fx
@@ -224,39 +227,41 @@ html[lang="en"] .fundtabel { --k2: 80px; --k6: 134px; --k7: 92px; --tabel-min: 6
    :root[data-tekst="stor"] ved de flyttede grænser. Ved lille (0,9) er der mere plads end grænsen regner med; der gælder de
    almindelige grænser (aldrig mindre plads end ved normal). tests/ui/kolonner.mjs regner alle tre trin. */
 @media (min-width: 1200px) {
-  :root:not([data-tekst="stor"]) .fundtabel { --k4: 224px; --tabel-min: 736px; }
+  :root:not([data-tekst="stor"]) .fundtabel { --k4: 224px; --tabel-min: 758px; }
   :root:not([data-tekst="stor"])[lang="en"] .fundtabel { --tabel-min: 758px; }
 }
 @media (min-width: 1350px) {
-  :root[data-tekst="stor"] .fundtabel { --k4: 224px; --tabel-min: 736px; }
+  :root[data-tekst="stor"] .fundtabel { --k4: 224px; --tabel-min: 758px; }
   :root[data-tekst="stor"][lang="en"] .fundtabel { --tabel-min: 758px; }
 }
 /* V-PUDS.1 N3: ved brede tabeller står ordet (Altid/Aldrig) ved ikonet; title og aria-label er de samme. Ordet er det
    skjulte ord i knappen, som her bliver synligt. Knappen: kant 1 + polstring 6 + ikon 14 + mellemrum 4 + ordet + 6 + 1 px
    (ordene målt i WebKit, 12 px/600: Altid 26,9, Aldrig 34,9, Always 42,3, Never 34,7 px; tests/ui/kolonner.mjs). Ordbog
    får to knapper + 4 px + cellens 2 × 8 px. Fra 1200 px, mens fundene står under teksten, og igen fra 1840 px, hvor de
-   står side om side og tabellen er bred nok til, at Fundet værdi stadig har mindst 240 px (1720–1839 px: kun ikonet). */
-@media (min-width: 1200px) and (max-width: 1719px) {
-  :root:not([data-tekst="stor"]) .fundtabel { --k7: 148px; --tabel-min: 816px; }
-  :root:not([data-tekst="stor"])[lang="en"] .fundtabel { --k7: 164px; --tabel-min: 830px; }
+   står side om side og tabellen er bred nok til, at Fundet værdi stadig har mindst 240 px (1720–1839 px: kun ikonet).
+   V-OPBYG.5 N2: med "…"-knappen (2 + 22 px) er Ordbog 170 px (en: 186), og grænserne er flyttet til 1210 og 1860 px (stor:
+   1362 og 2093), hvor Fundet værdi stadig har 240 px (engelsk 1210 px: 952 − 712 = 240; 1860 px: 953 − 712 = 241). */
+@media (min-width: 1210px) and (max-width: 1719px) {
+  :root:not([data-tekst="stor"]) .fundtabel { --k7: 170px; --tabel-min: 836px; }
+  :root:not([data-tekst="stor"])[lang="en"] .fundtabel { --k7: 186px; --tabel-min: 852px; }
   :root:not([data-tekst="stor"]) .fundtabel .ordbogknapper .mini.ikonknap { width: auto; padding: 0 6px; gap: 4px; }
   :root:not([data-tekst="stor"]) .fundtabel .ordbogknapper .skjult-tekst { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; }
 }
-@media (min-width: 1350px) and (max-width: 1934px) {
-  :root[data-tekst="stor"] .fundtabel { --k7: 148px; --tabel-min: 816px; }
-  :root[data-tekst="stor"][lang="en"] .fundtabel { --k7: 164px; --tabel-min: 830px; }
+@media (min-width: 1362px) and (max-width: 1934px) {
+  :root[data-tekst="stor"] .fundtabel { --k7: 170px; --tabel-min: 836px; }
+  :root[data-tekst="stor"][lang="en"] .fundtabel { --k7: 186px; --tabel-min: 852px; }
   :root[data-tekst="stor"] .fundtabel .ordbogknapper .mini.ikonknap { width: auto; padding: 0 6px; gap: 4px; }
   :root[data-tekst="stor"] .fundtabel .ordbogknapper .skjult-tekst { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; }
 }
-@media (min-width: 1840px) {
-  :root:not([data-tekst="stor"]) .fundtabel { --k7: 148px; --tabel-min: 816px; }
-  :root:not([data-tekst="stor"])[lang="en"] .fundtabel { --k7: 164px; --tabel-min: 830px; }
+@media (min-width: 1860px) {
+  :root:not([data-tekst="stor"]) .fundtabel { --k7: 170px; --tabel-min: 836px; }
+  :root:not([data-tekst="stor"])[lang="en"] .fundtabel { --k7: 186px; --tabel-min: 852px; }
   :root:not([data-tekst="stor"]) .fundtabel .ordbogknapper .mini.ikonknap { width: auto; padding: 0 6px; gap: 4px; }
   :root:not([data-tekst="stor"]) .fundtabel .ordbogknapper .skjult-tekst { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; }
 }
-@media (min-width: 2070px) {
-  :root[data-tekst="stor"] .fundtabel { --k7: 148px; --tabel-min: 816px; }
-  :root[data-tekst="stor"][lang="en"] .fundtabel { --k7: 164px; --tabel-min: 830px; }
+@media (min-width: 2093px) {
+  :root[data-tekst="stor"] .fundtabel { --k7: 170px; --tabel-min: 836px; }
+  :root[data-tekst="stor"][lang="en"] .fundtabel { --k7: 186px; --tabel-min: 852px; }
   :root[data-tekst="stor"] .fundtabel .ordbogknapper .mini.ikonknap { width: auto; padding: 0 6px; gap: 4px; }
   :root[data-tekst="stor"] .fundtabel .ordbogknapper .skjult-tekst { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; }
 }
@@ -354,7 +359,10 @@ html[lang="en"] .sagtabel { --k7: 160px; --tabel-min: 844px; }
    og Tidligere koder. Bredderne er ikke målt i WebKit (tests/ui/kolonner.mjs har ikke tabellen; se HANDOFF-V-MANUEL.2):
    typeordene er de samme som i Maskér (højst 92 px), koderne er monospace og forkortes med … (hele koden står i title). */
 .indhold-top { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
-.indholdtabel { --k1: 132px; --k2: 168px; --k4: 168px; --tabel-min: 608px; }
+/* V-OPBYG.5 N2: den femte kolonne har rækkens "…"-knap (22 px) med 8 px polstring i hver side (de andre celler har 12 px):
+   40 px, og tabellen står stadig uden vandret rulning ved 1024 px i alle tre størrelser (målt i WebKit). */
+.indholdtabel { --k1: 132px; --k2: 168px; --k4: 168px; --k5: 40px; --tabel-min: 648px; }
+.indholdtabel th:nth-child(5), .indholdtabel td:nth-child(5) { padding-left: var(--space-2); padding-right: var(--space-2); }
 html[lang="en"] .indholdtabel { --k1: 136px; }
 /* V-MANUEL.2 N3: forslaget til et navnemønster har to knapper (Læg i ordbogen og Ikke nu, kit-ønske G24). */
 .ban.moenster-forslag { flex-wrap: wrap; }
@@ -403,6 +411,17 @@ html[lang="en"] .fundtabel .typevalg .vliste svg { display: none; }
 .menupunkt:hover, .menupunkt:focus-visible { background: var(--surface-raised); }
 .menupunkt:focus-visible { outline: 2px solid var(--info); outline-offset: -2px; }
 .menupunkt kbd { font-family: var(--mono-family); font-size: var(--small-size); color: var(--text-muted); }
+/* V-OPBYG.5 N2: rækkens "…"-knap og dens menu (Grimnirs egen efter genvejsmenuens mønster; kit-ønske G39). Menuen står
+   under knappen, højrestillet i cellen (ingen placering fra JavaScript). Et punkt, der ikke kan bruges, har hvorfor under
+   navnet, som kittets Mere-menu. Overskriften på sagens indholds kolonne er skjult tekst ("Handlinger"). */
+.raekkehandlinger { display: flex; align-items: center; gap: 2px; }
+.raekkemenu { position: relative; display: inline-flex; flex: none; }
+.mini.ikonknap.mere-knap { width: 22px; }
+.raekkemenu > .raekke-menu { top: calc(100% + 2px); right: 0; z-index: 4; min-width: 180px; }
+.raekke-menu .menupunkt { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; height: auto; min-height: 30px; padding: 4px var(--space-2); }
+.raekke-menu .menupunkt[aria-disabled="true"] { color: var(--text-muted); cursor: default; }
+.raekke-menu .menupunkt.farlig:not([aria-disabled="true"]) { color: var(--danger); }
+.raekke-menu .rm-hvorfor { font-size: var(--small-size); line-height: var(--small-line); color: var(--text-muted); white-space: normal; max-width: 260px; }
 /* Type, Værdi eller mønster (resten), Note (V-RET.1 R1). */
 .ordbogtabel { --k1: 160px; --k3: 34%; }
 .ordbogtabel td .muted { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }

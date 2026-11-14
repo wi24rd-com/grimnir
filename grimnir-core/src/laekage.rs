@@ -66,19 +66,25 @@ pub fn laekagetjek(maskeret: &str, sag: &Sag, ordbog: &Ordbog) -> Vec<Rest> {
     }
 
     // 2. Genkenderne igen: alt, der ville blive maskeret, og som ikke er en kode
+    //
+    // V-OPBYG.5 N1: et fund, der dækker flere af sagens koder (`Db= h0001.d01.example`: et nøgleord gør hele FQDN'et til
+    // en database, men det er en værtskode og en domænekode), er kun en rest for de dele, der ikke er koder. Består det
+    // kun af koder og skilletegn, er der ingen rest; står der noget andet (`h0001.prod7`), meldes netop den del.
     let valg = sag.valg();
     for f in analyser(maskeret, ordbog) {
         if !skal_maskeres(&f, &valg) || sag.opslag(&maskeret[f.start..f.slut]).is_some() || i_kode(f.start, f.slut) {
             continue;
         }
-        if rester.iter().any(|r: &Rest| r.start < f.slut && f.start < r.slut) {
-            continue;
+        for (s, e) in uden_for_koder(t, f.start, f.slut, &koder) {
+            if rester.iter().any(|r: &Rest| r.start < e && s < r.slut) {
+                continue;
+            }
+            rester.push(Rest {
+                start: s,
+                slut: e,
+                art: RestArt::NytFund(f.art),
+            });
         }
-        rester.push(Rest {
-            start: f.start,
-            slut: f.slut,
-            art: RestArt::NytFund(f.art),
-        });
     }
     // 3. V-MANUEL.2 N2: maskindelen af et FQDN, hvor domænet er en af sagens koder (`srv-db02.intern.d01.example`): hvert
     // led foran domænekoden, der ikke selv er en kode, er en rest (første led en maskine, de andre en del af domænet). En
@@ -122,4 +128,34 @@ pub fn laekagetjek(maskeret: &str, sag: &Sag, ordbog: &Ordbog) -> Vec<Rest> {
     }
     rester.sort_by_key(|r| (r.start, r.slut));
     rester
+}
+
+/// V-OPBYG.5 N1: delene af spændet `s..e`, der ikke ligger i en af sagens koder (`koder` sorteret, uden overlap). Rører
+/// spændet ingen kode, er svaret hele spændet (som før). Ellers er hver del uden kode trimmet for ASCII-skilletegn i begge
+/// ender, og en del uden et bogstav, et ciffer eller et tegn uden for ASCII er ikke med.
+fn uden_for_koder(t: &[u8], s: usize, e: usize, koder: &[(usize, usize, usize)]) -> Vec<(usize, usize)> {
+    let foerste = koder.partition_point(|k| k.1 <= s);
+    let roerte: Vec<(usize, usize)> = koder[foerste..].iter().take_while(|k| k.0 < e).map(|k| (k.0, k.1)).collect();
+    if roerte.is_empty() {
+        return vec![(s, e)];
+    }
+    let skille = |b: u8| b.is_ascii() && !b.is_ascii_alphanumeric();
+    let mut ud = Vec::new();
+    let mut pos = s;
+    for (ks, ke) in roerte.into_iter().chain(std::iter::once((e, e))) {
+        // En kode kan begynde før spændet og slutte efter det; `pos` og `ks` holdes inden for `s..=e`.
+        let mut a = pos.min(e);
+        let mut b = ks.min(e).max(a);
+        while a < b && skille(t[a]) {
+            a += 1;
+        }
+        while b > a && skille(t[b - 1]) {
+            b -= 1;
+        }
+        if a < b {
+            ud.push((a, b));
+        }
+        pos = ke.max(pos);
+    }
+    ud
 }

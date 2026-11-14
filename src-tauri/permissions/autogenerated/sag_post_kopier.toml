@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-sag-post-kopier"
+description = "Enables the sag_post_kopier command without any pre-configured scope."
+commands.allow = ["sag_post_kopier"]
+
+[[permission]]
+identifier = "deny-sag-post-kopier"
+description = "Denies the sag_post_kopier command without any pre-configured scope."
+commands.deny = ["sag_post_kopier"]

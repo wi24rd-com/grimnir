@@ -1418,9 +1418,10 @@ fn noegleord(c: &mut Ctx) {
         });
     }
 
-    // Serienumre efter nøgleord
+    // Serienumre efter nøgleord. V-OPBYG.5 N1: værdien står på samme linje som nøgleordet (`[ \t]*` efter `:`/`=`, ikke
+    // `\s*`): et `sn:` sidst på en linje gjorde datoen først på næste linje til et serienummer.
     let serie = statisk!(
-        r#"(?i)(?:serial|serialnumber|serial_number|serial-number|serienummer|sn|devid|device_id|deviceid)"?\s*[:=]\s*["']?([A-Za-z0-9][A-Za-z0-9-]{3,63})"#
+        r#"(?i)(?:serial|serialnumber|serial_number|serial-number|serienummer|sn|devid|device_id|deviceid)"?\s*[:=][ \t]*["']?([A-Za-z0-9][A-Za-z0-9-]{3,63})"#
     );
     hvert(serie, t, |m| {
         let Some(v) = m.get(1) else { return false };

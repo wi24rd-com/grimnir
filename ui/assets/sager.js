@@ -361,8 +361,14 @@
 
   /* ═════════════════════════════ Sagens indhold (V-MANUEL.2 N1) ═════════════════════════════ */
   /* Tabellen er til at læse: type, kode, rigtig værdi og tidligere koder (D18). Sagen gemmer ikke, hvor mange steder en
-     værdi stod, så den kolonne er der ikke (panelhovedet siger det). Ingen redigering, sletning eller kopiering af enkelte
-     værdier i denne udgave. id null er den åbne sag (også den midlertidige); en anden sag læses kun. */
+     værdi stod, så den kolonne er der ikke (panelhovedet siger det). id null er den åbne sag (også den midlertidige); en
+     anden sag læses kun.
+     V-OPBYG.5 N2: rækkens "…"-knap sidst i rækken (GM.raekkeMenu; overskriften "Handlinger" er skjult tekst): Kopiér værdi,
+     Vis/Skjul for en hemmelighed og Slet. Kopiér værdi og Slet kun i den åbne sag (ellers slået fra med forklaring). En
+     almindelig værdi kopierer webvisningen og melder det (udklip_vaerdi_kopieret); en hemmelighed lægger Rust selv i
+     udklipsholderen (sag_post_kopier), så værdien ikke går forbi webvisningen. Begge ryddes ved lås og afslutning, hvis de
+     stadig står der (D21). Slet beder om kittets bekræftelse (farlig, fokus på Annullér); Rust gemmer en navngiven sag
+     straks (sag_post_slet), og Ret en post er fravalgt (Jan). */
   const SIDE = 500;
   const ind = { aktiv: false, id: null, type: '', soeg: '', vist: new Set(), antal: SIDE, svar: null, fejl: null, nr: 0, foerSoeg: '', foerFilter: null };
   const indArk = document.createElement('div');
@@ -392,7 +398,11 @@
   indFlereKnap.classList.add('mini');
   indFlere.append(indFlereTekst, indFlereKnap);
   indPanel.append(indHoved, indVaert, indFlere);
-  indArk.append(indTop, indBannere, indPanel);
+  // V-OPBYG.5 N2: meldingen efter Kopiér værdi og Slet (høflig, role="status").
+  const indBesked = document.createElement('p');
+  indBesked.className = 'besked';
+  indBesked.setAttribute('role', 'status');
+  indArk.append(indTop, indBannere, indBesked, indPanel);
   d.flade.appendChild(indArk);
   // Esc i visningen går tilbage til listen (også fra tabellen og knapperne).
   indArk.addEventListener('keydown', e => { if (e.key === 'Escape' && !document.querySelector('dialog[open]')) { e.preventDefault(); lukIndhold(true); } });
@@ -412,6 +422,7 @@
     if (G.laast) return;
     const var_aktiv = ind.aktiv;
     Object.assign(ind, { aktiv: true, id: id || null, type: '', soeg: '', vist: new Set(), antal: SIDE, svar: null, fejl: null });
+    indMeld(null);
     if (id) st.valgt = id;
     if (!var_aktiv) {
       ind.foerSoeg = d.soeg.value;
@@ -435,6 +446,7 @@
     if (!ind.aktiv) return;
     Object.assign(ind, { aktiv: false, svar: null, fejl: null, vist: new Set(), soeg: '', type: '' });
     ind.nr++;
+    indMeld(null);
     indVaert.textContent = '';
     indBannere.textContent = '';
     d.soeg.value = ind.foerSoeg;
@@ -450,6 +462,60 @@
       const tr = vaert.querySelector(`tr[data-id="${st.valgt}"]`);
       (tr || vaert.querySelector('tbody tr') || d.soeg).focus();
     }
+  }
+  /* V-OPBYG.5 N2: meldingen i sagens indhold (t: sprognøgle, v: {v}); uden t ryddes den. */
+  function indMeld(t, v) {
+    for (const a of ['data-t', 'data-v']) indBesked.removeAttribute(a);
+    indBesked.textContent = '';
+    if (t) { indBesked.setAttribute('data-t', t); if (v != null) indBesked.setAttribute('data-v', String(v)); S.anvend(indBesked); }
+  }
+  /* V-OPBYG.5 N2: rækkens handlinger i sagens indhold. */
+  function indholdPunkter(p, svar) {
+    const hvorfor = svar && svar.aaben ? null : 'hvorforKunAabenSag';
+    const ud = [{ id: 'kopier', t: 'rmKopier', hvorfor, ved: () => kopierVaerdi(p) }];
+    if (p.hemmelig) ud.push({ id: 'vis', t: p.vaerdi == null ? 'vis' : 'skjul', fokusTilbage: false, ved: () => skiftVis(p, 'handlinger') });
+    ud.push({ id: 'slet', t: 'rmSlet', farlig: true, hvorfor, fokusTilbage: false, ved: () => sletPost(p) });
+    return ud;
+  }
+  const raekkeKnap = (nr, felt) => indVaert.querySelector(`tr[data-nr="${nr}"] [data-felt="${felt}"]`);
+  /* Vis/Skjul en hemmelighed (rækkens knap og menuens punkt); fokus bliver på det felt, der blev brugt. */
+  function skiftVis(p, felt) {
+    if (ind.vist.has(p.nr)) ind.vist.delete(p.nr); else ind.vist.add(p.nr);
+    return hentIndhold().then(() => { const n = raekkeKnap(p.nr, felt); if (n) n.focus(); });
+  }
+  async function kopierVaerdi(p) {
+    let ok = false;
+    try {
+      if (p.hemmelig) ok = (await invoke('sag_post_kopier', { nr: p.nr, kode: p.kode })) === true;
+      else if (p.vaerdi != null) {
+        ok = (await GM.kopier(p.vaerdi)) === true;
+        if (ok) invoke('udklip_vaerdi_kopieret', { nr: p.nr, kode: p.kode }).catch(() => { /* låst: låsen har ryddet */ });
+      }
+    } catch (e) {
+      if (e && e.art === 'ukendt_post') { indMeld('bIndholdAendret'); hentIndhold(); return false; }
+      ok = false;
+    }
+    indMeld(ok ? 'bVaerdiKopieret' : 'bVaerdiIkkeKopieret');
+    return ok;
+  }
+  function sletPost(p) {
+    return G.bekraeft({
+      t: 'sletPostH', p: { t: 'sletPostP' }, nej: { t: 'annuller' }, ja: { t: 'kSletPostOk' }, farlig: true,
+      udfyld: rod => { rod.id = 'dlg-slet-post'; const x = rod.querySelector('[data-t="sletPostP"]'); if (x) x.setAttribute('data-v', p.kode); S.anvend(rod); },
+    }).then(ja => {
+      if (!ja) { const b = raekkeKnap(p.nr, 'handlinger'); if (b) b.focus(); return false; }
+      return invoke('sag_post_slet', { nr: p.nr, kode: p.kode }).then(s => {
+        anvend(s);
+        indMeld('bPostSlettet', p.kode);
+        // Maskér: en analyse, der viste koden, laves igen med sagen, som den er nu.
+        if (GM.M.st.analyse) GM.M.analyserIgen();
+        return hentIndhold().then(() => { (indVaert.querySelector('[data-felt="handlinger"]') || tilbageKnap).focus(); return true; });
+      }).catch(e => {
+        if (e && e.art === 'ukendt_post') { indMeld('bIndholdAendret'); hentIndhold(); return false; }
+        indMeld('bPostIkkeSlettet', fejlTekst(e));
+        return false;
+      });
+    });
   }
   function hentIndhold() {
     if (!ind.aktiv) return Promise.resolve();
@@ -485,10 +551,7 @@
       b.setAttribute('data-t-aria', skjult ? 'ariaVisKode' : 'ariaSkjulKode');
       b.setAttribute('data-v', p.kode);
       b.setAttribute('data-felt', 'vis');
-      b.addEventListener('click', () => {
-        if (ind.vist.has(p.nr)) ind.vist.delete(p.nr); else ind.vist.add(p.nr);
-        hentIndhold().then(() => { const n = indVaert.querySelector(`tr[data-nr="${p.nr}"] [data-felt="vis"]`); if (n) n.focus(); });
-      });
+      b.addEventListener('click', () => skiftVis(p, 'vis'));
       c.appendChild(b);
     }
     return c;
@@ -512,14 +575,19 @@
     if (svar) {
       const t = K.tabel({
         ariaT: 'tIndhold', raekkeHandling: 'ingen',
-        kolonner: [{ t: 'kolType' }, { t: 'kolKode' }, { t: 'kolRigtigVaerdi' }, { t: 'kolTidligereKoder' }],
+        kolonner: [{ t: 'kolType' }, { t: 'kolKode' }, { t: 'kolRigtigVaerdi' }, { t: 'kolTidligereKoder' }, { t: 'kolHandlinger' }],
         raekker: svar.raekker.map(p => {
           const type = document.createElement('span');
           type.setAttribute('data-t', 'art_' + p.type);
-          return { celler: [type, celle(p.kode, true), vaerdiCelle(p), p.aliaser.length ? celle(p.aliaser.join(', '), true) : '—'], data: p.nr, attr: { 'data-nr': String(p.nr) } };
+          // V-OPBYG.5 N2: navnet er koden (også for en hemmelighed; aldrig værdien).
+          const menu = GM.raekkeMenu({ ariaT: 'ariaHandlinger', ariaV: p.kode, punkter: () => indholdPunkter(p, ind.svar) });
+          return { celler: [type, celle(p.kode, true), vaerdiCelle(p), p.aliaser.length ? celle(p.aliaser.join(', '), true) : '—', menu], data: p.nr, attr: { 'data-nr': String(p.nr) } };
         }),
       });
       t.classList.add('indholdtabel');
+      // V-OPBYG.5 N2: kolonnen med "…" har en overskrift for skærmlæsere (skjult tekst; kolonnen er 40 px).
+      const th5 = t.querySelector('thead th:last-child');
+      if (th5) { th5.removeAttribute('data-t'); th5.textContent = ''; const sk = document.createElement('span'); sk.className = 'skjult-tekst'; sk.setAttribute('data-t', 'kolHandlinger'); th5.appendChild(sk); }
       indVaert.appendChild(t);
       // V-OPBYG.2 N1: en anden sags noter står skrivebeskyttet under erstatningerne (læst som dem; den åbnes ikke).
       if (!svar.aaben && svar.noter && svar.noter.length && window.GrimnirNoter) indVaert.appendChild(window.GrimnirNoter.laesbare(svar.noter));

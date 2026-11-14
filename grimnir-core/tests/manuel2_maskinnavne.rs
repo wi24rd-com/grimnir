@@ -561,6 +561,27 @@ fn har_noegleord(x: &str) -> bool {
     NOEGLEORD.iter().any(|n| l.contains(n))
 }
 
+/// V-OPBYG.5 N1 (Jans svar 1): kernens andre nøgleord, der kan stå i et stykke støj på højst seks tegn: brugere (`uid`,
+/// `user`, `login`; `uid` i `uId:443` gjorde 443 til en bruger), databaser (`db`, `use`; `Db=` foran et FQDN), serienumre
+/// (`sn`, `serial`, `devid`) og maskiner (`host`, `addr`, `server`). Med dem kunne støjen selv blive et navn, og testen
+/// skal kun prøve maskinnavnene i [`NAVNE`]. Hvad kernen gør med hver klasse, viser de almindelige tests
+/// `n1_klasse_*` i `opbyg5_kerne.rs`.
+const ANDRE_NOEGLEORD: [&str; 11] = ["uid", "user", "login", "db", "use", "sn", "serial", "devid", "host", "addr", "server"];
+
+/// Sand, hvis støjen kan danne et af [`ANDRE_NOEGLEORD`] (uden hensyn til store/små bogstaver).
+fn har_andet_noegleord(x: &str) -> bool {
+    let l = x.to_ascii_lowercase();
+    ANDRE_NOEGLEORD.iter().any(|n| l.contains(n))
+}
+
+/// V-OPBYG.5 N1: sand, hvis støjen har en NetBIOS-form: et bogstav eller ciffer, en eller to skråstreger og et bogstav eller
+/// ciffer (`IX\1`). Så bliver `IX` et NetBIOS-domæne, og `Ix` et andet sted er en rigtig rest (reglen om to tegn).
+fn har_netbios_form(x: &str) -> bool {
+    let b = x.as_bytes();
+    let an = |i: usize| b.get(i).is_some_and(u8::is_ascii_alphanumeric);
+    (1..b.len()).any(|i| b[i] == b'\\' && an(i + 1) && (an(i - 1) || (b[i - 1] == b'\\' && i >= 2 && an(i - 2))))
+}
+
 fn stykke() -> impl Strategy<Value = Stykke> {
     prop_oneof![
         (0..NAVNE.len(), 0..MELLEM.len(), any::<bool>()).prop_map(|(n, m, s)| Stykke::Fqdn(n, m, s)),
@@ -569,8 +590,26 @@ fn stykke() -> impl Strategy<Value = Stykke> {
         (0..NAVNE.len()).prop_map(Stykke::Unc),
         "[ -~]{0,6}"
             .prop_filter("støjen danner ikke et nøgleord for en hemmelighed", |x| !har_noegleord(x))
+            .prop_filter("støjen danner ikke et andet nøgleord eller en NetBIOS-form", |x| {
+                !har_andet_noegleord(x) && !har_netbios_form(x)
+            })
             .prop_map(Stykke::Stoej),
     ]
+}
+
+/// V-OPBYG.5 N1: generatorens nye filter: de tre klasser fra HANDOFF-V-OPBYG.4 (sideeffekt-fund 1) og de andre nøgleord
+/// slipper ikke igennem; almindelig støj gør.
+#[test]
+fn n1_stoejen_danner_ikke_andre_noegleord_eller_netbios() {
+    for x in ["uId", "Db=", "sn:", "USER", "login", "use a;", "Serial", "devid", "host:", "addr", "server"] {
+        assert!(har_andet_noegleord(x), "{x}");
+    }
+    for x in ["IX\\1", "a\\\\b", "A0\\p", "x\\y"] {
+        assert!(har_netbios_form(x), "{x}");
+    }
+    for x in ["Ix", "P", ":443", "srv", "\\\\", "a\\", "\\b", "a \\b", "s n", "d-b"] {
+        assert!(!har_andet_noegleord(x) && !har_netbios_form(x), "{x}");
+    }
 }
 
 /// V-OPBYG.4 N6: generatorens filter: de nøgleord, der gav en rigtig rest (`pWD:443`), og de andre slipper ikke igennem.

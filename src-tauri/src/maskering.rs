@@ -720,6 +720,9 @@ pub enum UiFejl {
     },
     /// V-OPBYG.4 N1: rækken findes ikke i seneste analyse, eller den er ikke en hemmelighed ([`raekke_vaerdi`]).
     UkendtRaekke,
+    /// V-OPBYG.5 N2: posten findes ikke længere i den åbne sag med den kode (visningen er forældet; hent indholdet igen),
+    /// eller den er ikke en hemmelighed ([`sag_post_kopier`]). Uden koden.
+    UkendtPost,
     /// V-OPBYG.2 N1: en note blev afvist; intet er ændret. Uden notens tekst.
     Note {
         /// `tom` | `for_lang` | `for_mange` | `ukendt`
@@ -1747,6 +1750,17 @@ pub fn raekke_vaerdi(t: &Tilstand, fil: bool, id: usize) -> Result<RaekkeVaerdi,
     Ok(ud)
 }
 
+/// V-OPBYG.5 N1: Ryd i Maskér. Rust glemmer hemmelighederne fra seneste analyse af en indsat tekst med det samme (ellers
+/// stod de i hukommelsen til næste analyse, en åben fil eller låsen); værdierne nulstilles, når holderen slippes
+/// ([`Hemmelige`]). En åben fil slippes som før med `fil_luk`. Låst: [`UiFejl::Laast`], og intet er tilbage at glemme
+/// ([`laas_igen`] har allerede tømt holderen). Intet skrives til disk eller log.
+pub fn tekst_glem(t: &Tilstand) -> Result<(), UiFejl> {
+    t.aaben()?;
+    let gamle = std::mem::take(&mut *t.tekst_hemmelige());
+    drop(gamle);
+    Ok(())
+}
+
 /// [`analyser`] uden tekstens grænse (en fil har sin egen, [`fil::MAKS_FIL`]).
 fn analyser_i(
     t: &Tilstand,
@@ -2530,6 +2544,132 @@ pub fn note_slet(t: &Tilstand, nr: u64) -> Result<NoterUd, UiFejl> {
         nulstil_noter(vec![s.slet_note(nr)?]);
         Ok(None)
     })
+}
+
+// ------------------------------------------------------------------------------------------------------- sagens poster (V-OPBYG.5)
+
+/// V-OPBYG.5 N2: posten `nr` i sagen, hvis den stadig har koden `kode` (ellers er sagens indhold i webvisningen forældet).
+fn post_med(sag: &Sag, nr: usize, kode: &str) -> Result<usize, UiFejl> {
+    match sag.data().poster.get(nr) {
+        Some(p) if p.kode == kode => Ok(nr),
+        _ => Err(UiFejl::UkendtPost),
+    }
+}
+
+/// V-OPBYG.5 N2: sletter posten `nr` (med koden `kode`) i den åbne sag, også den midlertidige ([`Sag::slet_post`]: koden og
+/// dens gamle koder gives aldrig igen, og en maskeret tekst med dem kan ikke længere demaskeres; demaskeringen melder dem
+/// som ukendte). En navngiven sag gemmes, før sletningen træder i kraft; fejler gemningen, er posten der stadig, og
+/// fejlen gives videre. Sagens nummer tælles op: en maskeret fil i hukommelsen er lavet med den gamle sag og skal maskeres
+/// igen ([`UiFejl::Foraeldet`]). Originalerne i den slettede post og i en kopi til fortrydelsen nulstilles. Låst:
+/// [`UiFejl::Laast`], før noget ændres; porten tjekkes igen under sagens lås. Intet skrives til log.
+pub fn sag_post_slet(t: &Tilstand, nr: usize, kode: &str) -> Result<SagStatus, UiFejl> {
+    t.aaben()?;
+    let mut a = t.sag_aaben()?;
+    let aktuel = &mut *a;
+    post_med(&aktuel.sag, nr, kode)?;
+    let foer = aktuel.sag.data().clone();
+    let gendan = |aktuel: &mut Aktuel, foer: SagData| {
+        if let Ok(gammel) = Sag::fra_data(foer) {
+            let ny = std::mem::replace(&mut aktuel.sag, gammel);
+            nulstil(ny.til_data());
+        }
+    };
+    let (post, enhed) = match aktuel.sag.slet_post(kode) {
+        Ok(x) => x,
+        Err(f) => {
+            gendan(aktuel, foer);
+            return Err(UiFejl::from(f));
+        }
+    };
+    if let Some(aaben) = aktuel.aaben.as_mut() {
+        let mut hoved = aaben.hoved.clone();
+        hoved.sidst_brugt = nu_ms();
+        if let Err(f) = t
+            .arkiv()
+            .and_then(|ark| ark.gem(aaben, hoved, aktuel.sag.data()).map_err(UiFejl::from))
+        {
+            gendan(aktuel, foer);
+            nulstil_slettet(post, enhed);
+            return Err(f);
+        }
+    }
+    nulstil(foer);
+    nulstil_slettet(post, enhed);
+    aktuel.nr += 1;
+    Ok(status(aktuel))
+}
+
+/// Nulstiller originalen i en slettet post og nøglen i en slettet enhed.
+fn nulstil_slettet(post: grimnir_core::Post, enhed: Option<grimnir_core::Enhed>) {
+    zeroize::Zeroize::zeroize(&mut post.original.til_tekst());
+    if let Some(e) = enhed {
+        zeroize::Zeroize::zeroize(&mut e.noegle.til_tekst());
+    }
+}
+
+/// V-OPBYG.5 N2: Kopiér værdi for en hemmelighed i den åbne sags indhold. Værdien går ikke forbi webvisningen: Rust
+/// lægger den selv i udklipsholderen ([`Udklip::skriv_tekst`]) og husker tælleren som efter en demaskeret kopi (D21), så
+/// låsen og afslutningen rydder den, hvis den stadig står der. Svaret er `true`, når værdien ligger der; `false` uden
+/// udklipsholder (tests, Windows indtil B4) eller hvis skrivningen mislykkes. Kun en post med klassen Hemmelighed
+/// ([`UiFejl::UkendtPost`] ellers; en almindelig værdi kopierer webvisningen og melder den med
+/// [`udklip_vaerdi_kopieret`]). Låst: [`UiFejl::Laast`]; porten tjekkes igen, før der skrives. Intet skrives til log.
+pub fn sag_post_kopier(t: &Tilstand, nr: usize, kode: &str) -> Result<bool, UiFejl> {
+    t.aaben()?;
+    let vaerdi = {
+        let a = t.sag_aaben()?;
+        let i = post_med(&a.sag, nr, kode)?;
+        if a.sag.data().enheder.get(a.sag.data().poster[i].enhed).map(|e| e.klasse) != Some(Klasse::Hemmelighed) {
+            return Err(UiFejl::UkendtPost);
+        }
+        zeroize::Zeroizing::new(a.sag.data().poster[i].original.som_tekst().to_string())
+    };
+    let Some(u) = t.udklip.as_deref() else {
+        return Ok(false);
+    };
+    let mut h = t.udklip_husk();
+    t.aaben()?;
+    h.taeller = None;
+    if !u.skriv_tekst(&vaerdi) {
+        return Ok(false);
+    }
+    h.taeller = u.taeller();
+    Ok(h.taeller.is_some())
+}
+
+/// V-OPBYG.5 N2: webvisningen har kopieret en almindelig værdi fra den åbne sags indhold (Kopiér værdi). Som
+/// [`udklip_noter_kopieret`] (D21): Rust læser tælleren og, hvis det må ske uden besked, teksten; er teksten postens
+/// værdi, og har tælleren ikke flyttet sig, huskes tælleren, og låsen og afslutningen rydder udklipsholderen, hvis den
+/// stadig har den. Svaret siger, om den huskes. Låst: [`UiFejl::Laast`].
+pub fn udklip_vaerdi_kopieret(t: &Tilstand, nr: usize, kode: &str) -> Result<bool, UiFejl> {
+    t.aaben()?;
+    let Some(u) = t.udklip.as_deref() else {
+        return Ok(false);
+    };
+    let vaerdi = {
+        let a = t.sag_aaben()?;
+        let i = post_med(&a.sag, nr, kode)?;
+        zeroize::Zeroizing::new(a.sag.data().poster[i].original.som_tekst().to_string())
+    };
+    let mut h = t.udklip_husk();
+    t.aaben()?;
+    h.taeller = None;
+    let Some(foer) = u.taeller() else {
+        return Ok(false);
+    };
+    match u.tekst() {
+        Indhold::Tekst(tekst) => {
+            if tekst.as_str() != vaerdi.as_str() {
+                return Ok(false);
+            }
+        }
+        Indhold::Ingen => return Ok(false),
+        Indhold::MaaIkkeLaeses => {}
+    }
+    if u.taeller() != Some(foer) {
+        return Ok(false);
+    }
+    h.taeller = Some(foer);
+    Ok(true)
 }
 
 // ------------------------------------------------------------------------------------------------------- ordbogen

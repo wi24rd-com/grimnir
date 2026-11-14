@@ -174,6 +174,10 @@ pub struct SagData {
     pub noter: Vec<Note>,
     /// V-OPBYG.2 N1: det sidste løbenummer, en note har fået.
     pub note_taeller: u64,
+    /// V-OPBYG.5 N2: koder og gamle koder (aliaser) for poster, brugeren har slettet ([`Sag::slet_post`]). De gives aldrig
+    /// igen (heller ikke af [`Sag::ret`]), og demaskeringen melder dem som ukendte koder. Ikke i [`Self::reserverede_navne`]:
+    /// en reserveret kode meldes ikke af demaskeringen (den stod som almindelig tekst i en original).
+    pub slettede_koder: Vec<String>,
 }
 
 #[derive(Default)]
@@ -197,6 +201,8 @@ struct Indeks {
     brugtemac: HashSet<u64>,
     sid: HashMap<Original, usize>,
     res_navne: HashSet<String>,
+    /// V-OPBYG.5 N2: de slettede koder med små bogstaver.
+    slettede: HashSet<String>,
     res4: HashSet<u32>,
     res_net4: HashSet<u32>,
     res6: HashSet<u128>,
@@ -397,6 +403,14 @@ impl Sag {
         idx.iid6 = data.iid6.iter().copied().collect();
         idx.sid = data.sid_domaener.iter().cloned().enumerate().map(|(i, d)| (d, i)).collect();
         idx.res_navne = data.reserverede_navne.iter().cloned().collect();
+        for k in &data.slettede_koder {
+            if k.is_empty() || idx.kode.contains_key(k) || idx.alias.contains_key(k) {
+                return Err(Fejl::UgyldigeSagsdata {
+                    hvad: "slettet kode er tom eller stadig i brug",
+                });
+            }
+            idx.slettede.insert(smaa(k));
+        }
         idx.res4 = data.reserverede_ip4.iter().copied().collect();
         idx.res_net4 = idx.res4.iter().map(|v| v >> 8).collect();
         idx.res6 = data.reserverede_ip6.iter().copied().collect();
@@ -502,6 +516,56 @@ impl Sag {
         let gamle = std::mem::replace(&mut self.data.noter, noter);
         let gammel_taeller = std::mem::replace(&mut self.data.note_taeller, taeller);
         Ok((gamle, gammel_taeller))
+    }
+
+    /// V-OPBYG.5 N2: sletter posten med koden `kode` (en stavemåde og dens kode). Postens gamle koder (aliaser, D18)
+    /// slettes med den, og enheden, hvis den ikke har flere stavemåder. Koden og aliaserne lægges i
+    /// [`SagData::slettede_koder`]: de gives aldrig igen, og en tekst, der stadig har dem, demaskeres ikke til noget; koden
+    /// meldes som ukendt. Net-afbildningerne og tællerne bliver (de deles af andre adresser, og et nummer går aldrig
+    /// tilbage). Svaret er den slettede post og enheden, hvis den også er slettet, så skallen kan nulstille originalerne.
+    /// [`Fejl::UkendtKode`], hvis koden ikke er en af sagens nuværende koder (et alias alene slettes ikke).
+    pub fn slet_post(&mut self, kode: &str) -> Result<(Post, Option<Enhed>), Fejl> {
+        let i = *self.idx.kode.get(kode).ok_or_else(|| Fejl::UkendtKode { kode: kode.to_string() })?;
+        let mut data = std::mem::take(&mut self.data);
+        let post = data.poster.remove(i);
+        let mut slettede = vec![post.kode.clone()];
+        data.aliaser.retain(|(k, p)| {
+            if *p == i {
+                slettede.push(k.clone());
+            }
+            *p != i
+        });
+        for (_, p) in data.aliaser.iter_mut() {
+            if *p > i {
+                *p -= 1;
+            }
+        }
+        let e = post.enhed;
+        let enhed = if data.poster.iter().any(|p| p.enhed == e) {
+            None
+        } else {
+            for p in data.poster.iter_mut() {
+                if p.enhed > e {
+                    p.enhed -= 1;
+                }
+            }
+            Some(data.enheder.remove(e))
+        };
+        for k in slettede {
+            if !data.slettede_koder.contains(&k) {
+                data.slettede_koder.push(k);
+            }
+        }
+        // Dataene hænger sammen (pladserne er rykket), så indeksene kan bygges igen.
+        let advarsler = std::mem::take(&mut self.advarsler);
+        *self = Sag::fra_data(data)?;
+        self.advarsler = advarsler;
+        Ok((post, enhed))
+    }
+
+    /// V-OPBYG.5 N2: sand, hvis `kode` (uafhængigt af store/små bogstaver) er en slettet kode.
+    pub fn er_slettet(&self, kode: &str) -> bool {
+        self.idx.slettede.contains(&smaa(kode))
     }
 
     /// Originalen bag en kode eller en gammel kode (alias, D18).
@@ -611,7 +675,13 @@ impl Sag {
                 }
                 fundet
             };
-            if nye[..a].iter().any(|(_, k)| k == ny) || andre_poster || andre_aliaser || self.idx.res_navne.contains(&l) || i_tekst {
+            if nye[..a].iter().any(|(_, k)| k == ny)
+                || andre_poster
+                || andre_aliaser
+                || self.idx.res_navne.contains(&l)
+                || self.idx.slettede.contains(&l)
+                || i_tekst
+            {
                 return Err(kollision());
             }
         }
@@ -924,6 +994,30 @@ impl Sag {
         ud
     }
 
+    /// V-OPBYG.5 N2: de slettede koder uden en af Grimnirs kodeformer (brugerens egne) i teksten ved en grænse,
+    /// uafhængigt af store/små bogstaver: (start, slut). Koder med en kodeform finder demaskeringen selv
+    /// ([`find_kodeformer`]); de er ikke sagens og ikke reserverede, så de meldes som ukendte.
+    pub(crate) fn find_slettede_uden_form(&self, t: &[u8]) -> Vec<(usize, usize)> {
+        let moenstre: Vec<&String> = self.data.slettede_koder.iter().filter(|k| !har_kodeform(k)).collect();
+        let mut ud = Vec::new();
+        if moenstre.is_empty() {
+            return ud;
+        }
+        let Ok(ac) = AhoCorasick::builder()
+            .ascii_case_insensitive(true)
+            .match_kind(MatchKind::LeftmostLongest)
+            .build(&moenstre)
+        else {
+            return ud;
+        };
+        for m in ac.find_iter(t) {
+            if ved_graense(t, m.start(), m.end(), Moenster::Navn) {
+                ud.push((m.start(), m.end()));
+            }
+        }
+        ud
+    }
+
     // ------------------------------------------------------------ tildeling
 
     fn ny_post(&mut self, enhed: usize, original: &str, kode: String, former: u8) -> String {
@@ -963,7 +1057,8 @@ impl Sag {
     }
 
     fn fri_kode(&self, kode: &str) -> bool {
-        !self.idx.kode.contains_key(kode) && !self.idx.alias.contains_key(kode) && !self.idx.res_navne.contains(&smaa(kode))
+        let l = smaa(kode);
+        !self.idx.kode.contains_key(kode) && !self.idx.alias.contains_key(kode) && !self.idx.res_navne.contains(&l) && !self.idx.slettede.contains(&l)
     }
 
     fn nyt_nummer(&mut self, k: Klasse) -> u64 {
@@ -971,7 +1066,11 @@ impl Sag {
             self.data.taellere.navne[k.nr()] += 1;
             let n = self.data.taellere.navne[k.nr()];
             let g = smaa(&k.grundform(n));
-            if !self.idx.kode_smaa.contains_key(&g) && !self.idx.alias_smaa.contains_key(&g) && !self.idx.res_navne.contains(&g) {
+            if !self.idx.kode_smaa.contains_key(&g)
+                && !self.idx.alias_smaa.contains_key(&g)
+                && !self.idx.res_navne.contains(&g)
+                && !self.idx.slettede.contains(&g)
+            {
                 return n;
             }
         }

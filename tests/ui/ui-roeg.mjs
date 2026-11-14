@@ -160,7 +160,8 @@ const plads = b => (b.parentElement.classList.contains('tip-plads') ? b.parentEl
   }
   // V-MANUEL.1: Ryd (Maskér og Demaskér), Fortryd og Gentag (gruppen Rediger) og Maskér dette (gruppen Maskering).
   // V-OPBYG.1 (D27): skitsens ord og rækkefølge (Maskér markering under Rediger; Gem som sag… først i Sager).
-  const kommandoer = { masker: ['Indsæt', 'Åbn fil', 'Ryd', 'Fortryd', 'Gentag', 'Maskér markering', 'Analysér igen', 'Maskér', 'Før og efter', 'Kopiér maskeret tekst', 'Gem maskeret fil', 'Kopiér kvittering'], demasker: ['Indsæt', 'Åbn fil', 'Ryd', 'Demaskér', 'Næste advarsel', 'Kopiér resultat', 'Gem som fil'], noter: ['Ny note', 'Ret note', 'Slet note', 'Kopiér noterne'], sager: ['Gem som sag…', 'Ny sag', 'Vis indhold', 'Åbn i Maskér', 'Omdøb', 'Udløb', 'Eksportér', 'Importér', 'Slet sag'], ordbog: ['Tilføj post', 'Ret', 'Prøv på tekst', 'Importér', 'Eksportér', 'Fjern post'] };
+  // V-OPBYG.5 N1: Maskér som hemmelighed sidst i Maskérs bånd (sin egen gruppe).
+  const kommandoer = { masker: ['Indsæt', 'Åbn fil', 'Ryd', 'Fortryd', 'Gentag', 'Maskér markering', 'Analysér igen', 'Maskér', 'Før og efter', 'Kopiér maskeret tekst', 'Gem maskeret fil', 'Kopiér kvittering', 'Maskér som hemmelighed'], demasker: ['Indsæt', 'Åbn fil', 'Ryd', 'Demaskér', 'Næste advarsel', 'Kopiér resultat', 'Gem som fil'], noter: ['Ny note', 'Ret note', 'Slet note', 'Kopiér noterne'], sager: ['Gem som sag…', 'Ny sag', 'Vis indhold', 'Åbn i Maskér', 'Omdøb', 'Udløb', 'Eksportér', 'Importér', 'Slet sag'], ordbog: ['Tilføj post', 'Ret', 'Prøv på tekst', 'Importér', 'Eksportér', 'Fjern post'] };
   for (const [id, liste] of Object.entries(kommandoer)) {
     const ord = [...d.querySelectorAll(`#baand > [data-visning="${id}"] .grupper[data-fane="start"] .cb:not(.vk)`)].map(b => b.textContent.trim());
     tjek(`${id}: kommandoerne fra design/skaerme/`, JSON.stringify(ord) === JSON.stringify(liste), JSON.stringify(ord));
@@ -2658,7 +2659,8 @@ for (const lang of ['da', 'en']) {
   const passer = (hvor, W) => { const mn = hvor.match(/min-width:\s*(\d+)px/), mx = hvor.match(/max-width:\s*(\d+)px/); return (!mn || W >= +mn[1]) && (!mx || W <= +mx[1]); };
   tjek('V-PUDS.1 N3: ordet vises kun i @media-regler (uden for dem er det skjult som før)', viser.length >= 1 && !/^\s*\.fundtabel \.ordbogknapper \.skjult-tekst/m.test(css.replace(/@media[^{]+\{(?:[^{}]*\{[^}]*\})*\s*\}/g, '')));
   tjek('V-PUDS.1 N3: ved 900 px kun ikonet', !viser.some(b => passer(b.hvor, 900)));
-  tjek('V-PUDS.1 N3: ved 1200 px ikon og ord, med plads i Ordbog-kolonnen (--k7) i begge sprog', viser.some(b => passer(b.hvor, 1200) && /(^|\s)(:root:not\(\[data-tekst="stor"\]\) )?\.fundtabel \{[^}]*--k7:/.test(b.indhold) && /(html|:root:not\(\[data-tekst="stor"\]\))\[lang="en"\] \.fundtabel \{[^}]*--k7:/.test(b.indhold)));
+  // V-OPBYG.5 N2: grænsen er flyttet fra 1200 til 1210 px ("…"-knappen står også i Ordbog-cellen).
+  tjek('V-OPBYG.5 N2: ved 1210 px ikon og ord, med plads i Ordbog-kolonnen (--k7) i begge sprog', !viser.some(b => passer(b.hvor, 1209)) && viser.some(b => passer(b.hvor, 1210) && /(^|\s)(:root:not\(\[data-tekst="stor"\]\) )?\.fundtabel \{[^}]*--k7:/.test(b.indhold) && /(html|:root:not\(\[data-tekst="stor"\]\))\[lang="en"\] \.fundtabel \{[^}]*--k7:/.test(b.indhold)));
 }
 {
   // N4: indsat tekst: Antal og Linje for hver kode, der er sat tilbage, fra Rust (tilbage); CRLF og to gange på én linje.
@@ -2832,7 +2834,7 @@ for (const lang of ['da', 'en']) {
   tjek('V-KITBRUG.2 N3 (G10): hvert vh og vw i app.css er delt med trinnet (calc(… / var(--tekst-zoom)))', vhvw.length >= 2 && vhvw.every(x => /\d+v[hw] \/ var\(--tekst-zoom\)/.test(x)), vhvw.filter(x => !/\/ var\(--tekst-zoom\)/.test(x)).join(' | '));
   tjek('V-KITBRUG.1 N2: trafiklysenes plads er 80 px på skærmen i alle trin', /\[data-platform="macos"\] \.titel \{ padding-left: calc\(80px \/ var\(--tekst-zoom\)\); \}/.test(app));
   const medier = [...app.matchAll(/@media ([^{]+)\{/g)].map(m => m[1].trim()).filter(m => /width/.test(m));
-  tjek('V-KITBRUG.1 N2: hver bredde-grænse findes også for stor (× 1,125)', [['min-width: 1200px', 'min-width: 1350px'], ['max-width: 1719px', 'max-width: 1934px'], ['min-width: 1840px', 'min-width: 2070px'], ['max-width: 1099px', 'max-width: 1237px']].every(([a, b]) => medier.some(m => m.includes(a)) && medier.some(m => m.includes(b))), medier.join(' | '));
+  tjek('V-KITBRUG.1 N2: hver bredde-grænse findes også for stor (× 1,125)', [['min-width: 1200px', 'min-width: 1350px'], ['max-width: 1719px', 'max-width: 1934px'], ['min-width: 1210px', 'min-width: 1362px'], ['min-width: 1860px', 'min-width: 2093px'], ['max-width: 1099px', 'max-width: 1237px']].every(([a, b]) => medier.some(m => m.includes(a)) && medier.some(m => m.includes(b))), medier.join(' | '));
 }
 {
   // N3: afkrydsning, radiogruppe, valgliste og tom tilstand er kittets; id, navn og hjælpetekst er bevaret.
@@ -4292,11 +4294,14 @@ async function manuelSide(o = {}) {
 // V-OPBYG.1: målt igen i WKWebView (scratchpad/maal: en kopi af ui/, 1800 × 900, intet flyttet): fanerne står i deres egen
 // række, så båndet har kun visningens kommandoer (skitsens ord; Sager har Gem som sag…). bred er den sidste gruppes højre kant
 // + båndets luft til højre (12 px × trin).
-const MAALT_BAAND = {"lille":{"da":{"masker":{"grp":[188.2,239.1,234.8,344],"knap":[57.6,57.6,57.6,57.6,57.6,108.5,86,57.6,75.8,127.2,102.4,100],"bred":1060},"demasker":{"grp":[188.2,179,180.3],"knap":[57.6,57.6,57.6,69,96.4,90.5,77.1],"bred":590.6},"noter":{"grp":[193,102.6],"knap":[57.6,58.6,61.4,91.8],"bred":328},"sager":{"grp":[445.2,139.1,68.4],"knap":[95.6,57.6,72.9,83.1,57.6,57.6,65.6,59.9,57.6],"bred":695.8},"ordbog":{"grp":[224.5,139.1,78.4],"knap":[68.3,57.6,83.3,59.9,65.6,67.6],"bred":485.2}},"en":{"masker":{"grp":[193.1,223.5,259.5,307.1],"knap":[57.6,62.5,57.6,57.6,57.6,93,87.8,57.6,98.7,108.2,102.8,81.7],"bred":1037.2},"demasker":{"grp":[193.1,156.9,162.2],"knap":[57.6,62.5,57.6,59,84.4,74.8,74.7],"bred":555.4},"noter":{"grp":[217.3,104.6],"knap":[65.9,61.3,74.7,93.8],"bred":354.2},"sager":{"grp":[475,128.8,87.3],"knap":[92.9,67.5,92.1,86.5,57.7,57.6,57.6,57.6,76.5],"bred":734.3},"ordbog":{"grp":[212,128.8,97.7],"knap":[67.9,57.6,71.1,57.6,57.6,86.9],"bred":481.7}}},"normal":{"da":{"masker":{"grp":[209,265.4,260.4,381.6],"knap":[64,64,64,64,64,120.4,95.4,64,84,141.1,113.6,110.9],"bred":1176.3},"demasker":{"grp":[209,198.4,199.9],"knap":[64,64,64,76.5,106.9,100.4,85.5],"bred":655.3},"noter":{"grp":[213.9,113.8],"knap":[64,64.9,68,101.8],"bred":363.8},"sager":{"grp":[494,154,76],"knap":[106.1,64,80.8,92.1,64,64,72.7,66.3,64],"bred":772},"ordbog":{"grp":[249,154,87],"knap":[75.7,64,92.3,66.3,72.7,75],"bred":538}},"en":{"masker":{"grp":[214.2,248.1,287.8,340.6],"knap":[64,69.2,64,64,64,103.1,97.4,64,109.5,120.1,114,90.5],"bred":1150.8},"demasker":{"grp":[214.2,173.9,179.8],"knap":[64,69.2,64,65.3,93.6,83,82.8],"bred":615.9},"noter":{"grp":[240.7,116],"knap":[73,67.9,82.8,104],"bred":392.7},"sager":{"grp":[526.8,143,96.8],"knap":[103,74.8,102.2,95.9,64,64,64,64,84.8],"bred":814.6},"ordbog":{"grp":[235,143,108.4],"knap":[75.3,64,78.8,64,64,96.4],"bred":534.4}}},"stor":{"da":{"masker":{"grp":[235,298.2,292.3,428.5],"knap":[72,72,72,72,72,135.2,107.1,72,94.2,158.5,127.6,124.5],"bred":1321.5},"demasker":{"grp":[235,222.5,224.4],"knap":[72,72,72,85.8,120,112.7,96],"bred":736},"noter":{"grp":[240.1,127.8],"knap":[72,72.8,76.3,114.3],"bred":408.4},"sager":{"grp":[554.8,172.6,85.5],"knap":[119.1,72,90.6,103.4,72,72,81.5,74.3,72],"bred":867},"ordbog":{"grp":[279.5,172.6,97.6],"knap":[84.9,72,103.6,74.3,81.5,84.1],"bred":603.7}},"en":{"masker":{"grp":[240.6,278.7,323.2,382.5],"knap":[72,77.6,72,72,72,115.7,109.3,72,122.9,134.8,128,101.6],"bred":1292.5},"demasker":{"grp":[240.6,195,201.8],"knap":[72,77.6,72,73.2,105,93.1,93],"bred":691.4},"noter":{"grp":[269.9,130.3],"knap":[81.9,76.1,92.9,116.8],"bred":440.7},"sager":{"grp":[591.6,160.8,108.6],"knap":[115.6,83.9,114.7,107.6,72,72,72,72,95.1],"bred":915},"ordbog":{"grp":[263.8,160.8,121.7],"knap":[84.4,72,88.4,72,72,108.2],"bred":600.2}}}};
+const MAALT_BAAND = {"lille":{"da":{"masker":{"grp":[188.2,239.1,234.8,345,161.5],"knap":[57.6,57.6,57.6,57.6,57.6,108.5,86,57.6,75.8,127.2,102.4,100,150.7],"bred":1233.3},"demasker":{"grp":[188.2,179,180.3],"knap":[57.6,57.6,57.6,69,96.4,90.5,77.1],"bred":590.6},"noter":{"grp":[193,102.6],"knap":[57.6,58.6,61.4,91.8],"bred":328},"sager":{"grp":[445.2,139.1,68.4],"knap":[95.6,57.6,72.9,83.1,57.6,57.6,65.6,59.9,57.6],"bred":695.8},"ordbog":{"grp":[224.5,139.1,78.4],"knap":[68.3,57.6,83.3,59.9,65.6,67.6],"bred":485.2}},"en":{"masker":{"grp":[193.1,223.5,259.5,308.1,104.3],"knap":[57.6,62.5,57.6,57.6,57.6,93,87.8,57.6,98.7,108.2,102.8,81.7,93.5],"bred":1153.3},"demasker":{"grp":[193.1,156.9,162.2],"knap":[57.6,62.5,57.6,59,84.4,74.8,74.7],"bred":555.4},"noter":{"grp":[217.3,104.6],"knap":[65.9,61.3,74.7,93.8],"bred":354.2},"sager":{"grp":[475,128.8,87.3],"knap":[92.9,67.5,92.1,86.5,57.7,57.6,57.6,57.6,76.5],"bred":734.3},"ordbog":{"grp":[212,128.8,97.7],"knap":[67.9,57.6,71.1,57.6,57.6,86.9],"bred":481.7}}},"normal":{"da":{"masker":{"grp":[209,265.4,260.4,382.6,179.3],"knap":[64,64,64,64,64,120.4,95.4,64,84,141.1,113.6,110.9,167.3],"bred":1368.6},"demasker":{"grp":[209,198.4,199.9],"knap":[64,64,64,76.5,106.9,100.4,85.5],"bred":655.3},"noter":{"grp":[213.9,113.8],"knap":[64,64.9,68,101.8],"bred":363.8},"sager":{"grp":[494,154,76],"knap":[106.1,64,80.8,92.1,64,64,72.7,66.3,64],"bred":772},"ordbog":{"grp":[249,154,87],"knap":[75.7,64,92.3,66.3,72.7,75],"bred":538}},"en":{"masker":{"grp":[214.2,248.1,287.8,341.6,115.8],"knap":[64,69.2,64,64,64,103.1,97.4,64,109.5,120.1,114,90.5,103.8],"bred":1279.5},"demasker":{"grp":[214.2,173.9,179.8],"knap":[64,69.2,64,65.3,93.6,83,82.8],"bred":615.9},"noter":{"grp":[240.7,116],"knap":[73,67.9,82.8,104],"bred":392.7},"sager":{"grp":[526.8,143,96.8],"knap":[103,74.8,102.2,95.9,64,64,64,64,84.8],"bred":814.6},"ordbog":{"grp":[235,143,108.4],"knap":[75.3,64,78.8,64,64,96.4],"bred":534.4}}},"stor":{"da":{"masker":{"grp":[235,298.2,292.3,429.5,201.4],"knap":[72,72,72,72,72,135.2,107.1,72,94.2,158.5,127.6,124.5,187.9],"bred":1537.5},"demasker":{"grp":[235,222.5,224.4],"knap":[72,72,72,85.8,120,112.7,96],"bred":736},"noter":{"grp":[240.1,127.8],"knap":[72,72.8,76.3,114.3],"bred":408.4},"sager":{"grp":[554.8,172.6,85.5],"knap":[119.1,72,90.6,103.4,72,72,81.5,74.3,72],"bred":867},"ordbog":{"grp":[279.5,172.6,97.6],"knap":[84.9,72,103.6,74.3,81.5,84.1],"bred":603.7}},"en":{"masker":{"grp":[240.6,278.7,323.2,383.5,130],"knap":[72,77.6,72,72,72,115.7,109.3,72,122.9,134.8,128,101.6,116.5],"bred":1437},"demasker":{"grp":[240.6,195,201.8],"knap":[72,77.6,72,73.2,105,93.1,93],"bred":691.4},"noter":{"grp":[269.9,130.3],"knap":[81.9,76.1,92.9,116.8],"bred":440.7},"sager":{"grp":[591.6,160.8,108.6],"knap":[115.6,83.9,114.7,107.6,72,72,72,72,95.1],"bred":915},"ordbog":{"grp":[263.8,160.8,121.7],"knap":[84.4,72,88.4,72,72,108.2],"bred":600.2}}}};
 // V-OPBYG.1: det, kittets Mere flyttede i WKWebView ved 1024 × 560 og 1200 × 800 (samme kopi).
 // V-OPBYG.2 N2: Noters bånd målt på samme måde (scratchpad/wk: en kopi af ui/, 1800 × 900; de fire andre bånd målte præcis
 // som V-OPBYG.1's tal); ved 1024 og 1200 px flytter Mere intet i Noter.
-const MAALT_FLYTTET = {"1024 lille da":{"masker":["gem-fil","kvittering"],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1200 lille da":{"masker":[],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1024 lille en":{"masker":["kvittering"],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1200 lille en":{"masker":[],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1024 normal da":{"masker":["gem-fil","kvittering"],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1200 normal da":{"masker":[],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1024 normal en":{"masker":["gem-fil","kvittering"],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1200 normal en":{"masker":[],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1024 stor da":{"masker":["kopier","gem-fil","kvittering"],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1200 stor da":{"masker":["gem-fil","kvittering"],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1024 stor en":{"masker":["kopier","gem-fil","kvittering"],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1200 stor en":{"masker":["gem-fil","kvittering"],"demasker":[],"noter":[],"sager":[],"ordbog":[]}};
+// V-OPBYG.5 N1: Maskérs bånd målt igen med gruppen Hemmelighed sidst (scratchpad/maal: en kopi af ui/, 1800 × 900 for
+// bredderne, 1024 × 560 og 1200 × 800 for Mere; WKWebView, macOS 26.6). Resten af Maskérs knapper målte som før; gruppen
+// Resultat er 1 px bredere (den er ikke længere sidst og har sit skille). De fire andre bånd er ikke ændret.
+const MAALT_FLYTTET = {"1024 lille da":{"masker":["gem-fil","kvittering","masker-hemmelig"],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1200 lille da":{"masker":["masker-hemmelig"],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1024 lille en":{"masker":["kvittering","masker-hemmelig"],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1200 lille en":{"masker":[],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1024 normal da":{"masker":["gem-fil","kvittering","masker-hemmelig"],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1200 normal da":{"masker":["kvittering","masker-hemmelig"],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1024 normal en":{"masker":["gem-fil","kvittering","masker-hemmelig"],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1200 normal en":{"masker":["kvittering","masker-hemmelig"],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1024 stor da":{"masker":["kopier","gem-fil","kvittering","masker-hemmelig"],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1200 stor da":{"masker":["gem-fil","kvittering","masker-hemmelig"],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1024 stor en":{"masker":["kopier","gem-fil","kvittering","masker-hemmelig"],"demasker":[],"noter":[],"sager":[],"ordbog":[]},"1200 stor en":{"masker":["gem-fil","kvittering","masker-hemmelig"],"demasker":[],"noter":[],"sager":[],"ordbog":[]}};
 const visKnapper = d => [...d.querySelectorAll('#baand > [data-visning]:not([hidden]) .vk')];
 const aktuelle = d => [...d.querySelectorAll('#baand .vk[aria-current="page"]')].map(a => a.dataset.visning);
 const tastPaa = (w, el, key, x = {}) => { const e = new w.KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...x }); if (el) el.dispatchEvent(e); return e; };
@@ -4360,7 +4365,7 @@ const klikVis = async (w, a, id) => { const p = visningSkift(w, id); a.click(); 
   const raekke = fokuserbar.map(omraade).filter((x, i, a) => i === 0 || a[i - 1] !== x);
   tjek('V-FANER.2: Tab-rækkefølgen er titellinjen, båndet, venstre side, arbejdsfladen (ingen række over båndet)', raekke.join(' → ') === 'titellinje → bånd → venstre → arbejdsflade', raekke.join(' → '));
   const iBaand = fokuserbar.filter(e => omraade(e) === 'bånd');
-  tjek('V-OPBYG.2: i båndet kommer først de fem visninger (hver sit Tab-stop, også den åbne), så Maskérs kommandoer i rækkefølge', iBaand.slice(0, 5).map(a => a.dataset.visning).join() === VIS.join() && iBaand.slice(5).map(b => b.dataset.kommando).join() === 'indsaet,aabn-fil,ryd,fortryd,gentag,masker-dette,analyser,gem-masker,foer-efter,kopier,gem-fil,kvittering', iBaand.map(e => e.dataset.visning || e.dataset.kommando).join());
+  tjek('V-OPBYG.2: i båndet kommer først de fem visninger (hver sit Tab-stop, også den åbne), så Maskérs kommandoer i rækkefølge', iBaand.slice(0, 5).map(a => a.dataset.visning).join() === VIS.join() && iBaand.slice(5).map(b => b.dataset.kommando).join() === 'indsaet,aabn-fil,ryd,fortryd,gentag,masker-dette,analyser,gem-masker,foer-efter,kopier,gem-fil,kvittering,masker-hemmelig', iBaand.map(e => e.dataset.visning || e.dataset.kommando).join());
 }
 {
   // Låst: båndet med visningerne er nedtonet og kan ikke bruges, og ⌘1–⌘4 gør intet. Første forsøg annulleres, andet (Enter) lykkes.
@@ -4450,9 +4455,11 @@ const klikVis = async (w, a, id) => { const p = visningSkift(w, id); a.click(); 
     tjek(`V-OPBYG.2 (regnet, ${W} px, ${t}, ${sp}): én række i alle fem visninger, og Mere flytter det samme som målt i WKWebView`, ud.every(r => r.sidste <= r.plads + 1 && JSON.stringify(r.flyttet) === JSON.stringify(maalt[r.id])), JSON.stringify(ud.map(r => [r.id, r.flyttet, Math.round(r.sidste), Math.round(r.plads)])) + ' målt ' + JSON.stringify(maalt));
   }
   // V-OPBYG.1 N8: ved normal tekst i 1200 × 800 står alle fire bånd helt på én række på begge sprog (Maskér har 12 kommandoer).
+  // V-OPBYG.5 N1: Maskér har 13 kommandoer (Maskér som hemmelighed sidst); ved 1200 px normal står den og Kopiér kvittering i
+  // Mere (målt i WebKit), de fire andre bånd står helt som før.
   {
-    const ved1200 = ['da', 'en'].map(sp => { w.Sprog.saet(sp); return VIS.map(id => regn(id, MAALT_BAAND.normal[sp][id], 1, 1200)); }).flat();
-    tjek('V-OPBYG.2 (regnet og målt): normal, 1200 px, begge sprog: alle fem bånd står helt på én række uden Mere (Maskér: 12 kommandoer)', ved1200.every(r => !r.flyttet.length && r.sidste <= r.plads + 1) && MAALT_BAAND.normal.da.masker.knap.length === 12 && ['1200 normal da', '1200 normal en'].every(k => Object.values(MAALT_FLYTTET[k]).every(x => !x.length)), JSON.stringify(ved1200.map(r => r.flyttet)));
+    const ved1200 = ['da', 'en'].map(sp => { w.Sprog.saet(sp); return VIS.map(id => ({ id, ...regn(id, MAALT_BAAND.normal[sp][id], 1, 1200) })); }).flat();
+    tjek('V-OPBYG.5 N1 (regnet og målt): normal, 1200 px, begge sprog: Demaskér, Noter, Sager og Ordbog står helt på én række uden Mere; Maskér (13 kommandoer) har Kopiér kvittering og Maskér som hemmelighed i Mere', ved1200.every(r => r.sidste <= r.plads + 1 && JSON.stringify(r.flyttet) === (r.id === 'masker' ? '["kvittering","masker-hemmelig"]' : '[]')) && MAALT_BAAND.normal.da.masker.knap.length === 13 && ['1200 normal da', '1200 normal en'].every(k => Object.entries(MAALT_FLYTTET[k]).every(([id, x]) => JSON.stringify(x) === (id === 'masker' ? '["kvittering","masker-hemmelig"]' : '[]'))), JSON.stringify(ved1200.map(r => r.flyttet)));
   }
   // Ved normal står Demaskér, Sager og Ordbog helt fra 1024 px på begge sprog; for hver bredde fra 1024 til 2000 px står
   // båndet på én række, visningerne flyttes aldrig, og den primære kommando flyttes kun, når alle andre er flyttet.
@@ -4469,14 +4476,15 @@ const klikVis = async (w, a, id) => { const p = visningSkift(w, id); a.click(); 
   w.Sprog.saet('da');
   const r = regn('masker', MAALT_BAAND.normal.da.masker, 1, 1024);
   const bar = G.dele.masker.bar, mk = bar.mere.knap, menu = bar.mere.menu;
-  tjek('V-OPBYG.1 (Mere, 1024 px): Mere vises sidst i Maskérs bånd; Gem maskeret fil og Kopiér kvittering står i den, Maskér (primær) og Kopiér maskeret tekst i båndet', !mk.parentElement.hidden && JSON.stringify(r.flyttet) === '["gem-fil","kvittering"]' && !bar.knap('gem-masker').hasAttribute('data-i-mere') && !bar.knap('kopier').hasAttribute('data-i-mere') && !bar.rod.querySelector('.grp[data-mere-tom]'), JSON.stringify(r.flyttet));
+  // V-OPBYG.5 N1: Maskér som hemmelighed står også i Mere; dens gruppe (kun den) er skjult.
+  tjek('V-OPBYG.5 N1 (Mere, 1024 px): Mere vises sidst i Maskérs bånd; Gem maskeret fil, Kopiér kvittering og Maskér som hemmelighed står i den, Maskér (primær) og Kopiér maskeret tekst i båndet', !mk.parentElement.hidden && JSON.stringify(r.flyttet) === '["gem-fil","kvittering","masker-hemmelig"]' && !bar.knap('gem-masker').hasAttribute('data-i-mere') && !bar.knap('kopier').hasAttribute('data-i-mere') && [...bar.rod.querySelectorAll('.grp[data-mere-tom]')].length === 1 && bar.rod.querySelector('.grp[data-mere-tom]').contains(bar.knap('masker-hemmelig')), JSON.stringify(r.flyttet));
   const fok = [...bar.rod.querySelectorAll('a[href], button')].filter(e => e.tabIndex >= 0 && !e.closest('[hidden], .tip') && !e.hasAttribute('data-i-mere') && !e.closest('.grp[data-mere-tom]') && !e.closest('.mere-menu'));
   tjek('V-FANER.2 (Mere): Tab i båndet: visningerne, de synlige kommandoer og Mere til sidst', fok.at(-1) === mk && fok.slice(0, 5).every(a => a.classList.contains('vk')) && fok.length === 5 + 10 + 1, fok.map(e => e.dataset.visning || e.dataset.kommando || 'mere').join());
   mk.focus();
   mk.click();
   const punkter = [...menu.querySelectorAll('.mere-punkt')];
   // V-OPBYG.1: Før og efter står ikke længere i Mere ved 1024 px (menuitemcheckbox prøves i kittets test).
-  tjek('V-OPBYG.1 (Mere): med tastaturet åbner menuen med fokus på første punkt; punkterne har samme navne, ikoner og tilstand som knapperne (slået fra, med hvorfor under navnet)', !menu.hidden && mk.getAttribute('aria-expanded') === 'true' && d.activeElement === punkter[0] && punkter.map(p => p.querySelector('.mere-navn').textContent).join() === 'Gem maskeret fil,Kopiér kvittering' && punkter.every(p => p.getAttribute('role') === 'menuitem' && p.querySelector('svg') && p.getAttribute('aria-disabled') === 'true' && d.getElementById(p.getAttribute('aria-describedby'))?.textContent === forklaring(bar.knap(p.dataset.kommando))), JSON.stringify([menu.hidden, d.activeElement?.className, punkter.map(p => [p.textContent, p.getAttribute('role'), p.getAttribute('aria-disabled'), forklaring(bar.knap(p.dataset.kommando))])]));
+  tjek('V-OPBYG.5 N1 (Mere): med tastaturet åbner menuen med fokus på første punkt; punkterne (Gem maskeret fil, Kopiér kvittering, Maskér som hemmelighed) har samme navne, ikoner og tilstand som knapperne (slået fra, med hvorfor under navnet)', !menu.hidden && mk.getAttribute('aria-expanded') === 'true' && d.activeElement === punkter[0] && punkter.map(p => p.querySelector('.mere-navn').textContent).join() === 'Gem maskeret fil,Kopiér kvittering,Maskér som hemmelighed' && punkter.every(p => p.getAttribute('role') === 'menuitem' && p.querySelector('svg') && p.getAttribute('aria-disabled') === 'true' && d.getElementById(p.getAttribute('aria-describedby'))?.textContent === forklaring(bar.knap(p.dataset.kommando))), JSON.stringify([menu.hidden, d.activeElement?.className, punkter.map(p => [p.textContent, p.getAttribute('role'), p.getAttribute('aria-disabled'), forklaring(bar.knap(p.dataset.kommando))])]));
   tastPaa(w, punkter[0], 'Escape');
   tjek('V-FANER.2 (Mere): Esc lukker menuen med fokus på Mere', menu.hidden && d.activeElement === mk && mk.getAttribute('aria-expanded') === 'false');
   bar.saetDeaktiveret('kvittering', false);
@@ -4565,7 +4573,9 @@ const traePunkter = d => [...d.querySelectorAll('.navdel[data-visning="sager"] .
   tjek('V-MANUEL.2 N1: Vis indhold henter sagens poster fra Rust (id, alle typer, ingen søgning, 500 ad gangen, ingen viste)', kald.length === 1 && kald[0].id === hexId(1) && kald[0].valg.type === '' && kald[0].valg.soeg === '' && kald[0].valg.antal === 500 && kald[0].valg.vist.length === 0, JSON.stringify(kald));
   tjek('V-MANUEL.2 N1: visningen erstatter listen (listen er skjult)', indholdVises(d) && d.querySelector('section[data-visning="sager"] .sagliste:not(.sagindhold)').hidden);
   const ths = [...d.querySelectorAll('section[data-visning="sager"] .indholdtabel thead th')].map(t => t.textContent);
-  tjek('V-MANUEL.2 N1: kolonnerne Type, Kode, Rigtig værdi, Tidligere koder (ingen Antal steder: sagen har ikke tallet)', JSON.stringify(ths) === '["Type","Kode","Rigtig værdi","Tidligere koder"]', JSON.stringify(ths));
+  // V-OPBYG.5 N2: en femte kolonne med rækkens "…"-knap; dens overskrift er skjult tekst (Handlinger).
+  const thSkjult = [...d.querySelectorAll('section[data-visning="sager"] .indholdtabel thead th')].map(t => Boolean(t.querySelector('.skjult-tekst')));
+  tjek('V-OPBYG.5 N2: kolonnerne Type, Kode, Rigtig værdi, Tidligere koder (ingen Antal steder: sagen har ikke tallet) og Handlinger som skjult tekst', JSON.stringify(ths) === '["Type","Kode","Rigtig værdi","Tidligere koder","Handlinger"]' && JSON.stringify(thSkjult) === '[false,false,false,false,true]', JSON.stringify(ths));
   const sek = d.querySelector('section[data-visning="sager"]');
   tjek('V-MANUEL.2 N1: panelets overskrift og hoved siger sagens navn, antal og at antal steder ikke huskes', sek.querySelector('.indholdpanel h3').textContent === 'Indhold i «Supportsag 0042»' && sek.querySelector('.indholdpanel .panel-hoved .muted').textContent === '214 værdier · sagen husker ikke, hvor mange steder de stod');
   const r0 = indholdRaekker(d);
@@ -4616,7 +4626,7 @@ const traePunkter = d => [...d.querySelectorAll('.navdel[data-visning="sager"] .
   sagRaekke(d, hexId(3)).dispatchEvent(new w.MouseEvent('dblclick', { bubbles: true })); await vent(10);
   tjek('V-MANUEL.2 N1: en udløbet sag siger, at den er udløbet, og viser indholdet', /Sagen udløb .+\. Den slettes ikke af sig selv/.test(sek.querySelector('.sagindhold .bannere').textContent) && indholdRaekker(d).length === 42);
   w.Sprog.saet('en');
-  tjek('V-MANUEL.2 N1 (English): heading, columns and back button', sek.querySelector('.indholdpanel h3').textContent === 'Contents of “SQL-job fejler”' && [...sek.querySelectorAll('.indholdtabel thead th')].map(t => t.textContent).join() === 'Type,Code,Real value,Earlier codes' && d.getElementById('indhold-tilbage').textContent === 'Back to the cases');
+  tjek('V-OPBYG.5 N2 (English): heading, columns (Actions as hidden text) and back button', sek.querySelector('.indholdpanel h3').textContent === 'Contents of “SQL-job fejler”' && [...sek.querySelectorAll('.indholdtabel thead th')].map(t => t.textContent).join() === 'Type,Code,Real value,Earlier codes,Actions' && d.getElementById('indhold-tilbage').textContent === 'Back to the cases');
   w.Sprog.saet('da');
 }
 {
@@ -5510,6 +5520,293 @@ for (const sprog of ['da', 'en']) {
   await ventTil(w, () => GM.M.st.tilfoejede.length === 0 && !GM.M.st.travl);
   tjek(`V-OPBYG.4 N2 (${sprog}): en værdi, der allerede er en hemmelighed, afvises med en melding uden værdien, og den tilføjes ikke`, !beskedM(d).outerHTML.includes('Fjeld-Ravn-77') && GM.M.st.tilfoejede.length === 0 && !tabel().outerHTML.includes('Fjeld-Ravn-77'), beskedM(d).textContent);
   tjek(`V-OPBYG.4 N2 (${sprog}): hemmelighedens række er valgt`, sek.querySelector(`.fundtabel tr[data-id="${i}"]`) && sek.querySelector(`.fundtabel tr[data-id="${i}"]`).getAttribute('aria-selected') === 'true');
+}
+
+// ══════════════════════════ V-OPBYG.5 N1: Ryd glemmer i Rust, Maskér som hemmelighed i båndet ══════════════════════════
+// Efterlignet Rust: falskManuelRust (indsat tekst) med tekst_glem og falskFilRust (en fil). Kun opdigtede data. Ingen fast
+// ventetid: testene venter på en tilstand (ventTil).
+for (const sprog of ['da', 'en']) {
+  const s = await manuelSide({ lager: { 'grimnir-sprog': sprog } });
+  const { d, w, GM, rust } = s;
+  rust.tekst_glem = () => null;
+  await ventTil(w, () => GM.M.st.analyse && !GM.M.st.travl);
+  const b = knapI(d, 'masker', 'masker-hemmelig');
+  const grp = b && b.closest('.grp');
+  const alleGrp = [...d.querySelectorAll('#baand > [data-visning="masker"] .grupper > .grp')];
+  tjek(`V-OPBYG.5 N1 (${sprog}): båndet har Maskér som hemmelighed i sin egen gruppe sidst (${sprog === 'da' ? 'Hemmelighed' : 'Secret'})`, b && b.textContent.trim() === (sprog === 'da' ? 'Maskér som hemmelighed' : 'Mask as secret') && grp === alleGrp.at(-1) && grp.querySelector('.cap').textContent === (sprog === 'da' ? 'Hemmelighed' : 'Secret') && grp.querySelectorAll('.cb').length === 1 && b.querySelector('svg'), b && b.textContent);
+  // Uden en markering: slået fra med samme forklaring som Maskér markering (kittets værktøjstip).
+  w.getSelection().removeAllRanges();
+  d.dispatchEvent(new w.Event('selectionchange'));
+  await ventTil(w, () => b.getAttribute('aria-disabled') === 'true');
+  const hvorfor = w.Sprog.TEKST[sprog].hvorforMarker;
+  tjek(`V-OPBYG.5 N1 (${sprog}): uden en markering er den slået fra med forklaringen i værktøjstippet`, b.getAttribute('aria-disabled') === 'true' && forklaring(b) === hvorfor && forklaring(knapI(d, 'masker', 'masker-dette')) === hvorfor, forklaring(b));
+  b.click();
+  tjek(`V-OPBYG.5 N1 (${sprog}): slået fra tilføjer et klik intet`, GM.M.st.tilfoejede.length === 0);
+  // Med en markering: slået til; musetrykket tager ikke markeringen; klikket tilføjer værdien som hemmelighed.
+  markerOrd(w, d, 'pc-17');
+  await ventTil(w, () => b.getAttribute('aria-disabled') !== 'true');
+  const md = new w.MouseEvent('mousedown', { bubbles: true, cancelable: true });
+  b.dispatchEvent(md);
+  tjek(`V-OPBYG.5 N1 (${sprog}): med en markering er den slået til, og musetrykket tager ikke markeringen`, b.getAttribute('aria-disabled') !== 'true' && md.defaultPrevented && w.getSelection().toString() === 'pc-17');
+  const n = rust.log.analyser.length;
+  b.click();
+  await ventTil(w, () => rust.log.analyser.length > n && !GM.M.st.travl);
+  const sidst = rust.log.analyser[rust.log.analyser.length - 1];
+  const hr = [...d.querySelectorAll('section[data-visning="masker"] .fundtabel tr.tilfoejet')].find(tr => tr.querySelector('[data-felt="type"][data-type="hemmelighed"]'));
+  tjek(`V-OPBYG.5 N1 (${sprog}): båndets knap tilføjer markeringen med typen hemmelighed (som genvejsmenuen), skjult i tabellen`, JSON.stringify(sidst.tilfoejede) === '[{"vaerdi":"pc-17","art":"hemmelighed"}]' && hr && hr.querySelector('.prikker') && !d.querySelector('section[data-visning="masker"] .fundtabel').outerHTML.includes('pc-17'), JSON.stringify(sidst.tilfoejede));
+  // Genvejsmenuen har stadig punktet.
+  tjek(`V-OPBYG.5 N1 (${sprog}): genvejsmenuen har stadig Maskér som hemmelighed`, [...GM.M.menu.querySelectorAll('[role="menuitem"]')].some(p => p.textContent === (sprog === 'da' ? 'Maskér som hemmelighed' : 'Mask as secret')));
+  // Ryd (der er en tilføjet værdi, så der spørges først): Rust bedes glemme hemmelighederne.
+  knapI(d, 'masker', 'ryd').click();
+  await ventTil(w, () => d.getElementById('dlg-ryd') && d.getElementById('dlg-ryd').hasAttribute('open'));
+  const ja = [...d.getElementById('dlg-ryd').querySelectorAll('button')].find(x => x.textContent === (sprog === 'da' ? 'Ryd' : 'Clear'));
+  ja.click();
+  await ventTil(w, () => !GM.M.st.tekst);
+  tjek(`V-OPBYG.5 N1 (${sprog}): Ryd beder Rust glemme den indsatte teksts hemmeligheder (tekst_glem, én gang, uden data)`, s.kald.filter(k => k[0] === 'tekst_glem').length === 1 && JSON.stringify(s.kald.find(k => k[0] === 'tekst_glem')[1]) === '{}' && !s.kald.some(k => k[0] === 'fil_luk'));
+}
+// Ryd, når Rust svarer laast: siden ryddes alligevel, og intet fejlbanner.
+{
+  const s = await manuelSide();
+  const { d, w, GM, rust } = s;
+  rust.tekst_glem = () => { throw { art: 'laast' }; };
+  await ventTil(w, () => GM.M.st.analyse && !GM.M.st.travl);
+  knapI(d, 'masker', 'ryd').click();
+  await ventTil(w, () => !GM.M.st.tekst);
+  await ventTil(w, () => s.kald.some(k => k[0] === 'tekst_glem'));
+  tjek('V-OPBYG.5 N1: svarer Rust laast på tekst_glem, ryddes siden alligevel uden fejlbanner', !GM.M.st.tekst && !d.querySelector('section[data-visning="masker"] .ban.danger') && d.querySelector('section[data-visning="masker"] .tomt') && !d.querySelector('section[data-visning="masker"] .tomt').hidden);
+}
+// En åben fil: Ryd slipper filen (fil_luk) og kalder ikke tekst_glem.
+{
+  const rust = falskFilRust({ antal: 3 });
+  rust.tekst_glem = () => null;
+  const s = side({ hash: '#masker', rust });
+  const { d, w } = s;
+  await ventTil(w, () => !laaseskaerm(d));
+  knapI(d, 'masker', 'aabn-fil').click();
+  await ventTil(w, () => raekkeMed(d, 10));
+  const M = w.GrimnirMaskering.M;
+  await ventTil(w, () => !M.st.travl);
+  knapI(d, 'masker', 'ryd').click();
+  await ventTil(w, () => !M.st.tekst || (d.getElementById('dlg-ryd') && d.getElementById('dlg-ryd').hasAttribute('open')));
+  if (M.st.tekst) [...d.getElementById('dlg-ryd').querySelectorAll('button')].find(x => x.textContent === 'Ryd').click();
+  await ventTil(w, () => !M.st.tekst);
+  tjek('V-OPBYG.5 N1: en åben fil: Ryd slipper filen (fil_luk) og kalder ikke tekst_glem', s.kald.some(k => k[0] === 'fil_luk') && !s.kald.some(k => k[0] === 'tekst_glem'));
+}
+// Kilden: Maskér som hemmelighed bruger samme handling og forklaring som Maskér markering.
+{
+  const mj = ui('assets/maskering.js'), aj = ui('assets/app.js');
+  tjek('V-OPBYG.5 N1: båndets Maskér som hemmelighed er maskerDette(\'hemmelighed\') med kanMarkere() som forklaring', /G\.haandter\('masker', 'masker-hemmelig', \(\) => maskerDette\('hemmelighed'\)\)/.test(mj) && /kommando\('masker', 'masker-hemmelig', !h, h\)/.test(mj) && /\{ t: 'gHemmelig', knapper: \[aktiv\('masker', 'masker-hemmelig', 'kMaskerSomHemmelighed', 'markeringHemmelig'\)\] \}/.test(aj));
+}
+
+// ══════════════════════════ V-OPBYG.5 N2: rækkens "…"-menu, Kopiér værdi og Slet en post ══════════════════════════
+// Efterlignet Rust: falskRust (fundtabellen), manuelSide (en tilføjet værdi) og falskSagRust med sagens indhold (fire
+// opdigtede poster). Kun opdigtede data. Ingen fast ventetid.
+// Fokus på el: sand straks, eller når fokus flyttes dertil (focusin); false, hvis det ikke sker inden for maks.
+const fokusPaa = (w, el, maks = 4000) => new Promise(r => {
+  if (w.document.activeElement === el) { r(true); return; }
+  const f = () => { if (w.document.activeElement === el) { w.document.removeEventListener('focusin', f, true); w.clearTimeout(t); r(true); } };
+  const t = w.setTimeout(() => { w.document.removeEventListener('focusin', f, true); r(w.document.activeElement === el); }, maks);
+  w.document.addEventListener('focusin', f, true);
+});
+const rmKnap = tr => tr && tr.querySelector('[data-felt="handlinger"].mere-knap');
+const rmMenu = tr => tr && tr.querySelector('.raekke-menu');
+const rmPunkter = tr => [...rmMenu(tr).querySelectorAll('[role="menuitem"]')];
+const rmPunkt = (tr, id) => rmMenu(tr).querySelector(`[data-punkt="${id}"]`);
+for (const sprog of ['da', 'en']) {
+  const da = sprog === 'da';
+  const rust = falskRust();
+  const s = side({ hash: '#masker', rust, lager: { 'grimnir-sprog': sprog } });
+  const { d, w } = s;
+  await ventTil(w, () => !laaseskaerm(d));
+  const sek = d.querySelector('section[data-visning="masker"]');
+  const M = w.GrimnirMaskering.M;
+  indsaet(w, sek.querySelector('.tomt'), TEKST);
+  await ventTil(w, () => raekkeMed(d, 45) && !M.st.travl);
+  const tr = () => raekkeMed(d, 24);
+  const b = rmKnap(tr());
+  const sidsteCelle = tr().lastElementChild;
+  tjek(`V-OPBYG.5 N2 (${sprog}): hver række har "…" sidst i rækken (efter Altid/Aldrig), en knap med menu og navn`, fundRaekker(d).every(x => rmKnap(x) && x.lastElementChild.contains(rmKnap(x))) && [...sidsteCelle.querySelectorAll('button')].at(-1) === b && b.getAttribute('aria-haspopup') === 'menu' && b.getAttribute('aria-expanded') === 'false' && b.tabIndex === 0 && b.getAttribute('aria-label') === (da ? 'Handlinger for bruger060' : 'Actions for bruger060') && tr().querySelectorAll('.ordbogknapper button').length === 2, b.getAttribute('aria-label'));
+  const hb = rmKnap(raekkeMed(d, 45));
+  tjek(`V-OPBYG.5 N2 (${sprog}): en hemmeligheds "…" hedder koden, aldrig værdien`, hb.getAttribute('aria-label') === (da ? 'Handlinger for GRIMNIR_SECRET_0001' : 'Actions for GRIMNIR_SECRET_0001') && !sek.querySelector('.fundtabel').outerHTML.includes(HEMMELIG));
+  // Tastaturet: pil ned åbner med fokus på første punkt; piletaster, Home og End flytter; rækkens valg flyttes ikke.
+  b.focus();
+  // Tasterne, menuen bruger, går ikke videre til tabellen (rækkens egne taster).
+  let naaet = 0;
+  const taeller = e => { if (['ArrowDown', 'ArrowUp', 'Home', 'End', 'Escape'].includes(e.key)) naaet++; };
+  sek.querySelector('.fundtabel').addEventListener('keydown', taeller);
+  const valgtFoer = [...sek.querySelectorAll('.fundtabel tbody tr')].map(x => x.getAttribute('aria-selected')).join();
+  tastPaa(w, b, 'ArrowDown');
+  const p = rmPunkter(tr());
+  tjek(`V-OPBYG.5 N2 (${sprog}): pil ned åbner menuen med fokus på første punkt (Bevar, Ret erstatning, Find i teksten)`, !rmMenu(tr()).hidden && b.getAttribute('aria-expanded') === 'true' && d.activeElement === p[0] && p.map(x => x.textContent).join('|') === (da ? 'Bevar|Ret erstatning|Find i teksten' : 'Keep|Edit replacement|Find in the text') && rmMenu(tr()).getAttribute('role') === 'menu' && p.every(x => x.getAttribute('role') === 'menuitem'), p.map(x => x.textContent).join('|'));
+  tastPaa(w, d.activeElement, 'ArrowDown');
+  const ned = d.activeElement === p[1];
+  tastPaa(w, d.activeElement, 'End');
+  const end = d.activeElement === p[2];
+  tastPaa(w, d.activeElement, 'ArrowDown');
+  const rundt = d.activeElement === p[0];
+  tastPaa(w, d.activeElement, 'ArrowUp');
+  const op = d.activeElement === p[2];
+  tastPaa(w, d.activeElement, 'Home');
+  const home = d.activeElement === p[0];
+  const valgtEfter = [...sek.querySelectorAll('.fundtabel tbody tr')].map(x => x.getAttribute('aria-selected')).join();
+  tjek(`V-OPBYG.5 N2 (${sprog}): piletasterne, Home og End flytter (og går rundt), tabellens rækkevalg flyttes ikke, og tasterne når ikke tabellen`, ned && end && rundt && op && home && valgtFoer === valgtEfter && naaet === 0, String(naaet));
+  const esc = tastPaa(w, d.activeElement, 'Escape');
+  tjek(`V-OPBYG.5 N2 (${sprog}): Esc lukker menuen med fokus på knappen`, rmMenu(tr()).hidden && d.activeElement === b && b.getAttribute('aria-expanded') === 'false' && esc.defaultPrevented && naaet === 0);
+  sek.querySelector('.fundtabel').removeEventListener('keydown', taeller);
+  tastPaa(w, b, 'ArrowUp');
+  tjek(`V-OPBYG.5 N2 (${sprog}): pil op åbner med fokus på sidste punkt`, !rmMenu(tr()).hidden && d.activeElement === rmPunkter(tr()).at(-1));
+  tastPaa(w, d.activeElement, 'Tab');
+  tjek(`V-OPBYG.5 N2 (${sprog}): Tab lukker menuen`, rmMenu(tr()).hidden);
+  b.click();
+  tjek(`V-OPBYG.5 N2 (${sprog}): Enter og mellemrum (et klik) åbner med fokus på første punkt`, !rmMenu(tr()).hidden && d.activeElement === rmPunkter(tr())[0]);
+  d.body.dispatchEvent(new w.MouseEvent('mousedown', { bubbles: true }));
+  tjek(`V-OPBYG.5 N2 (${sprog}): et klik udenfor lukker menuen`, rmMenu(tr()).hidden);
+  // Én menu ad gangen.
+  b.click();
+  rmKnap(raekkeMed(d, 6)).click();
+  tjek(`V-OPBYG.5 N2 (${sprog}): åbnes en anden rækkes menu, lukkes den første`, rmMenu(tr()).hidden && !rmMenu(raekkeMed(d, 6)).hidden);
+  tastPaa(w, d.activeElement, 'Escape');
+  // Bevar og Maskér: samme som afkrydsningen.
+  b.click();
+  rmPunkt(tr(), 'valg').click();
+  tjek(`V-OPBYG.5 N2 (${sprog}): Bevar slår rækken fra som afkrydsningen (status Bevares), lukker menuen og giver fokus til knappen`, !tr().querySelector('input[type="checkbox"]').checked && tr().classList.contains('fra') && rmMenu(tr()).hidden && d.activeElement === b && tr().textContent.includes(da ? 'Bevares' : 'To keep'));
+  b.click();
+  const ret = rmPunkt(tr(), 'ret');
+  tjek(`V-OPBYG.5 N2 (${sprog}): en bevaret række: punktet hedder Maskér, og Ret erstatning er slået fra med hvorfor`, rmPunkt(tr(), 'valg').textContent === (da ? 'Maskér' : 'Mask') && ret.getAttribute('aria-disabled') === 'true' && d.getElementById(ret.getAttribute('aria-describedby')).textContent === w.Sprog.TEKST[sprog].hvorforRetBevaret);
+  ret.click();
+  tjek(`V-OPBYG.5 N2 (${sprog}): et punkt, der er slået fra, gør intet (menuen står)`, !rmMenu(tr()).hidden);
+  rmPunkt(tr(), 'valg').click();
+  await ventTil(w, () => tr() && tr().querySelector('input[type="checkbox"]').checked && !M.st.travl);
+  tjek(`V-OPBYG.5 N2 (${sprog}): Maskér slår rækken til igen`, tr().querySelector('input[type="checkbox"]').checked && !tr().classList.contains('fra'));
+  // Ret erstatning: fokus i rækkens felt.
+  rmKnap(tr()).click();
+  rmPunkt(tr(), 'ret').click();
+  tjek(`V-OPBYG.5 N2 (${sprog}): Ret erstatning giver fokus til rækkens felt`, d.activeElement === tr().querySelector('[data-felt="kode"]'));
+  // Find i teksten: rækken vælges (og markeres i teksten), fokus i teksten.
+  rmKnap(tr()).click();
+  rmPunkt(tr(), 'find').click();
+  tjek(`V-OPBYG.5 N2 (${sprog}): Find i teksten vælger rækken og giver fokus til teksten`, tr().getAttribute('aria-selected') === 'true' && d.activeElement === sek.querySelector('pre.tekst') && M.st.valgtRaekke === 24);
+  // En hemmelighed: Vis og Skjul i menuen (værdien hentes fra Rust som ved rækkens knap).
+  const h = () => raekkeMed(d, 45);
+  rmKnap(h()).click();
+  const vis = rmPunkt(h(), 'vis');
+  tjek(`V-OPBYG.5 N2 (${sprog}): en hemmelighed har Vis i menuen`, vis && vis.textContent === (da ? 'Vis' : 'Show'));
+  vis.click();
+  await ventTil(w, () => h() && h().textContent.includes(HEMMELIG));
+  tjek(`V-OPBYG.5 N2 (${sprog}): Vis i menuen henter værdien med raekke_vaerdi, og fokus står på rækkens "…"`, s.kald.some(k => k[0] === 'raekke_vaerdi' && k[1].id === 45) && d.activeElement === rmKnap(h()));
+  rmKnap(h()).click();
+  tjek(`V-OPBYG.5 N2 (${sprog}): bagefter hedder punktet Skjul`, rmPunkt(h(), 'vis').textContent === (da ? 'Skjul' : 'Hide'));
+  rmPunkt(h(), 'vis').click();
+  await ventTil(w, () => h() && !h().textContent.includes(HEMMELIG));
+  tjek(`V-OPBYG.5 N2 (${sprog}): Skjul i menuen skjuler værdien igen`, !sek.querySelector('.fundtabel').outerHTML.includes(HEMMELIG) && M.st.hv.size === 0);
+}
+// En tilføjet værdi: Fjern i menuen (som rækkens knap).
+{
+  const s = await manuelSide();
+  const { d, w, GM } = s;
+  markerOrd(w, d, 'pc-17');
+  knapI(d, 'masker', 'masker-dette').click();
+  await ventTil(w, () => tilfRaekke(d, 'pc-17') && !GM.M.st.travl);
+  const tr = tilfRaekke(d, 'pc-17');
+  rmKnap(tr).click();
+  tjek('V-OPBYG.5 N2: en tilføjet række har Fjern sidst i menuen', rmPunkter(tr).map(x => x.getAttribute('data-punkt')).join() === 'valg,ret,find,fjern');
+  rmPunkt(tr, 'fjern').click();
+  await ventTil(w, () => !tilfRaekke(d, 'pc-17') && !GM.M.st.travl);
+  tjek('V-OPBYG.5 N2: Fjern i menuen fjerner den tilføjede værdi (som rækkens knap)', !tilfRaekke(d, 'pc-17') && GM.M.st.tilfoejede.length === 0);
+}
+// Sagens indhold: Kopiér værdi, Vis/Skjul og Slet.
+for (const sprog of ['da', 'en']) {
+  const da = sprog === 'da';
+  const rust = falskSagRust({ sager: SAGER() });
+  const poster = indholdPoster(4); // h0001, user0001, GRIMNIR_SECRET_0001, 198.18.0.4 (sorteret efter type)
+  let aabenSag = true, slet = null;
+  rust.sag_status = () => ({ poster: poster.length, id: null, navn: null, udloeb: null });
+  rust.sag_indhold = ({ valg }) => {
+    const vist = new Set(valg.vist || []);
+    return { id: null, navn: null, aaben: aabenSag, udloeb: null, i_alt: poster.length, typer: [], fundet: poster.length, raekker: poster.map(x => ({ ...x, vaerdi: x.hemmelig && !vist.has(x.nr) ? null : x.vaerdi })), noter: [] };
+  };
+  rust.sag_post_slet = ({ nr, kode }) => { if (slet) throw slet; const i = poster.findIndex(x => x.nr === nr && x.kode === kode); if (i < 0) throw { art: 'ukendt_post' }; poster.splice(i, 1); return { poster: poster.length, id: null, navn: null, udloeb: null }; };
+  rust.sag_post_kopier = () => true;
+  rust.udklip_vaerdi_kopieret = () => true;
+  const skrevet = [];
+  const s = side({ hash: '#sager', rust, lager: { 'grimnir-sprog': sprog }, foer: w => Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: async t => { skrevet.push(t); } }, configurable: true }) });
+  const { d, w } = s;
+  await ventTil(w, () => !laaseskaerm(d));
+  w.GrimnirSager.visIndhold(null);
+  await ventTil(w, () => indholdRaekker(d).length === 4);
+  const raekke = kode => indholdRaekker(d).find(x => x.querySelector('td:nth-child(2)').textContent === kode);
+  const sek = d.querySelector('section[data-visning="sager"]');
+  const besked = () => sek.querySelector('.sagindhold .besked');
+  tjek(`V-OPBYG.5 N2 (${sprog}): sagens indhold har "…" sidst i hver række med koden som navn (også for en hemmelighed)`, indholdRaekker(d).every(x => rmKnap(x) && x.lastElementChild.contains(rmKnap(x))) && rmKnap(raekke('GRIMNIR_SECRET_0001')).getAttribute('aria-label') === (da ? 'Handlinger for GRIMNIR_SECRET_0001' : 'Actions for GRIMNIR_SECRET_0001') && !sek.querySelector('.indholdtabel').outerHTML.includes('Hemmelig-0001'));
+  rmKnap(raekke('h0001')).click();
+  tjek(`V-OPBYG.5 N2 (${sprog}): menuen i sagens indhold: Kopiér værdi og Slet (en hemmelighed også Vis)`, rmPunkter(raekke('h0001')).map(x => x.textContent).join('|') === (da ? 'Kopiér værdi|Slet' : 'Copy value|Delete') && (rmKnap(raekke('GRIMNIR_SECRET_0001')).click(), rmPunkter(raekke('GRIMNIR_SECRET_0001')).map(x => x.getAttribute('data-punkt')).join() === 'kopier,vis,slet'));
+  tastPaa(w, d.activeElement, 'Escape');
+  // Kopiér værdi: en almindelig værdi kopierer webvisningen og melder den til Rust.
+  rmKnap(raekke('h0001')).click();
+  rmPunkt(raekke('h0001'), 'kopier').click();
+  await ventTil(w, () => s.kald.some(k => k[0] === 'udklip_vaerdi_kopieret'));
+  const uk = s.kald.find(k => k[0] === 'udklip_vaerdi_kopieret');
+  tjek(`V-OPBYG.5 N2 (${sprog}): Kopiér værdi (almindelig): webvisningen kopierer værdien og melder plads og kode til Rust (D21)`, skrevet.at(-1) === 'srv-opdigtet-0001' && uk[1].nr === 0 && uk[1].kode === 'h0001' && !('vaerdi' in uk[1]) && besked().textContent === w.Sprog.TEKST[sprog].bVaerdiKopieret, JSON.stringify(uk));
+  // En hemmelighed: Rust skriver selv; værdien går ikke forbi webvisningen.
+  const n = skrevet.length;
+  rmKnap(raekke('GRIMNIR_SECRET_0001')).click();
+  rmPunkt(raekke('GRIMNIR_SECRET_0001'), 'kopier').click();
+  await ventTil(w, () => s.kald.some(k => k[0] === 'sag_post_kopier'));
+  const pk = s.kald.find(k => k[0] === 'sag_post_kopier');
+  await ventTil(w, () => besked().textContent === w.Sprog.TEKST[sprog].bVaerdiKopieret);
+  tjek(`V-OPBYG.5 N2 (${sprog}): Kopiér værdi (skjult hemmelighed): Rust lægger den i udklipsholderen (sag_post_kopier med plads og kode); webvisningen kopierer intet og har ikke værdien`, skrevet.length === n && pk[1].kode === 'GRIMNIR_SECRET_0001' && Object.keys(pk[1]).sort().join() === 'kode,nr' && !d.body.outerHTML.includes('Hemmelig-0001'));
+  rust.sag_post_kopier = () => false;
+  rmKnap(raekke('GRIMNIR_SECRET_0001')).click();
+  rmPunkt(raekke('GRIMNIR_SECRET_0001'), 'kopier').click();
+  await ventTil(w, () => besked().textContent === w.Sprog.TEKST[sprog].bVaerdiIkkeKopieret);
+  tjek(`V-OPBYG.5 N2 (${sprog}): kunne Rust ikke kopiere, siger meldingen det`, besked().textContent === w.Sprog.TEKST[sprog].bVaerdiIkkeKopieret);
+  // Vis i menuen.
+  rmKnap(raekke('GRIMNIR_SECRET_0001')).click();
+  rmPunkt(raekke('GRIMNIR_SECRET_0001'), 'vis').click();
+  await ventTil(w, () => raekke('GRIMNIR_SECRET_0001').textContent.includes('Hemmelig-0001!'));
+  const fokusVis = await ventTil(w, () => d.activeElement === rmKnap(raekke('GRIMNIR_SECRET_0001')));
+  tjek(`V-OPBYG.5 N2 (${sprog}): Vis i menuen viser hemmeligheden (sag_indhold med vist), fokus på rækkens "…"`, fokusVis && s.kald.filter(k => k[0] === 'sag_indhold').at(-1)[1].valg.vist.length === 1);
+  rmKnap(raekke('GRIMNIR_SECRET_0001')).click();
+  rmPunkt(raekke('GRIMNIR_SECRET_0001'), 'vis').click();
+  await ventTil(w, () => !raekke('GRIMNIR_SECRET_0001').textContent.includes('Hemmelig-0001!'));
+  await fokusPaa(w, rmKnap(raekke('GRIMNIR_SECRET_0001')));
+  // Slet: kittets bekræftelse (farlig, fokus på Annullér) med koden; Annullér gør intet.
+  rmKnap(raekke('h0001')).click();
+  rmPunkt(raekke('h0001'), 'slet').click();
+  await ventTil(w, () => d.getElementById('dlg-slet-post') && d.getElementById('dlg-slet-post').hasAttribute('open'));
+  let dlg = d.getElementById('dlg-slet-post');
+  const knapper = [...dlg.querySelectorAll('button')];
+  const annuller = knapper.find(x => x.textContent === (da ? 'Annullér' : 'Cancel')), ok2 = knapper.find(x => x.textContent === (da ? 'Slet' : 'Delete'));
+  await fokusPaa(w, annuller);
+  tjek(`V-OPBYG.5 N2 (${sprog}): Slet spørger først (kittets bekræftelse, farlig, fokus på Annullér); teksten nævner koden og at den ikke kan demaskeres`, dlg.textContent.includes('h0001') && (da ? /ikke længere demaskeres/.test(dlg.textContent) : /can no longer be unmasked/.test(dlg.textContent)) && d.activeElement === annuller && ok2 && /danger/.test(ok2.className), [d.activeElement && d.activeElement.textContent, ok2 && ok2.className].join(' / '));
+  annuller.click();
+  await ventTil(w, () => !dlg.hasAttribute('open'));
+  await ventTil(w, () => d.activeElement === rmKnap(raekke('h0001')));
+  tjek(`V-OPBYG.5 N2 (${sprog}): Annullér sletter intet, og fokus er tilbage på "…"`, !s.kald.some(k => k[0] === 'sag_post_slet') && raekke('h0001') && d.activeElement === rmKnap(raekke('h0001')));
+  rmKnap(raekke('h0001')).click();
+  rmPunkt(raekke('h0001'), 'slet').click();
+  await ventTil(w, () => d.getElementById('dlg-slet-post') && d.getElementById('dlg-slet-post').hasAttribute('open'));
+  dlg = d.getElementById('dlg-slet-post');
+  [...dlg.querySelectorAll('button')].find(x => x.textContent === (da ? 'Slet' : 'Delete')).click();
+  await ventTil(w, () => !raekke('h0001') && indholdRaekker(d).length === 3);
+  const sk = s.kald.find(k => k[0] === 'sag_post_slet');
+  tjek(`V-OPBYG.5 N2 (${sprog}): Slet sender plads og kode til Rust; rækken er væk, og meldingen nævner koden`, sk[1].nr === 0 && sk[1].kode === 'h0001' && besked().textContent === w.Sprog.TEKST[sprog].bPostSlettet.replace('{v}', 'h0001'), besked().textContent);
+  // Er indholdet ændret imens (ukendt_post), siges det, og det hentes igen.
+  rmKnap(raekke('user0001')).click();
+  rmPunkt(raekke('user0001'), 'slet').click();
+  await ventTil(w, () => d.getElementById('dlg-slet-post') && d.getElementById('dlg-slet-post').hasAttribute('open'));
+  dlg = d.getElementById('dlg-slet-post');
+  slet = { art: 'ukendt_post' };
+  [...dlg.querySelectorAll('button')].find(x => x.textContent === (da ? 'Slet' : 'Delete')).click();
+  await ventTil(w, () => besked().textContent === w.Sprog.TEKST[sprog].bIndholdAendret);
+  tjek(`V-OPBYG.5 N2 (${sprog}): en forældet række (ukendt_post) giver en melding, og indholdet hentes igen`, besked().textContent === w.Sprog.TEKST[sprog].bIndholdAendret && raekke('user0001'));
+  // En anden sag end den åbne: Kopiér værdi og Slet er slået fra med forklaring.
+  aabenSag = false;
+  w.GrimnirSager.visIndhold(null);
+  await ventTil(w, () => indholdRaekker(d).length === 3);
+  rmKnap(raekke('user0001')).click();
+  const kp = rmPunkt(raekke('user0001'), 'kopier'), sp = rmPunkt(raekke('user0001'), 'slet');
+  tjek(`V-OPBYG.5 N2 (${sprog}): i en sag, der kun læses, er Kopiér værdi og Slet slået fra med forklaring`, [kp, sp].every(x => x.getAttribute('aria-disabled') === 'true' && d.getElementById(x.getAttribute('aria-describedby')).textContent === w.Sprog.TEKST[sprog].hvorforKunAabenSag));
 }
 
 console.log(`\n${ok + fejl} tjek: ${ok} ok, ${fejl} fejl`);

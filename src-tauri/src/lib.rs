@@ -7,7 +7,9 @@
 //! `fil_raekker`, `fil_gem_og_masker`, `fil_demasker`, `fil_kopi`, `fil_gem` og `ordbog_start_forfra`; låsen (V-LAAS.2,
 //! V-LAAS.3): `laas_status`, `laas_op` og `aktivitet`; udklipsholderen (V-LAAS.4): `udklip_kopieret`; kvitteringen
 //! (V-KVIT.1): `kvittering`; noterne (V-OPBYG.2): `noter_hent`, `note_tilfoej`, `note_ret` og `note_slet`; en
-//! hemmeligheds værdi ved Vis (V-OPBYG.4): `raekke_vaerdi`.
+//! hemmeligheds værdi ved Vis (V-OPBYG.4): `raekke_vaerdi`; Ryd glemmer den indsatte teksts hemmeligheder (V-OPBYG.5):
+//! `tekst_glem`; en post i sagens indhold slettes og kopieres (V-OPBYG.5): `sag_post_slet`, `sag_post_kopier` og
+//! `udklip_vaerdi_kopieret`.
 //!
 //! **Låsen (V-LAAS.2).** Grimnir starter altid låst ([`Tilstand::ved_start`]; V-LAAS.3 N1, ADR D20). UI'et kalder
 //! `laas_op` én gang ved start; døren ([`laas::platformens`]: Touch ID med adgangskoden som reserve på macOS) svarer i
@@ -132,6 +134,31 @@ fn demasker(tilstand: State<'_, Tilstand>, tekst: String) -> Result<Demaskering,
 #[tauri::command(async)]
 fn raekke_vaerdi(tilstand: State<'_, Tilstand>, fil: bool, id: usize) -> Result<RaekkeVaerdi, UiFejl> {
     maskering::raekke_vaerdi(&tilstand, fil, id)
+}
+
+/// V-OPBYG.5 N2: sletter én post i den åbne sag (en navngiven gemmes først). Låst: `laast`.
+#[tauri::command(async)]
+fn sag_post_slet(tilstand: State<'_, Tilstand>, nr: usize, kode: String) -> Result<SagStatus, UiFejl> {
+    maskering::sag_post_slet(&tilstand, nr, &kode)
+}
+
+/// V-OPBYG.5 N2: Kopiér værdi for en hemmelighed i sagens indhold: Rust lægger den selv i udklipsholderen (D21).
+#[tauri::command(async)]
+fn sag_post_kopier(tilstand: State<'_, Tilstand>, nr: usize, kode: String) -> Result<bool, UiFejl> {
+    maskering::sag_post_kopier(&tilstand, nr, &kode)
+}
+
+/// V-OPBYG.5 N2: webvisningen har kopieret en almindelig værdi fra sagens indhold (D21: Rust husker tælleren).
+#[tauri::command(async)]
+fn udklip_vaerdi_kopieret(tilstand: State<'_, Tilstand>, nr: usize, kode: String) -> Result<bool, UiFejl> {
+    maskering::udklip_vaerdi_kopieret(&tilstand, nr, &kode)
+}
+
+/// V-OPBYG.5 N1: Ryd i Maskér: Rust glemmer den indsatte teksts hemmeligheder med det samme. Låst: `laast` (intet at
+/// glemme).
+#[tauri::command(async)]
+fn tekst_glem(tilstand: State<'_, Tilstand>) -> Result<(), UiFejl> {
+    maskering::tekst_glem(&tilstand)
 }
 
 /// V-MANUEL.2 N1: én side af en sags poster (kode, type og rigtig værdi). `id`: en sag på disk, der kun læses; udeladt:
@@ -674,6 +701,10 @@ pub fn run() {
         note_ret,
         note_slet,
         udklip_kopieret,
+        tekst_glem,
+        sag_post_slet,
+        sag_post_kopier,
+        udklip_vaerdi_kopieret,
         raekke_vaerdi
     ]);
     tauri::Builder::default()

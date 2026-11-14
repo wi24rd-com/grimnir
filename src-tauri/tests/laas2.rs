@@ -27,6 +27,10 @@ use grimnir_lib::maskering::kvittering;
 use grimnir_lib::maskering::{sag_indhold, IndholdValg};
 // V-OPBYG.4 N1: `raekke_vaerdi` (en hemmeligheds værdi ved Vis) står også i listen.
 use grimnir_lib::maskering::raekke_vaerdi;
+// V-OPBYG.5 N1: `tekst_glem` (Ryd i Maskér glemmer den indsatte teksts hemmeligheder) står også i listen.
+use grimnir_lib::maskering::tekst_glem;
+// V-OPBYG.5 N2: en post slettes og kopieres i sagens indhold.
+use grimnir_lib::maskering::{sag_post_kopier, sag_post_slet, udklip_vaerdi_kopieret};
 // V-OPBYG.2: noterne (`noter_hent`, `note_tilfoej`, `note_ret`, `note_slet`) og Kopiér noterne (`udklip_kopieret` med
 // `noter`) står også i listen (`alle_kommandoer`).
 use grimnir_lib::maskering::{note_ret, note_slet, note_tilfoej, noter_hent, udklip_noter_kopieret};
@@ -164,6 +168,12 @@ fn alle_kommandoer(t: &Tilstand, fil: &std::path::Path, id: &str) -> Vec<(&'stat
         // V-OPBYG.4 N1: en hemmeligheds værdi ved Vis (indsat tekst og fil).
         ("raekke_vaerdi", j(raekke_vaerdi(t, false, 0).map(|x| v(&x)))),
         ("raekke_vaerdi", j(raekke_vaerdi(t, true, 0).map(|x| v(&x)))),
+        // V-OPBYG.5 N1.
+        ("tekst_glem", j(tekst_glem(t).map(|_| serde_json::Value::Null))),
+        // V-OPBYG.5 N2.
+        ("sag_post_slet", j(sag_post_slet(t, 0, "h0001").map(|x| v(&x)))),
+        ("sag_post_kopier", j(sag_post_kopier(t, 0, "GRIMNIR_SECRET_0001").map(|x| v(&x)))),
+        ("udklip_vaerdi_kopieret", j(udklip_vaerdi_kopieret(t, 0, "h0001").map(|x| v(&x)))),
     ]
 }
 

@@ -52,6 +52,12 @@ const KOMMANDOER: &[&str] = &[
     "tredjepartslicenser",
     // V-OPBYG.4 N1: en hemmeligheds værdi hentes først, når brugeren vælger Vis.
     "raekke_vaerdi",
+    // V-OPBYG.5 N1: Ryd i Maskér glemmer den indsatte teksts hemmeligheder i Rust.
+    "tekst_glem",
+    // V-OPBYG.5 N2: slet en post i sagens indhold, og Kopiér værdi (en hemmelighed skriver Rust selv; D21).
+    "sag_post_slet",
+    "sag_post_kopier",
+    "udklip_vaerdi_kopieret",
 ];
 
 fn main() {

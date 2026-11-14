@@ -232,10 +232,11 @@ fn ukendt_version() {
     let id = a.opret(NAVN, None, &data, 1).unwrap().id;
     let mut b = bytes(&m, &id);
     // V-OPBYG.2: version 2 er en sag med noter (kendt); den første ukendte er nu 3 (opbyg2.rs prøver version 2).
-    b[8..10].copy_from_slice(&3u16.to_le_bytes());
+    // V-OPBYG.5: version 3 er en sag med slettede koder (kendt); den første ukendte er nu 4 (opbyg5.rs prøver version 3).
+    b[8..10].copy_from_slice(&4u16.to_le_bytes());
     std::fs::write(sti(&m.0, &id), &b).unwrap();
-    assert_eq!(a.aabn(&id).err(), Some(SagFejl::UkendtVersion { version: 3 }));
-    assert!(matches!(&a.liste().unwrap()[0].hoved, Err(SagFejl::UkendtVersion { version: 3 })));
+    assert_eq!(a.aabn(&id).err(), Some(SagFejl::UkendtVersion { version: 4 }));
+    assert!(matches!(&a.liste().unwrap()[0].hoved, Err(SagFejl::UkendtVersion { version: 4 })));
     b[0] = b'X';
     std::fs::write(sti(&m.0, &id), &b).unwrap();
     assert_eq!(a.aabn(&id).err(), Some(SagFejl::Beskadiget));
