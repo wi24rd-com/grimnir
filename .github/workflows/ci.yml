@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Read-only by default. No job here needs a secret, and none is passed to pull requests.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  core:
+    name: Core (Rust)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --component clippy
+          rustup default stable
+      # The dependency-tree tests run `cargo tree --offline`, so every crate in Cargo.lock must be downloaded first.
+      - name: Fetch crates
+        run: cargo fetch --locked
+      - name: Test the core
+        run: cargo test -p grimnir-core --locked
+      - name: Clippy on the core
+        run: cargo clippy -p grimnir-core --all-targets --locked -- -D warnings
+
+  ui:
+    name: UI (Node)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: Install
+        run: npm ci
+      - name: Kit copies match the package
+        run: npm run tjek
+      - name: UI smoke test
+        run: npm run test:ui
+      - name: Colour contrast
+        run: npm run test:kontrast
+      - name: Column widths
+        run: npm run test:kolonner
+      - name: UI kit package
+        run: npm run test:kit
+
+  shell:
+    name: Shell (Rust, macOS)
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal --component clippy
+          rustup default stable
+      - name: Fetch crates
+        run: cargo fetch --locked
+      - name: Test the shell
+        run: cargo test -p grimnir --locked
+      - name: Clippy on the workspace
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      # Runs tools/signer.sh against stubs. Signs nothing and needs no certificate.
+      - name: Signing script (stubs)
+        run: npm run test:signer
