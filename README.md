@@ -2,6 +2,8 @@
 
 *Mask. Share. Restore.*
 
+[![CI](https://github.com/wi24rd-com/grimnir/actions/workflows/ci.yml/badge.svg)](https://github.com/wi24rd-com/grimnir/actions/workflows/ci.yml) [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE) ![Platform: macOS, Apple silicon](https://img.shields.io/badge/platform-macOS%20%28Apple%20silicon%29-lightgrey)
+
 ![Wi24rd Grimnir](docs/banner.jpg)
 
 ### [⬇ Download Grimnir 1.0.0 for macOS](https://github.com/wi24rd-com/grimnir/releases/latest)
@@ -45,6 +47,22 @@ macOS: ⌘1 Mask · ⌘2 Unmask · ⌘3 Notes · ⌘4 Cases · ⌘5 Dictionary �
 - **Text size:** Small, Normal or Large under **Settings**, or ⌘+ ⌘− ⌘0 (also in the **View** menu). The choice is remembered.
 - **Theme:** Light, Dark or System (default) under **Settings**. **Language:** Danish (default) or English. The colours and fonts come from the Wi24rd UI Kit, so Grimnir looks like the other Wi24rd apps.
 
+## Security, data and limits
+- **Sent:** nothing. Grimnir has no network code. The **Guide** button asks the operating system to open a web page in your browser; that is the browser's connection, not Grimnir's.
+- **Stored:** your cases (the codes, the real values and your notes) and your dictionary, as encrypted files in `~/Library/Application Support/com.wi24rd.grimnir`. The keys are in the macOS keychain. A case holds the codes and the real values, not the text you pasted. The settings are a plain file with nothing sensitive in it.
+- **Permissions:** Grimnir asks for no camera, microphone, location or contacts. It uses Touch ID or your password for the lock, the keychain for the keys, and the system's Open and Save dialogs for files. It is not sandboxed.
+- **Limits:** Grimnir finds values by patterns and by your dictionary, and it can miss a value. Read the masked text before you share it, and look at the rows marked **Check yourself**. The lock does not protect against other apps on your Mac. A file saved from **Unmask** holds the real values in clear text.
+- **Reporting a vulnerability:** see [SECURITY.md](SECURITY.md).
+
+## Check what you downloaded
+```
+codesign --verify --deep --strict --verbose=2 /Applications/Grimnir.app
+codesign -dv /Applications/Grimnir.app 2>&1 | grep TeamIdentifier      # TeamIdentifier=5DAVNFA355
+spctl --assess --type execute --verbose /Applications/Grimnir.app      # accepted, source=Notarized Developer ID
+shasum -a 256 ~/Downloads/Grimnir-1.0.0.zip
+```
+The first three lines check Apple's signature and notarisation. If the release notes list a SHA-256, the last line must give the same value.
+
 ## Build and test (development)
 ```
 npm install
@@ -65,5 +83,7 @@ Requires Rust (rustup) and Node.js.
 
 ## Licence
 Apache-2.0: see [LICENSE](LICENSE) and [NOTICE](NOTICE). Third-party components: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+
+Contributing: [CONTRIBUTING.md](CONTRIBUTING.md) · Support: [SUPPORT.md](SUPPORT.md) · Security: [SECURITY.md](SECURITY.md)
 
 [Dansk](README.da.md)

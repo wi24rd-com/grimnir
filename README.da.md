@@ -2,6 +2,8 @@
 
 *Mask. Share. Restore.*
 
+[![CI](https://github.com/wi24rd-com/grimnir/actions/workflows/ci.yml/badge.svg)](https://github.com/wi24rd-com/grimnir/actions/workflows/ci.yml) [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE) ![Platform: macOS, Apple silicon](https://img.shields.io/badge/platform-macOS%20%28Apple%20silicon%29-lightgrey)
+
 ![Wi24rd Grimnir](docs/banner.jpg)
 
 ### [⬇ Hent Grimnir 1.0.0 til macOS](https://github.com/wi24rd-com/grimnir/releases/latest)
@@ -45,6 +47,22 @@ macOS: ⌘1 Maskér · ⌘2 Demaskér · ⌘3 Noter · ⌘4 Sager · ⌘5 Ordbog
 - **Tekststørrelse:** Lille, Normal eller Stor under **Indstillinger**, eller ⌘+ ⌘− ⌘0 (også i menuen **Vis**). Valget huskes.
 - **Tema:** Lys, Mørk eller System (standard) under **Indstillinger**. **Sprog:** dansk (standard) eller engelsk. Farverne og skrifterne kommer fra Wi24rd UI Kit, så Grimnir ligner de andre Wi24rd-programmer.
 
+## Sikkerhed, data og begrænsninger
+- **Sendes:** intet. Grimnir har ingen netværkskode. Knappen **Vejledning** beder styresystemet åbne en side i din browser; det er browserens forbindelse, ikke Grimnirs.
+- **Gemmes:** dine sager (koderne, de rigtige værdier og dine noter) og din ordbog, som krypterede filer i `~/Library/Application Support/com.wi24rd.grimnir`. Nøglerne ligger i macOS' nøglering. En sag har koderne og de rigtige værdier, ikke den tekst, du indsatte. Indstillingerne er en almindelig fil uden noget følsomt.
+- **Rettigheder:** Grimnir beder ikke om kamera, mikrofon, placering eller kontakter. Den bruger Touch ID eller din adgangskode til låsen, nøgleringen til nøglerne og systemets Åbn- og Gem-dialoger til filer. Den kører ikke i sandkasse.
+- **Begrænsninger:** Grimnir finder værdier ud fra mønstre og din ordbog og kan overse en værdi. Læs den maskerede tekst, før du deler den, og se på de rækker, der er mærket **Tjek selv**. Låsen beskytter ikke mod andre programmer på din Mac. En fil gemt fra **Demaskér** har de rigtige værdier i klartekst.
+- **Rapportér en sårbarhed:** se [SECURITY.md](SECURITY.md).
+
+## Kontrollér det, du har hentet
+```
+codesign --verify --deep --strict --verbose=2 /Applications/Grimnir.app
+codesign -dv /Applications/Grimnir.app 2>&1 | grep TeamIdentifier      # TeamIdentifier=5DAVNFA355
+spctl --assess --type execute --verbose /Applications/Grimnir.app      # accepted, source=Notarized Developer ID
+shasum -a 256 ~/Downloads/Grimnir-1.0.0.zip
+```
+De første tre linjer kontrollerer Apples signatur og notarisering. Står der en SHA-256 i udgivelsens noter, skal den sidste linje give samme værdi.
+
 ## Byg og test (udvikling)
 ```
 npm install
@@ -65,5 +83,7 @@ Kræver Rust (rustup) og Node.js.
 
 ## Licens
 Apache-2.0: se [LICENSE](LICENSE) og [NOTICE](NOTICE). Tredjepartskomponenter: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+
+Bidrag: [CONTRIBUTING.md](CONTRIBUTING.md) · Support: [SUPPORT.md](SUPPORT.md) · Sikkerhed: [SECURITY.md](SECURITY.md)
 
 [English](README.md)
