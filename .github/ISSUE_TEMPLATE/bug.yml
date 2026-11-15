@@ -1,0 +1,39 @@
+name: Bug report
+description: Something in Grimnir does not work as described
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not paste real data.** No passwords, keys, tokens, case files, or logs with real names, addresses or machine names.
+        Describe the pattern instead, or use made-up values (`example.com`, `192.0.2.10`, `srv-test01`).
+        For a security vulnerability, use the security policy instead of an issue.
+  - type: input
+    id: version
+    attributes:
+      label: Grimnir version
+      description: Shown under About Grimnir.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: Operating system version and processor.
+      placeholder: "macOS 15.1, Apple silicon"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: With made-up values only.
+    validations:
+      required: true

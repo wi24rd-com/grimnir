@@ -1,0 +1,28 @@
+name: Feature request
+description: Something Grimnir should find, or do differently
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not paste real data.** If Grimnir misses a kind of value, show its shape with made-up values.
+  - type: textarea
+    id: need
+    attributes:
+      label: What are you trying to do?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?
+  - type: input
+    id: version
+    attributes:
+      label: Grimnir version
+      placeholder: "1.0.0"
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      placeholder: "macOS 15.1, Apple silicon"
