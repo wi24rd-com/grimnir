@@ -1,0 +1,743 @@
+{
+ "produkt": "grimnir",
+ "navn": "Wi24rd Grimnir",
+ "titel": {
+  "da": "Wi24rd Grimnir – brugervejledning",
+  "en": "Wi24rd Grimnir – user guide"
+ },
+ "version": "1.0.0",
+ "dato": "2026-11-15",
+ "commit": "a4bb82f",
+ "fotobog_commit": "a4bb82f",
+ "fotobog_dato": "2026-11-15",
+ "sprog": [
+  "da",
+  "en"
+ ],
+ "sider": [
+  {
+   "id": "00-index",
+   "da": {
+    "fil": "da/00-index.md",
+    "titel": "Wi24rd Grimnir – brugervejledning"
+   },
+   "en": {
+    "fil": "en/00-index.md",
+    "titel": "Wi24rd Grimnir – user guide"
+   },
+   "billeder": [
+    {
+     "id": "masker-maskeret",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/masker-maskeret--light-da-1200x860.png",
+     "sha256": "c9013daf77d9e2028b8fce7bf2a07f2ec81e5366ff18b8800f2997fe2079d2b6"
+    },
+    {
+     "id": "masker-maskeret",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/masker-maskeret--light-en-1200x860.png",
+     "sha256": "df32062f891a573bc7c345ef95e30e48f73f6e04c87f66ecb48abc49941946c0"
+    }
+   ]
+  },
+  {
+   "id": "10-foer-du-starter",
+   "da": {
+    "fil": "da/10-foer-du-starter.md",
+    "titel": "Før du starter"
+   },
+   "en": {
+    "fil": "en/10-foer-du-starter.md",
+    "titel": "Before you start"
+   },
+   "billeder": []
+  },
+  {
+   "id": "20-installation",
+   "da": {
+    "fil": "da/20-installation.md",
+    "titel": "Installation"
+   },
+   "en": {
+    "fil": "en/20-installation.md",
+    "titel": "Installation"
+   },
+   "billeder": []
+  },
+  {
+   "id": "30-opsaetning",
+   "da": {
+    "fil": "da/30-opsaetning.md",
+    "titel": "Opsætning"
+   },
+   "en": {
+    "fil": "en/30-opsaetning.md",
+    "titel": "Setup"
+   },
+   "billeder": [
+    {
+     "id": "laas",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/laas--light-da-1200x860.png",
+     "sha256": "799d4bca1680116e578f158a5275757f99d83478b36b9125abd0a2c76b883fb6"
+    },
+    {
+     "id": "guide-1",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/guide-1--light-da-1200x860.png",
+     "sha256": "b197804889e6b64a1cef18a497567c3ee516aaedcd15144682125bfff747d7e8"
+    },
+    {
+     "id": "guide-2",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/guide-2--light-da-1200x860.png",
+     "sha256": "71d2a9379d1300ec7a25b75fbaf6b90e724b1f0bcd9a16e6ebbf55ad5cae7d79"
+    },
+    {
+     "id": "guide-3",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/guide-3--light-da-1200x860.png",
+     "sha256": "48bff8f64d52f3738c25d191aee6803b0aed61059b57ac03b32839d638b05b23"
+    },
+    {
+     "id": "laas",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/laas--light-en-1200x860.png",
+     "sha256": "de6b358dbb18eaae8f509eadbecf0fd5146a84bbf7962dd21be5074f0e30d2a6"
+    },
+    {
+     "id": "guide-1",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/guide-1--light-en-1200x860.png",
+     "sha256": "d071bfea362d020bf2bc91c9d5718296da3db96bf27f6bda48a71cba1a5bae02"
+    },
+    {
+     "id": "guide-2",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/guide-2--light-en-1200x860.png",
+     "sha256": "8dda3d11f9aa35ea326625e2db308db4da5cffff644338201d5c9ca7424c7146"
+    },
+    {
+     "id": "guide-3",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/guide-3--light-en-1200x860.png",
+     "sha256": "bd7f0ae08e2d5022cc68af22406b123482657bcae8112c772fd5ca2410f73570"
+    }
+   ]
+  },
+  {
+   "id": "40-visninger/masker",
+   "da": {
+    "fil": "da/40-visninger/masker.md",
+    "titel": "Maskér"
+   },
+   "en": {
+    "fil": "en/40-visninger/masker.md",
+    "titel": "Mask"
+   },
+   "billeder": [
+    {
+     "id": "masker-tom",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/masker-tom--light-da-1200x860.png",
+     "sha256": "6179051f9f4fff9653aa78775de4f9d935eeec49bb81ea951fbe51063f1ad7a3"
+    },
+    {
+     "id": "masker-fund",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/masker-fund--light-da-1200x860.png",
+     "sha256": "e7525c0ae4d7c12d755e5168c09f95fd93afc8f037b592b42199678b90831740"
+    },
+    {
+     "id": "masker-valgt",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/masker-valgt--light-da-1200x860.png",
+     "sha256": "e45bfd9f47e6a3e68763c58b85ed8595c10e1a82b7bde5b72427e8099ba64ff1"
+    },
+    {
+     "id": "masker-hemmelighed",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/masker-hemmelighed--light-da-1200x860.png",
+     "sha256": "193eb755e59e9e838cd1c8d08bdb419561d6b16df72c199ff608ab8506b66f3f"
+    },
+    {
+     "id": "masker-raekkemenu",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/masker-raekkemenu--light-da-1200x860.png",
+     "sha256": "df52cee3c9a2aab2964b7743cd3dddef9c30aedcafa7db5cfc13913aaef2db8e"
+    },
+    {
+     "id": "masker-maskeret",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/masker-maskeret--light-da-1200x860.png",
+     "sha256": "c9013daf77d9e2028b8fce7bf2a07f2ec81e5366ff18b8800f2997fe2079d2b6"
+    },
+    {
+     "id": "masker-fil",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/masker-fil--light-da-1200x860.png",
+     "sha256": "74ebe3d794e8fa4031e58ea85ce1d0963fa07da65682c585bbbc78fe542be5c9"
+    },
+    {
+     "id": "masker-mere",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/masker-mere--light-da-1024x860.png",
+     "sha256": "092ce5a19dafb8d5f73cef215bbadf0462be61fd134526aefac776218a449a23"
+    },
+    {
+     "id": "masker-ryd-dialog",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/masker-ryd-dialog--light-da-1200x860.png",
+     "sha256": "0af23e96d1581e5e5b0a5d0b0fe6736b2cd31f20ae920e0342dce5131a9f05bb"
+    },
+    {
+     "id": "sag-dialog",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/sag-dialog--light-da-1200x860.png",
+     "sha256": "736e722c175c9f4f96e8fa849695558a9dbd2f18ca1715a3b044eb39cc64d4dc"
+    },
+    {
+     "id": "masker-tom",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/masker-tom--light-en-1200x860.png",
+     "sha256": "758b8108cd0a1d4500d5f710b788ad4fa9aa23887891c5fa7d2c37cf4c2d8519"
+    },
+    {
+     "id": "masker-fund",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/masker-fund--light-en-1200x860.png",
+     "sha256": "767fc7dc6636b1991aad05ac373d2caabd9056f467072108eada46954bd30459"
+    },
+    {
+     "id": "masker-valgt",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/masker-valgt--light-en-1200x860.png",
+     "sha256": "fc61affa9e396baaeeef1fdd09889a3b138095cd3358be2526d0c18ba90c655e"
+    },
+    {
+     "id": "masker-hemmelighed",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/masker-hemmelighed--light-en-1200x860.png",
+     "sha256": "b1e79c500e268e45c37f6a92f3cf3bff7fc0031c8a04251f412e6eb25613e5f7"
+    },
+    {
+     "id": "masker-raekkemenu",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/masker-raekkemenu--light-en-1200x860.png",
+     "sha256": "92e6c886b0fdc427ccfc5239dbeb0451106f289848e2f59a2e97f19d308d7b1d"
+    },
+    {
+     "id": "masker-maskeret",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/masker-maskeret--light-en-1200x860.png",
+     "sha256": "df32062f891a573bc7c345ef95e30e48f73f6e04c87f66ecb48abc49941946c0"
+    },
+    {
+     "id": "masker-fil",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/masker-fil--light-en-1200x860.png",
+     "sha256": "256adcf030f07de8b91352e7cacb38cd627b2368e52a4395c29739a762c2fe76"
+    },
+    {
+     "id": "masker-ryd-dialog",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/masker-ryd-dialog--light-en-1200x860.png",
+     "sha256": "6a01e3912b15cef952b4b65a58ff1937f876c4b7fb91b481e097575940afb5e3"
+    },
+    {
+     "id": "sag-dialog",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/sag-dialog--light-en-1200x860.png",
+     "sha256": "a19849e498581c2d0bbdc2a4c92dcc546e0a0d0c7442066f605948f3ccf54d39"
+    }
+   ]
+  },
+  {
+   "id": "40-visninger/demasker",
+   "da": {
+    "fil": "da/40-visninger/demasker.md",
+    "titel": "Demaskér"
+   },
+   "en": {
+    "fil": "en/40-visninger/demasker.md",
+    "titel": "Unmask"
+   },
+   "billeder": [
+    {
+     "id": "demasker-tom",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/demasker-tom--light-da-1200x860.png",
+     "sha256": "720419551a5016173875d3542c73474ce844cabe37c949011e1b8fe19aa8ae7d"
+    },
+    {
+     "id": "demasker-resultat",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/demasker-resultat--light-da-1200x860.png",
+     "sha256": "3c66b0bd27f498a5b893c4b7e9acd0a61d0399d195a34d8f022e766af720d844"
+    },
+    {
+     "id": "demasker-fil-gem-dialog",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/demasker-fil-gem-dialog--light-da-1200x860.png",
+     "sha256": "fae859391edd4e1138b76513d4720d3228665bcee9d8fa1324595c556e1cb7d3"
+    },
+    {
+     "id": "demasker-tom",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/demasker-tom--light-en-1200x860.png",
+     "sha256": "483d8813d8e5d28ae3930d68af3303ac557d16a8deb90161b39a58688c027cd3"
+    },
+    {
+     "id": "demasker-resultat",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/demasker-resultat--light-en-1200x860.png",
+     "sha256": "bbd429a0b080172bf766c62424b027691cb3972d2b557ecbd0d6395a802fda21"
+    },
+    {
+     "id": "demasker-fil-gem-dialog",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/demasker-fil-gem-dialog--light-en-1200x860.png",
+     "sha256": "2834086c1f5660a7be7a6011cbe225d49cef9d095b5ee8fc14f8e045005343fc"
+    }
+   ]
+  },
+  {
+   "id": "40-visninger/noter",
+   "da": {
+    "fil": "da/40-visninger/noter.md",
+    "titel": "Noter"
+   },
+   "en": {
+    "fil": "en/40-visninger/noter.md",
+    "titel": "Notes"
+   },
+   "billeder": [
+    {
+     "id": "noter-tom",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/noter-tom--light-da-1200x860.png",
+     "sha256": "6d69a881fb461b106e8456dadbb5f7ee66e33df5292b4c0d3631e307a1c5feed"
+    },
+    {
+     "id": "noter",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/noter--light-da-1200x860.png",
+     "sha256": "b63c926873221fbafdc89e86355e439659c707502b4b4813d98ea9fb6a86864d"
+    },
+    {
+     "id": "note-slet-dialog",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/note-slet-dialog--light-da-1200x860.png",
+     "sha256": "42d98ab810aa4251ad2ce32ad64036ef123085108c11124c2b03455db8d55600"
+    },
+    {
+     "id": "noter-tom",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/noter-tom--light-en-1200x860.png",
+     "sha256": "0bade8052b94b536798364a6c683e0056b52f7fd8a43dd5bba8d53d885bbdc8b"
+    },
+    {
+     "id": "noter",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/noter--light-en-1200x860.png",
+     "sha256": "793a67278841da956dbcd21d8767f1d0230af1a0f555a7084eff59b9e587aefd"
+    },
+    {
+     "id": "note-slet-dialog",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/note-slet-dialog--light-en-1200x860.png",
+     "sha256": "acf55b808bf3308a27950390ebff5927be8746338cba987ec8762aa1811ba22a"
+    }
+   ]
+  },
+  {
+   "id": "40-visninger/sager",
+   "da": {
+    "fil": "da/40-visninger/sager.md",
+    "titel": "Sager"
+   },
+   "en": {
+    "fil": "en/40-visninger/sager.md",
+    "titel": "Cases"
+   },
+   "billeder": [
+    {
+     "id": "sager",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/sager--light-da-1200x860.png",
+     "sha256": "83d3635991103eba8314c643f5551407e2e4b3f84cb257f7bc0c332bdac2a69a"
+    },
+    {
+     "id": "sag-ny-dialog",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/sag-ny-dialog--light-da-1200x860.png",
+     "sha256": "4c3337b8114437a0f757d34ea6ba3fd85980de50f7c175a72c847275ffca59b0"
+    },
+    {
+     "id": "sag-kasser-dialog",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/sag-kasser-dialog--light-da-1200x860.png",
+     "sha256": "901825954bab0a824fb9ed8b77f476224a47da180aa44e25481aef35ce0f3716"
+    },
+    {
+     "id": "sag-indhold",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/sag-indhold--light-da-1200x860.png",
+     "sha256": "e7c9c4a9afe06dfb55285e45cc27c3d7e6ab5776d9bf85aa11ae1886ba28e688"
+    },
+    {
+     "id": "post-slet-dialog",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/post-slet-dialog--light-da-1200x860.png",
+     "sha256": "1639bf9e01abc94665ae66f0c378e9a420583de28c23a62b061c22d8b74be1ba"
+    },
+    {
+     "id": "sag-omdoeb-dialog",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/sag-omdoeb-dialog--light-da-1200x860.png",
+     "sha256": "d9478a937198228657c2248d246aa60d1f3d79d5cb8eaa0cdf415ced859dd1b5"
+    },
+    {
+     "id": "sag-udloeb-dialog",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/sag-udloeb-dialog--light-da-1200x860.png",
+     "sha256": "995c9c6628f87b780d04a6aee2aaf9836ad4ed66f320da2e8e71bfaa8d865e27"
+    },
+    {
+     "id": "sag-slet-dialog",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/sag-slet-dialog--light-da-1200x860.png",
+     "sha256": "16c58d2b59a10cb9a961a42e0c66ceffce76b1ca77e2550af166f9ee8d36720a"
+    },
+    {
+     "id": "sager",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/sager--light-en-1200x860.png",
+     "sha256": "c50cebf5c622693ac5002316201eee5fbfb6429b079c80417d0736ec288210a3"
+    },
+    {
+     "id": "sag-ny-dialog",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/sag-ny-dialog--light-en-1200x860.png",
+     "sha256": "c83d13ceff5a2e4844def40ec995ad479f6e03f21c762335975fea9e0ac772a3"
+    },
+    {
+     "id": "sag-kasser-dialog",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/sag-kasser-dialog--light-en-1200x860.png",
+     "sha256": "20276174d4d5aa47f930d5327f9e143bf903680aebe61dd2fa8ac0f897f76265"
+    },
+    {
+     "id": "sag-indhold",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/sag-indhold--light-en-1200x860.png",
+     "sha256": "efc2ee00c43a622e654d0d3059ffd957b6c89b2321c2379ad3479720c5ce8c66"
+    },
+    {
+     "id": "post-slet-dialog",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/post-slet-dialog--light-en-1200x860.png",
+     "sha256": "1eec0bc5813c20fc66c5c80409ea4a38ac987c41b26ea40a79147b558318f5bf"
+    },
+    {
+     "id": "sag-omdoeb-dialog",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/sag-omdoeb-dialog--light-en-1200x860.png",
+     "sha256": "730c16bd4f919efb329dc28d270b8e648c79f9f44791c253701894e26e3378cc"
+    },
+    {
+     "id": "sag-udloeb-dialog",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/sag-udloeb-dialog--light-en-1200x860.png",
+     "sha256": "34b4046b973c167841186eb85495126c76500a6ff855e0b00d54f84ad0376688"
+    },
+    {
+     "id": "sag-slet-dialog",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/sag-slet-dialog--light-en-1200x860.png",
+     "sha256": "9623640fa7d13e8a11685836b848377920020e4b33a4c9750363b56846e355d0"
+    }
+   ]
+  },
+  {
+   "id": "40-visninger/ordbog",
+   "da": {
+    "fil": "da/40-visninger/ordbog.md",
+    "titel": "Ordbog"
+   },
+   "en": {
+    "fil": "en/40-visninger/ordbog.md",
+    "titel": "Dictionary"
+   },
+   "billeder": [
+    {
+     "id": "ordbog",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/ordbog--light-da-1200x860.png",
+     "sha256": "a958671a5aefbfeb29ba0e01c5084247449a898fb9007089ca2b70ee54e52ae1"
+    },
+    {
+     "id": "ordbog-post-dialog",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/ordbog-post-dialog--light-da-1200x860.png",
+     "sha256": "5bf6890ae2ad28a2862716e08cfa048f726a54ba96f5b98be73943303f426513"
+    },
+    {
+     "id": "ordbog-proev-dialog",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/ordbog-proev-dialog--light-da-1200x860.png",
+     "sha256": "7aa37c376e218f170421417a794b3cfc6d1971ac8117c5e07c81748a46ea7716"
+    },
+    {
+     "id": "ordbog-fjern-dialog",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/ordbog-fjern-dialog--light-da-1200x860.png",
+     "sha256": "e42c1e3656dea4147113c5693460d38c5426322341e771ade1dd430571789e07"
+    },
+    {
+     "id": "ordbog",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/ordbog--light-en-1200x860.png",
+     "sha256": "37ae35423bb9cf1ca8405390f90369055370eb7e9049ce5a574ba1f8855a949b"
+    },
+    {
+     "id": "ordbog-post-dialog",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/ordbog-post-dialog--light-en-1200x860.png",
+     "sha256": "295f9fecf560a449561c4d4b8e9691802d0c2cb33f8a213ccac4f224fc3979fe"
+    },
+    {
+     "id": "ordbog-proev-dialog",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/ordbog-proev-dialog--light-en-1200x860.png",
+     "sha256": "3d606cffd7f7a269a667675af975a389d6335f5b2c3204646851b98a925880a7"
+    },
+    {
+     "id": "ordbog-fjern-dialog",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/ordbog-fjern-dialog--light-en-1200x860.png",
+     "sha256": "f5cad41f1ceee47ee774c8ea82ab8c0be69434307252ff65f8c4dab3241c3b77"
+    }
+   ]
+  },
+  {
+   "id": "50-indstillinger",
+   "da": {
+    "fil": "da/50-indstillinger.md",
+    "titel": "Indstillinger"
+   },
+   "en": {
+    "fil": "en/50-indstillinger.md",
+    "titel": "Settings"
+   },
+   "billeder": [
+    {
+     "id": "indstillinger-dialog",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/indstillinger-dialog--light-da-1200x860.png",
+     "sha256": "cb0dbde1c2f30f59a991a1c25628855b9d98467d10fbea534469da4d199c99f2"
+    },
+    {
+     "id": "masker-fund",
+     "tema": "dark",
+     "sprog": "da",
+     "fil": "img/masker-fund--dark-da-1200x860.png",
+     "sha256": "a175cf3dc59ab5c69bed5fc25d691f8327ebda376e793d6a65ba58d320ad1823"
+    },
+    {
+     "id": "om-dialog",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/om-dialog--light-da-1200x860.png",
+     "sha256": "b5436b52e4bab6dec459011fc89faea520f94e128a4f65f73cdfc9238cd9c21b"
+    },
+    {
+     "id": "indstillinger-dialog",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/indstillinger-dialog--light-en-1200x860.png",
+     "sha256": "c5c8d8802e82bd7e50f1e310e942782174a909d9f931821d4517d97aae85d8b7"
+    },
+    {
+     "id": "masker-fund",
+     "tema": "dark",
+     "sprog": "en",
+     "fil": "img/masker-fund--dark-en-1200x860.png",
+     "sha256": "fcd57e33881331f68b13ab29258a7d4198f7237ac08e1a010cc2beb2ab236c92"
+    },
+    {
+     "id": "om-dialog",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/om-dialog--light-en-1200x860.png",
+     "sha256": "3a41c4c07d3b767c91b1873116960009ff1efa7c8d732590c332330bc6a8c449"
+    }
+   ]
+  },
+  {
+   "id": "60-laasen",
+   "da": {
+    "fil": "da/60-laasen.md",
+    "titel": "Låsen"
+   },
+   "en": {
+    "fil": "en/60-laasen.md",
+    "titel": "The lock"
+   },
+   "billeder": [
+    {
+     "id": "laas",
+     "tema": "light",
+     "sprog": "da",
+     "fil": "img/laas--light-da-1200x860.png",
+     "sha256": "799d4bca1680116e578f158a5275757f99d83478b36b9125abd0a2c76b883fb6"
+    },
+    {
+     "id": "laas",
+     "tema": "light",
+     "sprog": "en",
+     "fil": "img/laas--light-en-1200x860.png",
+     "sha256": "de6b358dbb18eaae8f509eadbecf0fd5146a84bbf7962dd21be5074f0e30d2a6"
+    }
+   ]
+  },
+  {
+   "id": "70-data",
+   "da": {
+    "fil": "da/70-data.md",
+    "titel": "Data"
+   },
+   "en": {
+    "fil": "en/70-data.md",
+    "titel": "Data"
+   },
+   "billeder": []
+  },
+  {
+   "id": "80-fejlfinding",
+   "da": {
+    "fil": "da/80-fejlfinding.md",
+    "titel": "Fejlfinding"
+   },
+   "en": {
+    "fil": "en/80-fejlfinding.md",
+    "titel": "Troubleshooting"
+   },
+   "billeder": []
+  },
+  {
+   "id": "85-opdatering",
+   "da": {
+    "fil": "da/85-opdatering.md",
+    "titel": "Opdatering"
+   },
+   "en": {
+    "fil": "en/85-opdatering.md",
+    "titel": "Updating"
+   },
+   "billeder": []
+  },
+  {
+   "id": "90-afinstallation",
+   "da": {
+    "fil": "da/90-afinstallation.md",
+    "titel": "Afinstallation"
+   },
+   "en": {
+    "fil": "en/90-afinstallation.md",
+    "titel": "Uninstalling"
+   },
+   "billeder": []
+  },
+  {
+   "id": "95-genveje",
+   "da": {
+    "fil": "da/95-genveje.md",
+    "titel": "Tastaturgenveje"
+   },
+   "en": {
+    "fil": "en/95-genveje.md",
+    "titel": "Keyboard shortcuts"
+   },
+   "billeder": []
+  },
+  {
+   "id": "99-ordliste",
+   "da": {
+    "fil": "da/99-ordliste.md",
+    "titel": "Ordliste"
+   },
+   "en": {
+    "fil": "en/99-ordliste.md",
+    "titel": "Glossary"
+   },
+   "billeder": []
+  }
+ ]
+}

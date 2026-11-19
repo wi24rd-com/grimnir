@@ -128,9 +128,12 @@ const maskeret = [...indsaetTekst, kmd('masker', 'gem-masker'), { vent: `${kmd('
    en forkert hash ikke giver et billede af en anden visning end postens navn. rust er den efterlignede Rust (et udtryk med
    funktionerne fra falsk-rust.mjs; standard: ordbogen uden poster). trin gøres før billedet, rod skal være synlig
    bagefter, og luk lukker igen i anden kørsel (det prøver, at dialogen kan lukkes). bredde giver et andet vindue,
-   tekst en anden tekststørrelse (kittets lille | stor; standard: normal). */
+   tekst en anden tekststørrelse (kittets lille | stor; standard: normal), sprog kun de sprog (standard: alle). */
 export const SIDER = [
-  { id: 'laas', navn: 'låseskærmen', hash: 'masker', visning: 'masker', rust: "falskLaasRust({ svar: [{ svar: 'annulleret' }] })", rod: '#laas' },
+  /* Låseskærmen, før brugeren har svaret (Jan, 2026-11-15): laas_op svarer aldrig, så linjen er "Venter på Touch ID …",
+     som mens macOS' dialog står åben, og ikke linjen efter et annulleret Touch ID. */
+  { id: 'laas', navn: 'låseskærmen, før brugeren har svaret', hash: 'masker', visning: 'masker', rust: 'Object.assign(falskLaasRust(), { laas_op: () => new Promise(() => {}) })',
+    trin: [{ vent: '#laas-besked[data-t="laasVenter"]' }], rod: '#laas' },
   { id: 'guide-1', navn: 'guiden, trin 1: Velkommen', hash: 'masker', visning: 'masker', rust: 'falskOrdbogRust({ indst: { guide_vist: false } })', rod: '#dlg-guide' },
   { id: 'guide-2', navn: 'guiden, trin 2: Dine domæner', hash: 'masker', visning: 'masker', rust: 'falskOrdbogRust({ indst: { guide_vist: false } })',
     trin: [{ vent: '#dlg-guide[open]' }, '#dlg-guide .fod .btn.primary', { skriv: '#guide-domaene', v: 'eksempel.dk' }, '#dlg-guide [data-t-aria="ariaTilfoejDomaene"]', { vent: '#dlg-guide .guide-liste li' }], rod: '#guide-domaene' },
@@ -143,7 +146,9 @@ export const SIDER = [
   { id: 'masker-raekkemenu', navn: 'Maskér med rækkens "…"', hash: 'masker', visning: 'masker', rust: 'medTekst(falskRust())', trin: [...indsaetTekst, `${raekke(24)} [data-felt="handlinger"].mere-knap`], rod: `${raekke(24)} .raekke-menu` },
   { id: 'masker-maskeret', navn: 'Maskér efter maskeringen', hash: 'masker', visning: 'masker', rust: 'medTekst(falskRust())', trin: maskeret, rod: `${M} .fundtabel` },
   { id: 'masker-fil', navn: 'Maskér med en åben fil', hash: 'masker', visning: 'masker', rust: 'medFil(falskFilRust({ antal: 1200 }))', trin: [kmd('masker', 'aabn-fil'), { vent: `${M} .fundtabel tr[data-id="40"]` }], rod: `${M} .fundtabel` },
-  { id: 'masker-mere', navn: 'Maskér i et smalt vindue: næste skridt under Mere', hash: 'masker', visning: 'masker', rust: 'medFil(falskFilRust({ antal: 1200 }))', bredde: 1024, tekst: 'stor',
+  /* Normal tekststørrelse og kun dansk (Jan, 2026-11-15): målt i V-DOK.1 står næste skridt kun under Mere på dansk ved
+     1024 px; på engelsk står Kopiér i båndet ved den bredde. */
+  { id: 'masker-mere', navn: 'Maskér i et smalt vindue: næste skridt under Mere', hash: 'masker', visning: 'masker', rust: 'medFil(falskFilRust({ antal: 1200 }))', bredde: 1024, sprog: ['da'],
     trin: [kmd('masker', 'aabn-fil'), { vent: `${M} .fundtabel tr[data-id="40"]` }, kmd('masker', 'gem-masker'), { vent: `${mere('masker')}[data-naeste]` }, mere('masker')], rod: `${mere('masker')}[data-naeste]` },
   { id: 'demasker-tom', navn: 'Demaskér uden svar', hash: 'demasker', visning: 'demasker', rod: `${DM} .tomt` },
   { id: 'demasker-resultat', navn: 'Demaskér med resultat og en advarsel', hash: 'masker', visning: 'demasker', rust: 'medTekst(falskRust())',

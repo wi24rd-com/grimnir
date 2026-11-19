@@ -1,7 +1,7 @@
 // Fotobog: et skærmbillede af hver post i sider.mjs, i headless Chrome, uden at starte programmet og uden netværk ud af
 // maskinen. Mønsteret er Huginn and Muninns tests/ui/fotobog.mjs (kun læst). Brug: npm run test:foto.
 // Matrix: lyst tema × dansk og engelsk × 1200×860 for alle poster; mørkt tema kun for masker-fund (begge sprog). En post
-// med bredde (masker-mere) tages i den bredde. GR_FOTO_MATRIX=lille giver kun lyst tema på dansk. GR_FOTO_KUN=id,id tager
+// med bredde (masker-mere) tages i den bredde, en post med sprog kun på de sprog (masker-mere: kun dansk). GR_FOTO_MATRIX=lille giver kun lyst tema på dansk. GR_FOTO_KUN=id,id tager
 // kun de poster. Output: tests/ui/out/<dato>/fotobog/<id>--<tema>-<sprog>-<BxH>.png + manifest.json; GR_FOTO_UD
 // overstyrer mappen. GR_CHROME peger på Chrome, GR_REPO på en anden kopi af repoet, GR_NU sætter uret (sider.mjs).
 // Hver post hentes to gange: første gang tager billedet, anden gang (--dump-dom) gør det samme igen, henter fejlene ud og
@@ -147,7 +147,7 @@ if (ukendt.length) { console.log('GR_FOTO_KUN: ukendte poster: ' + ukendt.join('
 const udenVisning = SIDER.filter(p => !p.visning || !p.hash).map(p => p.id);
 if (udenVisning.length) { console.log('sider.mjs: poster uden hash eller visning: ' + udenVisning.join(', ')); process.exit(1); }
 const poster = SIDER.filter(p => !kun || kun.includes(p.id));
-const opgaver = poster.flatMap(post => ['light', ...(MOERK.has(post.id) ? ['dark'] : [])].flatMap(tema => SPROG.map(sprog => ({ post, tema, sprog, bredde: post.bredde || BREDDE, hoejde: HOEJDE }))));
+const opgaver = poster.flatMap(post => ['light', ...(MOERK.has(post.id) ? ['dark'] : [])].flatMap(tema => SPROG.filter(sprog => !post.sprog || post.sprog.includes(sprog)).map(sprog => ({ post, tema, sprog, bredde: post.bredde || BREDDE, hoejde: HOEJDE }))));
 const billeder = new Array(opgaver.length);
 const tag = async ({ post, tema, sprog, bredde, hoejde }, n) => {
   const fil = `${post.id}--${tema}-${sprog}-${bredde}x${hoejde}.png`, sti = path.join(ud, fil), profil = path.join(profiler, String(n)), vindue = `--window-size=${bredde},${hoejde}`, fejl = [];
