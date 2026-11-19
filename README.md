@@ -9,6 +9,8 @@
 ### [⬇ Download Grimnir 1.0.0 for macOS](https://github.com/wi24rd-com/grimnir/releases/latest)
 Signed and notarised by Apple · Apple silicon · macOS 11 or newer · open the zip and drag the app to Applications
 
+📖 [User guide](https://wi24rd.com/en/documentation/grimnir/) · [Dansk vejledning](https://wi24rd.com/dokumentation/grimnir/)
+
 Sensitive data masking tool for logs and scripts. Wi24rd Grimnir is a desktop app (Tauri) that replaces sensitive values in a log or script, such as IP addresses, machine names, users and passwords, with neutral codes before you share the text with vendor support or a chatbot. When the answer comes back, Wi24rd Grimnir puts the real values back in place of the codes.
 
 **Privacy:** the app has no network code and sends nothing. No telemetry, no account and no Wi24rd server: everything happens on your own machine. The codes and the real values are stored only in encrypted case files on your machine. The **Guide** button only asks the operating system to open a web page in your browser.

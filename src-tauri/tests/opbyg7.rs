@@ -624,7 +624,7 @@ fn n4_readme_naevner_de_faner_og_genveje_koden_har_paa_begge_sprog() {
 }
 
 /// README og CHANGELOG siger det, der findes: version 1.0.0 til macOS er udgivet, signeret og notariseret, Windows-udgaven
-/// er ikke bygget, og vejledningen på wi24rd.com nævnes ikke, før den findes. CHANGELOG har kun datoer i udgavernes
+/// er ikke bygget, og wi24rd.com nævnes kun som de to vejledningssider, der findes (udgivet 2026-11-15). CHANGELOG har kun datoer i udgavernes
 /// overskrifter og ingen klokkeslæt.
 #[test]
 fn n4_readme_og_changelog_lover_intet_der_ikke_findes() {
@@ -637,8 +637,12 @@ fn n4_readme_og_changelog_lover_intet_der_ikke_findes() {
     assert!(da.contains(&format!(
         "**Status:** version 1.0.0 til macOS (Apple silicon), signeret med Developer ID og notariseret af Apple. Hent den under [Releases]({udgaver}). Windows-udgaven er ikke bygget."
     )));
+    let (vda, ven) = ("https://wi24rd.com/dokumentation/grimnir/", "https://wi24rd.com/en/documentation/grimnir/");
+    assert!(en.contains(&format!("📖 [User guide]({ven}) · [Dansk vejledning]({vda})")));
+    assert!(da.contains(&format!("📖 [Brugervejledning]({vda}) · [User guide in English]({ven})")));
     for (fil, r) in [("README.md", &en), ("README.da.md", &da)] {
-        assert!(!r.contains("wi24rd.com"), "{fil}: wi24rd.com");
+        let uden = r.replace(vda, "").replace(ven, "");
+        assert!(!uden.contains("wi24rd.com"), "{fil}: wi24rd.com uden for vejledningens to adresser");
     }
     let c = repo("CHANGELOG.md");
     assert!(c.contains("\n## [Ikke udgivet]\n"));
